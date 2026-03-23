@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+:root {
+  --lumina-primary-teal: #12b5b0;
+  --lumina-teal-light: #e7f7f6;
+  --lumina-teal-dark: #0e918e;
+  --lumina-app-background: #f8fafc;
+  --lumina-sidebar-background: #f1f5f9;
+  --lumina-surface-background: #ffffff;
+  --lumina-border-divider: #e2e8f0;
+  --lumina-primary-text: #0f172a;
+  --lumina-secondary-text: #64748b;
+  --lumina-icon-gray: #94a3b8;
+  --lumina-success: #22c55e;
+  --lumina-warning: #f59e0b;
+  --lumina-error: #ef4444;
+
+  --background: var(--lumina-app-background);
+  --foreground: var(--lumina-primary-text);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-lumina-primary-teal: var(--lumina-primary-teal);
+  --color-lumina-teal-light: var(--lumina-teal-light);
+  --color-lumina-teal-dark: var(--lumina-teal-dark);
+  --color-lumina-app-background: var(--lumina-app-background);
+  --color-lumina-sidebar-background: var(--lumina-sidebar-background);
+  --color-lumina-surface-background: var(--lumina-surface-background);
+  --color-lumina-border-divider: var(--lumina-border-divider);
+  --color-lumina-primary-text: var(--lumina-primary-text);
+  --color-lumina-secondary-text: var(--lumina-secondary-text);
+  --color-lumina-icon-gray: var(--lumina-icon-gray);
+  --color-lumina-success: var(--lumina-success);
+  --color-lumina-warning: var(--lumina-warning);
+  --color-lumina-error: var(--lumina-error);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
