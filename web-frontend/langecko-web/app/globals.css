@@ -8,12 +8,12 @@
   --lumina-sidebar-background: #f1f5f9;
   --lumina-surface-background: #ffffff;
   --lumina-border-divider: #e2e8f0;
-  --lumina-primary-text: #0f172a;
-  --lumina-secondary-text: #64748b;
+  --lumina-primary-text: #000000;
+  --lumina-secondary-text: #000000;
   --lumina-icon-gray: #94a3b8;
   --lumina-success: #22c55e;
   --lumina-warning: #f59e0b;
-  --lumina-error: #ef4444;
+  --lumina-error: #000000;
 
   --background: var(--lumina-app-background);
   --foreground: var(--lumina-primary-text);
@@ -41,8 +41,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: var(--lumina-app-background);
+    --foreground: #000000;
   }
 }
 

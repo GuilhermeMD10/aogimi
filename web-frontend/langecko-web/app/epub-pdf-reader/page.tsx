@@ -185,7 +185,7 @@ export default function EpubPdfReaderPage() {
           onClick={() => setMode('epub')}
           className={`rounded border px-3 py-1 text-sm ${
             mode === 'epub'
-              ? 'bg-lumina-primary-teal text-white border-lumina-primary-teal'
+              ? 'bg-lumina-primary-teal text-black border-lumina-primary-teal'
               : 'bg-white text-lumina-primary-text border-lumina-border-divider'
           }`}
         >
@@ -196,7 +196,7 @@ export default function EpubPdfReaderPage() {
           onClick={() => setMode('pdf')}
           className={`rounded border px-3 py-1 text-sm ${
             mode === 'pdf'
-              ? 'bg-lumina-primary-teal text-white border-lumina-primary-teal'
+              ? 'bg-lumina-primary-teal text-black border-lumina-primary-teal'
               : 'bg-white text-lumina-primary-text border-lumina-border-divider'
           }`}
         >
