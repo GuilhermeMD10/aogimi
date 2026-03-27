@@ -48,6 +48,8 @@ const extractTextFromBuffer = (buffer: Buffer): Promise<ParsedPdf> => {
   });
 };
 
+const MAX_PDF_SIZE = 50 * 1024 * 1024; // 50 MB
+
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
@@ -57,6 +59,14 @@ export async function POST(request: Request) {
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: 'No PDF file provided.' }, { status: 400 });
+    }
+
+    if (file.type !== 'application/pdf' && !file.name.endsWith('.pdf')) {
+      return NextResponse.json({ error: 'Invalid file type. Only PDF files are accepted.' }, { status: 415 });
+    }
+
+    if (file.size > MAX_PDF_SIZE) {
+      return NextResponse.json({ error: 'File too large. Maximum size is 50 MB.' }, { status: 413 });
     }
 
     const arrayBuffer = await file.arrayBuffer();

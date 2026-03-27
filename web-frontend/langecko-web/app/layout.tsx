@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist_Mono, Public_Sans } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const publicSans = Public_Sans({
+  variable: '--font-public-sans',
   subsets: ['latin'],
 });
 
@@ -24,12 +25,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="">
-        <div className="h-full min-w-full flex bg-white">
+    <html lang="en" className={`${publicSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="h-full">
+        <SidebarProvider className="h-full min-h-0 bg-white">
           <Navbar />
-          <main className="p-2 w-full ">{children}</main>
-        </div>
+          <SidebarInset className="h-full min-h-0">
+            <main className="h-full w-full overflow-auto">{children}</main>
+          </SidebarInset>
+        </SidebarProvider>
       </body>
     </html>
   );
