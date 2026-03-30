@@ -1,28 +1,40 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DictionaryView from '@/components/views/DictionaryView';
 import EpubPdfReaderView from '@/components/views/EpubPdfReaderView';
+import CardDeckView from '@/components/views/CardDeckView';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { WORKSPACE_TAB_META, parseWorkspaceTab, type WorkspaceTabKey } from '@/components/workspace/tab-config';
+import {
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_ORDER,
+  parseWorkspaceTab,
+  type WorkspaceTabKey,
+} from '@/components/workspace/tab-config';
 import { useWorkspaceTabs } from '@/hooks/use-workspace-tabs';
 
+const LAYOUT_STORAGE_KEY = 'modular_layout';
+
 function TabContent({ tab }: { tab: WorkspaceTabKey }) {
-  if (tab === 'dictionary') return <DictionaryView />;
-  return <EpubPdfReaderView />;
+  if (tab === 'dictionary') return <DictionaryView storageKey="modular_dictionary_state" />;
+  if (tab === 'cards') return <CardDeckView storageKey="modular_cards_state" />;
+  return <EpubPdfReaderView storageKey="modular_reader_state" />;
 }
 
 export default function MainWorkspace() {
   const searchParams = useSearchParams();
 
-  const initialTabs = [searchParams.get('left'), searchParams.get('right')]
+  const tabsFromUrl = [searchParams.get('left'), searchParams.get('right')]
     .map(parseWorkspaceTab)
     .filter((v): v is WorkspaceTabKey => v !== null)
     .filter((v, i, arr) => arr.indexOf(v) === i);
 
+  const hasUrlTabs = tabsFromUrl.length > 0;
+
   const {
     openTabs,
+    setOpenTabs,
     tabsAvailableToAdd,
     canDragTabs,
     addTab,
@@ -33,26 +45,65 @@ export default function MainWorkspace() {
     clearDragState,
     setDropMarker,
     handleDropAtIndex,
-  } = useWorkspaceTabs(initialTabs);
+  } = useWorkspaceTabs(tabsFromUrl);
 
-  // elementRef gives us the outer flex item div (not the inner content div).
-  // style prop on ResizablePanel only reaches the inner div, so CSS order must
-  // be set imperatively here to actually affect the flex layout.
-  const dictOuterRef = useRef<HTMLDivElement>(null);
-  const readerOuterRef = useRef<HTMLDivElement>(null);
+  const layoutSaveReadyRef = useRef(false);
+  const [addPickerOpen, setAddPickerOpen] = useState(false);
+  const addPickerRef = useRef<HTMLDivElement>(null);
+
+  // Load layout from localStorage when no URL params
+  useEffect(() => {
+    if (hasUrlTabs) return;
+    try {
+      const raw = localStorage.getItem(LAYOUT_STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as WorkspaceTabKey[];
+      if (Array.isArray(saved) && saved.length > 0) {
+        const valid = saved.filter((k) => parseWorkspaceTab(k) !== null) as WorkspaceTabKey[];
+        if (valid.length > 0) setOpenTabs(valid);
+      }
+    } catch { /* ignore */ }
+  }, [hasUrlTabs, setOpenTabs]);
+
+  // Save layout to localStorage
+  useEffect(() => {
+    if (!layoutSaveReadyRef.current) { layoutSaveReadyRef.current = true; return; }
+    try {
+      localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(openTabs));
+    } catch { /* ignore */ }
+  }, [openTabs]);
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (!addPickerOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (addPickerRef.current && !addPickerRef.current.contains(event.target as Node)) {
+        setAddPickerOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [addPickerOpen]);
+
+  // Per-tab panel refs for CSS order (drag reorder)
+  const dictPanelRef = useRef<HTMLDivElement>(null);
+  const readerPanelRef = useRef<HTMLDivElement>(null);
+  const cardsPanelRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
-    if (openTabs.length !== 2) return;
-    if (dictOuterRef.current) dictOuterRef.current.style.order = String(openTabs.indexOf('dictionary') * 2);
-    if (readerOuterRef.current) readerOuterRef.current.style.order = String(openTabs.indexOf('reader') * 2);
+    if (dictPanelRef.current) dictPanelRef.current.style.order = String(openTabs.indexOf('dictionary') * 2);
+    if (readerPanelRef.current) readerPanelRef.current.style.order = String(openTabs.indexOf('reader') * 2);
+    if (cardsPanelRef.current) cardsPanelRef.current.style.order = String(openTabs.indexOf('cards') * 2);
   }, [openTabs]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-lumina-border-divider px-2">
-        <div className="flex min-w-0 items-center">
-          {openTabs.length > 0 ? (
-            openTabs.map((tabKey, index) => (
+
+      {/* Tab bar — only shown when at least one tab is open */}
+      {openTabs.length > 0 ? (
+        <div className="flex h-9 shrink-0 items-center gap-2 border-b border-lumina-border-divider px-2">
+          <div className="flex min-w-0 flex-1 items-center">
+            {openTabs.map((tabKey, index) => (
               <div key={tabKey} className="flex items-center">
                 {index === 0 ? (
                   <div
@@ -101,7 +152,7 @@ export default function MainWorkspace() {
                     className="rounded px-1 text-xs leading-none text-black hover:bg-black/5"
                     aria-label={`Close ${WORKSPACE_TAB_META[tabKey].label}`}
                   >
-                    X
+                    ✕
                   </button>
                 </div>
 
@@ -120,50 +171,85 @@ export default function MainWorkspace() {
                   ) : null}
                 </div>
               </div>
-            ))
-          ) : (
-            <span className="text-xs text-black">No open tabs</span>
-          )}
+            ))}
+          </div>
+
+          {/* Add tab button + picker */}
+          <div ref={addPickerRef} className="relative ml-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => setAddPickerOpen((v) => !v)}
+              disabled={tabsAvailableToAdd.length === 0}
+              className="h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-black hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              aria-label={tabsAvailableToAdd.length > 0 ? 'Add a view' : 'All views are open'}
+            >
+              +
+            </button>
+
+            {addPickerOpen && tabsAvailableToAdd.length > 0 ? (
+              <div className="absolute right-0 top-full z-50 mt-1 min-w-36 rounded border border-lumina-border-divider bg-white py-1 shadow-md">
+                {tabsAvailableToAdd.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      addTab(key);
+                      setAddPickerOpen(false);
+                    }}
+                    className="flex w-full items-center px-3 py-2 text-sm text-black hover:bg-black/5"
+                  >
+                    {WORKSPACE_TAB_META[key].label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
+      ) : null}
 
-        <button
-          type="button"
-          onClick={addTab}
-          disabled={tabsAvailableToAdd.length === 0}
-          className="ml-auto h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-black hover:bg-black/5 disabled:opacity-40 disabled:hover:bg-transparent"
-          aria-label={
-            tabsAvailableToAdd.length > 0
-              ? `Add ${WORKSPACE_TAB_META[tabsAvailableToAdd[0]].label}`
-              : 'No available tabs to add'
-          }
-        >
-          +
-        </button>
-      </div>
-
+      {/* Content area */}
       <div className="min-h-0 flex-1">
-        {openTabs.length === 2 ? (
-          <ResizablePanelGroup orientation="horizontal">
-            <ResizablePanel elementRef={dictOuterRef} defaultSize={50} minSize={30}>
-              <div className="h-full overflow-auto">
-                <DictionaryView />
-              </div>
-            </ResizablePanel>
-            <ResizableHandle style={{ order: 1 }} />
-            <ResizablePanel elementRef={readerOuterRef} defaultSize={50} minSize={30}>
-              <div className="h-full overflow-auto">
-                <EpubPdfReaderView />
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+        {openTabs.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-4">
+            <p className="text-sm text-lumina-secondary-text">Open a view to get started</p>
+            <div className="flex gap-2">
+              {WORKSPACE_TAB_ORDER.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => addTab(key)}
+                  className="rounded border border-lumina-border-divider bg-white px-4 py-2 text-sm font-medium text-black hover:bg-black/5"
+                >
+                  {WORKSPACE_TAB_META[key].label}
+                </button>
+              ))}
+            </div>
+          </div>
         ) : openTabs.length === 1 ? (
           <div className="h-full overflow-auto">
             <TabContent tab={openTabs[0]} />
           </div>
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-black">
-            No window is open.
-          </div>
+          <ResizablePanelGroup orientation="horizontal">
+            {openTabs.map((tab) => (
+              <ResizablePanel
+                key={tab}
+                elementRef={
+                  (tab === 'dictionary' ? dictPanelRef : tab === 'reader' ? readerPanelRef : cardsPanelRef) as React.RefObject<HTMLDivElement>
+                }
+                defaultSize={100 / openTabs.length}
+                minSize={20}
+              >
+                <div className="h-full overflow-auto">
+                  <TabContent tab={tab} />
+                </div>
+              </ResizablePanel>
+            ))}
+            {/* Handles rendered outside the map with fixed CSS orders so they
+                interleave correctly between panels regardless of drag reordering */}
+            {openTabs.length >= 2 ? <ResizableHandle style={{ order: 1 }} /> : null}
+            {openTabs.length >= 3 ? <ResizableHandle style={{ order: 3 }} /> : null}
+          </ResizablePanelGroup>
         )}
       </div>
     </div>

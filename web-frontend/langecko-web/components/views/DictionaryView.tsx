@@ -1,12 +1,11 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { fetchJson } from '@/lib/api';
 import {
   buildReadingCandidates,
   findFirstKanji,
-  isKanaReading,
   normalizeReadingSlug,
   toReadingSlugFromInput,
   uniqueValues,
@@ -46,7 +45,6 @@ type ReadingResult = {
   name_kanji: string[];
 };
 
-type EndpointKind = 'kanji' | 'reading';
 
 type RunSearchOptions = {
   preferredReadingSlug?: string;
@@ -94,30 +92,55 @@ async function fetchReadingWithFallback(
   throw new Error('No reading match found for this query.');
 }
 
-export default function DictionaryView() {
+export default function DictionaryView({ storageKey = 'dictionary_state' }: { storageKey?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const initializedFromUrlRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const storageSaveReadyRef = useRef(false);
 
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [detectedEndpoint, setDetectedEndpoint] = useState<EndpointKind | null>(null);
   const [activeReadingSlug, setActiveReadingSlug] = useState('');
   const [kanjiResult, setKanjiResult] = useState<KanjiResult | null>(null);
   const [wordResults, setWordResults] = useState<WordEntry[]>([]);
   const [readingResult, setReadingResult] = useState<ReadingResult | null>(null);
 
   useEffect(() => {
-    return () => {
-      abortControllerRef.current?.abort();
-    };
+    return () => { abortControllerRef.current?.abort(); };
   }, []);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as {
+        query?: string;
+        kanjiResult?: KanjiResult | null;
+        wordResults?: WordEntry[];
+        readingResult?: ReadingResult | null;
+        activeReadingSlug?: string;
+      };
+      if (saved.query) setQuery(saved.query);
+      if (saved.kanjiResult !== undefined) setKanjiResult(saved.kanjiResult ?? null);
+      if (saved.wordResults?.length) setWordResults(saved.wordResults);
+      if (saved.readingResult !== undefined) setReadingResult(saved.readingResult ?? null);
+      if (saved.activeReadingSlug !== undefined) setActiveReadingSlug(saved.activeReadingSlug);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (!storageSaveReadyRef.current) { storageSaveReadyRef.current = true; return; }
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        query, kanjiResult, wordResults, readingResult, activeReadingSlug,
+      }));
+    } catch { /* ignore */ }
+  }, [storageKey, query, kanjiResult, wordResults, readingResult, activeReadingSlug]);
+
   const clearResults = useCallback(() => {
-    setDetectedEndpoint(null);
     setKanjiResult(null);
     setWordResults([]);
     setReadingResult(null);
@@ -164,7 +187,6 @@ export default function DictionaryView() {
         const kanjiCharacter = findFirstKanji(trimmedQuery);
 
         if (kanjiCharacter) {
-          setDetectedEndpoint('kanji');
           setQuery(kanjiCharacter);
 
           const kanji = await fetchJson<KanjiResult>(
@@ -198,8 +220,6 @@ export default function DictionaryView() {
           if (readingCandidates.length === 0) {
             throw new Error('Enter a kanji, kana, or romaji word (examples: 猫, ねこ, ネコ, neko).');
           }
-
-          setDetectedEndpoint('reading');
 
           const { reading, resolvedReading } = await fetchReadingWithFallback(readingCandidates, signal);
           setReadingResult(reading);
@@ -235,7 +255,7 @@ export default function DictionaryView() {
     void runSearch(readingFromUrl, { preferredReadingSlug: readingFromUrl });
   }, [runSearch, searchParams]);
 
-  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
+  const submitSearch = (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     void runSearch(query);
   };

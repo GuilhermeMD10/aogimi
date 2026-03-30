@@ -1,13 +1,13 @@
-export type WorkspaceTabKey = 'dictionary' | 'reader';
+export type WorkspaceTabKey = 'dictionary' | 'reader' | 'cards';
 
-export const MAX_MODULAR_TABS = 2;
+export const MAX_MODULAR_TABS = 3;
 
 type WorkspaceTabMeta = {
   label: string;
   path: string;
 };
 
-export const WORKSPACE_TAB_ORDER: WorkspaceTabKey[] = ['dictionary', 'reader'];
+export const WORKSPACE_TAB_ORDER: WorkspaceTabKey[] = ['dictionary', 'reader', 'cards'];
 
 export const WORKSPACE_TAB_META: Record<WorkspaceTabKey, WorkspaceTabMeta> = {
   dictionary: {
@@ -15,13 +15,17 @@ export const WORKSPACE_TAB_META: Record<WorkspaceTabKey, WorkspaceTabMeta> = {
     path: '/dictionary',
   },
   reader: {
-    label: 'Epub Pdf Reader',
+    label: 'Reader',
     path: '/epub-pdf-reader',
+  },
+  cards: {
+    label: 'Cards',
+    path: '/cards',
   },
 };
 
 export function parseWorkspaceTab(value: string | null): WorkspaceTabKey | null {
-  if (value === 'dictionary' || value === 'reader') {
+  if (value === 'dictionary' || value === 'reader' || value === 'cards') {
     return value;
   }
 

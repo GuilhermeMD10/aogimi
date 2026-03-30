@@ -18,9 +18,9 @@ export function useWorkspaceTabs(initialTabs: WorkspaceTabKey[]) {
 
   const canDragTabs = openTabs.length > 1;
 
-  const addTab = () => {
-    if (tabsAvailableToAdd.length === 0 || openTabs.length >= MAX_MODULAR_TABS) return;
-    setOpenTabs((tabs) => [...tabs, tabsAvailableToAdd[0]]);
+  const addTab = (tab: WorkspaceTabKey) => {
+    if (openTabs.includes(tab) || openTabs.length >= MAX_MODULAR_TABS) return;
+    setOpenTabs((tabs) => [...tabs, tab]);
   };
 
   const closeTab = (tabToClose: WorkspaceTabKey) => {
@@ -81,6 +81,7 @@ export function useWorkspaceTabs(initialTabs: WorkspaceTabKey[]) {
 
   return {
     openTabs,
+    setOpenTabs,
     tabsAvailableToAdd,
     canDragTabs,
     addTab,
