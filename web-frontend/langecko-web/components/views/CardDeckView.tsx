@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useReaderState } from '@/components/providers/ReaderStateProvider';
 
 type Card = {
   id: string;
@@ -15,6 +16,14 @@ type Deck = {
 };
 
 type Screen = { type: 'decks' } | { type: 'deck'; deckId: string };
+
+// Tracks the two-phase "add a card from a highlighted word" flow:
+//   select-deck → user picks (or creates) a deck
+//   create-card → user fills in the back of the card
+type PendingCardFlow =
+  | { phase: 'select-deck'; word: string }
+  | { phase: 'create-card'; word: string; deckId: string }
+  | null;
 
 const btnBase = 'rounded border border-lumina-border-divider px-3 py-1 text-sm bg-white text-lumina-primary-text disabled:opacity-40';
 const btnPrimary = 'rounded border border-lumina-primary-teal bg-lumina-primary-teal text-black px-4 py-2 text-sm disabled:opacity-50';
@@ -32,6 +41,14 @@ export default function CardDeckView({ storageKey = 'card_decks_state' }: { stor
   const [newCardBack, setNewCardBack] = useState('');
   const [showNewCardForm, setShowNewCardForm] = useState(false);
 
+  // "Add as flashcard" flow triggered from the reader context menu
+  const [pendingCardFlow, setPendingCardFlow] = useState<PendingCardFlow>(null);
+  const [pendingCardBack, setPendingCardBack] = useState('');
+  const [showPendingNewDeck, setShowPendingNewDeck] = useState(false);
+  const [pendingNewDeckName, setPendingNewDeckName] = useState('');
+
+  const { pendingCardWord, setPendingCardWord } = useReaderState();
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
@@ -47,6 +64,60 @@ export default function CardDeckView({ storageKey = 'card_decks_state' }: { stor
       localStorage.setItem(storageKey, JSON.stringify({ decks }));
     } catch { /* ignore */ }
   }, [storageKey, decks]);
+
+  // React to a pending card word queued by EpubPdfReaderView (via shared context).
+  useEffect(() => {
+    if (!pendingCardWord) return;
+    setPendingCardFlow({ phase: 'select-deck', word: pendingCardWord });
+    setPendingCardBack('');
+    setPendingCardWord(null);
+  }, [pendingCardWord, setPendingCardWord]);
+
+  // ── Pending card flow handlers ──────────────────────────────────────────────
+
+  const cancelPendingFlow = () => {
+    setPendingCardFlow(null);
+    setPendingCardBack('');
+    setShowPendingNewDeck(false);
+    setPendingNewDeckName('');
+  };
+
+  const selectDeckForPendingCard = (deckId: string) => {
+    if (!pendingCardFlow) return;
+    setPendingCardFlow({ phase: 'create-card', word: pendingCardFlow.word, deckId });
+    setShowPendingNewDeck(false);
+    setPendingNewDeckName('');
+    setPendingCardBack('');
+  };
+
+  const createDeckAndProceed = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingCardFlow) return;
+    const name = pendingNewDeckName.trim();
+    if (!name) return;
+    const newDeck: Deck = { id: crypto.randomUUID(), name, cards: [] };
+    setDecks((prev) => [...prev, newDeck]);
+    setPendingCardFlow({ phase: 'create-card', word: pendingCardFlow.word, deckId: newDeck.id });
+    setShowPendingNewDeck(false);
+    setPendingNewDeckName('');
+    setPendingCardBack('');
+  };
+
+  const submitPendingCard = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pendingCardFlow?.phase !== 'create-card') return;
+    const back = pendingCardBack.trim();
+    if (!back) return;
+    const card: Card = { id: crypto.randomUUID(), front: pendingCardFlow.word, back };
+    setDecks((prev) =>
+      prev.map((d) => d.id === pendingCardFlow.deckId ? { ...d, cards: [...d.cards, card] } : d),
+    );
+    // Navigate into the deck so the user can see their new card
+    setScreen({ type: 'deck', deckId: pendingCardFlow.deckId });
+    cancelPendingFlow();
+  };
+
+  // ── Regular deck/card handlers ──────────────────────────────────────────────
 
   const openDeck = (deckId: string) => {
     setScreen({ type: 'deck', deckId });
@@ -91,6 +162,124 @@ export default function CardDeckView({ storageKey = 'card_decks_state' }: { stor
       prev.map((d) => d.id === deckId ? { ...d, cards: d.cards.filter((c) => c.id !== cardId) } : d),
     );
   };
+
+  // ── Pending card flow overlay ───────────────────────────────────────────────
+
+  const PendingCardOverlay = pendingCardFlow ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-sm rounded-lg border border-lumina-border-divider bg-white p-6 shadow-xl">
+
+        {pendingCardFlow.phase === 'select-deck' ? (
+          <>
+            <h2 className="text-base font-semibold text-lumina-primary-text">Add as flashcard</h2>
+            <p className="mt-1 text-sm text-lumina-secondary-text">
+              Front: <span className="font-medium text-lumina-primary-text">&ldquo;{pendingCardFlow.word}&rdquo;</span>
+            </p>
+
+            <p className="mt-4 text-sm font-medium text-lumina-primary-text">Select a deck:</p>
+
+            {decks.length > 0 ? (
+              <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
+                {decks.map((deck) => (
+                  <li key={deck.id}>
+                    <button
+                      type="button"
+                      onClick={() => selectDeckForPendingCard(deck.id)}
+                      className="w-full rounded border border-lumina-border-divider bg-lumina-app-background px-3 py-2 text-left text-sm hover:bg-black/5"
+                    >
+                      <span className="font-medium text-lumina-primary-text">{deck.name}</span>
+                      <span className="ml-2 text-xs text-lumina-secondary-text">
+                        {deck.cards.length} card{deck.cards.length !== 1 ? 's' : ''}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-lumina-secondary-text">No decks yet — create one below.</p>
+            )}
+
+            {showPendingNewDeck ? (
+              <form onSubmit={createDeckAndProceed} className="mt-3 flex gap-2">
+                <input
+                  type="text"
+                  value={pendingNewDeckName}
+                  onChange={(e) => setPendingNewDeckName(e.target.value)}
+                  placeholder="New deck name"
+                  className="flex-1 rounded border border-lumina-border-divider bg-lumina-app-background px-3 py-2 text-sm"
+                  autoFocus
+                />
+                <button type="submit" disabled={!pendingNewDeckName.trim()} className={btnPrimary}>
+                  Create
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowPendingNewDeck(true)}
+                className={`${btnBase} mt-3 w-full justify-center`}
+              >
+                + New deck
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={cancelPendingFlow}
+              className="mt-4 text-xs text-lumina-secondary-text underline hover:text-lumina-primary-text"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          // create-card phase
+          (() => {
+            const deck = decks.find((d) => d.id === pendingCardFlow.deckId);
+            return (
+              <>
+                <h2 className="text-base font-semibold text-lumina-primary-text">New card</h2>
+                {deck && (
+                  <p className="mt-0.5 text-xs text-lumina-secondary-text">Adding to &ldquo;{deck.name}&rdquo;</p>
+                )}
+
+                <form onSubmit={submitPendingCard} className="mt-4 space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-lumina-secondary-text">Front</label>
+                    <div className="mt-1 rounded border border-lumina-border-divider bg-lumina-app-background px-3 py-2 text-sm text-lumina-primary-text">
+                      {pendingCardFlow.word}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-lumina-secondary-text">Back</label>
+                    <textarea
+                      value={pendingCardBack}
+                      onChange={(e) => setPendingCardBack(e.target.value)}
+                      placeholder="Write the back side..."
+                      className="mt-1 w-full resize-none rounded border border-lumina-border-divider bg-lumina-app-background px-3 py-2 text-sm"
+                      rows={3}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={cancelPendingFlow}
+                      className="text-xs text-lumina-secondary-text underline hover:text-lumina-primary-text"
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={!pendingCardBack.trim()} className={btnPrimary}>
+                      Add card
+                    </button>
+                  </div>
+                </form>
+              </>
+            );
+          })()
+        )}
+      </div>
+    </div>
+  ) : null;
 
   // ── Deck list screen ────────────────────────────────────────────────────────
 
@@ -154,6 +343,8 @@ export default function CardDeckView({ storageKey = 'card_decks_state' }: { stor
             ))}
           </ul>
         )}
+
+        {PendingCardOverlay}
       </div>
     );
   }
@@ -166,6 +357,7 @@ export default function CardDeckView({ storageKey = 'card_decks_state' }: { stor
     return (
       <div className="p-6 bg-lumina-app-background min-h-full">
         <button type="button" onClick={backToDecks} className={btnBase}>← Back</button>
+        {PendingCardOverlay}
       </div>
     );
   }
@@ -252,6 +444,8 @@ export default function CardDeckView({ storageKey = 'card_decks_state' }: { stor
           ))}
         </ul>
       )}
+
+      {PendingCardOverlay}
     </div>
   );
 }

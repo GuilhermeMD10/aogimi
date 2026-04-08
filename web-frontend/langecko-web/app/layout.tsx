@@ -3,6 +3,7 @@ import { Geist_Mono, Public_Sans } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { ReaderStateProvider } from '@/components/providers/ReaderStateProvider';
 
 const publicSans = Public_Sans({
   variable: '--font-public-sans',
@@ -30,7 +31,9 @@ export default function RootLayout({
         <SidebarProvider className="h-full min-h-0 bg-white">
           <Navbar />
           <SidebarInset className="h-full min-h-0">
-            <main className="h-full w-full overflow-auto">{children}</main>
+            <ReaderStateProvider>
+              <main className="h-full w-full overflow-auto">{children}</main>
+            </ReaderStateProvider>
           </SidebarInset>
         </SidebarProvider>
       </body>

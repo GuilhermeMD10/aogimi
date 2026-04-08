@@ -13,13 +13,14 @@ import {
   type WorkspaceTabKey,
 } from '@/components/workspace/tab-config';
 import { useWorkspaceTabs } from '@/hooks/use-workspace-tabs';
+import { useReaderState } from '@/components/providers/ReaderStateProvider';
 
 const LAYOUT_STORAGE_KEY = 'modular_layout';
 
 function TabContent({ tab }: { tab: WorkspaceTabKey }) {
   if (tab === 'dictionary') return <DictionaryView storageKey="modular_dictionary_state" />;
   if (tab === 'cards') return <CardDeckView storageKey="modular_cards_state" />;
-  return <EpubPdfReaderView storageKey="modular_reader_state" />;
+  return <EpubPdfReaderView />;
 }
 
 export default function MainWorkspace() {
@@ -50,6 +51,17 @@ export default function MainWorkspace() {
   const layoutSaveReadyRef = useRef(false);
   const [addPickerOpen, setAddPickerOpen] = useState(false);
   const addPickerRef = useRef<HTMLDivElement>(null);
+
+  const { pendingDictSearch, pendingCardWord } = useReaderState();
+
+  // Ensure the relevant tab is open whenever the reader queues a cross-tab action.
+  useEffect(() => {
+    if (pendingDictSearch && !openTabs.includes('dictionary')) addTab('dictionary');
+  }, [pendingDictSearch, openTabs, addTab]);
+
+  useEffect(() => {
+    if (pendingCardWord && !openTabs.includes('cards')) addTab('cards');
+  }, [pendingCardWord, openTabs, addTab]);
 
   // Load layout from localStorage when no URL params
   useEffect(() => {

@@ -3,7 +3,7 @@ type ActiveIconProps = IconProps & { active?: boolean };
 
 export function NavbarExpandIcon({ size = 28, className }: IconProps) {
   return (
-    <svg style={{ width: size, height: size }} viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg style={{ width: size, height: size }} viewBox="0 0 28 28" fill="none" className={className}>
       <path
         d="M6.67969 24.5977H20.8945C23.3555 24.5977 24.5742 23.3789 24.5742 20.9648V6.65625C24.5742 4.24219 23.3555 3.02344 20.8945 3.02344H6.67969C4.23047 3.02344 3 4.23047 3 6.65625V20.9648C3 23.3906 4.23047 24.5977 6.67969 24.5977ZM6.70312 22.7109C5.53125 22.7109 4.88672 22.0898 4.88672 20.8711V6.75C4.88672 5.53125 5.53125 4.91016 6.70312 4.91016H20.8711C22.0312 4.91016 22.6875 5.53125 22.6875 6.75V20.8711C22.6875 22.0898 22.0312 22.7109 20.8711 22.7109H6.70312Z"
         fill="black"
