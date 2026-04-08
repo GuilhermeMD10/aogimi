@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import { fetchJson } from '@/lib/api';
 import {
   buildReadingCandidates,
@@ -99,6 +100,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
   const initializedFromUrlRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const storageSaveReadyRef = useRef(false);
+  const { pendingDictSearch, setPendingDictSearch } = useReaderState();
 
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -242,6 +244,19 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
     },
     [activeReadingSlug, clearResults, syncReadingInUrl],
   );
+
+  // React to a pending search queued by EpubPdfReaderView (via shared context).
+  // Using pendingDictSearch as a dep means this fires whenever a new word is set,
+  // whether we just mounted (navigation case) or were already open (same-page case).
+  // It also re-runs on React StrictMode's second pass — at that point the context
+  // state hasn't been committed yet so pendingDictSearch is still set, which causes
+  // the search to retry after the first run's AbortController is cancelled.
+  useEffect(() => {
+    if (!pendingDictSearch) return;
+    setQuery(pendingDictSearch);
+    void runSearch(pendingDictSearch);
+    setPendingDictSearch(null);
+  }, [pendingDictSearch, setPendingDictSearch, runSearch]);
 
   useEffect(() => {
     if (initializedFromUrlRef.current) return;

@@ -1,13 +1,23 @@
 'use client';
 
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import type Book from 'epubjs/types/book';
 import type Rendition from 'epubjs/types/rendition';
 import type { DocumentProps, PageProps } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { FullscreenIcon } from '@/components/ui/icons/NavIcons';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
+import { useReaderState } from '@/components/providers/ReaderStateProvider';
 
-type ReaderMode = 'epub' | 'pdf';
+
 type ReactPdfModule = typeof import('react-pdf');
 type PdfDocumentComponent = (props: DocumentProps) => React.JSX.Element;
 type PdfPageComponent = (props: PageProps) => React.JSX.Element;
@@ -23,31 +33,74 @@ const btnBase = 'flex items-center gap-1.5 rounded border border-lumina-border-d
 const btnActive = 'bg-lumina-primary-teal border-lumina-primary-teal text-black';
 const btnInactive = 'bg-white text-lumina-primary-text';
 
-export default function EpubPdfReaderView({ storageKey = 'reader_state' }: { storageKey?: string }) {
-  const storageSaveReadyRef = useRef(false);
+function truncateLabel(text: string, max = 30): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
 
-  const [mode, setMode] = useState<ReaderMode>('epub');
+// storageKey prop is kept for API compatibility but state is managed by the
+// shared ReaderStateProvider context so both routes always see the same data.
+export default function EpubPdfReaderView({ storageKey: _storageKey }: { storageKey?: string }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // ── Shared state (persists across route changes via context) ────────────────
+  const {
+    mode, setMode,
+    epubFileUrl, setEpubFileUrl,
+    pdfFileUrl, setPdfFileUrl,
+    pdfPageNumber, setPdfPageNumber,
+    pdfScale, setPdfScale,
+    setPendingDictSearch,
+    setPendingCardWord,
+  } = useReaderState();
+
+  // ── Local UI state (not worth sharing across routes) ───────────────────────
   const [fullscreen, setFullscreen] = useState(false);
   const [epubReloadKey, setEpubReloadKey] = useState(0);
 
-  const [epubFileUrl, setEpubFileUrl] = useState<string | null>(null);
   const [epubError, setEpubError] = useState<string | null>(null);
-  const epubObjectUrlRef = useRef<string | null>(null);
   const epubContainerRef = useRef<HTMLDivElement | null>(null);
   const epubInputRef = useRef<HTMLInputElement>(null);
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
 
-  const [pdfFileUrl, setPdfFileUrl] = useState<string | null>(null);
-  const pdfObjectUrlRef = useRef<string | null>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [pdfPages, setPdfPages] = useState(0);
-  const [pdfPageNumber, setPdfPageNumber] = useState(1);
-  const [pdfScale, setPdfScale] = useState(1);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfRendererError, setPdfRendererError] = useState<string | null>(null);
   const [PdfDocument, setPdfDocument] = useState<PdfDocumentComponent | null>(null);
   const [PdfPage, setPdfPage] = useState<PdfPageComponent | null>(null);
+
+  // Selection state
+  const [selectedPdfText, setSelectedPdfText] = useState('');
+  const [epubSelectionMenu, setEpubSelectionMenu] = useState<{ text: string; x: number; y: number } | null>(null);
+  const epubMenuRef = useRef<HTMLDivElement>(null);
+
+  // ── Cross-tab navigation helpers ────────────────────────────────────────────
+
+  const lookupWord = (word: string) => {
+    // Store in context — DictionaryView and MainWorkspace both react to this.
+    setPendingDictSearch(word);
+    if (pathname === '/epub-pdf-reader') {
+      router.push('/modular?left=reader&right=dictionary');
+    }
+    setEpubSelectionMenu(null);
+  };
+
+  const addCard = (word: string) => {
+    // Store in context — CardDeckView and MainWorkspace both react to this.
+    setPendingCardWord(word);
+    if (pathname === '/epub-pdf-reader') {
+      router.push('/modular?left=reader&right=cards');
+    }
+    setEpubSelectionMenu(null);
+  };
+
+  const updateSelectedPdfText = () => {
+    setSelectedPdfText(window.getSelection()?.toString().trim() ?? '');
+  };
+
+  // ── EPUB load ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!epubFileUrl || !epubContainerRef.current) return;
@@ -75,6 +128,28 @@ export default function EpubPdfReaderView({ storageKey = 'reader_state' }: { sto
         bookRef.current = book;
         renditionRef.current = rendition;
         await rendition.display();
+
+        // Track text selection inside the EPUB iframe
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        rendition.on('selected', (_cfiRange: string, contents: any) => {
+          if (cancelled) return;
+          try {
+            const selection: Selection | null = contents.window.getSelection();
+            const text = selection?.toString().trim();
+            if (!text) { setEpubSelectionMenu(null); return; }
+            const range = selection!.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            const iframe = epubContainerRef.current?.querySelector('iframe');
+            const iframeRect = iframe?.getBoundingClientRect() ?? { left: 0, top: 0 };
+            setEpubSelectionMenu({
+              text,
+              x: iframeRect.left + rect.right + 4,
+              y: iframeRect.top + rect.bottom + 4,
+            });
+          } catch { setEpubSelectionMenu(null); }
+        });
+
+        rendition.on('click', () => { if (!cancelled) setEpubSelectionMenu(null); });
       } catch {
         setEpubError('Could not open this EPUB file.');
       }
@@ -90,6 +165,20 @@ export default function EpubPdfReaderView({ storageKey = 'reader_state' }: { sto
       bookRef.current = null;
     };
   }, [epubFileUrl, epubReloadKey]);
+
+  // Dismiss EPUB selection menu on outside click
+  useEffect(() => {
+    if (!epubSelectionMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (epubMenuRef.current && !epubMenuRef.current.contains(e.target as Node)) {
+        setEpubSelectionMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [epubSelectionMenu]);
+
+  // ── PDF renderer lazy-load ──────────────────────────────────────────────────
 
   useEffect(() => {
     let cancelled = false;
@@ -114,34 +203,7 @@ export default function EpubPdfReaderView({ storageKey = 'reader_state' }: { sto
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (epubObjectUrlRef.current) URL.revokeObjectURL(epubObjectUrlRef.current);
-      if (pdfObjectUrlRef.current) URL.revokeObjectURL(pdfObjectUrlRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as {
-        mode?: ReaderMode;
-        pdfPageNumber?: number;
-        pdfScale?: number;
-      };
-      if (saved.mode) setMode(saved.mode);
-      if (saved.pdfPageNumber) setPdfPageNumber(saved.pdfPageNumber);
-      if (saved.pdfScale) setPdfScale(saved.pdfScale);
-    } catch { /* ignore */ }
-  }, [storageKey]);
-
-  useEffect(() => {
-    if (!storageSaveReadyRef.current) { storageSaveReadyRef.current = true; return; }
-    try {
-      localStorage.setItem(storageKey, JSON.stringify({ mode, pdfPageNumber, pdfScale }));
-    } catch { /* ignore */ }
-  }, [storageKey, mode, pdfPageNumber, pdfScale]);
+  // ── File upload handlers ────────────────────────────────────────────────────
 
   const onEpubChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -157,10 +219,8 @@ export default function EpubPdfReaderView({ storageKey = 'reader_state' }: { sto
     }
 
     setEpubError(null);
-    if (epubObjectUrlRef.current) URL.revokeObjectURL(epubObjectUrlRef.current);
-    const objectUrl = URL.createObjectURL(file);
-    epubObjectUrlRef.current = objectUrl;
-    setEpubFileUrl(objectUrl);
+    // setEpubFileUrl revokes the previous blob URL internally.
+    setEpubFileUrl(URL.createObjectURL(file));
   };
 
   const onPdfChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -180,17 +240,18 @@ export default function EpubPdfReaderView({ storageKey = 'reader_state' }: { sto
     setPdfPages(0);
     setPdfPageNumber(1);
     setPdfScale(1);
-    if (pdfObjectUrlRef.current) URL.revokeObjectURL(pdfObjectUrlRef.current);
-    const objectUrl = URL.createObjectURL(file);
-    pdfObjectUrlRef.current = objectUrl;
-    setPdfFileUrl(objectUrl);
+    // setPdfFileUrl revokes the previous blob URL internally.
+    setPdfFileUrl(URL.createObjectURL(file));
   };
 
   const onPdfLoadSuccess = ({ numPages }: { numPages: number }) => {
     setPdfError(null);
     setPdfPages(numPages);
-    setPdfPageNumber(1);
+    // Don't reset page number here — onPdfChange already resets it for new
+    // uploads, and we want to preserve the page when navigating between routes.
   };
+
+  // ── Navigation ──────────────────────────────────────────────────────────────
 
   const goToNextPage = async () => { await renditionRef.current?.next(); };
   const goToPreviousPage = async () => { await renditionRef.current?.prev(); };
@@ -203,7 +264,60 @@ export default function EpubPdfReaderView({ storageKey = 'reader_state' }: { sto
   const activeFile = mode === 'epub' ? epubFileUrl : pdfFileUrl;
   const anyError = epubError ?? pdfError ?? pdfRendererError;
 
-  // Shared nav toolbar — shown in both modes
+  // ── Floating selection menu for EPUB ────────────────────────────────────────
+  // Rendered outside the normal flow so it appears in both fullscreen and
+  // normal modes at the correct viewport position.
+
+  const EpubSelectionMenuEl = epubSelectionMenu ? (
+    <div
+      ref={epubMenuRef}
+      style={{ position: 'fixed', left: epubSelectionMenu.x, top: epubSelectionMenu.y, zIndex: 9999 }}
+      className="min-w-36 rounded-lg border border-lumina-border-divider bg-white py-1 shadow-md"
+    >
+      <p className="max-w-48 truncate px-3 py-1 text-xs text-lumina-secondary-text">
+        &ldquo;{truncateLabel(epubSelectionMenu.text)}&rdquo;
+      </p>
+      <hr className="my-1 border-lumina-border-divider" />
+      <button
+        type="button"
+        onClick={() => lookupWord(epubSelectionMenu.text)}
+        className="flex w-full items-center px-3 py-1.5 text-sm text-lumina-primary-text hover:bg-black/5"
+      >
+        Look up in dictionary
+      </button>
+      <button
+        type="button"
+        onClick={() => addCard(epubSelectionMenu.text)}
+        className="flex w-full items-center px-3 py-1.5 text-sm text-lumina-primary-text hover:bg-black/5"
+      >
+        Add as flashcard
+      </button>
+    </div>
+  ) : null;
+
+  // ── Context menu content (PDF) ──────────────────────────────────────────────
+
+  const PdfContextMenuContent = (
+    <ContextMenuContent>
+      {selectedPdfText ? (
+        <>
+          <ContextMenuLabel>&ldquo;{truncateLabel(selectedPdfText)}&rdquo;</ContextMenuLabel>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => lookupWord(selectedPdfText)}>
+            Look up in dictionary
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => addCard(selectedPdfText)}>
+            Add as flashcard
+          </ContextMenuItem>
+        </>
+      ) : (
+        <ContextMenuItem disabled>Select text to look up</ContextMenuItem>
+      )}
+    </ContextMenuContent>
+  );
+
+  // ── Shared nav toolbar ──────────────────────────────────────────────────────
+
   const NavToolbar = (
     <div className="flex flex-wrap items-center gap-2">
       {mode === 'epub' ? (
@@ -233,10 +347,11 @@ export default function EpubPdfReaderView({ storageKey = 'reader_state' }: { sto
     </div>
   );
 
+  // ── Fullscreen render ───────────────────────────────────────────────────────
+
   if (fullscreen) {
     return (
       <div className="flex h-full flex-col bg-lumina-app-background rounded-2xl overflow-hidden">
-        {/* Fullscreen: only the shortcuts toolbar */}
         <div className="flex shrink-0 items-center gap-2 border-b border-lumina-border-divider px-3 py-1.5">
           {activeFile ? (
             mode === 'epub' ? (
@@ -281,33 +396,46 @@ export default function EpubPdfReaderView({ storageKey = 'reader_state' }: { sto
               </div>
             )
           ) : (
-            <div className="h-full overflow-auto p-2 bg-lumina-app-background">
-              {!PdfDocument || !PdfPage ? (
-                <p className="text-sm text-lumina-secondary-text">Loading PDF renderer...</p>
-              ) : !pdfFileUrl ? (
-                <div className="flex h-full items-center justify-center">
-                  <button type="button" onClick={() => pdfInputRef.current?.click()} className={`${btnBase} ${btnInactive}`}>Open PDF file</button>
-                  <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" onChange={onPdfChange} className="hidden" />
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <div
+                  className="h-full overflow-auto p-2 bg-lumina-app-background select-text"
+                  onMouseUp={updateSelectedPdfText}
+                  onContextMenu={updateSelectedPdfText}
+                >
+                  {!PdfDocument || !PdfPage ? (
+                    <p className="text-sm text-lumina-secondary-text">Loading PDF renderer...</p>
+                  ) : !pdfFileUrl ? (
+                    <div className="flex h-full items-center justify-center">
+                      <button type="button" onClick={() => pdfInputRef.current?.click()} className={`${btnBase} ${btnInactive}`}>Open PDF file</button>
+                      <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" onChange={onPdfChange} className="hidden" />
+                    </div>
+                  ) : (
+                    <div className="flex justify-center">
+                      <PdfDocument
+                        file={pdfFileUrl}
+                        options={pdfDocumentOptions}
+                        onLoadSuccess={onPdfLoadSuccess}
+                        onLoadError={() => setPdfError('Could not open this PDF file.')}
+                        loading={<p className="text-sm text-lumina-secondary-text">Loading PDF...</p>}
+                      >
+                        <PdfPage pageNumber={pdfPageNumber} scale={pdfScale} renderTextLayer={true} renderAnnotationLayer={false} />
+                      </PdfDocument>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="flex justify-center">
-                  <PdfDocument
-                    file={pdfFileUrl}
-                    options={pdfDocumentOptions}
-                    onLoadSuccess={onPdfLoadSuccess}
-                    onLoadError={() => setPdfError('Could not open this PDF file.')}
-                    loading={<p className="text-sm text-lumina-secondary-text">Loading PDF...</p>}
-                  >
-                    <PdfPage pageNumber={pdfPageNumber} scale={pdfScale} renderTextLayer={true} renderAnnotationLayer={false} />
-                  </PdfDocument>
-                </div>
-              )}
-            </div>
+              </ContextMenuTrigger>
+              {PdfContextMenuContent}
+            </ContextMenu>
           )}
         </div>
+
+        {EpubSelectionMenuEl}
       </div>
     );
   }
+
+  // ── Normal render ───────────────────────────────────────────────────────────
 
   return (
     <main className="p-6 bg-lumina-app-background rounded-2xl">
@@ -333,27 +461,38 @@ export default function EpubPdfReaderView({ storageKey = 'reader_state' }: { sto
           <div className="mt-4">{NavToolbar}</div>
           {pdfRendererError ? <p className="mt-3 text-sm text-lumina-error">{pdfRendererError}</p> : null}
           {pdfError ? <p className="mt-3 text-sm text-lumina-error">{pdfError}</p> : null}
-          <div className="mt-4 h-[70vh] w-full overflow-auto rounded border border-lumina-border-divider bg-lumina-app-background p-2">
-            {!PdfDocument || !PdfPage ? (
-              <p className="text-sm text-lumina-secondary-text">Loading PDF renderer...</p>
-            ) : !pdfFileUrl ? (
-              <p className="text-sm text-lumina-secondary-text">Upload a PDF file to view it.</p>
-            ) : (
-              <div className="flex justify-center">
-                <PdfDocument
-                  file={pdfFileUrl}
-                  options={pdfDocumentOptions}
-                  onLoadSuccess={onPdfLoadSuccess}
-                  onLoadError={() => setPdfError('Could not open this PDF file.')}
-                  loading={<p className="text-sm text-lumina-secondary-text">Loading PDF...</p>}
-                >
-                  <PdfPage pageNumber={pdfPageNumber} scale={pdfScale} renderTextLayer={true} renderAnnotationLayer={false} />
-                </PdfDocument>
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <div
+                className="mt-4 h-[70vh] w-full overflow-auto rounded border border-lumina-border-divider bg-lumina-app-background p-2 select-text"
+                onMouseUp={updateSelectedPdfText}
+                onContextMenu={updateSelectedPdfText}
+              >
+                {!PdfDocument || !PdfPage ? (
+                  <p className="text-sm text-lumina-secondary-text">Loading PDF renderer...</p>
+                ) : !pdfFileUrl ? (
+                  <p className="text-sm text-lumina-secondary-text">Upload a PDF file to view it.</p>
+                ) : (
+                  <div className="flex justify-center">
+                    <PdfDocument
+                      file={pdfFileUrl}
+                      options={pdfDocumentOptions}
+                      onLoadSuccess={onPdfLoadSuccess}
+                      onLoadError={() => setPdfError('Could not open this PDF file.')}
+                      loading={<p className="text-sm text-lumina-secondary-text">Loading PDF...</p>}
+                    >
+                      <PdfPage pageNumber={pdfPageNumber} scale={pdfScale} renderTextLayer={true} renderAnnotationLayer={false} />
+                    </PdfDocument>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </ContextMenuTrigger>
+            {PdfContextMenuContent}
+          </ContextMenu>
         </section>
       )}
+
+      {EpubSelectionMenuEl}
     </main>
   );
 }
