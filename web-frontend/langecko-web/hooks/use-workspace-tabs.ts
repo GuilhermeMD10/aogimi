@@ -1,10 +1,10 @@
-import { useMemo, useState, type DragEvent } from 'react';
+import { useCallback, useMemo, useState, type DragEvent } from 'react';
 import {
   MAX_MODULAR_TABS,
   WORKSPACE_TAB_ORDER,
   parseWorkspaceTab,
   type WorkspaceTabKey,
-} from '@/components/workspace/tab-config';
+} from '@/lib/config/tab-config';
 
 export function useWorkspaceTabs(initialTabs: WorkspaceTabKey[]) {
   const [openTabs, setOpenTabs] = useState<WorkspaceTabKey[]>(initialTabs);
@@ -18,23 +18,23 @@ export function useWorkspaceTabs(initialTabs: WorkspaceTabKey[]) {
 
   const canDragTabs = openTabs.length > 1;
 
-  const addTab = (tab: WorkspaceTabKey) => {
+  const addTab = useCallback((tab: WorkspaceTabKey) => {
     if (openTabs.includes(tab) || openTabs.length >= MAX_MODULAR_TABS) return;
     setOpenTabs((tabs) => [...tabs, tab]);
-  };
+  }, [openTabs]);
 
-  const closeTab = (tabToClose: WorkspaceTabKey) => {
+  const closeTab = useCallback((tabToClose: WorkspaceTabKey) => {
     setOpenTabs((tabs) => tabs.filter((key) => key !== tabToClose));
     if (draggedTab === tabToClose) setDraggedTab(null);
     setDropIndex(null);
-  };
+  }, [draggedTab]);
 
-  const clearDragState = () => {
+  const clearDragState = useCallback(() => {
     setDraggedTab(null);
     setDropIndex(null);
-  };
+  }, []);
 
-  const reorderTabs = (sourceTab: WorkspaceTabKey, targetIndex: number) => {
+  const reorderTabs = useCallback((sourceTab: WorkspaceTabKey, targetIndex: number) => {
     setOpenTabs((tabs) => {
       if (tabs.length < 2) return tabs;
 
@@ -49,9 +49,9 @@ export function useWorkspaceTabs(initialTabs: WorkspaceTabKey[]) {
       next.splice(sourceIndex < clamped ? clamped - 1 : clamped, 0, sourceTab);
       return next;
     });
-  };
+  }, []);
 
-  const setDropMarker = (nextIndex: number) => {
+  const setDropMarker = useCallback((nextIndex: number) => {
     if (!canDragTabs || !draggedTab) return;
 
     const sourceIndex = openTabs.indexOf(draggedTab);
@@ -63,9 +63,9 @@ export function useWorkspaceTabs(initialTabs: WorkspaceTabKey[]) {
     }
 
     setDropIndex(nextIndex);
-  };
+  }, [canDragTabs, draggedTab, openTabs]);
 
-  const handleDropAtIndex = (event: DragEvent<HTMLElement>, forcedIndex?: number) => {
+  const handleDropAtIndex = useCallback((event: DragEvent<HTMLElement>, forcedIndex?: number) => {
     event.preventDefault();
     const sourceTab = draggedTab ?? parseWorkspaceTab(event.dataTransfer.getData('text/plain'));
     const targetIndex = forcedIndex ?? dropIndex;
@@ -77,7 +77,7 @@ export function useWorkspaceTabs(initialTabs: WorkspaceTabKey[]) {
 
     reorderTabs(sourceTab, targetIndex);
     clearDragState();
-  };
+  }, [draggedTab, dropIndex, reorderTabs, clearDragState]);
 
   return {
     openTabs,

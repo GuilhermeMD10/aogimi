@@ -4,144 +4,238 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  --lumina-primary-teal: #12b5b0;
-  --lumina-teal-light: #e7f7f6;
-  --lumina-teal-dark: #0e918e;
-  --lumina-app-background: #f8fafc;
-  --lumina-sidebar-background: #f1f5f9;
-  --lumina-surface-background: #ffffff;
-  --lumina-border-divider: #e2e8f0;
-  --lumina-primary-text: #000000;
-  --lumina-secondary-text: #000000;
-  --lumina-icon-gray: #94a3b8;
-  --lumina-success: #22c55e;
-  --lumina-warning: #f59e0b;
-  --lumina-error: #000000;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   DESIGN TOKENS — Tailwind v4 inline theme
+   All --color-lumina-* names stay identical so existing JSX needs no changes.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-lumina-primary-teal: var(--lumina-primary-teal);
-  --color-lumina-teal-light: var(--lumina-teal-light);
-  --color-lumina-teal-dark: var(--lumina-teal-dark);
-  --color-lumina-app-background: var(--lumina-app-background);
-  --color-lumina-sidebar-background: var(--lumina-sidebar-background);
-  --color-lumina-surface-background: var(--lumina-surface-background);
-  --color-lumina-border-divider: var(--lumina-border-divider);
-  --color-lumina-primary-text: var(--lumina-primary-text);
-  --color-lumina-secondary-text: var(--lumina-secondary-text);
-  --color-lumina-icon-gray: var(--lumina-icon-gray);
-  --color-lumina-success: var(--lumina-success);
-  --color-lumina-warning: var(--lumina-warning);
-  --color-lumina-error: var(--lumina-error);
-  --font-sans: var(--font-public-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
+  /* ── Brand / accent ─────────────────────────────────────────────────── */
+  --color-lumina-primary-teal:        var(--lumina-primary-teal);
+  --color-lumina-teal-light:          var(--lumina-teal-light);
+  --color-lumina-teal-dark:           var(--lumina-teal-dark);
+
+  /* ── Layout surfaces ────────────────────────────────────────────────── */
+  --color-lumina-app-background:      var(--lumina-app-background);
+  --color-lumina-sidebar-background:  var(--lumina-sidebar-background);
+  --color-lumina-surface-background:  var(--lumina-surface-background);
+
+  /* ── Borders ────────────────────────────────────────────────────────── */
+  --color-lumina-border-divider:      var(--lumina-border-divider);
+
+  /* ── Text ───────────────────────────────────────────────────────────── */
+  --color-lumina-primary-text:        var(--lumina-primary-text);
+  --color-lumina-secondary-text:      var(--lumina-secondary-text);
+  --color-lumina-icon-gray:           var(--lumina-icon-gray);
+
+  /* ── Sidebar ────────────────────────────────────────────────────────── */
+  --color-lumina-sidebar-text:        var(--lumina-sidebar-text);
+  --color-lumina-sidebar-active-bg:   var(--lumina-sidebar-active-bg);
+  --color-lumina-sidebar-hover-bg:    var(--lumina-sidebar-hover-bg);
+  --color-lumina-sidebar-label:       var(--lumina-sidebar-label);
+
+  /* ── Feedback ───────────────────────────────────────────────────────── */
+  --color-lumina-success:             var(--lumina-success);
+  --color-lumina-warning:             var(--lumina-warning);
+  --color-lumina-error:               var(--lumina-error);
+
+  /* ── shadcn system ──────────────────────────────────────────────────── */
+  --color-background:                 var(--background);
+  --color-foreground:                 var(--foreground);
+  --color-card:                       var(--card);
+  --color-card-foreground:            var(--card-foreground);
+  --color-popover:                    var(--popover);
+  --color-popover-foreground:         var(--popover-foreground);
+  --color-primary:                    var(--primary);
+  --color-primary-foreground:         var(--primary-foreground);
+  --color-secondary:                  var(--secondary);
+  --color-secondary-foreground:       var(--secondary-foreground);
+  --color-muted:                      var(--muted);
+  --color-muted-foreground:           var(--muted-foreground);
+  --color-accent:                     var(--accent);
+  --color-accent-foreground:          var(--accent-foreground);
+  --color-destructive:                var(--destructive);
+  --color-border:                     var(--border);
+  --color-input:                      var(--input);
+  --color-ring:                       var(--ring);
+  --color-sidebar:                    var(--sidebar);
+  --color-sidebar-foreground:         var(--sidebar-foreground);
+  --color-sidebar-primary:            var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
+  --color-sidebar-accent:             var(--sidebar-accent);
+  --color-sidebar-accent-foreground:  var(--sidebar-accent-foreground);
+  --color-sidebar-border:             var(--sidebar-border);
+  --color-sidebar-ring:               var(--sidebar-ring);
   --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* ── Typography ─────────────────────────────────────────────────────── */
+  --font-sans:  var(--font-public-sans);
+  --font-serif: var(--font-noto-serif);
+  --font-mono:  var(--font-geist-mono);
+
+  /* ── Radii ──────────────────────────────────────────────────────────── */
+  --radius-sm:  calc(var(--radius) * 0.6);
+  --radius-md:  calc(var(--radius) * 0.8);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   THEME 1 — Digital Denim (default)
+   Professional, established. Deep slate blues + vibrant amber accent.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+:root,
+html[data-theme="denim"] {
+  /* Brand */
+  --lumina-primary-teal:       #FFC300;
+  --lumina-teal-light:         #FFF8DC;
+  --lumina-teal-dark:          #D4A400;
+
+  /* App surfaces */
+  --lumina-app-background:     #F8F9FA;
+  --lumina-surface-background: #FFFFFF;
+
+  /* Sidebar */
+  --lumina-sidebar-background: #0F172A;
+  --lumina-sidebar-text:       #FFFFFF;
+  --lumina-sidebar-active-bg:  #3E5C76;
+  --lumina-sidebar-hover-bg:   rgba(255 255 255 / 0.08);
+  --lumina-sidebar-label:      #748CAB;
+
+  /* Borders */
+  --lumina-border-divider:     #CBD5E1;
+
+  /* Text */
+  --lumina-primary-text:       #1D2D44;
+  --lumina-secondary-text:     #748CAB;
+  --lumina-icon-gray:          #748CAB;
+
+  /* Feedback */
+  --lumina-success:            #2D6A4F;
+  --lumina-warning:            #D97706;
+  --lumina-error:              #9E2A2B;
+
+  /* shadcn base */
+  --background:          #F8F9FA;
+  --foreground:          #1D2D44;
+  --card:                #FFFFFF;
+  --card-foreground:     #1D2D44;
+  --popover:             #FFFFFF;
+  --popover-foreground:  #1D2D44;
+  --primary:             #FFC300;
+  --primary-foreground:  #1D2D44;
+  --secondary:           #F1F5F9;
+  --secondary-foreground:#1D2D44;
+  --muted:               #F1F5F9;
+  --muted-foreground:    #748CAB;
+  --accent:              #F1F5F9;
+  --accent-foreground:   #1D2D44;
+  --destructive:         #9E2A2B;
+  --border:              #CBD5E1;
+  --input:               #CBD5E1;
+  --ring:                #FFC300;
+  --radius:              0.5rem;
+
+  /* shadcn sidebar — drives the shadcn <Sidebar> component */
+  --sidebar:                        #0F172A;
+  --sidebar-foreground:             #FFFFFF;
+  --sidebar-primary:                #FFC300;
+  --sidebar-primary-foreground:     #1D2D44;
+  --sidebar-accent:                 #3E5C76;
+  --sidebar-accent-foreground:      #FFFFFF;
+  --sidebar-border:                 rgba(255 255 255 / 0.1);
+  --sidebar-ring:                   #FFC300;
+
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
 }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   THEME 2 — Golden Grain (Scholarly Sanctuary)
+   Warm, inviting, premium. Parchment backgrounds + gold accent.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+html[data-theme="grain"] {
+  /* Brand */
+  --lumina-primary-teal:       #FFC300;
+  --lumina-teal-light:         #FFF9EB;
+  --lumina-teal-dark:          #E8B800;
+
+  /* App surfaces */
+  --lumina-app-background:     #FFF9EB;
+  --lumina-surface-background: #FFFDF5;
+
+  /* Sidebar */
+  --lumina-sidebar-background: #F3EDE0;
+  --lumina-sidebar-text:       #785A00;
+  --lumina-sidebar-active-bg:  #E8E2D4;
+  --lumina-sidebar-hover-bg:   rgba(0 0 0 / 0.05);
+  --lumina-sidebar-label:      #A07C2D;
+
+  /* Borders */
+  --lumina-border-divider:     #E8E2D4;
+
+  /* Text */
+  --lumina-primary-text:       #1D1C13;
+  --lumina-secondary-text:     #785A00;
+  --lumina-icon-gray:          #A07C2D;
+
+  /* Feedback */
+  --lumina-success:            #4D7C0F;
+  --lumina-warning:            #D97706;
+  --lumina-error:              #B91C1C;
+
+  /* shadcn base */
+  --background:          #FFF9EB;
+  --foreground:          #1D1C13;
+  --card:                #FFFDF5;
+  --card-foreground:     #1D1C13;
+  --popover:             #FFFDF5;
+  --popover-foreground:  #1D1C13;
+  --primary:             #FFC300;
+  --primary-foreground:  #1D1C13;
+  --secondary:           #F3EDE0;
+  --secondary-foreground:#785A00;
+  --muted:               #F3EDE0;
+  --muted-foreground:    #785A00;
+  --accent:              #E8E2D4;
+  --accent-foreground:   #1D1C13;
+  --destructive:         #B91C1C;
+  --border:              #E8E2D4;
+  --input:               #E8E2D4;
+  --ring:                #FFC300;
+
+  /* shadcn sidebar */
+  --sidebar:                        #F3EDE0;
+  --sidebar-foreground:             #785A00;
+  --sidebar-primary:                #FFC300;
+  --sidebar-primary-foreground:     #1D1C13;
+  --sidebar-accent:                 #E8E2D4;
+  --sidebar-accent-foreground:      #785A00;
+  --sidebar-border:                 #E8E2D4;
+  --sidebar-ring:                   #FFC300;
+
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BASE LAYER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 @layer base {
   * {
@@ -152,10 +246,26 @@
   *::-webkit-scrollbar {
     display: none;
   }
+
+  html {
+    font-family: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  /* Golden Grain: Noto Serif as the primary reading typeface */
+  html[data-theme="grain"] {
+    font-family: var(--font-noto-serif, "Noto Serif"), Georgia, serif;
+  }
+
+  /* Restore Public Sans for UI chrome (buttons, inputs, nav) in Golden Grain */
+  html[data-theme="grain"] button,
+  html[data-theme="grain"] input,
+  html[data-theme="grain"] select,
+  html[data-theme="grain"] textarea,
+  html[data-theme="grain"] nav {
+    font-family: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  }
+
   body {
     @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
   }
 }

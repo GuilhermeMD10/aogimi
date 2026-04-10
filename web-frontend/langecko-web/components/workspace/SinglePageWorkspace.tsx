@@ -5,7 +5,7 @@ import {
   getCompanionTab,
   WORKSPACE_TAB_META,
   type WorkspaceTabKey,
-} from '@/components/workspace/tab-config';
+} from '@/lib/config/tab-config';
 
 export default function SinglePageWorkspace({
   tab,
@@ -21,12 +21,12 @@ export default function SinglePageWorkspace({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-9 shrink-0 items-center border-b border-lumina-border-divider px-3">
-        <p className="text-xs font-medium text-black">{currentMeta.label}</p>
+        <p className="text-xs font-medium text-lumina-primary-text">{currentMeta.label}</p>
 
         <button
           type="button"
           onClick={() => router.push(`/modular?left=${tab}&right=${companionTab}`)}
-          className="ml-auto h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-black hover:bg-black/5"
+          className="ml-auto h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-lumina-primary-text hover:bg-black/5"
           aria-label={`Add ${WORKSPACE_TAB_META[companionTab].label} to split view`}
         >
           +

@@ -1,2 +1,5 @@
 node_modules
 helpers
+.next
+.env
+.env.local
