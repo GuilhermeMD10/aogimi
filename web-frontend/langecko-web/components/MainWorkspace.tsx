@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DictionaryView from '@/components/views/DictionaryView';
 import EpubPdfReaderView from '@/components/views/EpubPdfReaderView';
@@ -11,7 +11,7 @@ import {
   WORKSPACE_TAB_ORDER,
   parseWorkspaceTab,
   type WorkspaceTabKey,
-} from '@/components/workspace/tab-config';
+} from '@/lib/config/tab-config';
 import { useWorkspaceTabs } from '@/hooks/use-workspace-tabs';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 
@@ -97,17 +97,6 @@ export default function MainWorkspace() {
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [addPickerOpen]);
 
-  // Per-tab panel refs for CSS order (drag reorder)
-  const dictPanelRef = useRef<HTMLDivElement>(null);
-  const readerPanelRef = useRef<HTMLDivElement>(null);
-  const cardsPanelRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    if (dictPanelRef.current) dictPanelRef.current.style.order = String(openTabs.indexOf('dictionary') * 2);
-    if (readerPanelRef.current) readerPanelRef.current.style.order = String(openTabs.indexOf('reader') * 2);
-    if (cardsPanelRef.current) cardsPanelRef.current.style.order = String(openTabs.indexOf('cards') * 2);
-  }, [openTabs]);
-
   return (
     <div className="flex h-full min-h-0 flex-col">
 
@@ -154,14 +143,14 @@ export default function MainWorkspace() {
                     draggedTab === tabKey ? 'opacity-60' : ''
                   }`}
                 >
-                  <span className="truncate text-xs font-medium text-black">
+                  <span className="truncate text-xs font-medium text-lumina-primary-text">
                     {WORKSPACE_TAB_META[tabKey].label}
                   </span>
                   <button
                     type="button"
                     onClick={() => closeTab(tabKey)}
                     draggable={false}
-                    className="rounded px-1 text-xs leading-none text-black hover:bg-black/5"
+                    className="rounded px-1 text-xs leading-none text-lumina-primary-text hover:bg-black/5"
                     aria-label={`Close ${WORKSPACE_TAB_META[tabKey].label}`}
                   >
                     ✕
@@ -192,7 +181,7 @@ export default function MainWorkspace() {
               type="button"
               onClick={() => setAddPickerOpen((v) => !v)}
               disabled={tabsAvailableToAdd.length === 0}
-              className="h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-black hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              className="h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-lumina-primary-text hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
               aria-label={tabsAvailableToAdd.length > 0 ? 'Add a view' : 'All views are open'}
             >
               +
@@ -208,7 +197,7 @@ export default function MainWorkspace() {
                       addTab(key);
                       setAddPickerOpen(false);
                     }}
-                    className="flex w-full items-center px-3 py-2 text-sm text-black hover:bg-black/5"
+                    className="flex w-full items-center px-3 py-2 text-sm text-lumina-primary-text hover:bg-black/5"
                   >
                     {WORKSPACE_TAB_META[key].label}
                   </button>
@@ -230,7 +219,7 @@ export default function MainWorkspace() {
                   key={key}
                   type="button"
                   onClick={() => addTab(key)}
-                  className="rounded border border-lumina-border-divider bg-white px-4 py-2 text-sm font-medium text-black hover:bg-black/5"
+                  className="rounded border border-lumina-border-divider bg-white px-4 py-2 text-sm font-medium text-lumina-primary-text hover:bg-black/5"
                 >
                   {WORKSPACE_TAB_META[key].label}
                 </button>
@@ -243,24 +232,20 @@ export default function MainWorkspace() {
           </div>
         ) : (
           <ResizablePanelGroup orientation="horizontal">
-            {openTabs.map((tab) => (
-              <ResizablePanel
-                key={tab}
-                elementRef={
-                  (tab === 'dictionary' ? dictPanelRef : tab === 'reader' ? readerPanelRef : cardsPanelRef) as React.RefObject<HTMLDivElement>
-                }
-                defaultSize={100 / openTabs.length}
-                minSize={20}
-              >
-                <div className="h-full overflow-auto">
-                  <TabContent tab={tab} />
-                </div>
-              </ResizablePanel>
+            {openTabs.map((tab, i) => (
+              <Fragment key={tab}>
+                {i > 0 ? <ResizableHandle /> : null}
+                <ResizablePanel
+                  id={tab}
+                  defaultSize={100 / openTabs.length}
+                  minSize={20}
+                >
+                  <div className="h-full overflow-auto">
+                    <TabContent tab={tab} />
+                  </div>
+                </ResizablePanel>
+              </Fragment>
             ))}
-            {/* Handles rendered outside the map with fixed CSS orders so they
-                interleave correctly between panels regardless of drag reordering */}
-            {openTabs.length >= 2 ? <ResizableHandle style={{ order: 1 }} /> : null}
-            {openTabs.length >= 3 ? <ResizableHandle style={{ order: 3 }} /> : null}
           </ResizablePanelGroup>
         )}
       </div>

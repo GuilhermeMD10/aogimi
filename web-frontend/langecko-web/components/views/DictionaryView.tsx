@@ -1,256 +1,137 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
-import { fetchJson } from '@/lib/api';
-import {
-  buildReadingCandidates,
-  findFirstKanji,
-  normalizeReadingSlug,
-  toReadingSlugFromInput,
-  uniqueValues,
-  kanaToRomaji,
-} from '@/lib/japanese';
 
-type KanjiResult = {
-  kanji: string;
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type WordMeaning = { meaning: string; pos: string | null; lang: string };
+
+type WordResult = {
+  id: number;
+  is_common: boolean;
   grade: number | null;
-  stroke_count: number;
-  meanings: string[];
-  kun_readings: string[];
-  on_readings: string[];
-  name_readings: string[];
-  jlpt: number | null;
-  unicode: string;
-};
-
-type WordVariant = {
-  written: string;
-  pronounced: string;
-  priorities: string[];
-};
-
-type WordMeaning = {
-  glosses: string[];
-};
-
-type WordEntry = {
-  variants: WordVariant[];
+  char_grades: { char: string; grade: number | null }[];
+  kanji: string[];
+  readings: string[];
   meanings: WordMeaning[];
 };
 
-type ReadingResult = {
-  reading: string;
-  main_kanji: string[];
-  name_kanji: string[];
+type KanjiInfo = {
+  literal: string;
+  grade: number | null;
+  stroke_count: number | null;
+  radical: number | null;
+  meanings: string[];
+  on_readings: string[];
+  kun_readings: string[];
 };
 
-
-type RunSearchOptions = {
-  preferredReadingSlug?: string;
+type NameResult = {
+  id: number;
+  kanji: string | null;
+  kana: string;
+  name_type: string[];
+  translations: string[];
 };
 
-const READING_QUERY_PARAM = 'reading';
+type SearchResponse =
+  | { type: 'kanji'; kanji: KanjiInfo | null; words: WordResult[]; names: NameResult[] }
+  | { type: 'word'; words: WordResult[] }
+  | { type: 'kana'; words: WordResult[]; names: NameResult[]; kanjis: KanjiInfo[] }
+  | { type: 'meaning'; words: WordResult[] };
 
-function toReadingSlugFromKanjiResult(result: KanjiResult): string {
-  const candidates = [...result.kun_readings, ...result.on_readings, ...result.name_readings]
-    .map((v) => v.replace(/[\.\-]/g, ''))
-    .map((v) => v.replace(/[^\p{Script=Hiragana}\p{Script=Katakana}ー]/gu, ''))
-    .filter(Boolean);
+// ── API call ──────────────────────────────────────────────────────────────────
 
-  for (const candidate of candidates) {
-    const romaji = kanaToRomaji(candidate);
-    if (romaji) return romaji;
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+
+async function queryDictionary(q: string, signal: AbortSignal): Promise<SearchResponse> {
+  const res = await fetch(`${API}/api/search?q=${encodeURIComponent(q)}`, {
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+    signal,
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? 'Search failed');
   }
-
-  return '';
+  return res.json() as Promise<SearchResponse>;
 }
 
-async function fetchReadingWithFallback(
-  readingCandidates: string[],
-  signal: AbortSignal,
-): Promise<{ reading: ReadingResult; resolvedReading: string }> {
-  let fallbackError: Error | null = null;
-
-  for (const candidate of readingCandidates) {
-    try {
-      const reading = await fetchJson<ReadingResult>(
-        `https://kanjiapi.dev/v1/reading/${encodeURIComponent(candidate)}`,
-        signal,
-      );
-      return { reading, resolvedReading: candidate };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('No such endpoint')) {
-        fallbackError = error;
-        continue;
-      }
-      throw error;
-    }
-  }
-
-  if (fallbackError) throw fallbackError;
-  throw new Error('No reading match found for this query.');
-}
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function DictionaryView({ storageKey = 'dictionary_state' }: { storageKey?: string }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const initializedFromUrlRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const storageSaveReadyRef = useRef(false);
   const { pendingDictSearch, setPendingDictSearch } = useReaderState();
+  const abortRef = useRef<AbortController | null>(null);
+  const saveReadyRef = useRef(false);
 
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeReadingSlug, setActiveReadingSlug] = useState('');
-  const [kanjiResult, setKanjiResult] = useState<KanjiResult | null>(null);
-  const [wordResults, setWordResults] = useState<WordEntry[]>([]);
-  const [readingResult, setReadingResult] = useState<ReadingResult | null>(null);
+  const [result, setResult] = useState<SearchResponse | null>(null);
 
-  useEffect(() => {
-    return () => { abortControllerRef.current?.abort(); };
-  }, []);
-
+  // Persist / restore state
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
       if (!raw) return;
-      const saved = JSON.parse(raw) as {
-        query?: string;
-        kanjiResult?: KanjiResult | null;
-        wordResults?: WordEntry[];
-        readingResult?: ReadingResult | null;
-        activeReadingSlug?: string;
-      };
+      const saved = JSON.parse(raw) as { query?: string; result?: SearchResponse };
       if (saved.query) setQuery(saved.query);
-      if (saved.kanjiResult !== undefined) setKanjiResult(saved.kanjiResult ?? null);
-      if (saved.wordResults?.length) setWordResults(saved.wordResults);
-      if (saved.readingResult !== undefined) setReadingResult(saved.readingResult ?? null);
-      if (saved.activeReadingSlug !== undefined) setActiveReadingSlug(saved.activeReadingSlug);
-    } catch { /* ignore */ }
-  }, []);
+      if (saved.result) setResult(saved.result);
+    } catch {
+      /* ignore */
+    }
+  }, [storageKey]);
 
   useEffect(() => {
-    if (!storageSaveReadyRef.current) { storageSaveReadyRef.current = true; return; }
+    if (!saveReadyRef.current) {
+      saveReadyRef.current = true;
+      return;
+    }
     try {
-      localStorage.setItem(storageKey, JSON.stringify({
-        query, kanjiResult, wordResults, readingResult, activeReadingSlug,
-      }));
-    } catch { /* ignore */ }
-  }, [storageKey, query, kanjiResult, wordResults, readingResult, activeReadingSlug]);
+      localStorage.setItem(storageKey, JSON.stringify({ query, result }));
+    } catch {
+      /* ignore */
+    }
+  }, [storageKey, query, result]);
 
-  const clearResults = useCallback(() => {
-    setKanjiResult(null);
-    setWordResults([]);
-    setReadingResult(null);
+  // Cleanup on unmount
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+    },
+    [],
+  );
+
+  const runSearch = useCallback(async (raw: string) => {
+    const q = raw.trim();
+    if (!q) {
+      setError('Enter a search term first.');
+      setResult(null);
+      return;
+    }
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const data = await queryDictionary(q, controller.signal);
+      setResult(data);
+      setQuery(q);
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setError(err instanceof Error ? err.message : 'Search failed.');
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
   }, []);
 
-  const syncReadingInUrl = useCallback(
-    (readingSlug: string) => {
-      const normalized = normalizeReadingSlug(readingSlug);
-      const params = new URLSearchParams(searchParams.toString());
-
-      if (normalized) {
-        params.set(READING_QUERY_PARAM, normalized);
-      } else {
-        params.delete(READING_QUERY_PARAM);
-      }
-
-      const nextUrl = params.size > 0 ? `${pathname}?${params.toString()}` : pathname;
-      router.replace(nextUrl, { scroll: false });
-    },
-    [pathname, router, searchParams],
-  );
-
-  const runSearch = useCallback(
-    async (rawQuery: string, options: RunSearchOptions = {}) => {
-      const trimmedQuery = rawQuery.trim();
-      if (!trimmedQuery) {
-        setError('Enter a search value first.');
-        clearResults();
-        syncReadingInUrl('');
-        setActiveReadingSlug('');
-        return;
-      }
-
-      abortControllerRef.current?.abort();
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-      const { signal } = controller;
-
-      setLoading(true);
-      setError(null);
-      clearResults();
-
-      try {
-        const kanjiCharacter = findFirstKanji(trimmedQuery);
-
-        if (kanjiCharacter) {
-          setQuery(kanjiCharacter);
-
-          const kanji = await fetchJson<KanjiResult>(
-            `https://kanjiapi.dev/v1/kanji/${encodeURIComponent(kanjiCharacter)}`,
-            signal,
-          );
-
-          let words: WordEntry[] = [];
-          try {
-            words = await fetchJson<WordEntry[]>(
-              `https://kanjiapi.dev/v1/words/${encodeURIComponent(kanjiCharacter)}`,
-              signal,
-            );
-          } catch (wordError) {
-            if (!(wordError instanceof Error) || !wordError.message.includes('No such endpoint')) {
-              throw wordError;
-            }
-          }
-
-          setKanjiResult(kanji);
-          setWordResults(words);
-
-          const urlReading =
-            normalizeReadingSlug(options.preferredReadingSlug || activeReadingSlug) ||
-            toReadingSlugFromKanjiResult(kanji);
-
-          setActiveReadingSlug(urlReading);
-          syncReadingInUrl(urlReading);
-        } else {
-          const readingCandidates = buildReadingCandidates(trimmedQuery);
-          if (readingCandidates.length === 0) {
-            throw new Error('Enter a kanji, kana, or romaji word (examples: 猫, ねこ, ネコ, neko).');
-          }
-
-          const { reading, resolvedReading } = await fetchReadingWithFallback(readingCandidates, signal);
-          setReadingResult(reading);
-          setQuery(resolvedReading);
-
-          const urlReading =
-            normalizeReadingSlug(options.preferredReadingSlug || toReadingSlugFromInput(trimmedQuery)) ||
-            toReadingSlugFromInput(resolvedReading);
-
-          setActiveReadingSlug(urlReading);
-          syncReadingInUrl(urlReading);
-        }
-      } catch (searchError) {
-        if (searchError instanceof Error && searchError.name === 'AbortError') return;
-        const message = searchError instanceof Error ? searchError.message : 'Could not fetch data from kanjiapi.dev.';
-        setError(message);
-      } finally {
-        if (!signal.aborted) setLoading(false);
-      }
-    },
-    [activeReadingSlug, clearResults, syncReadingInUrl],
-  );
-
-  // React to a pending search queued by EpubPdfReaderView (via shared context).
-  // Using pendingDictSearch as a dep means this fires whenever a new word is set,
-  // whether we just mounted (navigation case) or were already open (same-page case).
-  // It also re-runs on React StrictMode's second pass — at that point the context
-  // state hasn't been committed yet so pendingDictSearch is still set, which causes
-  // the search to retry after the first run's AbortController is cancelled.
+  // Triggered by epub reader click-to-search
   useEffect(() => {
     if (!pendingDictSearch) return;
     setQuery(pendingDictSearch);
@@ -258,42 +139,26 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
     setPendingDictSearch(null);
   }, [pendingDictSearch, setPendingDictSearch, runSearch]);
 
-  useEffect(() => {
-    if (initializedFromUrlRef.current) return;
-    initializedFromUrlRef.current = true;
-
-    const readingFromUrl = normalizeReadingSlug(searchParams.get(READING_QUERY_PARAM) ?? '');
-    if (!readingFromUrl) return;
-
-    setQuery(readingFromUrl);
-    setActiveReadingSlug(readingFromUrl);
-    void runSearch(readingFromUrl, { preferredReadingSlug: readingFromUrl });
-  }, [runSearch, searchParams]);
-
-  const submitSearch = (event: React.SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     void runSearch(query);
   };
 
-  const handleKanjiOptionClick = (kanjiCharacter: string) => {
-    const preferredReading =
-      normalizeReadingSlug(activeReadingSlug) || toReadingSlugFromInput(readingResult?.reading ?? '');
-    void runSearch(kanjiCharacter, { preferredReadingSlug: preferredReading });
-  };
-
-  const mainKanjiOptions = uniqueValues(readingResult?.main_kanji ?? []);
-  const nameKanjiOptions = uniqueValues(readingResult?.name_kanji ?? []);
+  // Derived helpers
+  const words = result ? ('words' in result ? result.words : []) : [];
+  const names = result && 'names' in result ? result.names : [];
+  const kanjiInfo = result?.type === 'kanji' ? result.kanji : null;
 
   return (
     <div className="p-6 rounded-2xl bg-lumina-app-background min-h-full w-full">
       <h1 className="text-xl font-semibold text-lumina-primary-text">Dictionary</h1>
 
-      <form onSubmit={submitSearch} className="mt-4 flex flex-wrap gap-2">
+      <form onSubmit={handleSubmit} className="mt-4 flex flex-wrap gap-2">
         <input
           type="text"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Kanji, kana, or romaji (e.g. 猫 / ねこ / neko)"
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Kanji, kana, or English (e.g. 食べる / たべる / eat)"
           className="w-full max-w-md rounded border border-lumina-border-divider px-3 py-2 text-sm bg-white"
         />
         <button
@@ -301,117 +166,114 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
           disabled={loading}
           className="rounded border border-lumina-primary-teal bg-lumina-primary-teal text-black px-4 py-2 text-sm disabled:opacity-50"
         >
-          {loading ? 'Searching...' : 'Search'}
+          {loading ? 'Searching…' : 'Search'}
         </button>
       </form>
 
-      {error ? (
-        <p className="mt-3 text-sm text-lumina-error">
-          {error}
-          {' If this is a browser CORS/network issue, then a server proxy would be required.'}
-        </p>
-      ) : null}
+      {error ? <p className="mt-3 text-sm text-lumina-error">{error}</p> : null}
 
-      {kanjiResult ? (
+      {/* Kanji panel */}
+      {kanjiInfo ? (
         <section className="mt-4 rounded border border-lumina-border-divider bg-white p-4">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">{kanjiResult.kanji}</span>
-            <div className="text-sm text-lumina-secondary-text">
-              <div>Unicode: U+{kanjiResult.unicode.toUpperCase()}</div>
-              <div>Grade: {kanjiResult.grade ?? '-'}</div>
-              <div>JLPT: {kanjiResult.jlpt ?? '-'}</div>
-              <div>Strokes: {kanjiResult.stroke_count}</div>
+          <div className="flex items-center gap-4">
+            <span className="text-5xl">{kanjiInfo.literal}</span>
+            <div className="text-sm text-lumina-secondary-text space-y-0.5">
+              <div>Grade: {kanjiInfo.grade ?? '—'}</div>
+              <div>Strokes: {kanjiInfo.stroke_count ?? '—'}</div>
+              <div>Radical: {kanjiInfo.radical ?? '—'}</div>
             </div>
           </div>
           <p className="mt-3 text-sm">
-            <span className="font-medium">Meanings:</span> {kanjiResult.meanings.join(', ') || '-'}
+            <span className="font-medium">Meanings: </span>
+            {kanjiInfo.meanings.join(', ') || '—'}
           </p>
           <p className="mt-2 text-sm">
-            <span className="font-medium">Kun:</span> {kanjiResult.kun_readings.join(', ') || '-'}
+            <span className="font-medium">On: </span>
+            {kanjiInfo.on_readings.join('、') || '—'}
           </p>
           <p className="mt-2 text-sm">
-            <span className="font-medium">On:</span> {kanjiResult.on_readings.join(', ') || '-'}
-          </p>
-          <p className="mt-2 text-sm">
-            <span className="font-medium">Name:</span> {kanjiResult.name_readings.join(', ') || '-'}
+            <span className="font-medium">Kun: </span>
+            {kanjiInfo.kun_readings.join('、') || '—'}
           </p>
         </section>
       ) : null}
 
-      {wordResults.length > 0 ? (
+      {/* Words panel */}
+      {words.length > 0 ? (
         <section className="mt-4 rounded border border-lumina-border-divider bg-white p-4">
-          <h2 className="text-lg font-medium text-lumina-primary-text">Words ({wordResults.length})</h2>
+          <h2 className="text-lg font-medium text-lumina-primary-text">Words ({words.length})</h2>
           <ul className="mt-3 space-y-3">
-            {wordResults.slice(0, 10).map((entry, index) => {
-              const variantText = entry.variants
-                .map((v) => (v.pronounced ? `${v.written} (${v.pronounced})` : v.written))
-                .join(' / ');
-              const meaningText = entry.meanings
-                .map((m) => m.glosses.join(', '))
-                .filter(Boolean)
-                .join(' • ');
+            {words.slice(0, 15).map((word) => {
+              const headword = word.kanji[0] ?? word.readings[0] ?? '—';
+              const reading = word.kanji.length > 0 ? word.readings[0] : null;
+              const glosses = word.meanings
+                .filter((m: WordMeaning) => m.lang === 'eng')
+                .map((m: WordMeaning) => m.meaning)
+                .join(' · ');
+              const pos = word.meanings[0]?.pos;
 
               return (
-                <li key={`${variantText}-${index}`} className="border-b border-lumina-border-divider pb-2 text-sm">
-                  <p className="font-medium text-lumina-primary-text">{variantText || 'Unknown variant'}</p>
-                  <p className="text-lumina-secondary-text">{meaningText || 'No gloss available'}</p>
+                <li
+                  key={word.id}
+                  className="border-b border-lumina-border-divider pb-2 last:border-0 last:pb-0 text-sm"
+                >
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-medium text-lumina-primary-text text-base">{headword}</span>
+                    {reading ? <span className="text-lumina-secondary-text text-xs">{reading}</span> : null}
+                    {word.grade != null ? (
+                      <span className="text-xs text-lumina-secondary-text">G{word.grade}</span>
+                    ) : null}
+                    {word.is_common ? <span className="ml-auto text-xs text-lumina-primary-teal">common</span> : null}
+                  </div>
+                  {pos ? <p className="text-xs text-lumina-secondary-text italic">{pos}</p> : null}
+                  <p className="text-lumina-secondary-text">{glosses || '—'}</p>
+                  {word.char_grades?.length > 1 ? (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {word.char_grades.map(({ char, grade }: { char: string; grade: number | null }) => (
+                        <span
+                          key={char}
+                          className="inline-flex items-center gap-1 rounded border border-lumina-border-divider px-1.5 py-0.5 text-xs text-lumina-secondary-text"
+                        >
+                          <span className="font-medium text-lumina-primary-text">{char}</span>
+                          <span className="opacity-60">{grade != null ? `G${grade}` : '—'}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </li>
               );
             })}
           </ul>
-          {wordResults.length > 10 ? (
-            <p className="mt-2 text-xs text-lumina-secondary-text">
-              Showing first 10 results to keep the page lightweight.
-            </p>
+          {words.length > 15 ? (
+            <p className="mt-2 text-xs text-lumina-secondary-text">Showing first 15 of {words.length} results.</p>
           ) : null}
         </section>
       ) : null}
 
-      {readingResult ? (
+      {/* Names panel */}
+      {names.length > 0 ? (
         <section className="mt-4 rounded border border-lumina-border-divider bg-white p-4">
-          <h2 className="text-lg font-medium text-lumina-primary-text">Reading: {readingResult.reading}</h2>
-          <p className="mt-2 text-sm text-lumina-secondary-text">Click any kanji option to auto-search its meaning.</p>
-
-          <div className="mt-3">
-            <p className="text-sm font-medium">Main kanji</p>
-            {mainKanjiOptions.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {mainKanjiOptions.map((kanjiCharacter) => (
-                  <button
-                    key={`main-${kanjiCharacter}`}
-                    type="button"
-                    onClick={() => handleKanjiOptionClick(kanjiCharacter)}
-                    className="rounded border border-lumina-border-divider bg-lumina-app-background px-4 py-2 text-base"
-                  >
-                    {kanjiCharacter}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-lumina-secondary-text">-</p>
-            )}
-          </div>
-
-          <div className="mt-3">
-            <p className="text-sm font-medium">Name kanji</p>
-            {nameKanjiOptions.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {nameKanjiOptions.map((kanjiCharacter) => (
-                  <button
-                    key={`name-${kanjiCharacter}`}
-                    type="button"
-                    onClick={() => handleKanjiOptionClick(kanjiCharacter)}
-                    className="rounded border border-lumina-border-divider bg-lumina-app-background px-4 py-2 text-base"
-                  >
-                    {kanjiCharacter}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-lumina-secondary-text">-</p>
-            )}
-          </div>
+          <h2 className="text-lg font-medium text-lumina-primary-text">Names ({names.length})</h2>
+          <ul className="mt-3 space-y-2">
+            {names.slice(0, 10).map((name) => (
+              <li key={name.id} className="border-b border-lumina-border-divider pb-2 last:border-0 last:pb-0 text-sm">
+                <span className="font-medium text-lumina-primary-text">{name.kanji ?? name.kana}</span>
+                {name.kanji ? <span className="ml-2 text-xs text-lumina-secondary-text">{name.kana}</span> : null}
+                {name.name_type.length > 0 ? (
+                  <span className="ml-2 text-xs italic text-lumina-secondary-text">{name.name_type.join(', ')}</span>
+                ) : null}
+                {name.translations.length > 0 ? (
+                  <p className="text-lumina-secondary-text">{name.translations.join('; ')}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
         </section>
+      ) : null}
+
+      {/* Empty state */}
+      {!loading && !error && result && words.length === 0 && names.length === 0 && !kanjiInfo ? (
+        <p className="mt-4 text-sm text-lumina-secondary-text">No results found.</p>
       ) : null}
     </div>
   );
