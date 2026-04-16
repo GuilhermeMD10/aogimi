@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 
@@ -62,8 +64,11 @@ async function queryDictionary(q: string, signal: AbortSignal): Promise<SearchRe
 
 export default function DictionaryView({ storageKey = 'dictionary_state' }: { storageKey?: string }) {
   const { pendingDictSearch, setPendingDictSearch } = useReaderState();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get('q');
   const abortRef = useRef<AbortController | null>(null);
   const saveReadyRef = useRef(false);
+  const lastUrlQueryRef = useRef<string | null>(null);
 
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -139,6 +144,17 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
     setPendingDictSearch(null);
   }, [pendingDictSearch, setPendingDictSearch, runSearch]);
 
+  // Triggered by kanji chip links from the word detail page (/dictionary?q=…).
+  // Only fires once per unique URL query, so returning to the tab later
+  // doesn't clobber the user's in-progress search.
+  useEffect(() => {
+    if (!urlQuery) return;
+    if (lastUrlQueryRef.current === urlQuery) return;
+    lastUrlQueryRef.current = urlQuery;
+    setQuery(urlQuery);
+    void runSearch(urlQuery);
+  }, [urlQuery, runSearch]);
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     void runSearch(query);
@@ -159,7 +175,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Kanji, kana, or English (e.g. 食べる / たべる / eat)"
-          className="w-full max-w-md rounded border border-lumina-border-divider px-3 py-2 text-sm bg-white"
+          className="w-full max-w-md rounded border border-lumina-border-divider px-3 py-2 text-sm bg-lumina-surface-background"
         />
         <button
           type="submit"
@@ -174,7 +190,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
 
       {/* Kanji panel */}
       {kanjiInfo ? (
-        <section className="mt-4 rounded border border-lumina-border-divider bg-white p-4">
+        <section className="mt-4 rounded border border-lumina-border-divider bg-lumina-surface-background p-4">
           <div className="flex items-center gap-4">
             <span className="text-5xl">{kanjiInfo.literal}</span>
             <div className="text-sm text-lumina-secondary-text space-y-0.5">
@@ -200,7 +216,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
 
       {/* Words panel */}
       {words.length > 0 ? (
-        <section className="mt-4 rounded border border-lumina-border-divider bg-white p-4">
+        <section className="mt-4 rounded border border-lumina-border-divider bg-lumina-surface-background p-4">
           <h2 className="text-lg font-medium text-lumina-primary-text">Words ({words.length})</h2>
           <ul className="mt-3 space-y-3">
             {words.slice(0, 15).map((word) => {
@@ -215,31 +231,36 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
               return (
                 <li
                   key={word.id}
-                  className="border-b border-lumina-border-divider pb-2 last:border-0 last:pb-0 text-sm"
+                  className="border-b border-lumina-border-divider last:border-0 text-sm"
                 >
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-medium text-lumina-primary-text text-base">{headword}</span>
-                    {reading ? <span className="text-lumina-secondary-text text-xs">{reading}</span> : null}
-                    {word.grade != null ? (
-                      <span className="text-xs text-lumina-secondary-text">G{word.grade}</span>
-                    ) : null}
-                    {word.is_common ? <span className="ml-auto text-xs text-lumina-primary-teal">common</span> : null}
-                  </div>
-                  {pos ? <p className="text-xs text-lumina-secondary-text italic">{pos}</p> : null}
-                  <p className="text-lumina-secondary-text">{glosses || '—'}</p>
-                  {word.char_grades?.length > 1 ? (
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {word.char_grades.map(({ char, grade }: { char: string; grade: number | null }) => (
-                        <span
-                          key={char}
-                          className="inline-flex items-center gap-1 rounded border border-lumina-border-divider px-1.5 py-0.5 text-xs text-lumina-secondary-text"
-                        >
-                          <span className="font-medium text-lumina-primary-text">{char}</span>
-                          <span className="opacity-60">{grade != null ? `G${grade}` : '—'}</span>
-                        </span>
-                      ))}
+                  <Link
+                    href={`/word/${word.id}`}
+                    className="block py-2 -mx-2 px-2 rounded hover:bg-lumina-primary-text/5 transition"
+                  >
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-medium text-lumina-primary-text text-base">{headword}</span>
+                      {reading ? <span className="text-lumina-secondary-text text-xs">{reading}</span> : null}
+                      {word.grade != null ? (
+                        <span className="text-xs text-lumina-secondary-text">G{word.grade}</span>
+                      ) : null}
+                      {word.is_common ? <span className="ml-auto text-xs text-lumina-primary-teal">common</span> : null}
                     </div>
-                  ) : null}
+                    {pos ? <p className="text-xs text-lumina-secondary-text italic">{pos}</p> : null}
+                    <p className="text-lumina-secondary-text">{glosses || '—'}</p>
+                    {word.char_grades?.length > 1 ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {word.char_grades.map(({ char, grade }: { char: string; grade: number | null }) => (
+                          <span
+                            key={char}
+                            className="inline-flex items-center gap-1 rounded border border-lumina-border-divider px-1.5 py-0.5 text-xs text-lumina-secondary-text"
+                          >
+                            <span className="font-medium text-lumina-primary-text">{char}</span>
+                            <span className="opacity-60">{grade != null ? `G${grade}` : '—'}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </Link>
                 </li>
               );
             })}
@@ -252,7 +273,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
 
       {/* Names panel */}
       {names.length > 0 ? (
-        <section className="mt-4 rounded border border-lumina-border-divider bg-white p-4">
+        <section className="mt-4 rounded border border-lumina-border-divider bg-lumina-surface-background p-4">
           <h2 className="text-lg font-medium text-lumina-primary-text">Names ({names.length})</h2>
           <ul className="mt-3 space-y-2">
             {names.slice(0, 10).map((name) => (

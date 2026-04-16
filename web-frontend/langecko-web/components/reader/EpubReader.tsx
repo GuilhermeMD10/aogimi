@@ -42,7 +42,7 @@ const CONTAINER_BG: Record<ReaderPrefs['theme'], string> = {
 
 // ── Shared button styles ─────────────────────────────────────────────────────
 
-const btn     = 'flex items-center rounded border border-lumina-border-divider px-2 py-0.5 text-xs hover:bg-black/5 shrink-0';
+const btn     = 'flex items-center rounded border border-lumina-border-divider px-2 py-0.5 text-xs hover:bg-lumina-primary-text/5 shrink-0';
 const btnOn   = 'bg-lumina-primary-teal border-lumina-primary-teal text-black';
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -192,6 +192,7 @@ export function EpubReader({ fileUrl, filename, onLookup, onAddCard }: Props) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rendition.hooks.content.register((contents: any) => {
           contents.document.addEventListener('contextmenu', (e: MouseEvent) => {
+            if (cancelled) return; // guard against state-after-unmount
             const sel: Selection | null = contents.window.getSelection();
             const text = sel?.toString().trim() ?? '';
             setSelectedText(text);
@@ -432,14 +433,14 @@ export function EpubReader({ fileUrl, filename, onLookup, onAddCard }: Props) {
       <div className="relative flex min-h-0 flex-1">
 
         {panel === 'toc' && (
-          <div className="w-52 shrink-0 overflow-y-auto border-r border-lumina-border-divider bg-white">
+          <div className="w-52 shrink-0 overflow-y-auto border-r border-lumina-border-divider bg-lumina-surface-background">
             <TocPanel items={toc} onNavigate={href => { void renditionRef.current?.display(href); setPanel(null); }} onClose={() => setPanel(null)} />
           </div>
         )}
 
         <div className={`relative min-w-0 flex-1 ${CONTAINER_BG[prefs.theme]}`}>
           {(loadError || (loadStep !== 'idle' && loadStep !== 'ready')) && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/90 p-4">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-lumina-surface-background/90 p-4">
               {loadError
                 ? <p className="max-w-md text-center text-sm text-red-600">EPUB load error: {loadError}</p>
                 : <p className="text-sm text-lumina-secondary-text">Loading… (step: {loadStep})</p>}
@@ -470,7 +471,7 @@ export function EpubReader({ fileUrl, filename, onLookup, onAddCard }: Props) {
         </div>
 
         {panel === 'annotations' && (
-          <div className="w-52 shrink-0 overflow-y-auto border-l border-lumina-border-divider bg-white">
+          <div className="w-52 shrink-0 overflow-y-auto border-l border-lumina-border-divider bg-lumina-surface-background">
             <AnnotationsPanel
               epubHighlights={epubHighlights}
               epubBookmarks={epubBookmarks}

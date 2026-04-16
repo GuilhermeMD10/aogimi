@@ -2,23 +2,11 @@
 
 import { THEMES, useTheme, type AppTheme } from '@/components/providers/ThemeProvider';
 
-// ── Icon: simple half-sun / half-moon shapes ──────────────────────────────────
+// ── Icon: sun (light) / moon (dark) ─────────────────────────────────────────
 
-function DenimIcon() {
+function SunIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-      {/* Layered squares suggesting structured slate depth */}
-      <rect x="1" y="1" width="12" height="12" rx="2" fill="currentColor" opacity="0.15" />
-      <rect x="3" y="3" width="8"  height="8"  rx="1" fill="currentColor" opacity="0.35" />
-      <rect x="5" y="5" width="4"  height="4"  rx="0.5" fill="currentColor" />
-    </svg>
-  );
-}
-
-function GrainIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-      {/* Simple sun/grain burst */}
       <circle cx="7" cy="7" r="3" fill="currentColor" />
       {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
         <line
@@ -35,9 +23,20 @@ function GrainIcon() {
   );
 }
 
+function MoonIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path
+        d="M10.5 7.5a5 5 0 0 1-4-6.5 5.5 5.5 0 1 0 4 6.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 const ICONS: Record<AppTheme, () => React.JSX.Element> = {
-  denim: DenimIcon,
-  grain: GrainIcon,
+  light: SunIcon,
+  dark:  MoonIcon,
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -53,7 +52,7 @@ export function ThemeSwitcher({ variant = 'compact' }: Props) {
 
   if (variant === 'full') {
     return (
-      <div className="flex w-full gap-1 p-1 rounded-lg bg-black/5">
+      <div className="flex w-full gap-1 p-1 rounded-lg bg-lumina-primary-text/5">
         {(Object.keys(THEMES) as AppTheme[]).map((t) => {
           const TIcon = ICONS[t];
           const active = t === theme;
@@ -84,7 +83,7 @@ export function ThemeSwitcher({ variant = 'compact' }: Props) {
     <button
       type="button"
       onClick={toggleTheme}
-      title={`Switch to ${THEMES[theme === 'denim' ? 'grain' : 'denim'].label}`}
+      title={`Switch to ${THEMES[theme === 'light' ? 'dark' : 'light'].label}`}
       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-lumina-sidebar-text hover:bg-lumina-sidebar-hover-bg transition-colors"
       data-ui
     >

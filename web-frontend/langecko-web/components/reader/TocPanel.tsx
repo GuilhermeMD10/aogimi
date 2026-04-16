@@ -29,7 +29,7 @@ function NavList({
             type="button"
             onClick={() => onNavigate(item.href)}
             style={{ paddingLeft: `${0.75 + depth * 0.75}rem` }}
-            className="w-full truncate py-1 pr-3 text-left text-xs text-lumina-primary-text hover:bg-black/5"
+            className="w-full truncate py-1 pr-3 text-left text-xs text-lumina-primary-text hover:bg-lumina-primary-text/5"
           >
             {item.label}
           </button>

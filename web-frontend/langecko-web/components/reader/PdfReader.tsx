@@ -26,7 +26,7 @@ interface PdfLib {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const btn     = 'flex items-center rounded border border-lumina-border-divider px-2 py-0.5 text-xs hover:bg-black/5 shrink-0';
+const btn     = 'flex items-center rounded border border-lumina-border-divider px-2 py-0.5 text-xs hover:bg-lumina-primary-text/5 shrink-0';
 const btnOn   = 'bg-lumina-primary-teal border-lumina-primary-teal text-black';
 const PDF_OPTIONS = { standardFontDataUrl: '/standard_fonts/' };
 const MAX_SCALE   = 3.0;
@@ -324,7 +324,7 @@ export function PdfReader({
       <div className="relative flex min-h-0 flex-1">
 
         {panel === 'annotations' && (
-          <div className="w-52 shrink-0 overflow-y-auto border-r border-lumina-border-divider bg-white">
+          <div className="w-52 shrink-0 overflow-y-auto border-r border-lumina-border-divider bg-lumina-surface-background">
             <AnnotationsPanel
               pdfBookmarks={pdfBookmarks}
               onJumpPdfBookmark={b => { goTo(b.page); setPanel(null); }}
@@ -351,7 +351,7 @@ export function PdfReader({
               >
                 {/* TOC — must be rendered inside the Document context */}
                 {panel === 'toc' && (
-                  <div className="absolute left-0 top-0 z-10 h-full w-52 overflow-y-auto border-r border-lumina-border-divider bg-white">
+                  <div className="absolute left-0 top-0 z-10 h-full w-52 overflow-y-auto border-r border-lumina-border-divider bg-lumina-surface-background">
                     <div className="flex shrink-0 items-center justify-between border-b border-lumina-border-divider px-3 py-1.5">
                       <span className="text-xs font-medium">Contents</span>
                       <button type="button" onClick={() => setPanel(null)} className="text-xs text-lumina-secondary-text hover:text-lumina-primary-text">✕</button>

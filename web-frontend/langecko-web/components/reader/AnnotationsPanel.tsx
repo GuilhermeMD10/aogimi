@@ -63,7 +63,7 @@ export function AnnotationsPanel({
             className={`flex-1 py-1 text-xs capitalize transition-colors ${
               tab === t
                 ? 'border-b-2 border-lumina-primary-teal font-medium text-lumina-primary-text'
-                : 'text-lumina-secondary-text hover:bg-black/5'
+                : 'text-lumina-secondary-text hover:bg-lumina-primary-text/5'
             }`}
           >
             {t}

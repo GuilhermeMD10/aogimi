@@ -18,16 +18,21 @@ export function useWorkspaceTabs(initialTabs: WorkspaceTabKey[]) {
 
   const canDragTabs = openTabs.length > 1;
 
-  const addTab = useCallback((tab: WorkspaceTabKey) => {
-    if (openTabs.includes(tab) || openTabs.length >= MAX_MODULAR_TABS) return;
-    setOpenTabs((tabs) => [...tabs, tab]);
-  }, [openTabs]);
+  const addTab = useCallback((tab: WorkspaceTabKey): boolean => {
+    let added = false;
+    setOpenTabs((tabs) => {
+      if (tabs.includes(tab) || tabs.length >= MAX_MODULAR_TABS) return tabs;
+      added = true;
+      return [...tabs, tab];
+    });
+    return added;
+  }, []);
 
   const closeTab = useCallback((tabToClose: WorkspaceTabKey) => {
     setOpenTabs((tabs) => tabs.filter((key) => key !== tabToClose));
-    if (draggedTab === tabToClose) setDraggedTab(null);
+    setDraggedTab((prev) => (prev === tabToClose ? null : prev));
     setDropIndex(null);
-  }, [draggedTab]);
+  }, []);
 
   const clearDragState = useCallback(() => {
     setDraggedTab(null);
@@ -67,7 +72,9 @@ export function useWorkspaceTabs(initialTabs: WorkspaceTabKey[]) {
 
   const handleDropAtIndex = useCallback((event: DragEvent<HTMLElement>, forcedIndex?: number) => {
     event.preventDefault();
-    const sourceTab = draggedTab ?? parseWorkspaceTab(event.dataTransfer.getData('text/plain'));
+    // Always read the tab from dataTransfer as ground truth — draggedTab state
+    // may have cleared if the drag left the window boundary.
+    const sourceTab = parseWorkspaceTab(event.dataTransfer.getData('text/plain')) ?? draggedTab;
     const targetIndex = forcedIndex ?? dropIndex;
 
     if (!sourceTab || targetIndex === null) {

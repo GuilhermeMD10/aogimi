@@ -56,8 +56,8 @@ export function DropZone({ accept, validate, currentFilename, lastFilename, onFi
           dragging
             ? 'border-lumina-primary-teal bg-lumina-primary-teal/5 text-lumina-primary-teal'
             : currentFilename
-              ? 'border-lumina-border-divider text-lumina-primary-text hover:bg-black/5'
-              : 'border-dashed border-lumina-border-divider text-lumina-secondary-text hover:bg-black/5'
+              ? 'border-lumina-border-divider text-lumina-primary-text hover:bg-lumina-primary-text/5'
+              : 'border-dashed border-lumina-border-divider text-lumina-secondary-text hover:bg-lumina-primary-text/5'
         }`}
       >
         <span className="shrink-0 text-base leading-none">
