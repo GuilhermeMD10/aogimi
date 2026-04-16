@@ -80,6 +80,15 @@ async function findByKunReading(reading) {
   return rows;
 }
 
+async function findByLiterals(literals) {
+  if (!literals.length) return [];
+  const { rows } = await pool.query(
+    `${KANJI_SELECT} FROM kanji WHERE literal = ANY($1)`,
+    [literals]
+  );
+  return rows;
+}
+
 async function findGradesByLiterals(literals) {
   if (!literals.length) return [];
   const { rows } = await pool.query(
@@ -91,6 +100,7 @@ async function findGradesByLiterals(literals) {
 
 module.exports = {
   findByLiteral,
+  findByLiterals,
   findByGrade,
   findByGradeRange,
   findByStrokeCount,

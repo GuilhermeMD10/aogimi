@@ -14,6 +14,10 @@ router.get("/", async (req, res) => {
     res.json(result);
   } catch (err) {
     const status = err.status ?? 500;
+    if (status === 500) {
+      // Log the full error so 500s aren't silent in the dev terminal.
+      console.error(`[search] q=${JSON.stringify(q)} →`, err);
+    }
     const message = status === 500 ? "Internal server error" : err.message;
     res.status(status).json({ error: message });
   }

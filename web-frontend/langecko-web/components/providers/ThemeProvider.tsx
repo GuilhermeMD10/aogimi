@@ -4,11 +4,11 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type AppTheme = 'denim' | 'grain';
+export type AppTheme = 'light' | 'dark';
 
 export const THEMES: Record<AppTheme, { label: string; description: string }> = {
-  denim: { label: 'Digital Denim',   description: 'Professional — deep slate blues & amber' },
-  grain: { label: 'Golden Grain',    description: 'Scholarly — warm parchment & gold' },
+  light: { label: 'Daylight Study',  description: 'Warm parchment surfaces + gilt gold accent' },
+  dark:  { label: 'Evening Study',   description: 'Deep warm black + bright gold accent' },
 };
 
 type ThemeContextValue = {
@@ -22,7 +22,7 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const STORAGE_KEY = 'app-theme';
-const ORDER: AppTheme[] = ['denim', 'grain'];
+const ORDER: AppTheme[] = ['light', 'dark'];
 
 function applyTheme(theme: AppTheme) {
   document.documentElement.setAttribute('data-theme', theme);
@@ -31,12 +31,15 @@ function applyTheme(theme: AppTheme) {
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<AppTheme>('denim');
+  const [theme, setThemeState] = useState<AppTheme>('light');
 
   // Hydrate from localStorage on mount and apply to <html>
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as AppTheme | null;
-    const resolved: AppTheme = stored && ORDER.includes(stored) ? stored : 'denim';
+    // Also respect system preference as fallback
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const resolved: AppTheme =
+      stored && ORDER.includes(stored) ? stored : prefersDark ? 'dark' : 'light';
     setThemeState(resolved);
     applyTheme(resolved);
   }, []);

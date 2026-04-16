@@ -55,6 +55,8 @@ export default function MainWorkspace() {
   const { pendingDictSearch, pendingCardWord } = useReaderState();
 
   // Ensure the relevant tab is open whenever the reader queues a cross-tab action.
+  // The consuming view (DictionaryView / CardDeckView) clears the pending state
+  // once it reads the value, so these effects only fire once per pending action.
   useEffect(() => {
     if (pendingDictSearch && !openTabs.includes('dictionary')) addTab('dictionary');
   }, [pendingDictSearch, openTabs, addTab]);
@@ -150,7 +152,7 @@ export default function MainWorkspace() {
                     type="button"
                     onClick={() => closeTab(tabKey)}
                     draggable={false}
-                    className="rounded px-1 text-xs leading-none text-lumina-primary-text hover:bg-black/5"
+                    className="rounded px-1 text-xs leading-none text-lumina-primary-text hover:bg-lumina-primary-text/5"
                     aria-label={`Close ${WORKSPACE_TAB_META[tabKey].label}`}
                   >
                     ✕
@@ -181,14 +183,14 @@ export default function MainWorkspace() {
               type="button"
               onClick={() => setAddPickerOpen((v) => !v)}
               disabled={tabsAvailableToAdd.length === 0}
-              className="h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-lumina-primary-text hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              className="h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-lumina-primary-text hover:bg-lumina-primary-text/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
               aria-label={tabsAvailableToAdd.length > 0 ? 'Add a view' : 'All views are open'}
             >
               +
             </button>
 
             {addPickerOpen && tabsAvailableToAdd.length > 0 ? (
-              <div className="absolute right-0 top-full z-50 mt-1 min-w-36 rounded border border-lumina-border-divider bg-white py-1 shadow-md">
+              <div className="absolute right-0 top-full z-50 mt-1 min-w-36 rounded border border-lumina-border-divider bg-lumina-surface-background py-1 shadow-md">
                 {tabsAvailableToAdd.map((key) => (
                   <button
                     key={key}
@@ -197,7 +199,7 @@ export default function MainWorkspace() {
                       addTab(key);
                       setAddPickerOpen(false);
                     }}
-                    className="flex w-full items-center px-3 py-2 text-sm text-lumina-primary-text hover:bg-black/5"
+                    className="flex w-full items-center px-3 py-2 text-sm text-lumina-primary-text hover:bg-lumina-primary-text/5"
                   >
                     {WORKSPACE_TAB_META[key].label}
                   </button>
@@ -219,7 +221,7 @@ export default function MainWorkspace() {
                   key={key}
                   type="button"
                   onClick={() => addTab(key)}
-                  className="rounded border border-lumina-border-divider bg-white px-4 py-2 text-sm font-medium text-lumina-primary-text hover:bg-black/5"
+                  className="rounded border border-lumina-border-divider bg-lumina-surface-background px-4 py-2 text-sm font-medium text-lumina-primary-text hover:bg-lumina-primary-text/5"
                 >
                   {WORKSPACE_TAB_META[key].label}
                 </button>
@@ -238,7 +240,7 @@ export default function MainWorkspace() {
                 <ResizablePanel
                   id={tab}
                   defaultSize={100 / openTabs.length}
-                  minSize={20}
+                  minSize={Math.min(20, Math.floor(90 / openTabs.length))}
                 >
                   <div className="h-full overflow-auto">
                     <TabContent tab={tab} />

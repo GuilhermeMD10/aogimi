@@ -28,7 +28,7 @@ const validatePdf = (file: File): string | null => {
 
 const btn    = 'flex items-center gap-1.5 rounded border border-lumina-border-divider px-3 py-1 text-sm';
 const btnOn  = 'bg-lumina-primary-teal border-lumina-primary-teal text-black';
-const btnOff = 'bg-white text-lumina-primary-text hover:bg-black/5';
+const btnOff = 'bg-lumina-surface-background text-lumina-primary-text hover:bg-lumina-primary-text/5';
 
 // storageKey prop kept for API compatibility (state lives in context)
 export default function EpubPdfReaderView({ storageKey: _storageKey }: { storageKey?: string }) {

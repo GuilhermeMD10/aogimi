@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Langecko",
+    "slug": "langecko-mobile",
+    "version": "0.1.0",
+    "scheme": "langecko",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.langecko.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.langecko.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#F8F9FA"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://localhost:3000",
+      "router": {},
+      "eas": {
+        "projectId": "af6314f5-1c29-4681-8fb2-de90248580b4"
+      }
+    }
+  }
+}

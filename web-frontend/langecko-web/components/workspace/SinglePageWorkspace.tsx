@@ -26,7 +26,7 @@ export default function SinglePageWorkspace({
         <button
           type="button"
           onClick={() => router.push(`/modular?left=${tab}&right=${companionTab}`)}
-          className="ml-auto h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-lumina-primary-text hover:bg-black/5"
+          className="ml-auto h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-lumina-primary-text hover:bg-lumina-primary-text/5"
           aria-label={`Add ${WORKSPACE_TAB_META[companionTab].label} to split view`}
         >
           +

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist_Mono, Noto_Serif, Public_Sans } from 'next/font/google';
+import { Geist_Mono, Lora, Public_Sans } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
@@ -11,10 +11,10 @@ const publicSans = Public_Sans({
   subsets: ['latin'],
 });
 
-const notoSerif = Noto_Serif({
-  variable: '--font-noto-serif',
+const lora = Lora({
+  variable: '--font-lora',
   subsets: ['latin'],
-  weight: ['400', '700'],
+  weight: ['400', '600', '700'],
   style: ['normal', 'italic'],
 });
 
@@ -36,12 +36,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-theme="denim"
-      className={`${publicSans.variable} ${notoSerif.variable} ${geistMono.variable} h-full antialiased`}
+      data-theme="light"
+      className={`${publicSans.variable} ${lora.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="h-full">
         <ThemeProvider>
-          <SidebarProvider className="h-full min-h-0 bg-white">
+          <SidebarProvider className="h-full min-h-0 bg-background">
             <Navbar />
             <SidebarInset className="h-full min-h-0">
               <ReaderStateProvider>

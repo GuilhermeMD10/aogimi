@@ -5,8 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   DESIGN TOKENS — Tailwind v4 inline theme
-   All --color-lumina-* names stay identical so existing JSX needs no changes.
+   DESIGN TOKENS — Night Library
+   Tailwind v4 inline theme. All --color-lumina-* names stay identical so
+   existing JSX classes need no changes.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 @theme inline {
@@ -74,7 +75,7 @@
 
   /* ── Typography ─────────────────────────────────────────────────────── */
   --font-sans:  var(--font-public-sans);
-  --font-serif: var(--font-noto-serif);
+  --font-serif: var(--font-lora, "Lora");
   --font-mono:  var(--font-geist-mono);
 
   /* ── Radii ──────────────────────────────────────────────────────────── */
@@ -88,149 +89,151 @@
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   THEME 1 — Digital Denim (default)
-   Professional, established. Deep slate blues + vibrant amber accent.
+   THEME: Daylight Study (light, default)
+   Warm parchment surfaces, deep charcoal text, gilt gold accent.
+   Mirrors mobile lightColors in theme/tokens.ts.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 :root,
-html[data-theme="denim"] {
+html[data-theme="light"] {
   /* Brand */
-  --lumina-primary-teal:       #FFC300;
-  --lumina-teal-light:         #FFF8DC;
-  --lumina-teal-dark:          #D4A400;
+  --lumina-primary-teal:       #B8962F;
+  --lumina-teal-light:         #F5EDDA;
+  --lumina-teal-dark:          #96790F;
 
   /* App surfaces */
-  --lumina-app-background:     #F8F9FA;
+  --lumina-app-background:     #FAF7F2;
   --lumina-surface-background: #FFFFFF;
 
-  /* Sidebar */
-  --lumina-sidebar-background: #0F172A;
-  --lumina-sidebar-text:       #FFFFFF;
-  --lumina-sidebar-active-bg:  #3E5C76;
-  --lumina-sidebar-hover-bg:   rgba(255 255 255 / 0.08);
-  --lumina-sidebar-label:      #748CAB;
+  /* Sidebar — warm dark wood, stays dark even in light mode */
+  --lumina-sidebar-background: #2A2420;
+  --lumina-sidebar-text:       #E8E0D4;
+  --lumina-sidebar-active-bg:  #3D372E;
+  --lumina-sidebar-hover-bg:   rgba(232 224 212 / 0.08);
+  --lumina-sidebar-label:      #9B9285;
 
   /* Borders */
-  --lumina-border-divider:     #CBD5E1;
+  --lumina-border-divider:     #DDD6CB;
 
   /* Text */
-  --lumina-primary-text:       #1D2D44;
-  --lumina-secondary-text:     #748CAB;
-  --lumina-icon-gray:          #748CAB;
+  --lumina-primary-text:       #2C2825;
+  --lumina-secondary-text:     #8B8178;
+  --lumina-icon-gray:          #8B8178;
 
   /* Feedback */
-  --lumina-success:            #2D6A4F;
-  --lumina-warning:            #D97706;
-  --lumina-error:              #9E2A2B;
+  --lumina-success:            #5B7A5E;
+  --lumina-warning:            #C4842A;
+  --lumina-error:              #A04040;
 
   /* shadcn base */
-  --background:          #F8F9FA;
-  --foreground:          #1D2D44;
+  --background:          #FAF7F2;
+  --foreground:          #2C2825;
   --card:                #FFFFFF;
-  --card-foreground:     #1D2D44;
+  --card-foreground:     #2C2825;
   --popover:             #FFFFFF;
-  --popover-foreground:  #1D2D44;
-  --primary:             #FFC300;
-  --primary-foreground:  #1D2D44;
-  --secondary:           #F1F5F9;
-  --secondary-foreground:#1D2D44;
-  --muted:               #F1F5F9;
-  --muted-foreground:    #748CAB;
-  --accent:              #F1F5F9;
-  --accent-foreground:   #1D2D44;
-  --destructive:         #9E2A2B;
-  --border:              #CBD5E1;
-  --input:               #CBD5E1;
-  --ring:                #FFC300;
-  --radius:              0.5rem;
+  --popover-foreground:  #2C2825;
+  --primary:             #B8962F;
+  --primary-foreground:  #2C2825;
+  --secondary:           #F0EBE3;
+  --secondary-foreground:#2C2825;
+  --muted:               #F0EBE3;
+  --muted-foreground:    #8B8178;
+  --accent:              #F5EDDA;
+  --accent-foreground:   #2C2825;
+  --destructive:         #A04040;
+  --border:              #DDD6CB;
+  --input:               #DDD6CB;
+  --ring:                #B8962F;
+  --radius:              0.625rem;
 
-  /* shadcn sidebar — drives the shadcn <Sidebar> component */
-  --sidebar:                        #0F172A;
-  --sidebar-foreground:             #FFFFFF;
-  --sidebar-primary:                #FFC300;
-  --sidebar-primary-foreground:     #1D2D44;
-  --sidebar-accent:                 #3E5C76;
-  --sidebar-accent-foreground:      #FFFFFF;
-  --sidebar-border:                 rgba(255 255 255 / 0.1);
-  --sidebar-ring:                   #FFC300;
+  /* shadcn sidebar */
+  --sidebar:                        #2A2420;
+  --sidebar-foreground:             #E8E0D4;
+  --sidebar-primary:                #B8962F;
+  --sidebar-primary-foreground:     #2C2825;
+  --sidebar-accent:                 #3D372E;
+  --sidebar-accent-foreground:      #E8E0D4;
+  --sidebar-border:                 rgba(232 224 212 / 0.1);
+  --sidebar-ring:                   #B8962F;
 
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: oklch(0.87 0.08 85);
+  --chart-2: oklch(0.65 0.06 85);
+  --chart-3: oklch(0.50 0.04 85);
+  --chart-4: oklch(0.40 0.03 85);
+  --chart-5: oklch(0.30 0.02 85);
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   THEME 2 — Golden Grain (Scholarly Sanctuary)
-   Warm, inviting, premium. Parchment backgrounds + gold accent.
+   THEME: Evening Study (dark)
+   Warm near-black surfaces, cream text, bright gold accent.
+   Mirrors mobile darkColors in theme/tokens.ts.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-html[data-theme="grain"] {
+html[data-theme="dark"] {
   /* Brand */
-  --lumina-primary-teal:       #FFC300;
-  --lumina-teal-light:         #FFF9EB;
-  --lumina-teal-dark:          #E8B800;
+  --lumina-primary-teal:       #D4AA3C;
+  --lumina-teal-light:         #332C1A;
+  --lumina-teal-dark:          #B8962F;
 
   /* App surfaces */
-  --lumina-app-background:     #FFF9EB;
-  --lumina-surface-background: #FFFDF5;
+  --lumina-app-background:     #1A1714;
+  --lumina-surface-background: #242019;
 
   /* Sidebar */
-  --lumina-sidebar-background: #F3EDE0;
-  --lumina-sidebar-text:       #785A00;
-  --lumina-sidebar-active-bg:  #E8E2D4;
-  --lumina-sidebar-hover-bg:   rgba(0 0 0 / 0.05);
-  --lumina-sidebar-label:      #A07C2D;
+  --lumina-sidebar-background: #141210;
+  --lumina-sidebar-text:       #E8E0D4;
+  --lumina-sidebar-active-bg:  #2E2A22;
+  --lumina-sidebar-hover-bg:   rgba(232 224 212 / 0.06);
+  --lumina-sidebar-label:      #9B9285;
 
   /* Borders */
-  --lumina-border-divider:     #E8E2D4;
+  --lumina-border-divider:     #3D372E;
 
   /* Text */
-  --lumina-primary-text:       #1D1C13;
-  --lumina-secondary-text:     #785A00;
-  --lumina-icon-gray:          #A07C2D;
+  --lumina-primary-text:       #E8E0D4;
+  --lumina-secondary-text:     #9B9285;
+  --lumina-icon-gray:          #9B9285;
 
   /* Feedback */
-  --lumina-success:            #4D7C0F;
-  --lumina-warning:            #D97706;
-  --lumina-error:              #B91C1C;
+  --lumina-success:            #6B9B6F;
+  --lumina-warning:            #D4943A;
+  --lumina-error:              #C05050;
 
   /* shadcn base */
-  --background:          #FFF9EB;
-  --foreground:          #1D1C13;
-  --card:                #FFFDF5;
-  --card-foreground:     #1D1C13;
-  --popover:             #FFFDF5;
-  --popover-foreground:  #1D1C13;
-  --primary:             #FFC300;
-  --primary-foreground:  #1D1C13;
-  --secondary:           #F3EDE0;
-  --secondary-foreground:#785A00;
-  --muted:               #F3EDE0;
-  --muted-foreground:    #785A00;
-  --accent:              #E8E2D4;
-  --accent-foreground:   #1D1C13;
-  --destructive:         #B91C1C;
-  --border:              #E8E2D4;
-  --input:               #E8E2D4;
-  --ring:                #FFC300;
+  --background:          #1A1714;
+  --foreground:          #E8E0D4;
+  --card:                #242019;
+  --card-foreground:     #E8E0D4;
+  --popover:             #242019;
+  --popover-foreground:  #E8E0D4;
+  --primary:             #D4AA3C;
+  --primary-foreground:  #1A1714;
+  --secondary:           #2E2A22;
+  --secondary-foreground:#E8E0D4;
+  --muted:               #2E2A22;
+  --muted-foreground:    #9B9285;
+  --accent:              #332C1A;
+  --accent-foreground:   #E8E0D4;
+  --destructive:         #C05050;
+  --border:              #3D372E;
+  --input:               #3D372E;
+  --ring:                #D4AA3C;
 
   /* shadcn sidebar */
-  --sidebar:                        #F3EDE0;
-  --sidebar-foreground:             #785A00;
-  --sidebar-primary:                #FFC300;
-  --sidebar-primary-foreground:     #1D1C13;
-  --sidebar-accent:                 #E8E2D4;
-  --sidebar-accent-foreground:      #785A00;
-  --sidebar-border:                 #E8E2D4;
-  --sidebar-ring:                   #FFC300;
+  --sidebar:                        #141210;
+  --sidebar-foreground:             #E8E0D4;
+  --sidebar-primary:                #D4AA3C;
+  --sidebar-primary-foreground:     #1A1714;
+  --sidebar-accent:                 #2E2A22;
+  --sidebar-accent-foreground:      #E8E0D4;
+  --sidebar-border:                 rgba(232 224 212 / 0.06);
+  --sidebar-ring:                   #D4AA3C;
 
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: oklch(0.80 0.08 85);
+  --chart-2: oklch(0.60 0.06 85);
+  --chart-3: oklch(0.45 0.04 85);
+  --chart-4: oklch(0.35 0.03 85);
+  --chart-5: oklch(0.25 0.02 85);
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -251,17 +254,17 @@ html[data-theme="grain"] {
     font-family: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
   }
 
-  /* Golden Grain: Noto Serif as the primary reading typeface */
-  html[data-theme="grain"] {
-    font-family: var(--font-noto-serif, "Noto Serif"), Georgia, serif;
+  /* Night Library: Lora serif for display headings in both themes */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-lora, "Lora"), Georgia, serif;
   }
 
-  /* Restore Public Sans for UI chrome (buttons, inputs, nav) in Golden Grain */
-  html[data-theme="grain"] button,
-  html[data-theme="grain"] input,
-  html[data-theme="grain"] select,
-  html[data-theme="grain"] textarea,
-  html[data-theme="grain"] nav {
+  /* Keep sans-serif for UI chrome (buttons, inputs, nav) */
+  button,
+  input,
+  select,
+  textarea,
+  nav {
     font-family: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
   }
 

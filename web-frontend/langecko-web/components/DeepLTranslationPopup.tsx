@@ -87,7 +87,7 @@ export function DeepLTranslationPopup({ originalText, position, onClose }: Props
     <div
       ref={popupRef}
       style={{ position: 'fixed', left: adjustedPos.x, top: adjustedPos.y, zIndex: 10000 }}
-      className="w-72 rounded-lg border border-lumina-border-divider bg-white shadow-lg"
+      className="w-72 rounded-lg border border-lumina-border-divider bg-lumina-surface-background shadow-lg"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-lumina-border-divider px-3 py-2">
