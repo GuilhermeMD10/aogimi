@@ -1,15 +1,20 @@
 /**
  * Shared cards-feature types.
  *
- * Kept as plain types (not a Zod schema) to match the rest of the client
- * codebase. `description` is optional because decks persisted before the
- * field existed won't have it — we handle that at read time.
+ * `CardModel` matches the backend `cards` table columns.
+ * `Deck` is the full deck + cards, used in detail/study views.
+ * `DeckSummary` is the lightweight version returned by the list endpoint
+ * (card_count only, no cards array).
  */
 
 export type CardModel = {
   id: string;
   front: string;
   back: string;
+  reading?: string;
+  notes?: string;
+  state?: 'new' | 'learning' | 'mastered';
+  reviewed_times?: number;
 };
 
 export type Deck = {
@@ -17,6 +22,13 @@ export type Deck = {
   name: string;
   description?: string;
   cards: CardModel[];
+};
+
+export type DeckSummary = {
+  id: string;
+  name: string;
+  description: string;
+  card_count: number;
 };
 
 export interface DeckPatch {
@@ -27,6 +39,6 @@ export interface DeckPatch {
 /** Class strings shared across the cards sub-components — kept together so
  *  restyling the "chrome" doesn't mean grepping across six files. */
 export const btnBase =
-  'rounded border border-lumina-border-divider px-3 py-1 text-sm bg-white text-lumina-primary-text hover:bg-black/5 disabled:opacity-40 disabled:hover:bg-white';
+  'rounded-md border border-lgc-border px-3 py-1.5 text-sm text-lgc-fg transition-colors hover:bg-lgc-accent-soft disabled:opacity-40';
 export const btnPrimary =
-  'rounded border border-lumina-primary-teal bg-lumina-primary-teal text-black px-4 py-2 text-sm font-medium hover:bg-lumina-primary-teal/90 disabled:opacity-50';
+  'rounded-md bg-lgc-accent px-4 py-2 text-sm font-medium text-lgc-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50';

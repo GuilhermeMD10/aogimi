@@ -9,19 +9,12 @@ interface DeckFormValues {
 }
 
 interface DeckFormProps {
-  /** "Create" for new decks; "Save" for edit flow. */
   submitLabel: string;
-  /** Pre-filled values when editing an existing deck. */
   initial?: Partial<DeckFormValues>;
   onSubmit: (values: DeckFormValues) => void;
   onCancel: () => void;
 }
 
-/**
- * Shared name + description form used both when creating a new deck and
- * editing an existing one. Kept presentational — the parent decides which
- * mutation to run on submit.
- */
 export function DeckForm({ submitLabel, initial, onSubmit, onCancel }: DeckFormProps) {
   const [name, setName]               = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
@@ -37,10 +30,10 @@ export function DeckForm({ submitLabel, initial, onSubmit, onCancel }: DeckFormP
   return (
     <form
       onSubmit={submit}
-      className="mt-4 space-y-3 rounded border border-lumina-border-divider bg-lumina-surface-background p-4"
+      className="mt-4 space-y-3 rounded-lg border border-lgc-border bg-lgc-bg-elev p-4"
     >
       <div>
-        <label className="text-xs font-medium uppercase tracking-wide text-lumina-secondary-text">
+        <label className="text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
           Name
         </label>
         <input
@@ -49,20 +42,20 @@ export function DeckForm({ submitLabel, initial, onSubmit, onCancel }: DeckFormP
           onChange={(e) => setName(e.target.value)}
           placeholder="Deck name"
           autoFocus
-          className="mt-1 w-full rounded border border-lumina-border-divider bg-lumina-app-background px-3 py-2 text-sm text-lumina-primary-text"
+          className="mt-1 w-full rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
         />
       </div>
 
       <div>
-        <label className="text-xs font-medium uppercase tracking-wide text-lumina-secondary-text">
+        <label className="text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
           Description
         </label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Optional — what's this deck for?"
+          placeholder="Optional \u2014 what\u2019s this deck for?"
           rows={2}
-          className="mt-1 w-full resize-none rounded border border-lumina-border-divider bg-lumina-app-background px-3 py-2 text-sm text-lumina-primary-text"
+          className="mt-1 w-full resize-none rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
         />
       </div>
 

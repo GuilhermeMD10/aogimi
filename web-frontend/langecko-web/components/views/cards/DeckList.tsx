@@ -1,23 +1,31 @@
 'use client';
 
 import { useState } from 'react';
-import type { Deck } from './types';
-import { btnBase } from './types';
+import { Plus, MoreHorizontal, Layers, Play } from 'lucide-react';
+import type { DeckSummary } from './types';
 import { DeckForm } from './DeckForm';
 
 interface DeckListProps {
-  decks: Deck[];
+  decks: DeckSummary[];
   onOpenDeck: (deckId: string) => void;
   onCreateDeck: (name: string, description: string) => void;
   onDeleteDeck: (deckId: string) => void;
 }
 
-/**
- * Deck-list screen. Each row has a left accent stripe, an optional
- * description preview (clamped to 2 lines), and a card-count pill.
- * Uses container queries so grid density scales with the available width
- * (matters inside split views).
- */
+// Deterministic visual properties derived from deck name
+const COVER_COLORS = ['#6B5A45', '#2E5D4E', '#263B5C', '#8E3B36', '#4A4038', '#7A5330', '#3D5A80', '#5A3D6B'];
+const KAMON_CHARS = ['\u5FC3', '\u6587', '\u9280', '\u6F22', '\u656C', '\u53E4', '\u8A00', '\u5B66', '\u66F8', '\u9053'];
+
+function deckVisuals(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+  const idx = Math.abs(hash);
+  return {
+    color: COVER_COLORS[idx % COVER_COLORS.length],
+    kamon: KAMON_CHARS[idx % KAMON_CHARS.length],
+  };
+}
+
 export function DeckList({
   decks,
   onOpenDeck,
@@ -31,94 +39,184 @@ export function DeckList({
     setFormOpen(false);
   };
 
+  const totalCards = decks.reduce((sum, d) => sum + d.card_count, 0);
+
   return (
-    <div className="@container p-6 rounded-2xl bg-lumina-app-background min-h-full w-full">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-lumina-primary-text">Card Decks</h1>
-        <button
-          type="button"
-          onClick={() => setFormOpen((v) => !v)}
-          className={btnBase}
-        >
-          {formOpen ? 'Cancel' : '+ New Deck'}
-        </button>
+    <div className="@container min-h-full w-full" style={{ padding: '28px 36px' }}>
+      <div className="mx-auto max-w-250">
+        {/* Header */}
+        <div className="flex items-baseline justify-between pb-1.5">
+          <div>
+            <div className="lgc-section-label mb-1.5">Flashcards</div>
+            <h1
+              className="text-[34px] font-medium tracking-tight text-lgc-fg"
+              style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.015em' }}
+            >
+              Your decks
+            </h1>
+            <div className="mt-1.5 text-[13px] text-lgc-fg-muted">
+              {decks.length} {decks.length === 1 ? 'deck' : 'decks'} &middot; {totalCards} total
+              cards
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => setFormOpen((v) => !v)}
+              className="flex items-center gap-1.5 rounded-md border border-lgc-border-strong px-3 py-1.5 text-[13px] font-medium text-lgc-fg transition-colors hover:bg-lgc-bg-elev"
+            >
+              <Plus size={13} />
+              {formOpen ? 'Cancel' : 'New deck'}
+            </button>
+          </div>
+        </div>
+
+        {formOpen && (
+          <DeckForm
+            submitLabel="Create"
+            onSubmit={handleSubmit}
+            onCancel={() => setFormOpen(false)}
+          />
+        )}
+
+        {/* Deck grid */}
+        {decks.length === 0 && !formOpen ? (
+          <div className="mt-6 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-lgc-border-strong py-20">
+            <Layers size={32} className="mb-3 text-lgc-fg-subtle" />
+            <p className="mb-1 text-sm font-medium text-lgc-fg">No decks yet</p>
+            <p className="mb-4 text-[13px] text-lgc-fg-muted">
+              Create a deck to start building flashcards.
+            </p>
+            <button
+              type="button"
+              onClick={() => setFormOpen(true)}
+              className="flex items-center gap-1.5 rounded-md bg-lgc-accent px-4 py-2 text-sm font-semibold text-lgc-accent-fg transition hover:opacity-90"
+            >
+              <Plus size={14} /> New deck
+            </button>
+          </div>
+        ) : decks.length > 0 ? (
+          <div className="mt-5 grid grid-cols-1 gap-4.5 @md:grid-cols-2 @3xl:grid-cols-3">
+            {decks.map((deck) => (
+              <DeckCard
+                key={deck.id}
+                deck={deck}
+                onOpen={onOpenDeck}
+                onDelete={onDeleteDeck}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
-
-      {formOpen ? (
-        <DeckForm
-          submitLabel="Create"
-          onSubmit={handleSubmit}
-          onCancel={() => setFormOpen(false)}
-        />
-      ) : null}
-
-      {decks.length === 0 ? (
-        <p className="mt-6 text-sm text-lumina-secondary-text">
-          No decks yet. Create one to get started.
-        </p>
-      ) : (
-        <ul className="mt-4 grid grid-cols-1 gap-3 @md:grid-cols-2 @3xl:grid-cols-3">
-          {decks.map((deck) => (
-            <DeckRow
-              key={deck.id}
-              deck={deck}
-              onOpen={onOpenDeck}
-              onDelete={onDeleteDeck}
-            />
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
 
-function DeckRow({
+function DeckCard({
   deck,
   onOpen,
   onDelete,
 }: {
-  deck: Deck;
+  deck: DeckSummary;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { color, kamon } = deckVisuals(deck.name);
   const description = deck.description?.trim();
-  const cardLabel   = `${deck.cards.length} card${deck.cards.length === 1 ? '' : 's'}`;
 
   return (
-    <li className="relative">
+    <div className="lgc-card flex cursor-pointer flex-col overflow-hidden transition-transform hover:scale-[1.01]">
+      {/* Gradient cover */}
       <button
         type="button"
         onClick={() => onOpen(deck.id)}
-        className="group flex w-full overflow-hidden rounded-lg border border-lumina-border-divider bg-lumina-surface-background text-left shadow-sm transition-colors hover:bg-lumina-primary-text/[0.02]"
+        className="relative h-30 w-full overflow-hidden text-left"
+        style={{
+          background: `linear-gradient(135deg, ${color} 0%, color-mix(in oklab, ${color} 60%, black) 100%)`,
+        }}
       >
-        {/* Left accent stripe — the only bit of brand color on the row. */}
-        <span aria-hidden className="w-1 shrink-0 bg-lumina-primary-teal" />
-
-        <div className="flex-1 p-4">
-          <p className="truncate font-semibold text-lumina-primary-text">
-            {deck.name}
-          </p>
-          {description ? (
-            <p className="mt-1 line-clamp-2 text-sm text-lumina-secondary-text">
-              {description}
-            </p>
-          ) : null}
-          <div className="mt-2 flex items-center gap-2">
-            <span className="rounded bg-lumina-primary-teal/15 px-2 py-0.5 text-xs font-medium text-lumina-primary-text">
-              {cardLabel}
-            </span>
-          </div>
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'repeating-linear-gradient(45deg, transparent 0 12px, rgba(255,255,255,0.04) 12px 13px)',
+          }}
+        />
+        <div
+          className="absolute bottom-3 left-3.5 text-[44px] leading-none text-white/85"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          {kamon}
+        </div>
+        <div
+          className="absolute right-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10px] text-white"
+          style={{
+            background: 'rgba(0,0,0,0.35)',
+            fontFamily: 'var(--font-mono, Geist Mono, monospace)',
+          }}
+        >
+          {deck.card_count} cards
         </div>
       </button>
 
-      <button
-        type="button"
-        onClick={() => onDelete(deck.id)}
-        className="absolute right-2 top-2 rounded px-1 text-xs text-lumina-error hover:bg-lumina-primary-text/5"
-        aria-label={`Delete ${deck.name}`}
-      >
-        ✕
-      </button>
-    </li>
+      {/* Info */}
+      <div className="flex flex-1 flex-col p-3.5">
+        <button
+          type="button"
+          onClick={() => onOpen(deck.id)}
+          className="text-left"
+        >
+          <div
+            className="mb-0.5 text-[15px] font-medium text-lgc-fg"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {deck.name}
+          </div>
+          {description && (
+            <div className="mb-2.5 line-clamp-2 text-xs leading-relaxed text-lgc-fg-muted">
+              {description}
+            </div>
+          )}
+        </button>
+
+        {/* Actions */}
+        <div className="mt-auto flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => onOpen(deck.id)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-lgc-accent px-3 py-1.5 text-xs font-medium text-lgc-accent-fg transition-opacity hover:opacity-90"
+          >
+            <Play size={12} /> Study
+          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="rounded-md border border-lgc-border p-1.5 text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken"
+            >
+              <MoreHorizontal size={14} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute bottom-full right-0 z-50 mb-1 w-32 overflow-hidden rounded-md border border-lgc-border bg-lgc-bg-elev shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDelete(deck.id);
+                      setMenuOpen(false);
+                    }}
+                    className="w-full px-3 py-2 text-left text-xs text-lgc-error transition-colors hover:bg-lgc-bg-sunken"
+                  >
+                    Delete deck
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

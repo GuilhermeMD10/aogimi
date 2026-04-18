@@ -1,12 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import type { CardModel, Deck } from './types';
+import type { CardModel, DeckSummary } from './types';
 import { btnBase, btnPrimary } from './types';
 
-/** Two-phase "add a card from a highlighted word" flow triggered from the
- *  reader context menu. Phase 1 picks or creates a deck; phase 2 writes the
- *  card's back. Driven by `pendingCardWord` on `ReaderStateProvider`. */
 export type PendingCardFlow =
   | { phase: 'select-deck'; word: string }
   | { phase: 'create-card'; word: string; deckId: string }
@@ -14,7 +11,7 @@ export type PendingCardFlow =
 
 interface PendingCardOverlayProps {
   flow: PendingCardFlow;
-  decks: Deck[];
+  decks: DeckSummary[];
   onCancel: () => void;
   onSelectDeck: (deckId: string) => void;
   onCreateDeckAndUse: (name: string) => void;
@@ -29,10 +26,9 @@ export function PendingCardOverlay({
   onCreateDeckAndUse,
   onSubmitCard,
 }: PendingCardOverlayProps) {
-  // Sub-form for creating a brand-new deck inline during phase 1.
-  const [newDeckName, setNewDeckName]       = useState('');
-  const [showNewDeck, setShowNewDeck]       = useState(false);
-  const [pendingBack, setPendingBack]       = useState('');
+  const [newDeckName, setNewDeckName] = useState('');
+  const [showNewDeck, setShowNewDeck] = useState(false);
+  const [pendingBack, setPendingBack] = useState('');
 
   if (!flow) return null;
 
@@ -55,8 +51,8 @@ export function PendingCardOverlay({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-lg border border-lumina-border-divider bg-lumina-surface-background p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-xl border border-lgc-border bg-lgc-bg-elev p-6 shadow-xl">
         {flow.phase === 'select-deck' ? (
           <SelectDeckPhase
             word={flow.word}
@@ -96,7 +92,7 @@ function SelectDeckPhase({
   onCancel,
 }: {
   word: string;
-  decks: Deck[];
+  decks: DeckSummary[];
   newDeckName: string;
   setNewDeckName: (v: string) => void;
   showNewDeck: boolean;
@@ -107,12 +103,19 @@ function SelectDeckPhase({
 }) {
   return (
     <>
-      <h2 className="text-base font-semibold text-lumina-primary-text">Add as flashcard</h2>
-      <p className="mt-1 text-sm text-lumina-secondary-text">
-        Front: <span className="font-medium text-lumina-primary-text">&ldquo;{word}&rdquo;</span>
+      <h2
+        className="text-base font-medium text-lgc-fg"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        Add as flashcard
+      </h2>
+      <p className="mt-1 text-sm text-lgc-fg-muted">
+        Front: <span className="font-medium text-lgc-fg">&ldquo;{word}&rdquo;</span>
       </p>
 
-      <p className="mt-4 text-sm font-medium text-lumina-primary-text">Select a deck:</p>
+      <p className="mt-4 text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
+        Select a deck
+      </p>
 
       {decks.length > 0 ? (
         <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
@@ -121,18 +124,18 @@ function SelectDeckPhase({
               <button
                 type="button"
                 onClick={() => onSelectDeck(deck.id)}
-                className="w-full rounded border border-lumina-border-divider bg-lumina-app-background px-3 py-2 text-left text-sm hover:bg-lumina-primary-text/5"
+                className="w-full rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-left text-sm transition-colors hover:bg-lgc-accent-soft"
               >
-                <span className="font-medium text-lumina-primary-text">{deck.name}</span>
-                <span className="ml-2 text-xs text-lumina-secondary-text">
-                  {deck.cards.length} card{deck.cards.length !== 1 ? 's' : ''}
+                <span className="font-medium text-lgc-fg">{deck.name}</span>
+                <span className="ml-2 text-xs text-lgc-fg-muted">
+                  {deck.card_count} card{deck.card_count !== 1 ? 's' : ''}
                 </span>
               </button>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-sm text-lumina-secondary-text">No decks yet — create one below.</p>
+        <p className="mt-2 text-sm text-lgc-fg-muted">No decks yet &mdash; create one below.</p>
       )}
 
       {showNewDeck ? (
@@ -142,7 +145,7 @@ function SelectDeckPhase({
             value={newDeckName}
             onChange={(e) => setNewDeckName(e.target.value)}
             placeholder="New deck name"
-            className="flex-1 rounded border border-lumina-border-divider bg-lumina-app-background px-3 py-2 text-sm"
+            className="flex-1 rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
             autoFocus
           />
           <button type="submit" disabled={!newDeckName.trim()} className={btnPrimary}>
@@ -162,7 +165,7 @@ function SelectDeckPhase({
       <button
         type="button"
         onClick={onCancel}
-        className="mt-4 text-xs text-lumina-secondary-text underline hover:text-lumina-primary-text"
+        className="mt-4 text-xs text-lgc-fg-muted underline transition-colors hover:text-lgc-fg"
       >
         Cancel
       </button>
@@ -179,7 +182,7 @@ function CreateCardPhase({
   onCancel,
 }: {
   flow: { phase: 'create-card'; word: string; deckId: string };
-  decks: Deck[];
+  decks: DeckSummary[];
   pendingBack: string;
   setPendingBack: (v: string) => void;
   onSubmit: (e: React.FormEvent) => void;
@@ -189,27 +192,36 @@ function CreateCardPhase({
 
   return (
     <>
-      <h2 className="text-base font-semibold text-lumina-primary-text">New card</h2>
-      {deck ? (
-        <p className="mt-0.5 text-xs text-lumina-secondary-text">
+      <h2
+        className="text-base font-medium text-lgc-fg"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        New card
+      </h2>
+      {deck && (
+        <p className="mt-0.5 text-xs text-lgc-fg-muted">
           Adding to &ldquo;{deck.name}&rdquo;
         </p>
-      ) : null}
+      )}
 
       <form onSubmit={onSubmit} className="mt-4 space-y-3">
         <div>
-          <label className="text-xs font-medium text-lumina-secondary-text">Front</label>
-          <div className="mt-1 rounded border border-lumina-border-divider bg-lumina-app-background px-3 py-2 text-sm text-lumina-primary-text">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
+            Front
+          </label>
+          <div className="mt-1 rounded-md border border-lgc-border bg-lgc-bg-sunken px-3 py-2 text-sm text-lgc-fg">
             {flow.word}
           </div>
         </div>
         <div>
-          <label className="text-xs font-medium text-lumina-secondary-text">Back</label>
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
+            Back
+          </label>
           <textarea
             value={pendingBack}
             onChange={(e) => setPendingBack(e.target.value)}
             placeholder="Write the back side..."
-            className="mt-1 w-full resize-none rounded border border-lumina-border-divider bg-lumina-app-background px-3 py-2 text-sm"
+            className="mt-1 w-full resize-none rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
             rows={3}
             autoFocus
           />
@@ -218,7 +230,7 @@ function CreateCardPhase({
           <button
             type="button"
             onClick={onCancel}
-            className="text-xs text-lumina-secondary-text underline hover:text-lumina-primary-text"
+            className="text-xs text-lgc-fg-muted underline transition-colors hover:text-lgc-fg"
           >
             Cancel
           </button>
@@ -231,8 +243,6 @@ function CreateCardPhase({
   );
 }
 
-/** Helper the orchestrator uses when completing phase 2: build the Card
- *  object from the flow + the user-supplied back. */
 export function buildPendingCard(flow: { word: string }, back: string): CardModel {
   return { id: crypto.randomUUID(), front: flow.word, back };
 }

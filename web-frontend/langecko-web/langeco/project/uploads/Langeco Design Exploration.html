@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Langeco — Default + themes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="styles.css">
+<style>
+  body, html { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #f0eee9; overscroll-behavior: none; }
+  #root { width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="book-data.jsx"></script>
+<script type="text/babel" src="reader.jsx"></script>
+<script type="text/babel" src="shell.jsx"></script>
+
+<script type="text/babel">
+function Artboard({ width, height, children, label, note }) {
+  return (
+    <DCArtboard label={label} width={width} height={height}>
+      <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
+        {children}
+        {note && (
+          <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.72)', color: 'white', fontSize: 10, padding: '3px 7px', borderRadius: 4, fontFamily: 'ui-monospace, monospace', zIndex: 100 }}>{note}</div>
+        )}
+      </div>
+    </DCArtboard>
+  );
+}
+
+function PaletteCard({ title, subtitle, swatches, preview, fonts, themeClass, premium }) {
+  return (
+    <DCArtboard width={420} height={260} label={`${title}${premium ? ' · premium' : ''}`}>
+      <div className={themeClass} style={{ width: '100%', height: '100%', padding: 18, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        {premium && (
+          <div style={{ position: 'absolute', top: 10, right: 10, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700, padding: '3px 7px', borderRadius: 99, background: 'var(--accent)', color: 'var(--bg)' }}>Premium</div>
+        )}
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, lineHeight: 1, letterSpacing: '-0.02em', marginBottom: 2, color: 'var(--fg)' }}>{title}</div>
+        <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginBottom: 14 }}>{subtitle}</div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+          {swatches.map(s => (
+            <div key={s.n} style={{ flex: 1, height: 40, background: s.c, borderRadius: 4, border: '1px solid rgba(0,0,0,0.06)' }}/>
+          ))}
+        </div>
+        <div style={{ fontFamily: 'var(--font-reader)', fontSize: 16, color: 'var(--fg)', borderTop: '1px solid var(--border)', paddingTop: 10 }}>{preview}</div>
+        <div style={{ fontSize: 10, color: 'var(--fg-muted)', marginTop: 2, fontFamily: 'Inter, sans-serif' }}>{fonts}</div>
+      </div>
+    </DCArtboard>
+  );
+}
+
+function SideBySide({ label, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontSize: 11, color: 'rgba(60,50,40,0.65)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, paddingLeft: 4 }}>{label}</div>
+      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>{children}</div>
+    </div>
+  );
+}
+
+function App() {
+  const W = 1180, H = 760;
+  const RW = 960, RH = 680;
+  return (
+    <DesignCanvas>
+      <div style={{ padding: '0 60px 30px' }}>
+        <div style={{ fontSize: 42, fontWeight: 500, color: 'rgba(30, 22, 15, 0.92)', letterSpacing: '-0.02em', marginBottom: 6, fontFamily: 'Instrument Serif, serif' }}>Langeco · 語境</div>
+        <div style={{ fontSize: 14, color: 'rgba(60,50,40,0.7)', maxWidth: 760, lineHeight: 1.55 }}>
+          Default (free) vs. Kanagawa (premium), shown side-by-side across Library, Reader, and Modular views.
+          Sakura & Hanami sit in the palette row as premium theme options — already validated, kept here for
+          reference.
+        </div>
+      </div>
+
+      {/* Themes row */}
+      <DCSection title="00 · Themes" subtitle="One default (free, neutral) + three premium cultural themes. Tokens saved; premium themes swap palette + type only.">
+        <PaletteCard
+          themeClass="theme-default"
+          title="Default"
+          subtitle="Free — neutral, minimal"
+          swatches={[
+            {n:'ink', c:'#1A1918'},{n:'graphite', c:'#6B6966'},{n:'stone', c:'#A8A5A0'},
+            {n:'tint', c:'#D4D2CE'},{n:'sunken', c:'#F2F1EE'},{n:'paper', c:'#FAFAF9'},
+          ]}
+          preview="Clean type, quiet chrome."
+          fonts="Inter · Source Serif 4"
+        />
+        <PaletteCard
+          themeClass="theme-kanagawa kanagawa-texture"
+          title="神奈川沖浪裏"
+          subtitle="The Great Wave off Kanagawa"
+          swatches={[
+            {n:'ink', c:'#0F2340'},{n:'indigo', c:'#1E3D6B'},{n:'wave', c:'#4B7AA3'},
+            {n:'foam', c:'#F1EEE0'},{n:'sand', c:'#D4C999'},{n:'paper', c:'#EDE6D3'},
+          ]}
+          preview="波の下にも都の候ぞ"
+          fonts="Shippori Mincho · Noto Sans JP"
+          premium
+        />
+        <PaletteCard
+          themeClass="theme-sakura sakura-texture"
+          title="桜花爛漫"
+          subtitle="Cherry blossoms in full bloom"
+          swatches={[
+            {n:'bark', c:'#3E2A2F'},{n:'blossom', c:'#D47A8C'},{n:'petal', c:'#F7DCE0'},
+            {n:'leaf', c:'#8FB08A'},{n:'sky', c:'#9BB8D6'},{n:'trunk', c:'#8B5E4A'},
+          ]}
+          preview="花の雲 鐘は上野か浅草か"
+          fonts="Klee One · Shippori Mincho"
+          premium
+        />
+        <PaletteCard
+          themeClass="theme-hanami hanami-texture"
+          title="花見の夜"
+          subtitle="Hanami festival — lantern night"
+          swatches={[
+            {n:'lacquer', c:'#14100C'},{n:'torii', c:'#E04B2A'},{n:'saffron', c:'#F2B33D'},
+            {n:'gold', c:'#D98830'},{n:'paper', c:'#F5E9D4'},{n:'smoke', c:'#B0987A'},
+          ]}
+          preview="灯りの下 春の夜"
+          fonts="Shippori Mincho · Inter"
+          premium
+        />
+      </DCSection>
+
+      {/* Library side-by-side */}
+      <DCSection title="01 · Library — Default vs. Kanagawa" subtitle="Same layout, themed tokens only. No top tab bar here. Stats area reserved.">
+        <Artboard width={W} height={H} label="01.a  Default"><Shell theme="default"/></Artboard>
+        <Artboard width={W} height={H} label="01.b  Kanagawa"><Shell theme="kanagawa"/></Artboard>
+      </DCSection>
+
+      {/* Reader side-by-side */}
+      <DCSection title="02 · Reader — Default vs. Kanagawa" subtitle="Bottom floating toolbar · expand for type / layout / 横 vs 縦. RTL vertical mode respects Japanese convention.">
+        <SideBySide label="Horizontal · toolbar expanded">
+          <Artboard width={RW} height={RH} label="02.a  Default"><Reader theme="default" toolbarExpanded/></Artboard>
+          <Artboard width={RW} height={RH} label="02.b  Kanagawa"><Reader theme="kanagawa" toolbarExpanded/></Artboard>
+        </SideBySide>
+        <SideBySide label="Horizontal · selection context menu">
+          <Artboard width={RW} height={RH} label="02.c  Default"><Reader theme="default" showContextMenu/></Artboard>
+          <Artboard width={RW} height={RH} label="02.d  Kanagawa"><Reader theme="kanagawa" showContextMenu/></Artboard>
+        </SideBySide>
+        <SideBySide label="Vertical RTL (縦) · Japanese convention">
+          <Artboard width={RW} height={RH} label="02.e  Default" note="縦"><Reader theme="default" vertical/></Artboard>
+          <Artboard width={RW} height={RH} label="02.f  Kanagawa" note="縦"><Reader theme="kanagawa" vertical/></Artboard>
+        </SideBySide>
+      </DCSection>
+
+      {/* Modular side-by-side */}
+      <DCSection title="03 · Modular view — Default vs. Kanagawa" subtitle="Pane bar (top): each chip is a LIVE pane handle. Numbered, color-dotted, with a green 'live' indicator. Drag a chip past a neighbor (⇄) to swap panes. No active/inactive state.">
+        <Artboard width={W + 240} height={H} label="03.a  Default · resting state"><ModularView theme="default"/></Artboard>
+        <Artboard width={W + 240} height={H} label="03.b  Kanagawa · resting state"><ModularView theme="kanagawa"/></Artboard>
+        <Artboard width={W + 240} height={H} label="03.c  Default · dragging chip #2 (Dictionary)" note="drag preview"><ModularView theme="default" draggingIdx={1}/></Artboard>
+        <Artboard width={W + 240} height={H} label="03.d  Kanagawa · dragging chip #2 (Dictionary)" note="drag preview"><ModularView theme="kanagawa" draggingIdx={1}/></Artboard>
+      </DCSection>
+
+      <DCPostIt top={80} right={80} rotate={3} width={240}>
+        Tab bar → <b>pane bar</b>: chips are handles, not tabs. All three panes are live simultaneously — ⇄ arrows and the live-dot make that legible. Drag any chip to swap.
+      </DCPostIt>
+
+      <div style={{ padding: '20px 60px 60px', fontSize: 12, color: 'rgba(60,50,40,0.55)', maxWidth: 760 }}>
+        Next — pick a direction (Default only? Default + one premium as upsell?) and I'll wire real drag interaction, the full dictionary/flashcard views, and the EPUB import flow. Sakura + Hanami shells are still available if you want them brought back on the canvas.
+      </div>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

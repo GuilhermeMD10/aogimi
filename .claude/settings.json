@@ -3,7 +3,20 @@
     "allow": [
       "Bash(python3)",
       "Bash(ls -d /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/*/)",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(git status *)",
+      "Bash(xargs ls *)",
+      "Bash(git log *)",
+      "Bash(find /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/components -type f \\\\\\( -name \"*.jsx\" -o -name \"*.tsx\" \\\\\\) -exec basename {} \\\\;)",
+      "Bash(find /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web -type f \\\\\\( -name \"*.jsx\" -o -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.js\" \\\\\\) ! -path \"*/node_modules/*\" -exec grep -l \"artifact\" {} \\\\;)",
+      "Bash(find /Users/guilhermedias/solo-projects/jp-eco -type f -path \"*reader*\" \\\\\\( -name \"*.jsx\" -o -name \"*.tsx\" \\\\\\) ! -path \"*/node_modules/*\" ! -path \"*/\\\\.git/*\" -exec ls -lh {} \\\\;)",
+      "Bash(grep -l \"dictionary\\\\|word\" /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/lib/*.ts)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Bash(echo \"EXIT: $?\")"
+    ],
+    "additionalDirectories": [
+      "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader"
     ]
   }
 }
