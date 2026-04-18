@@ -1,20 +1,19 @@
 import type { Metadata } from 'next';
-import { Geist_Mono, Lora, Public_Sans } from 'next/font/google';
+import { Geist_Mono, Inter, Source_Serif_4 } from 'next/font/google';
 import './globals.css';
-import Navbar from '@/components/Navbar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { ReaderStateProvider } from '@/components/providers/ReaderStateProvider';
+import { AuthProvider } from '@/components/providers/AuthProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
+import { AppShell } from '@/components/AppShell';
 
-const publicSans = Public_Sans({
-  variable: '--font-public-sans',
+const inter = Inter({
+  variable: '--font-inter',
   subsets: ['latin'],
 });
 
-const lora = Lora({
-  variable: '--font-lora',
+const sourceSerif = Source_Serif_4({
+  variable: '--font-source-serif',
   subsets: ['latin'],
-  weight: ['400', '600', '700'],
+  weight: ['300', '400', '500', '600'],
   style: ['normal', 'italic'],
 });
 
@@ -24,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Langecko',
+  title: 'Langeco',
   description: 'Japanese reading and vocabulary app',
 };
 
@@ -36,21 +35,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-theme="light"
-      className={`${publicSans.variable} ${lora.variable} ${geistMono.variable} h-full antialiased`}
+      data-theme="default"
+      className={`${inter.variable} ${sourceSerif.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="h-full">
         <ThemeProvider>
-          <SidebarProvider className="h-full min-h-0 bg-background">
-            <Navbar />
-            <SidebarInset className="h-full min-h-0">
-              <ReaderStateProvider>
-                <main className="h-full w-full overflow-auto">
-                  {children}
-                </main>
-              </ReaderStateProvider>
-            </SidebarInset>
-          </SidebarProvider>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
