@@ -5,235 +5,338 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   DESIGN TOKENS — Night Library
-   Tailwind v4 inline theme. All --color-lumina-* names stay identical so
-   existing JSX classes need no changes.
+   DESIGN TOKENS — Langeco
+   Tailwind v4 inline theme. Maps CSS custom properties to Tailwind colors
+   so you can write `bg-lgc-bg`, `text-lgc-fg`, `border-lgc-border`, etc.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 @theme inline {
-  /* ── Brand / accent ─────────────────────────────────────────────────── */
-  --color-lumina-primary-teal:        var(--lumina-primary-teal);
-  --color-lumina-teal-light:          var(--lumina-teal-light);
-  --color-lumina-teal-dark:           var(--lumina-teal-dark);
+  /* ── Langeco tokens ─────────────────────────────────────────────────── */
+  --color-lgc-bg:            var(--lgc-bg);
+  --color-lgc-bg-elev:       var(--lgc-bg-elev);
+  --color-lgc-bg-sunken:     var(--lgc-bg-sunken);
 
-  /* ── Layout surfaces ────────────────────────────────────────────────── */
-  --color-lumina-app-background:      var(--lumina-app-background);
-  --color-lumina-sidebar-background:  var(--lumina-sidebar-background);
-  --color-lumina-surface-background:  var(--lumina-surface-background);
+  --color-lgc-fg:            var(--lgc-fg);
+  --color-lgc-fg-muted:      var(--lgc-fg-muted);
+  --color-lgc-fg-subtle:     var(--lgc-fg-subtle);
 
-  /* ── Borders ────────────────────────────────────────────────────────── */
-  --color-lumina-border-divider:      var(--lumina-border-divider);
+  --color-lgc-border:        var(--lgc-border);
+  --color-lgc-border-strong: var(--lgc-border-strong);
 
-  /* ── Text ───────────────────────────────────────────────────────────── */
-  --color-lumina-primary-text:        var(--lumina-primary-text);
-  --color-lumina-secondary-text:      var(--lumina-secondary-text);
-  --color-lumina-icon-gray:           var(--lumina-icon-gray);
+  --color-lgc-accent:        var(--lgc-accent);
+  --color-lgc-accent-soft:   var(--lgc-accent-soft);
+  --color-lgc-accent-fg:     var(--lgc-accent-fg);
 
-  /* ── Sidebar ────────────────────────────────────────────────────────── */
-  --color-lumina-sidebar-text:        var(--lumina-sidebar-text);
-  --color-lumina-sidebar-active-bg:   var(--lumina-sidebar-active-bg);
-  --color-lumina-sidebar-hover-bg:    var(--lumina-sidebar-hover-bg);
-  --color-lumina-sidebar-label:       var(--lumina-sidebar-label);
+  --color-lgc-success:       var(--lgc-success);
+  --color-lgc-warning:       var(--lgc-warning);
+  --color-lgc-error:         var(--lgc-error);
 
-  /* ── Feedback ───────────────────────────────────────────────────────── */
-  --color-lumina-success:             var(--lumina-success);
-  --color-lumina-warning:             var(--lumina-warning);
-  --color-lumina-error:               var(--lumina-error);
+  /* ── shadcn system (wired to Langeco tokens) ────────────────────────── */
+  --color-background:                 var(--lgc-bg);
+  --color-foreground:                 var(--lgc-fg);
+  --color-card:                       var(--lgc-bg-elev);
+  --color-card-foreground:            var(--lgc-fg);
+  --color-popover:                    var(--lgc-bg-elev);
+  --color-popover-foreground:         var(--lgc-fg);
+  --color-primary:                    var(--lgc-accent);
+  --color-primary-foreground:         var(--lgc-accent-fg);
+  --color-secondary:                  var(--lgc-bg-sunken);
+  --color-secondary-foreground:       var(--lgc-fg);
+  --color-muted:                      var(--lgc-bg-sunken);
+  --color-muted-foreground:           var(--lgc-fg-muted);
+  --color-accent:                     var(--lgc-accent-soft);
+  --color-accent-foreground:          var(--lgc-fg);
+  --color-destructive:                var(--lgc-error);
+  --color-border:                     var(--lgc-border);
+  --color-input:                      var(--lgc-border-strong);
+  --color-ring:                       var(--lgc-accent);
 
-  /* ── shadcn system ──────────────────────────────────────────────────── */
-  --color-background:                 var(--background);
-  --color-foreground:                 var(--foreground);
-  --color-card:                       var(--card);
-  --color-card-foreground:            var(--card-foreground);
-  --color-popover:                    var(--popover);
-  --color-popover-foreground:         var(--popover-foreground);
-  --color-primary:                    var(--primary);
-  --color-primary-foreground:         var(--primary-foreground);
-  --color-secondary:                  var(--secondary);
-  --color-secondary-foreground:       var(--secondary-foreground);
-  --color-muted:                      var(--muted);
-  --color-muted-foreground:           var(--muted-foreground);
-  --color-accent:                     var(--accent);
-  --color-accent-foreground:          var(--accent-foreground);
-  --color-destructive:                var(--destructive);
-  --color-border:                     var(--border);
-  --color-input:                      var(--input);
-  --color-ring:                       var(--ring);
-  --color-sidebar:                    var(--sidebar);
-  --color-sidebar-foreground:         var(--sidebar-foreground);
-  --color-sidebar-primary:            var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent:             var(--sidebar-accent);
-  --color-sidebar-accent-foreground:  var(--sidebar-accent-foreground);
-  --color-sidebar-border:             var(--sidebar-border);
-  --color-sidebar-ring:               var(--sidebar-ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
+  /* shadcn sidebar — wired to Langeco */
+  --color-sidebar:                    var(--lgc-bg-sunken);
+  --color-sidebar-foreground:         var(--lgc-fg);
+  --color-sidebar-primary:            var(--lgc-accent);
+  --color-sidebar-primary-foreground: var(--lgc-accent-fg);
+  --color-sidebar-accent:             var(--lgc-bg-elev);
+  --color-sidebar-accent-foreground:  var(--lgc-fg);
+  --color-sidebar-border:             var(--lgc-border);
+  --color-sidebar-ring:               var(--lgc-accent);
+
+  --color-chart-1: oklch(0.65 0.12 25);
+  --color-chart-2: oklch(0.60 0.10 160);
+  --color-chart-3: oklch(0.55 0.08 250);
+  --color-chart-4: oklch(0.50 0.06 85);
+  --color-chart-5: oklch(0.45 0.04 300);
 
   /* ── Typography ─────────────────────────────────────────────────────── */
-  --font-sans:  var(--font-public-sans);
-  --font-serif: var(--font-lora, "Lora");
-  --font-mono:  var(--font-geist-mono);
+  --font-sans:     var(--font-inter, 'Inter'), system-ui, sans-serif;
+  --font-serif:    var(--font-source-serif, 'Source Serif 4'), var(--font-shippori, 'Shippori Mincho'), Georgia, serif;
+  --font-mono:     var(--font-geist-mono, 'Geist Mono'), ui-monospace, monospace;
+  --font-display:  var(--font-source-serif, 'Source Serif 4'), var(--font-shippori, 'Shippori Mincho'), serif;
+  --font-reader:   var(--font-source-serif, 'Source Serif 4'), var(--font-shippori, 'Shippori Mincho'), serif;
+  --font-ui:       var(--font-inter, 'Inter'), system-ui, sans-serif;
 
   /* ── Radii ──────────────────────────────────────────────────────────── */
-  --radius-sm:  calc(var(--radius) * 0.6);
-  --radius-md:  calc(var(--radius) * 0.8);
-  --radius-lg:  var(--radius);
-  --radius-xl:  calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-sm:  4px;
+  --radius-md:  6px;
+  --radius-lg:  10px;
+  --radius-xl:  14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 22px;
+  --radius-4xl: 26px;
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   THEME: Daylight Study (light, default)
-   Warm parchment surfaces, deep charcoal text, gilt gold accent.
-   Mirrors mobile lightColors in theme/tokens.ts.
+   THEME: Default (free, neutral, minimal)
+   The only theme that ships in v1. Future themes override via
+   [data-theme="kanagawa"], etc.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 :root,
-html[data-theme="light"] {
-  /* Brand */
-  --lumina-primary-teal:       #B8962F;
-  --lumina-teal-light:         #F5EDDA;
-  --lumina-teal-dark:          #96790F;
+html[data-theme="default"] {
+  /* Backgrounds */
+  --lgc-bg:            #FAFAF9;
+  --lgc-bg-elev:       #FFFFFF;
+  --lgc-bg-sunken:     #F2F1EE;
 
-  /* App surfaces */
-  --lumina-app-background:     #FAF7F2;
-  --lumina-surface-background: #FFFFFF;
-
-  /* Sidebar — warm dark wood, stays dark even in light mode */
-  --lumina-sidebar-background: #2A2420;
-  --lumina-sidebar-text:       #E8E0D4;
-  --lumina-sidebar-active-bg:  #3D372E;
-  --lumina-sidebar-hover-bg:   rgba(232 224 212 / 0.08);
-  --lumina-sidebar-label:      #9B9285;
+  /* Foregrounds */
+  --lgc-fg:            #1A1918;
+  --lgc-fg-muted:      #6B6966;
+  --lgc-fg-subtle:     #A8A5A0;
 
   /* Borders */
-  --lumina-border-divider:     #DDD6CB;
+  --lgc-border:        #E5E3DE;
+  --lgc-border-strong: #D4D2CE;
 
-  /* Text */
-  --lumina-primary-text:       #2C2825;
-  --lumina-secondary-text:     #8B8178;
-  --lumina-icon-gray:          #8B8178;
+  /* Accent (primary action) — neutral ink for Default theme */
+  --lgc-accent:        #1A1918;
+  --lgc-accent-soft:   rgba(26, 25, 24, 0.08);
+  --lgc-accent-fg:     #FFFFFF;
 
   /* Feedback */
-  --lumina-success:            #5B7A5E;
-  --lumina-warning:            #C4842A;
-  --lumina-error:              #A04040;
+  --lgc-success:       #3B7A40;
+  --lgc-warning:       #B8802A;
+  --lgc-error:         #A04040;
 
-  /* shadcn base */
-  --background:          #FAF7F2;
-  --foreground:          #2C2825;
-  --card:                #FFFFFF;
-  --card-foreground:     #2C2825;
-  --popover:             #FFFFFF;
-  --popover-foreground:  #2C2825;
-  --primary:             #B8962F;
-  --primary-foreground:  #2C2825;
-  --secondary:           #F0EBE3;
-  --secondary-foreground:#2C2825;
-  --muted:               #F0EBE3;
-  --muted-foreground:    #8B8178;
-  --accent:              #F5EDDA;
-  --accent-foreground:   #2C2825;
-  --destructive:         #A04040;
-  --border:              #DDD6CB;
-  --input:               #DDD6CB;
-  --ring:                #B8962F;
-  --radius:              0.625rem;
-
-  /* shadcn sidebar */
-  --sidebar:                        #2A2420;
-  --sidebar-foreground:             #E8E0D4;
-  --sidebar-primary:                #B8962F;
-  --sidebar-primary-foreground:     #2C2825;
-  --sidebar-accent:                 #3D372E;
-  --sidebar-accent-foreground:      #E8E0D4;
-  --sidebar-border:                 rgba(232 224 212 / 0.1);
-  --sidebar-ring:                   #B8962F;
-
-  --chart-1: oklch(0.87 0.08 85);
-  --chart-2: oklch(0.65 0.06 85);
-  --chart-3: oklch(0.50 0.04 85);
-  --chart-4: oklch(0.40 0.03 85);
-  --chart-5: oklch(0.30 0.02 85);
+  /* shadcn extras */
+  --radius:            0.625rem;
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   THEME: Evening Study (dark)
-   Warm near-black surfaces, cream text, bright gold accent.
-   Mirrors mobile darkColors in theme/tokens.ts.
+   FUTURE THEMES (reserved, not built)
+   When ready, each theme adds a block overriding --lgc-* variables.
+   Switching = setting data-theme on <html>. No component code changes.
+
+   html[data-theme="kanagawa"] {
+     --lgc-bg: #EDE6D3;
+     --lgc-accent: #1E3D6B;
+     ...
+   }
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-html[data-theme="dark"] {
-  /* Brand */
-  --lumina-primary-teal:       #D4AA3C;
-  --lumina-teal-light:         #332C1A;
-  --lumina-teal-dark:          #B8962F;
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   LEGACY COMPAT — bridge old lumina-* names to new tokens
+   Allows existing components to keep working during migration.
+   Remove these once all components are updated.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-  /* App surfaces */
-  --lumina-app-background:     #1A1714;
-  --lumina-surface-background: #242019;
+:root,
+html[data-theme="default"] {
+  /* Old lumina → new lgc mapping */
+  --lumina-primary-teal:       var(--lgc-accent);
+  --lumina-teal-light:         var(--lgc-accent-soft);
+  --lumina-teal-dark:          var(--lgc-fg);
 
-  /* Sidebar */
-  --lumina-sidebar-background: #141210;
-  --lumina-sidebar-text:       #E8E0D4;
-  --lumina-sidebar-active-bg:  #2E2A22;
-  --lumina-sidebar-hover-bg:   rgba(232 224 212 / 0.06);
-  --lumina-sidebar-label:      #9B9285;
+  --lumina-app-background:     var(--lgc-bg);
+  --lumina-surface-background: var(--lgc-bg-elev);
 
-  /* Borders */
-  --lumina-border-divider:     #3D372E;
+  --lumina-sidebar-background: var(--lgc-bg-sunken);
+  --lumina-sidebar-text:       var(--lgc-fg);
+  --lumina-sidebar-active-bg:  var(--lgc-bg-elev);
+  --lumina-sidebar-hover-bg:   rgba(26, 25, 24, 0.06);
+  --lumina-sidebar-label:      var(--lgc-fg-muted);
 
-  /* Text */
-  --lumina-primary-text:       #E8E0D4;
-  --lumina-secondary-text:     #9B9285;
-  --lumina-icon-gray:          #9B9285;
+  --lumina-border-divider:     var(--lgc-border);
 
-  /* Feedback */
-  --lumina-success:            #6B9B6F;
-  --lumina-warning:            #D4943A;
-  --lumina-error:              #C05050;
+  --lumina-primary-text:       var(--lgc-fg);
+  --lumina-secondary-text:     var(--lgc-fg-muted);
+  --lumina-icon-gray:          var(--lgc-fg-muted);
 
-  /* shadcn base */
-  --background:          #1A1714;
-  --foreground:          #E8E0D4;
-  --card:                #242019;
-  --card-foreground:     #E8E0D4;
-  --popover:             #242019;
-  --popover-foreground:  #E8E0D4;
-  --primary:             #D4AA3C;
-  --primary-foreground:  #1A1714;
-  --secondary:           #2E2A22;
-  --secondary-foreground:#E8E0D4;
-  --muted:               #2E2A22;
-  --muted-foreground:    #9B9285;
-  --accent:              #332C1A;
-  --accent-foreground:   #E8E0D4;
-  --destructive:         #C05050;
-  --border:              #3D372E;
-  --input:               #3D372E;
-  --ring:                #D4AA3C;
+  --lumina-success:            var(--lgc-success);
+  --lumina-warning:            var(--lgc-warning);
+  --lumina-error:              var(--lgc-error);
 
-  /* shadcn sidebar */
-  --sidebar:                        #141210;
-  --sidebar-foreground:             #E8E0D4;
-  --sidebar-primary:                #D4AA3C;
-  --sidebar-primary-foreground:     #1A1714;
-  --sidebar-accent:                 #2E2A22;
-  --sidebar-accent-foreground:      #E8E0D4;
-  --sidebar-border:                 rgba(232 224 212 / 0.06);
-  --sidebar-ring:                   #D4AA3C;
+  /* Tailwind color bridge for lumina-* class names */
+  --color-lumina-primary-teal:        var(--lgc-accent);
+  --color-lumina-teal-light:          var(--lgc-accent-soft);
+  --color-lumina-teal-dark:           var(--lgc-fg);
+  --color-lumina-app-background:      var(--lgc-bg);
+  --color-lumina-sidebar-background:  var(--lgc-bg-sunken);
+  --color-lumina-surface-background:  var(--lgc-bg-elev);
+  --color-lumina-border-divider:      var(--lgc-border);
+  --color-lumina-primary-text:        var(--lgc-fg);
+  --color-lumina-secondary-text:      var(--lgc-fg-muted);
+  --color-lumina-icon-gray:           var(--lgc-fg-muted);
+  --color-lumina-sidebar-text:        var(--lgc-fg);
+  --color-lumina-sidebar-active-bg:   var(--lgc-bg-elev);
+  --color-lumina-sidebar-hover-bg:    rgba(26, 25, 24, 0.06);
+  --color-lumina-sidebar-label:       var(--lgc-fg-muted);
+  --color-lumina-success:             var(--lgc-success);
+  --color-lumina-warning:             var(--lgc-warning);
+  --color-lumina-error:               var(--lgc-error);
+}
 
-  --chart-1: oklch(0.80 0.08 85);
-  --chart-2: oklch(0.60 0.06 85);
-  --chart-3: oklch(0.45 0.04 85);
-  --chart-4: oklch(0.35 0.03 85);
-  --chart-5: oklch(0.25 0.02 85);
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SHARED PRIMITIVES — Langeco component classes
+   Lightweight utility classes matching the design canvas.
+   Use these alongside Tailwind for components that map 1:1 to the design.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* Card surface */
+.lgc-card {
+  background: var(--lgc-bg-elev);
+  border: 1px solid var(--lgc-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.05);
+}
+
+/* Chip / tag / badge */
+.lgc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--lgc-bg-sunken);
+  color: var(--lgc-fg-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Section label — uppercase accent text used throughout the design */
+.lgc-section-label {
+  font-size: 11px;
+  color: var(--lgc-accent);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Pane bar — modular workspace */
+.lgc-panebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--lgc-bg-sunken);
+  border-bottom: 1px solid var(--lgc-border);
+}
+
+.lgc-panechip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--lgc-fg);
+  cursor: grab;
+  user-select: none;
+  background: var(--lgc-bg-elev);
+  border: 1px solid var(--lgc-border);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: transform 120ms, box-shadow 120ms;
+  position: relative;
+}
+.lgc-panechip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
+.lgc-panechip:active { cursor: grabbing; }
+
+.lgc-panechip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+
+.lgc-panechip-idx {
+  width: 20px;
+  height: 20px;
+  border-radius: 99px;
+  background: var(--lgc-bg-sunken);
+  color: var(--lgc-fg-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.lgc-panechip-live {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px color-mix(in oklab, #22c55e 30%, transparent);
+  flex-shrink: 0;
+}
+
+.lgc-panearrow {
+  color: var(--lgc-fg-subtle);
+  font-size: 14px;
+  user-select: none;
+}
+
+.lgc-panechip-ghost {
+  border: 1px dashed var(--lgc-border-strong) !important;
+  background: transparent !important;
+  opacity: 0.75;
+}
+
+/* Highlight colors for reader text */
+.hl-1 { background: linear-gradient(transparent 55%, rgba(255, 213, 79, 0.55) 55%); }
+.hl-2 { background: linear-gradient(transparent 55%, rgba(129, 199, 132, 0.45) 55%); }
+.hl-3 { background: linear-gradient(transparent 55%, rgba(244, 143, 177, 0.45) 55%); }
+.word-hover {
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 120ms;
+}
+.word-hover:hover { background: var(--lgc-accent-soft); }
+
+/* Vertical Japanese text */
+.vtxt {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-feature-settings: "vert", "vrt2";
+  line-height: 1.9;
+  letter-spacing: 0.04em;
+}
+
+/* Custom scrollbar (opt-in with .lgc-scroll) */
+.lgc-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.lgc-scroll::-webkit-scrollbar-thumb {
+  background: var(--lgc-border-strong);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.lgc-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--lgc-fg-subtle);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+.lgc-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Selection */
+::selection {
+  background: var(--lgc-accent-soft);
+  color: var(--lgc-fg);
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -251,21 +354,21 @@ html[data-theme="dark"] {
   }
 
   html {
-    font-family: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-ui);
   }
 
-  /* Night Library: Lora serif for display headings in both themes */
+  /* Display headings use the serif display font */
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-lora, "Lora"), Georgia, serif;
+    font-family: var(--font-display);
   }
 
-  /* Keep sans-serif for UI chrome (buttons, inputs, nav) */
+  /* UI chrome stays sans-serif */
   button,
   input,
   select,
   textarea,
   nav {
-    font-family: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-ui);
   }
 
   body {

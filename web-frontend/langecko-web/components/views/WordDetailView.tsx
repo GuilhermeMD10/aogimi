@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
@@ -30,7 +29,15 @@ type DetailsResponse = { word: WordResult; kanjis: KanjiInfo[] };
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
-export default function WordDetailView({ id }: { id: string }) {
+export default function WordDetailView({
+  id,
+  onBack,
+  onKanjiSearch,
+}: {
+  id: string;
+  onBack?: () => void;
+  onKanjiSearch?: (char: string) => void;
+}) {
   const router = useRouter();
   const abortRef = useRef<AbortController | null>(null);
 
@@ -72,18 +79,25 @@ export default function WordDetailView({ id }: { id: string }) {
   }, [id]);
 
   const searchKanji = (char: string) => {
-    router.push(`/dictionary?q=${encodeURIComponent(char)}`);
+    if (onKanjiSearch) {
+      onKanjiSearch(char);
+    } else {
+      router.push(`/dictionary?q=${encodeURIComponent(char)}`);
+    }
   };
+
+  const handleBack = onBack ?? (() => router.push('/dictionary'));
 
   return (
     <div className="p-6 rounded-2xl bg-lumina-app-background min-h-full w-full">
       <div className="flex items-center gap-3">
-        <Link
-          href="/dictionary"
+        <button
+          type="button"
+          onClick={handleBack}
           className="text-xs text-lumina-secondary-text hover:text-lumina-primary-text"
         >
           ← Back to dictionary
-        </Link>
+        </button>
       </div>
 
       {loading ? <p className="mt-4 text-sm text-lumina-secondary-text">Loading…</p> : null}

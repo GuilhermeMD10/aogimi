@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
+import WordDetailView from '@/components/views/WordDetailView';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -74,15 +74,17 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SearchResponse | null>(null);
+  const [selectedWordId, setSelectedWordId] = useState<number | null>(null);
 
   // Persist / restore state
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
       if (!raw) return;
-      const saved = JSON.parse(raw) as { query?: string; result?: SearchResponse };
+      const saved = JSON.parse(raw) as { query?: string; result?: SearchResponse; selectedWordId?: number | null };
       if (saved.query) setQuery(saved.query);
       if (saved.result) setResult(saved.result);
+      if (saved.selectedWordId != null) setSelectedWordId(saved.selectedWordId);
     } catch {
       /* ignore */
     }
@@ -94,11 +96,11 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
       return;
     }
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ query, result }));
+      localStorage.setItem(storageKey, JSON.stringify({ query, result, selectedWordId }));
     } catch {
       /* ignore */
     }
-  }, [storageKey, query, result]);
+  }, [storageKey, query, result, selectedWordId]);
 
   // Cleanup on unmount
   useEffect(
@@ -164,6 +166,21 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
   const words = result ? ('words' in result ? result.words : []) : [];
   const names = result && 'names' in result ? result.names : [];
   const kanjiInfo = result?.type === 'kanji' ? result.kanji : null;
+
+  // When a word is selected, show the detail view inline
+  if (selectedWordId !== null) {
+    return (
+      <WordDetailView
+        id={String(selectedWordId)}
+        onBack={() => setSelectedWordId(null)}
+        onKanjiSearch={(char) => {
+          setSelectedWordId(null);
+          setQuery(char);
+          void runSearch(char);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="p-6 rounded-2xl bg-lumina-app-background min-h-full w-full">
@@ -233,9 +250,10 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
                   key={word.id}
                   className="border-b border-lumina-border-divider last:border-0 text-sm"
                 >
-                  <Link
-                    href={`/word/${word.id}`}
-                    className="block py-2 -mx-2 px-2 rounded hover:bg-lumina-primary-text/5 transition"
+                  <button
+                    type="button"
+                    onClick={() => setSelectedWordId(word.id)}
+                    className="block w-full text-left py-2 -mx-2 px-2 rounded hover:bg-lumina-primary-text/5 transition"
                   >
                     <div className="flex items-baseline gap-2">
                       <span className="font-medium text-lumina-primary-text text-base">{headword}</span>
@@ -260,7 +278,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
                         ))}
                       </div>
                     ) : null}
-                  </Link>
+                  </button>
                 </li>
               );
             })}
