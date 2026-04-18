@@ -122,16 +122,82 @@ html[data-theme="default"] {
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   FUTURE THEMES (reserved, not built)
-   When ready, each theme adds a block overriding --lgc-* variables.
-   Switching = setting data-theme on <html>. No component code changes.
-
-   html[data-theme="kanagawa"] {
-     --lgc-bg: #EDE6D3;
-     --lgc-accent: #1E3D6B;
-     ...
-   }
+   THEME: Kanagawa — Hokusai's Great Wave
+   Deep indigo / prussian blue, aged paper, sea foam.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+html[data-theme="kanagawa"] {
+  --lgc-bg:            #EDE6D3;
+  --lgc-bg-elev:       #F6F0DE;
+  --lgc-bg-sunken:     #E0D7BE;
+
+  --lgc-fg:            #0F2340;
+  --lgc-fg-muted:      #4A5E80;
+  --lgc-fg-subtle:     #8494AC;
+
+  --lgc-border:        rgba(15, 35, 64, 0.10);
+  --lgc-border-strong: rgba(15, 35, 64, 0.18);
+
+  --lgc-accent:        #1E3D6B;
+  --lgc-accent-soft:   #C9D6E4;
+  --lgc-accent-fg:     #FFFFFF;
+
+  --lgc-success:       #3B7A40;
+  --lgc-warning:       #B8802A;
+  --lgc-error:         #A04040;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   THEME: Sakura — Cherry blossoms in full bloom
+   Soft petal pink, bark ink, leaf green accents.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+html[data-theme="sakura"] {
+  --lgc-bg:            #FBF4F2;
+  --lgc-bg-elev:       #FFFBFA;
+  --lgc-bg-sunken:     #F3E7E5;
+
+  --lgc-fg:            #3E2A2F;
+  --lgc-fg-muted:      #7A5A5F;
+  --lgc-fg-subtle:     #B09599;
+
+  --lgc-border:        rgba(62, 42, 47, 0.08);
+  --lgc-border-strong: rgba(62, 42, 47, 0.16);
+
+  --lgc-accent:        #D47A8C;
+  --lgc-accent-soft:   #F7DCE0;
+  --lgc-accent-fg:     #FFFFFF;
+
+  --lgc-success:       #3B7A40;
+  --lgc-warning:       #B8802A;
+  --lgc-error:         #A04040;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   THEME: Hanami — Festival lanterns, lacquer night
+   Vermillion torii, saffron, deep lacquer black.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+html[data-theme="hanami"] {
+  --lgc-bg:            #14100C;
+  --lgc-bg-elev:       #1E1814;
+  --lgc-bg-sunken:     #0E0B08;
+
+  --lgc-fg:            #F5E9D4;
+  --lgc-fg-muted:      #B0987A;
+  --lgc-fg-subtle:     #6E6050;
+
+  --lgc-border:        rgba(245, 233, 212, 0.10);
+  --lgc-border-strong: rgba(245, 233, 212, 0.18);
+
+  --lgc-accent:        #E04B2A;
+  --lgc-accent-soft:   rgba(224, 75, 42, 0.18);
+  --lgc-accent-fg:     #FFFFFF;
+
+  --lgc-success:       #5AB85A;
+  --lgc-warning:       #E0A030;
+  --lgc-error:         #E05050;
+}
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    LEGACY COMPAT — bridge old lumina-* names to new tokens

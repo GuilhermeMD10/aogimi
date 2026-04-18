@@ -18,6 +18,17 @@ router.post("/create", async (req, res) => {
   }
 });
 
+// GET /api/user/:id — get user profile (public fields)
+router.get("/:id", async (req, res) => {
+  try {
+    const user = await userService.getProfile(parseInt(req.params.id, 10));
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/user/info
 router.post("/info", async (req, res) => {
   const { username, password } = req.body;
@@ -29,7 +40,15 @@ router.post("/info", async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: "Invalid username or password" });
     }
-    res.json({ id: user.id, username: user.username });
+    res.json({
+      id: user.id,
+      username: user.username,
+      display_name: user.display_name,
+      email: user.email,
+      language: user.language,
+      avatar_index: user.avatar_index,
+      created_at: user.created_at,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -46,7 +65,15 @@ router.post("/update", async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: "Invalid username or password" });
     }
-    res.json({ id: user.id, username: user.username });
+    res.json({
+      id: user.id,
+      username: user.username,
+      display_name: user.display_name,
+      email: user.email,
+      language: user.language,
+      avatar_index: user.avatar_index,
+      created_at: user.created_at,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home,
-  BookOpen,
   Search,
   Layers,
   PanelLeft,
@@ -27,10 +26,9 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { key: 'home',       label: 'Home',       href: '/modular',         icon: Home },
-  { key: 'reader',     label: 'Reader',     href: '/epub-pdf-reader', icon: BookOpen },
-  { key: 'dictionary', label: 'Dictionary', href: '/dictionary',      icon: Search },
-  { key: 'decks',      label: 'Decks',      href: '/cards',           icon: Layers },
+  { key: 'library',    label: 'Library',    href: '/library',    icon: Home },
+  { key: 'dictionary', label: 'Dictionary', href: '/dictionary', icon: Search },
+  { key: 'decks',      label: 'Decks',      href: '/cards',      icon: Layers },
 ];
 
 export default function Navbar() {
@@ -71,7 +69,9 @@ export default function Navbar() {
       <SidebarContent className="px-2 pt-0">
         <nav className="flex flex-col gap-0.5">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive =
+              pathname === item.href ||
+              (item.key === 'library' && pathname.startsWith('/reader/'));
             return (
               <Link
                 key={item.key}
@@ -108,11 +108,12 @@ export default function Navbar() {
           </button>
         )}
 
-        {/* User avatar */}
-        <div
-          className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 ${
+        {/* User avatar — links to profile */}
+        <Link
+          href="/profile"
+          className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 transition-colors hover:bg-lgc-bg-elev ${
             collapsed ? 'justify-center px-0' : ''
-          }`}
+          } ${pathname === '/profile' ? 'bg-lgc-bg-elev' : ''}`}
         >
           <div
             className="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full text-[11px] text-white"
@@ -128,7 +129,7 @@ export default function Navbar() {
               {user?.username ?? 'User'}
             </span>
           )}
-        </div>
+        </Link>
       </SidebarFooter>
     </Sidebar>
   );

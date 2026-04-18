@@ -37,7 +37,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Hydrate from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as AppTheme | null;
-    // Only default ships in v1, but respect stored value if valid
     const resolved: AppTheme =
       stored && VALID_THEMES.includes(stored) ? stored : 'default';
     setThemeState(resolved);

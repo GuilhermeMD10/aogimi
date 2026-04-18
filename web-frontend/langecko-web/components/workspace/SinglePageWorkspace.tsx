@@ -20,13 +20,13 @@ export default function SinglePageWorkspace({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-9 shrink-0 items-center border-b border-lumina-border-divider px-3">
-        <p className="text-xs font-medium text-lumina-primary-text">{currentMeta.label}</p>
+      <div className="flex h-9 shrink-0 items-center border-b border-lgc-border px-3">
+        <p className="text-xs font-medium text-lgc-fg">{currentMeta.label}</p>
 
         <button
           type="button"
           onClick={() => router.push(`/modular?left=${tab}&right=${companionTab}`)}
-          className="ml-auto h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-lumina-primary-text hover:bg-lumina-primary-text/5"
+          className="ml-auto flex h-7 w-7 items-center justify-center rounded border border-lgc-border text-sm font-medium text-lgc-fg-muted transition-colors hover:bg-lgc-accent-soft hover:text-lgc-fg"
           aria-label={`Add ${WORKSPACE_TAB_META[companionTab].label} to split view`}
         >
           +

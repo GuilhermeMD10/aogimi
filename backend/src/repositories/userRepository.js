@@ -8,6 +8,13 @@ module.exports = {
     );
     return result.rows[0];
   },
+  findById: async (id) => {
+    const result = await pool.query(
+      "SELECT id, username, display_name, email, language, avatar_index, created_at FROM users WHERE id = $1",
+      [id]
+    );
+    return result.rows[0];
+  },
   findByUsernameAndPassword: async (username, password) => {
     const result = await pool.query(
       "SELECT * FROM users WHERE username = $1 AND password = $2",

@@ -29,6 +29,15 @@ async function updateUser(username, password, updates) {
   }
 }
 
+//get user profile by id (public fields only)
+async function getProfile(id) {
+  try {
+    return await userRepo.findById(id);
+  } catch (err) {
+    throw new Error(`userService.getProfile failed: ${err.message}`);
+  }
+}
+
 //delete user with username and password
 async function deleteUser(username, password) {
   try {
@@ -38,5 +47,5 @@ async function deleteUser(username, password) {
   }
 }
 
-module.exports = { createUser, getUserInfo, updateUser, deleteUser };
+module.exports = { createUser, getUserInfo, getProfile, updateUser, deleteUser };
 

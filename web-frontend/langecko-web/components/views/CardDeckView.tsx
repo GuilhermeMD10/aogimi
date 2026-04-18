@@ -1,139 +1,211 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/components/providers/AuthProvider';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
+import * as api from '@/lib/decksApi';
 import { DeckList } from './cards/DeckList';
 import { DeckDetail } from './cards/DeckDetail';
 import { StudyView } from './cards/StudyView';
 import {
   PendingCardOverlay,
-  buildPendingCard,
   type PendingCardFlow,
 } from './cards/PendingCardOverlay';
-import type { CardModel, Deck, DeckPatch } from './cards/types';
+import type { CardModel, Deck, DeckSummary, DeckPatch } from './cards/types';
 
-/** Top-level view. Screens ≡ `decks | deck | study` with the active deck id
- *  piggybacking on the latter two. Persistence and the reader-triggered
- *  "add as flashcard" flow live here; everything visual lives under
- *  `./cards/`. */
 type Screen =
   | { type: 'decks' }
-  | { type: 'deck';  deckId: string }
+  | { type: 'deck'; deckId: string }
   | { type: 'study'; deckId: string };
 
-export default function CardDeckView({
-  storageKey = 'card_decks_state',
-}: {
-  storageKey?: string;
-}) {
-  const storageSaveReadyRef = useRef(false);
+export default function CardDeckView() {
+  const { user } = useAuth();
 
-  const [decks, setDecks]   = useState<Deck[]>([]);
+  const [deckSummaries, setDeckSummaries] = useState<DeckSummary[]>([]);
+  const [activeDeck, setActiveDeck] = useState<Deck | null>(null);
   const [screen, setScreen] = useState<Screen>({ type: 'decks' });
+  const [loading, setLoading] = useState(false);
 
   const [pendingCardFlow, setPendingCardFlow] = useState<PendingCardFlow>(null);
   const { pendingCardWord, setPendingCardWord } = useReaderState();
 
-  // ── Persistence ─────────────────────────────────────────────────────────────
-  useEffect(() => {
+  // ── Fetch deck list ─────────────────────────────────────────────────────────
+  const fetchDecks = useCallback(async () => {
+    if (!user) return;
     try {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as { decks?: Deck[] };
-      if (Array.isArray(saved.decks)) setDecks(saved.decks);
+      const records = await api.getUserDecks(user.id);
+      setDeckSummaries(
+        records.map((r) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description,
+          card_count: r.card_count,
+        })),
+      );
     } catch {
-      /* ignore */
+      /* silently fail — user sees empty list */
     }
-  }, [storageKey]);
+  }, [user]);
 
   useEffect(() => {
-    // Skip the first render so we don't round-trip the just-loaded data.
-    if (!storageSaveReadyRef.current) {
-      storageSaveReadyRef.current = true;
-      return;
-    }
+    void fetchDecks();
+  }, [fetchDecks]);
+
+  // ── Fetch cards for a deck ──────────────────────────────────────────────────
+  const fetchDeckWithCards = useCallback(async (deckId: string) => {
+    setLoading(true);
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ decks }));
+      const [deckRecord, cards] = await Promise.all([
+        api.getDeck(deckId),
+        api.getDeckCards(deckId),
+      ]);
+      const deck: Deck = {
+        id: deckRecord.id,
+        name: deckRecord.name,
+        description: deckRecord.description,
+        cards: cards.map((c) => ({
+          id: c.id,
+          front: c.front,
+          back: c.back,
+          reading: c.reading || undefined,
+          notes: c.notes || undefined,
+          state: c.state,
+          reviewed_times: c.reviewed_times,
+        })),
+      };
+      setActiveDeck(deck);
     } catch {
-      /* ignore */
+      setActiveDeck(null);
+    } finally {
+      setLoading(false);
     }
-  }, [storageKey, decks]);
+  }, []);
 
   // ── Reader → pending-card hand-off ──────────────────────────────────────────
   useEffect(() => {
     if (!pendingCardWord) return;
     setPendingCardFlow({ phase: 'select-deck', word: pendingCardWord });
-    // Consume the signal so a re-render doesn't re-trigger the modal.
     setPendingCardWord(null);
   }, [pendingCardWord, setPendingCardWord]);
 
   // ── Deck mutations ──────────────────────────────────────────────────────────
-  const addDeck = useCallback((name: string, description: string) => {
-    setDecks((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), name, description, cards: [] },
-    ]);
-  }, []);
+  const addDeck = useCallback(
+    async (name: string, description: string) => {
+      if (!user) return;
+      await api.createDeck({ userId: user.id, name, description });
+      await fetchDecks();
+    },
+    [user, fetchDecks],
+  );
 
-  const updateDeck = useCallback((deckId: string, patch: DeckPatch) => {
-    setDecks((prev) =>
-      prev.map((d) => (d.id === deckId ? { ...d, ...patch } : d)),
-    );
-  }, []);
+  const updateDeck = useCallback(
+    async (deckId: string, patch: DeckPatch) => {
+      await api.updateDeck(deckId, patch);
+      await fetchDecks();
+      // Refresh active deck if it's the one being edited
+      if (activeDeck?.id === deckId) {
+        setActiveDeck((prev) => (prev ? { ...prev, ...patch } : prev));
+      }
+    },
+    [fetchDecks, activeDeck?.id],
+  );
 
-  const deleteDeck = useCallback((deckId: string) => {
-    setDecks((prev) => prev.filter((d) => d.id !== deckId));
-    // If we're viewing the deck we just deleted, bounce back to the list.
-    setScreen((prev) => (prev.type !== 'decks' && prev.deckId === deckId ? { type: 'decks' } : prev));
-  }, []);
+  const deleteDeckHandler = useCallback(
+    async (deckId: string) => {
+      await api.deleteDeck(deckId);
+      await fetchDecks();
+      setScreen((prev) =>
+        prev.type !== 'decks' && prev.deckId === deckId ? { type: 'decks' } : prev,
+      );
+      if (activeDeck?.id === deckId) setActiveDeck(null);
+    },
+    [fetchDecks, activeDeck?.id],
+  );
 
-  const addCard = useCallback((deckId: string, front: string, back: string) => {
-    const card: CardModel = { id: crypto.randomUUID(), front, back };
-    setDecks((prev) =>
-      prev.map((d) => (d.id === deckId ? { ...d, cards: [...d.cards, card] } : d)),
-    );
-  }, []);
+  const addCard = useCallback(
+    async (deckId: string, front: string, back: string) => {
+      const cardRecord = await api.createCard(deckId, { front, back });
+      const card: CardModel = {
+        id: cardRecord.id,
+        front: cardRecord.front,
+        back: cardRecord.back,
+        reading: cardRecord.reading || undefined,
+        notes: cardRecord.notes || undefined,
+        state: cardRecord.state,
+        reviewed_times: cardRecord.reviewed_times,
+      };
+      // Update active deck in-place so UI reflects immediately
+      setActiveDeck((prev) =>
+        prev && prev.id === deckId ? { ...prev, cards: [...prev.cards, card] } : prev,
+      );
+      // Refresh list to update card_count
+      await fetchDecks();
+    },
+    [fetchDecks],
+  );
 
-  const deleteCard = useCallback((deckId: string, cardId: string) => {
-    setDecks((prev) =>
-      prev.map((d) =>
-        d.id === deckId ? { ...d, cards: d.cards.filter((c) => c.id !== cardId) } : d,
-      ),
-    );
-  }, []);
+  const deleteCardHandler = useCallback(
+    async (deckId: string, cardId: string) => {
+      await api.deleteCard(cardId);
+      setActiveDeck((prev) =>
+        prev && prev.id === deckId
+          ? { ...prev, cards: prev.cards.filter((c) => c.id !== cardId) }
+          : prev,
+      );
+      await fetchDecks();
+    },
+    [fetchDecks],
+  );
 
   // ── Nav ────────────────────────────────────────────────────────────────────
-  const goToList   = useCallback(() => setScreen({ type: 'decks' }), []);
-  const goToDetail = useCallback((deckId: string) => setScreen({ type: 'deck', deckId }), []);
+  const goToList = useCallback(() => {
+    setScreen({ type: 'decks' });
+    setActiveDeck(null);
+    void fetchDecks();
+  }, [fetchDecks]);
+
+  const goToDetail = useCallback(
+    (deckId: string) => {
+      setScreen({ type: 'deck', deckId });
+      void fetchDeckWithCards(deckId);
+    },
+    [fetchDeckWithCards],
+  );
+
   const startStudy = useCallback(() => {
-    setScreen((prev) => (prev.type === 'decks' ? prev : { type: 'study', deckId: prev.deckId }));
-  }, []);
-  const exitStudy = useCallback(() => {
-    setScreen((prev) => (prev.type === 'study' ? { type: 'deck', deckId: prev.deckId } : prev));
+    setScreen((prev) =>
+      prev.type === 'decks' ? prev : { type: 'study', deckId: prev.deckId },
+    );
   }, []);
 
-  // Active deck is looked up each render so edits reflect immediately
-  // without the nav state needing to hold a stale snapshot.
+  const exitStudy = useCallback(() => {
+    setScreen((prev) =>
+      prev.type === 'study' ? { type: 'deck', deckId: prev.deckId } : prev,
+    );
+  }, []);
+
+  // Active deck helpers
   const activeDeckId = screen.type === 'decks' ? null : screen.deckId;
-  const activeDeck   = activeDeckId ? decks.find((d) => d.id === activeDeckId) ?? null : null;
 
   const editActiveDeck = useCallback(
     (patch: { name: string; description: string }) => {
-      if (activeDeckId) updateDeck(activeDeckId, patch);
+      if (activeDeckId) void updateDeck(activeDeckId, patch);
     },
     [activeDeckId, updateDeck],
   );
+
   const addCardToActive = useCallback(
     (front: string, back: string) => {
-      if (activeDeckId) addCard(activeDeckId, front, back);
+      if (activeDeckId) void addCard(activeDeckId, front, back);
     },
     [activeDeckId, addCard],
   );
+
   const deleteCardFromActive = useCallback(
     (cardId: string) => {
-      if (activeDeckId) deleteCard(activeDeckId, cardId);
+      if (activeDeckId) void deleteCardHandler(activeDeckId, cardId);
     },
-    [activeDeckId, deleteCard],
+    [activeDeckId, deleteCardHandler],
   );
 
   // ── Pending-card flow handlers ──────────────────────────────────────────────
@@ -145,36 +217,51 @@ export default function CardDeckView({
     );
   }, []);
 
-  const createDeckAndUseForPending = useCallback((name: string) => {
-    setPendingCardFlow((prev) => {
-      if (!prev) return prev;
-      const id = crypto.randomUUID();
-      setDecks((old) => [...old, { id, name, description: '', cards: [] }]);
-      return { phase: 'create-card', word: prev.word, deckId: id };
-    });
-  }, []);
-
-  const submitPendingCard = useCallback((back: string) => {
-    setPendingCardFlow((prev) => {
-      if (prev?.phase !== 'create-card') return prev;
-      const card = buildPendingCard(prev, back);
-      setDecks((old) =>
-        old.map((d) => (d.id === prev.deckId ? { ...d, cards: [...d.cards, card] } : d)),
+  const createDeckAndUseForPending = useCallback(
+    async (name: string) => {
+      if (!user) return;
+      const deck = await api.createDeck({ userId: user.id, name });
+      await fetchDecks();
+      setPendingCardFlow((prev) =>
+        prev ? { phase: 'create-card', word: prev.word, deckId: deck.id } : prev,
       );
-      setScreen({ type: 'deck', deckId: prev.deckId });
-      return null;
-    });
-  }, []);
+    },
+    [user, fetchDecks],
+  );
+
+  const submitPendingCard = useCallback(
+    async (back: string) => {
+      const flow = pendingCardFlow;
+      if (flow?.phase !== 'create-card') return;
+      await api.createCard(flow.deckId, { front: flow.word, back });
+      await fetchDecks();
+      setPendingCardFlow(null);
+      setScreen({ type: 'deck', deckId: flow.deckId });
+      void fetchDeckWithCards(flow.deckId);
+    },
+    [pendingCardFlow, fetchDecks, fetchDeckWithCards],
+  );
+
+  // ── Not logged in ─────────────────────────────────────────────────────────
+  if (!user) {
+    return (
+      <div className="flex min-h-full items-center justify-center p-8 text-center">
+        <div>
+          <p className="text-sm text-lgc-fg-muted">Log in to use flashcards.</p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const overlay = (
     <PendingCardOverlay
       flow={pendingCardFlow}
-      decks={decks}
+      decks={deckSummaries}
       onCancel={cancelPendingFlow}
       onSelectDeck={selectDeckForPending}
-      onCreateDeckAndUse={createDeckAndUseForPending}
-      onSubmitCard={submitPendingCard}
+      onCreateDeckAndUse={(name) => void createDeckAndUseForPending(name)}
+      onSubmitCard={(back) => void submitPendingCard(back)}
     />
   );
 
@@ -187,29 +274,38 @@ export default function CardDeckView({
     );
   }
 
-  if (screen.type === 'deck' && activeDeck) {
-    return (
-      <>
-        <DeckDetail
-          deck={activeDeck}
-          onBack={goToList}
-          onStudy={startStudy}
-          onEditDeck={editActiveDeck}
-          onAddCard={addCardToActive}
-          onDeleteCard={deleteCardFromActive}
-        />
-        {overlay}
-      </>
-    );
+  if (screen.type === 'deck') {
+    if (loading) {
+      return (
+        <div className="flex min-h-full items-center justify-center">
+          <p className="text-sm text-lgc-fg-muted">Loading deck&hellip;</p>
+        </div>
+      );
+    }
+    if (activeDeck) {
+      return (
+        <>
+          <DeckDetail
+            deck={activeDeck}
+            onBack={goToList}
+            onStudy={startStudy}
+            onEditDeck={editActiveDeck}
+            onAddCard={addCardToActive}
+            onDeleteCard={deleteCardFromActive}
+          />
+          {overlay}
+        </>
+      );
+    }
   }
 
   return (
     <>
       <DeckList
-        decks={decks}
+        decks={deckSummaries}
         onOpenDeck={goToDetail}
-        onCreateDeck={addDeck}
-        onDeleteDeck={deleteDeck}
+        onCreateDeck={(name, desc) => void addDeck(name, desc)}
+        onDeleteDeck={(id) => void deleteDeckHandler(id)}
       />
       {overlay}
     </>

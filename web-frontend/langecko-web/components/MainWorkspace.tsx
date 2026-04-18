@@ -19,7 +19,7 @@ const LAYOUT_STORAGE_KEY = 'modular_layout';
 
 function TabContent({ tab }: { tab: WorkspaceTabKey }) {
   if (tab === 'dictionary') return <DictionaryView storageKey="modular_dictionary_state" />;
-  if (tab === 'cards') return <CardDeckView storageKey="modular_cards_state" />;
+  if (tab === 'cards') return <CardDeckView />;
   return <EpubPdfReaderView />;
 }
 
