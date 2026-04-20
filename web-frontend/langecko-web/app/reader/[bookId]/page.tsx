@@ -6,7 +6,8 @@ import { ArrowLeft } from 'lucide-react';
 import { getBook, getBookFile, ensureBackendBook, type BookRecord } from '@/lib/bookStore';
 import { EpubReader } from '@/components/reader/EpubReader';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { getUserBooks, updateBookProgress } from '@/lib/booksApi';
+import { useReaderState } from '@/components/providers/ReaderStateProvider';
+import { getUserBooks, updateBookProgress, sendProgressBeacon, type ProgressPayload } from '@/lib/booksApi';
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -14,6 +15,7 @@ export default function ReaderPage() {
   const { bookId } = useParams<{ bookId: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { setPendingDictSearch, setPendingCard } = useReaderState();
 
   const [state, setState] = useState<LoadState>('loading');
   const [book, setBook] = useState<BookRecord | null>(null);
@@ -21,8 +23,14 @@ export default function ReaderPage() {
   const [backendBookId, setBackendBookId] = useState<string | null>(null);
   const [backendCfi, setBackendCfi] = useState<string | null>(null);
   const blobUrlRef = useRef<string | null>(null);
-  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Progress sync refs — no debounce timer, only exit-event flush
+  const latestRef = useRef<ProgressPayload | null>(null);
   const lastSyncedRef = useRef<{ progress: number; cfi: string } | null>(null);
+  const backendIdRef = useRef<string | null>(null);
+  backendIdRef.current = backendBookId;
+  const bookRef = useRef<BookRecord | null>(null);
+  bookRef.current = book;
 
   useEffect(() => {
     if (!bookId) return;
@@ -55,14 +63,12 @@ export default function ReaderPage() {
         // Resolve or create backend record for progress sync
         if (user) {
           try {
-            // First try to find existing record
             const remote = await getUserBooks(user.id);
             const match = remote.find((b) => b.filename === record.filename);
             if (match) {
               setBackendBookId(match.id);
               if (match.cfi_position) setBackendCfi(match.cfi_position);
             } else {
-              // Not found — register the book now
               const created = await ensureBackendBook(record, user.id);
               setBackendBookId(created.id);
             }
@@ -81,65 +87,91 @@ export default function ReaderPage() {
         URL.revokeObjectURL(blobUrlRef.current);
         blobUrlRef.current = null;
       }
-      if (syncTimerRef.current) {
-        clearTimeout(syncTimerRef.current);
-      }
     };
   }, [bookId, user]);
 
-  // Progress handler: localStorage on every page turn, backend debounced
+  // ── Progress flush helpers ────────────────────────────────────────────────
+
+  const flushViaFetch = useCallback(() => {
+    const id = backendIdRef.current;
+    const latest = latestRef.current;
+    if (!id || !latest) return;
+
+    const last = lastSyncedRef.current;
+    if (last && last.progress === latest.progress && last.cfi === latest.cfiPosition) return;
+
+    lastSyncedRef.current = { progress: latest.progress ?? 0, cfi: latest.cfiPosition ?? '' };
+    updateBookProgress(id, latest).catch(() => {});
+  }, []);
+
+  const flushViaBeacon = useCallback(() => {
+    const id = backendIdRef.current;
+    const latest = latestRef.current;
+    if (!id || !latest) return;
+
+    const last = lastSyncedRef.current;
+    if (last && last.progress === latest.progress && last.cfi === latest.cfiPosition) return;
+
+    lastSyncedRef.current = { progress: latest.progress ?? 0, cfi: latest.cfiPosition ?? '' };
+    sendProgressBeacon(id, latest);
+  }, []);
+
+  // ── Exit-event listeners ──────────────────────────────────────────────────
+
+  useEffect(() => {
+    const onVisChange = () => {
+      if (document.visibilityState === 'hidden') flushViaFetch();
+    };
+    const onPageHide = () => flushViaBeacon();
+
+    document.addEventListener('visibilitychange', onVisChange);
+    window.addEventListener('pagehide', onPageHide);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisChange);
+      window.removeEventListener('pagehide', onPageHide);
+    };
+  }, [flushViaFetch, flushViaBeacon]);
+
+  // ── Progress handler: localStorage on every turn, backend on exit only ────
+
   const handleProgressChange = useCallback(
     (progress: number, cfi: string) => {
-      // Always save to localStorage immediately so it persists across refreshes
-      if (book) {
+      const payload: ProgressPayload = { cfiPosition: cfi, progress };
+      latestRef.current = payload;
+
+      if (bookRef.current) {
         try {
           localStorage.setItem(
-            `reader_progress_${book.filename}`,
+            `reader_progress_${bookRef.current.filename}`,
             JSON.stringify({ progress, cfi, updatedAt: Date.now() }),
           );
         } catch { /* quota exceeded */ }
       }
-
-      // Backend sync: skip if no backend ID or nothing changed
-      if (!backendBookId) return;
-      const last = lastSyncedRef.current;
-      if (last && last.progress === progress && last.cfi === cfi) return;
-
-      const doSync = () => {
-        lastSyncedRef.current = { progress, cfi };
-        updateBookProgress(backendBookId, {
-          cfiPosition: cfi,
-          progress,
-        }).catch(() => {
-          // Sync failure is non-critical
-        });
-      };
-
-      // First sync fires immediately
-      if (!lastSyncedRef.current) {
-        doSync();
-        return;
-      }
-
-      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-      syncTimerRef.current = setTimeout(doSync, 2000);
     },
-    [backendBookId, book],
+    [],
   );
 
   const handleLookup = useCallback(
     (word: string) => {
-      router.push(`/dictionary?q=${encodeURIComponent(word)}`);
+      setPendingDictSearch(word);
+      router.push('/modular');
     },
-    [router],
+    [setPendingDictSearch, router],
   );
 
   const handleAddCard = useCallback(
     (word: string) => {
-      router.push(`/cards?add=${encodeURIComponent(word)}`);
+      setPendingCard({ word });
+      router.push('/modular');
     },
-    [router],
+    [setPendingCard, router],
   );
+
+  const goBackToLibrary = useCallback(() => {
+    flushViaFetch();
+    router.push('/library');
+  }, [flushViaFetch, router]);
 
   if (state === 'loading') {
     return (
@@ -187,7 +219,7 @@ export default function ReaderPage() {
       <div className="flex shrink-0 items-center gap-3 border-b border-lgc-border/50 bg-lgc-bg/80 px-3 py-1.5 backdrop-blur-sm">
         <button
           type="button"
-          onClick={() => router.push('/library')}
+          onClick={goBackToLibrary}
           className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev hover:text-lgc-fg"
         >
           <ArrowLeft size={14} />

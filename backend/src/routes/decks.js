@@ -8,12 +8,12 @@ const router = Router();
 
 // POST /api/decks — create a deck
 router.post("/", async (req, res) => {
-  const { userId, bookId, name, description } = req.body;
+  const { userId, name, description } = req.body;
   if (!userId || !name) {
     return res.status(400).json({ error: "userId and name are required" });
   }
   try {
-    const deck = await deckService.createDeck(userId, { bookId, name, description });
+    const deck = await deckService.createDeck(userId, { name, description });
     res.json(deck);
   } catch (err) {
     res.status(500).json({ error: err.message });

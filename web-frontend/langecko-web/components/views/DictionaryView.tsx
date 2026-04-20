@@ -64,7 +64,7 @@ async function queryDictionary(q: string, signal: AbortSignal): Promise<SearchRe
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function DictionaryView({ storageKey = 'dictionary_state' }: { storageKey?: string }) {
-  const { pendingDictSearch, setPendingDictSearch } = useReaderState();
+  const { pendingDictSearch, setPendingDictSearch, setPendingCard } = useReaderState();
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get('q');
   const abortRef = useRef<AbortController | null>(null);
@@ -140,6 +140,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
 
   useEffect(() => {
     if (!pendingDictSearch) return;
+    setSelectedWordId(null);
     setQuery(pendingDictSearch);
     void runSearch(pendingDictSearch);
     setPendingDictSearch(null);
@@ -172,15 +173,16 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
           setQuery(char);
           void runSearch(char);
         }}
+        onAddCard={(word, back) => setPendingCard({ word, back })}
       />
     );
   }
 
   return (
-    <div className="flex min-h-full w-full flex-col">
+    <div className="@container flex min-h-full w-full flex-col">
       {/* ── Search bar ─────────────────────────────────────────────── */}
       <div
-        className="flex items-center gap-2.5 border-b border-lgc-border px-5 py-3"
+        className="flex items-center gap-2.5 border-b border-lgc-border px-3 py-2.5 @md:px-5 @md:py-3"
         style={{
           background: 'color-mix(in oklab, var(--lgc-bg) 85%, transparent)',
           backdropFilter: 'blur(10px)',
@@ -230,19 +232,19 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
         {/* Word results */}
         {words.length > 0 && (
           <>
-            <div className="px-5 pb-1.5 pt-5">
+            <div className="px-3 pb-1.5 pt-4 @md:px-5 @md:pt-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-lgc-accent">
                 Dictionary
               </div>
               <div
-                className="mt-1 text-[22px] font-medium tracking-tight text-lgc-fg"
+                className="mt-1 text-[16px] font-medium tracking-tight text-lgc-fg @sm:text-[18px] @lg:text-[22px]"
                 style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
               >
                 {words.length} result{words.length !== 1 ? 's' : ''} for{' '}
                 <span className="text-lgc-accent">{'\u300C'}{query}{'\u300D'}</span>
               </div>
             </div>
-            <div className="flex items-baseline justify-between px-5 pb-3">
+            <div className="flex items-baseline justify-between px-3 pb-3 @md:px-5">
               <span className="text-xs text-lgc-fg-muted">
                 Showing JMdict entries &middot; kanji, reading, and cross-reference matches
               </span>
@@ -277,7 +279,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
 
         {/* Name results */}
         {names.length > 0 && (
-          <div className="px-5 pb-6">
+          <div className="px-3 pb-6 @md:px-5">
             <SectionHead num="02" title="Names" />
             <div className="overflow-hidden rounded-lg border border-lgc-border">
               {names.slice(0, 10).map((name) => (
@@ -339,7 +341,7 @@ function ResultRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full gap-4 border-b border-lgc-border px-5 py-4 text-left transition-colors hover:bg-lgc-bg-elev"
+      className="flex w-full gap-2.5 border-b border-lgc-border px-3 py-3 text-left transition-colors hover:bg-lgc-bg-elev @md:gap-4 @md:px-5 @md:py-4"
       style={{
         background: active ? 'var(--lgc-bg-elev)' : undefined,
         borderLeft: active ? '2px solid var(--lgc-accent)' : '2px solid transparent',
@@ -347,17 +349,17 @@ function ResultRow({
     >
       {/* Row number */}
       <div
-        className="min-w-4.5 pt-1.5 text-[11px] text-lgc-fg-subtle"
+        className="hidden min-w-4.5 pt-1.5 text-[11px] text-lgc-fg-subtle @sm:block"
         style={{ fontFamily: 'var(--font-mono, Geist Mono, monospace)' }}
       >
         {String(index + 1).padStart(2, '0')}
       </div>
 
       {/* Headword + reading */}
-      <div className="min-w-30 text-left">
+      <div className="min-w-0 shrink-0 text-left @sm:min-w-20 @lg:min-w-30">
         <div className="flex items-baseline gap-2">
           <span
-            className="text-[30px] leading-none tracking-tight text-lgc-fg"
+            className="text-[20px] leading-none tracking-tight text-lgc-fg @sm:text-[24px] @lg:text-[30px]"
             style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
           >
             {headword}
@@ -415,7 +417,7 @@ function ResultRow({
       </div>
 
       {/* Action icons */}
-      <div className="flex shrink-0 flex-col items-end gap-1">
+      <div className="hidden shrink-0 flex-col items-end gap-1 @md:flex">
         <span
           className="rounded-md border border-lgc-border p-1.5 text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken"
           title="Add to flashcards"
@@ -435,9 +437,9 @@ function ResultRow({
 
 function KanjiPanel({ kanji }: { kanji: KanjiInfo }) {
   return (
-    <div className="mx-5 mt-5 flex gap-4 rounded-lg border border-lgc-border bg-lgc-bg-elev p-5">
+    <div className="mx-3 mt-4 flex flex-col gap-3 rounded-lg border border-lgc-border bg-lgc-bg-elev p-4 @sm:mx-5 @sm:mt-5 @sm:flex-row @sm:gap-4 @sm:p-5">
       <div
-        className="flex h-22 w-22 shrink-0 items-center justify-center border-r border-lgc-border pr-3 text-[72px] leading-none text-lgc-fg"
+        className="flex h-16 w-16 shrink-0 items-center justify-center text-[48px] leading-none text-lgc-fg @sm:h-22 @sm:w-22 @sm:border-r @sm:border-lgc-border @sm:pr-3 @sm:text-[72px]"
         style={{ fontFamily: 'var(--font-display)' }}
       >
         {kanji.literal}

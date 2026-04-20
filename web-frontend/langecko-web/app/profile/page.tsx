@@ -17,7 +17,7 @@ import {
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useTheme, THEMES, type AppTheme } from '@/components/providers/ThemeProvider';
 import { getUserProfile, updateUserProfile, type UserProfile, type ProfileUpdate } from '@/lib/userApi';
-import { getUserBooks, type UserBookRecord } from '@/lib/booksApi';
+import { getUserBooks, type BookProgressRecord } from '@/lib/booksApi';
 import { getUserDecks, type DeckRecord } from '@/lib/decksApi';
 
 // ── Kamon set ────────────────────────────────────────────────────────────────
@@ -288,7 +288,7 @@ export default function ProfilePage() {
   const { theme, setTheme } = useTheme();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [books, setBooks] = useState<UserBookRecord[]>([]);
+  const [books, setBooks] = useState<BookProgressRecord[]>([]);
   const [decks, setDecks] = useState<DeckRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);

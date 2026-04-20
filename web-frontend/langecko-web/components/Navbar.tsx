@@ -6,6 +6,7 @@ import {
   Home,
   Search,
   Layers,
+  Columns3,
   PanelLeft,
   PanelRight,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { key: 'library',    label: 'Library',    href: '/library',    icon: Home },
   { key: 'dictionary', label: 'Dictionary', href: '/dictionary', icon: Search },
   { key: 'decks',      label: 'Decks',      href: '/cards',      icon: Layers },
+  { key: 'modular',    label: 'Workspace',  href: '/modular',    icon: Columns3 },
 ];
 
 export default function Navbar() {
@@ -71,7 +73,8 @@ export default function Navbar() {
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
-              (item.key === 'library' && pathname.startsWith('/reader/'));
+              (item.key === 'library' && pathname.startsWith('/reader/')) ||
+              (item.key === 'modular' && pathname.startsWith('/modular'));
             return (
               <Link
                 key={item.key}

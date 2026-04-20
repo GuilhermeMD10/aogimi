@@ -27,7 +27,7 @@ export default function CardDeckView() {
   const [loading, setLoading] = useState(false);
 
   const [pendingCardFlow, setPendingCardFlow] = useState<PendingCardFlow>(null);
-  const { pendingCardWord, setPendingCardWord } = useReaderState();
+  const { pendingCard, setPendingCard } = useReaderState();
 
   // ── Fetch deck list ─────────────────────────────────────────────────────────
   const fetchDecks = useCallback(async () => {
@@ -83,10 +83,10 @@ export default function CardDeckView() {
 
   // ── Reader → pending-card hand-off ──────────────────────────────────────────
   useEffect(() => {
-    if (!pendingCardWord) return;
-    setPendingCardFlow({ phase: 'select-deck', word: pendingCardWord });
-    setPendingCardWord(null);
-  }, [pendingCardWord, setPendingCardWord]);
+    if (!pendingCard) return;
+    setPendingCardFlow({ phase: 'select-deck', word: pendingCard.word, initialBack: pendingCard.back });
+    setPendingCard(null);
+  }, [pendingCard, setPendingCard]);
 
   // ── Deck mutations ──────────────────────────────────────────────────────────
   const addDeck = useCallback(
@@ -213,7 +213,7 @@ export default function CardDeckView() {
 
   const selectDeckForPending = useCallback((deckId: string) => {
     setPendingCardFlow((prev) =>
-      prev ? { phase: 'create-card', word: prev.word, deckId } : prev,
+      prev ? { phase: 'create-card', word: prev.word, deckId, initialBack: prev.initialBack } : prev,
     );
   }, []);
 
@@ -223,7 +223,7 @@ export default function CardDeckView() {
       const deck = await api.createDeck({ userId: user.id, name });
       await fetchDecks();
       setPendingCardFlow((prev) =>
-        prev ? { phase: 'create-card', word: prev.word, deckId: deck.id } : prev,
+        prev ? { phase: 'create-card', word: prev.word, deckId: deck.id, initialBack: prev.initialBack } : prev,
       );
     },
     [user, fetchDecks],
@@ -267,10 +267,10 @@ export default function CardDeckView() {
 
   if (screen.type === 'study' && activeDeck) {
     return (
-      <>
+      <div className="relative h-full min-h-0">
         <StudyView deck={activeDeck} onExit={exitStudy} />
         {overlay}
-      </>
+      </div>
     );
   }
 
@@ -284,7 +284,7 @@ export default function CardDeckView() {
     }
     if (activeDeck) {
       return (
-        <>
+        <div className="relative h-full min-h-0">
           <DeckDetail
             deck={activeDeck}
             onBack={goToList}
@@ -294,13 +294,13 @@ export default function CardDeckView() {
             onDeleteCard={deleteCardFromActive}
           />
           {overlay}
-        </>
+        </div>
       );
     }
   }
 
   return (
-    <>
+    <div className="relative h-full min-h-0">
       <DeckList
         decks={deckSummaries}
         onOpenDeck={goToDetail}
@@ -308,6 +308,6 @@ export default function CardDeckView() {
         onDeleteDeck={(id) => void deleteDeckHandler(id)}
       />
       {overlay}
-    </>
+    </div>
   );
 }

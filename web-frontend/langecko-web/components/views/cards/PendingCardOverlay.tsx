@@ -5,8 +5,8 @@ import type { CardModel, DeckSummary } from './types';
 import { btnBase, btnPrimary } from './types';
 
 export type PendingCardFlow =
-  | { phase: 'select-deck'; word: string }
-  | { phase: 'create-card'; word: string; deckId: string }
+  | { phase: 'select-deck'; word: string; initialBack?: string }
+  | { phase: 'create-card'; word: string; deckId: string; initialBack?: string }
   | null;
 
 interface PendingCardOverlayProps {
@@ -29,6 +29,17 @@ export function PendingCardOverlay({
   const [newDeckName, setNewDeckName] = useState('');
   const [showNewDeck, setShowNewDeck] = useState(false);
   const [pendingBack, setPendingBack] = useState('');
+  const [initializedBack, setInitializedBack] = useState(false);
+
+  // Pre-fill back text from dictionary when entering create-card phase
+  if (flow?.phase === 'create-card' && flow.initialBack && !initializedBack) {
+    setPendingBack(flow.initialBack);
+    setInitializedBack(true);
+  }
+  // Reset when flow closes
+  if (!flow && initializedBack) {
+    setInitializedBack(false);
+  }
 
   if (!flow) return null;
 
@@ -51,7 +62,7 @@ export function PendingCardOverlay({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-xl border border-lgc-border bg-lgc-bg-elev p-6 shadow-xl">
         {flow.phase === 'select-deck' ? (
           <SelectDeckPhase

@@ -2,8 +2,9 @@
 
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Plus, Columns3, Star, X } from 'lucide-react';
 import DictionaryView from '@/components/views/DictionaryView';
-import EpubPdfReaderView from '@/components/views/EpubPdfReaderView';
+import ReaderView from '@/components/views/ReaderView';
 import CardDeckView from '@/components/views/CardDeckView';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import {
@@ -20,7 +21,7 @@ const LAYOUT_STORAGE_KEY = 'modular_layout';
 function TabContent({ tab }: { tab: WorkspaceTabKey }) {
   if (tab === 'dictionary') return <DictionaryView storageKey="modular_dictionary_state" />;
   if (tab === 'cards') return <CardDeckView />;
-  return <EpubPdfReaderView />;
+  return <ReaderView />;
 }
 
 export default function MainWorkspace() {
@@ -52,18 +53,16 @@ export default function MainWorkspace() {
   const [addPickerOpen, setAddPickerOpen] = useState(false);
   const addPickerRef = useRef<HTMLDivElement>(null);
 
-  const { pendingDictSearch, pendingCardWord } = useReaderState();
+  const { pendingDictSearch, pendingCard } = useReaderState();
 
-  // Ensure the relevant tab is open whenever the reader queues a cross-tab action.
-  // The consuming view (DictionaryView / CardDeckView) clears the pending state
-  // once it reads the value, so these effects only fire once per pending action.
+  // Auto-open tab when reader queues a cross-tab action
   useEffect(() => {
     if (pendingDictSearch && !openTabs.includes('dictionary')) addTab('dictionary');
   }, [pendingDictSearch, openTabs, addTab]);
 
   useEffect(() => {
-    if (pendingCardWord && !openTabs.includes('cards')) addTab('cards');
-  }, [pendingCardWord, openTabs, addTab]);
+    if (pendingCard && !openTabs.includes('cards')) addTab('cards');
+  }, [pendingCard, openTabs, addTab]);
 
   // Load layout from localStorage when no URL params
   useEffect(() => {
@@ -102,130 +101,173 @@ export default function MainWorkspace() {
   return (
     <div className="flex h-full min-h-0 flex-col">
 
-      {/* Tab bar — only shown when at least one tab is open */}
-      {openTabs.length > 0 ? (
-        <div className="flex h-9 shrink-0 items-center gap-2 border-b border-lumina-border-divider px-2">
-          <div className="flex min-w-0 flex-1 items-center">
-            {openTabs.map((tabKey, index) => (
-              <div key={tabKey} className="flex items-center">
-                {index === 0 ? (
-                  <div
-                    className="relative flex h-8 w-2 items-center justify-center"
-                    onDragOver={(event) => {
-                      if (!canDragTabs || !draggedTab) return;
-                      event.preventDefault();
-                      event.dataTransfer.dropEffect = 'move';
-                      setDropMarker(0);
-                    }}
-                    onDrop={(event) => handleDropAtIndex(event, 0)}
-                  >
-                    {dropIndex === 0 ? (
-                      <span className="pointer-events-none h-5 w-0.5 bg-lumina-primary-teal" />
-                    ) : null}
-                  </div>
-                ) : null}
+      {/* ── Pane bar ─────────────────────────────────────────────── */}
+      {openTabs.length > 0 && (
+        <div className="lgc-panebar" style={{ padding: '8px 12px' }}>
+          {/* "Panes" label */}
+          <span className="select-none text-[10px] font-semibold uppercase tracking-widest text-lgc-fg-muted" style={{ marginRight: 4 }}>
+            Panes
+          </span>
 
+          {/* Chips + arrows */}
+          {openTabs.map((tabKey, index) => {
+            const meta = WORKSPACE_TAB_META[tabKey];
+            const Icon = meta.icon;
+            const isDragged = draggedTab === tabKey;
+
+            return (
+              <Fragment key={tabKey}>
+                {/* Arrow between chips */}
+                {index > 0 && <span className="lgc-panearrow">⇄</span>}
+
+                {/* Drop zone before this chip */}
+                <div
+                  className="relative flex h-8 w-1 items-center justify-center"
+                  onDragOver={(e) => {
+                    if (!canDragTabs || !draggedTab) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    setDropMarker(index);
+                  }}
+                  onDrop={(e) => handleDropAtIndex(e, index)}
+                >
+                  {dropIndex === index && (
+                    <span className="pointer-events-none absolute h-6 w-0.5 rounded-full bg-lgc-accent" />
+                  )}
+                </div>
+
+                {/* Chip */}
                 <div
                   draggable={canDragTabs}
-                  onDragStart={(event) => {
+                  onDragStart={(e) => {
                     setDraggedTab(tabKey);
-                    event.dataTransfer.effectAllowed = 'move';
-                    event.dataTransfer.setData('text/plain', tabKey);
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', tabKey);
                   }}
-                  onDragOver={(event) => {
+                  onDragOver={(e) => {
                     if (!canDragTabs || !draggedTab) return;
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = 'move';
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    setDropMarker(event.clientX < rect.left + rect.width / 2 ? index : index + 1);
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setDropMarker(e.clientX < rect.left + rect.width / 2 ? index : index + 1);
                   }}
                   onDrop={handleDropAtIndex}
                   onDragEnd={clearDragState}
-                  className={`relative flex items-center gap-1 rounded border border-lumina-border-divider px-2 py-1 transition-colors ${
-                    draggedTab === tabKey ? 'opacity-60' : ''
-                  }`}
+                  className={`lgc-panechip ${isDragged ? 'lgc-panechip-ghost' : ''}`}
                 >
-                  <span className="truncate text-xs font-medium text-lumina-primary-text">
-                    {WORKSPACE_TAB_META[tabKey].label}
-                  </span>
+                  <span className="lgc-panechip-dot" style={{ background: meta.dot }} />
+                  <Icon size={12} className="text-lgc-fg-muted" />
+                  <span className="text-[12px] font-medium">{meta.label}</span>
                   <button
                     type="button"
                     onClick={() => closeTab(tabKey)}
                     draggable={false}
-                    className="rounded px-1 text-xs leading-none text-lumina-primary-text hover:bg-lumina-primary-text/5"
-                    aria-label={`Close ${WORKSPACE_TAB_META[tabKey].label}`}
+                    className="ml-1 flex h-4 w-4 items-center justify-center rounded-full text-lgc-fg-subtle transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg"
+                    aria-label={`Close ${meta.label}`}
                   >
-                    ✕
+                    <X size={9} />
                   </button>
                 </div>
+              </Fragment>
+            );
+          })}
 
-                <div
-                  className="relative flex h-8 w-2 items-center justify-center"
-                  onDragOver={(event) => {
-                    if (!canDragTabs || !draggedTab) return;
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = 'move';
-                    setDropMarker(index + 1);
-                  }}
-                  onDrop={(event) => handleDropAtIndex(event, index + 1)}
-                >
-                  {dropIndex === index + 1 ? (
-                    <span className="pointer-events-none h-5 w-0.5 bg-lumina-primary-teal" />
-                  ) : null}
-                </div>
-              </div>
-            ))}
+          {/* Drop zone after last chip */}
+          <div
+            className="relative flex h-8 w-1 items-center justify-center"
+            onDragOver={(e) => {
+              if (!canDragTabs || !draggedTab) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              setDropMarker(openTabs.length);
+            }}
+            onDrop={(e) => handleDropAtIndex(e, openTabs.length)}
+          >
+            {dropIndex === openTabs.length && (
+              <span className="pointer-events-none absolute h-6 w-0.5 rounded-full bg-lgc-accent" />
+            )}
           </div>
 
-          {/* Add tab button + picker */}
-          <div ref={addPickerRef} className="relative ml-auto shrink-0">
+          {/* Add pane button + picker */}
+          <div ref={addPickerRef} className="relative">
             <button
               type="button"
               onClick={() => setAddPickerOpen((v) => !v)}
               disabled={tabsAvailableToAdd.length === 0}
-              className="h-7 w-7 rounded border border-lumina-border-divider text-sm font-medium text-lumina-primary-text hover:bg-lumina-primary-text/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-              aria-label={tabsAvailableToAdd.length > 0 ? 'Add a view' : 'All views are open'}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg disabled:cursor-not-allowed disabled:opacity-40"
             >
-              +
+              <Plus size={11} /> Add pane
             </button>
 
-            {addPickerOpen && tabsAvailableToAdd.length > 0 ? (
-              <div className="absolute right-0 top-full z-50 mt-1 min-w-36 rounded border border-lumina-border-divider bg-lumina-surface-background py-1 shadow-md">
-                {tabsAvailableToAdd.map((key) => (
+            {addPickerOpen && tabsAvailableToAdd.length > 0 && (
+              <div className="absolute left-0 top-full z-50 mt-1.5 min-w-40 overflow-hidden rounded-lg border border-lgc-border-strong bg-lgc-bg-elev py-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]">
+                {tabsAvailableToAdd.map((key) => {
+                  const m = WORKSPACE_TAB_META[key];
+                  const TabIcon = m.icon;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => { addTab(key); setAddPickerOpen(false); }}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12px] text-lgc-fg transition-colors hover:bg-lgc-bg-sunken"
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ background: m.dot }} />
+                      <TabIcon size={12} className="text-lgc-fg-muted" />
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Right-side placeholder buttons */}
+          <div className="ml-auto flex gap-1">
+            <button
+              type="button"
+              disabled
+              className="flex h-7.5 w-7.5 items-center justify-center rounded-md text-lgc-fg-subtle opacity-40"
+              title="Layouts"
+            >
+              <Columns3 size={13} />
+            </button>
+            <button
+              type="button"
+              disabled
+              className="flex h-7.5 w-7.5 items-center justify-center rounded-md text-lgc-fg-subtle opacity-40"
+              title="Save workspace"
+            >
+              <Star size={13} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Content area ─────────────────────────────────────────── */}
+      <div className="min-h-0 flex-1">
+        {openTabs.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-5">
+            <div className="text-center">
+              <p className="text-sm font-medium text-lgc-fg">Open a pane to get started</p>
+              <p className="mt-1 text-xs text-lgc-fg-muted">Choose a view below or use the keyboard</p>
+            </div>
+            <div className="flex gap-2.5">
+              {WORKSPACE_TAB_ORDER.map((key) => {
+                const m = WORKSPACE_TAB_META[key];
+                const TabIcon = m.icon;
+                return (
                   <button
                     key={key}
                     type="button"
-                    onClick={() => {
-                      addTab(key);
-                      setAddPickerOpen(false);
-                    }}
-                    className="flex w-full items-center px-3 py-2 text-sm text-lumina-primary-text hover:bg-lumina-primary-text/5"
+                    onClick={() => addTab(key)}
+                    className="lgc-card flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-medium text-lgc-fg transition-shadow hover:shadow-md"
                   >
-                    {WORKSPACE_TAB_META[key].label}
+                    <span className="h-2 w-2 rounded-full" style={{ background: m.dot }} />
+                    <TabIcon size={13} className="text-lgc-fg-muted" />
+                    {m.label}
                   </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {/* Content area */}
-      <div className="min-h-0 flex-1">
-        {openTabs.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-4">
-            <p className="text-sm text-lumina-secondary-text">Open a view to get started</p>
-            <div className="flex gap-2">
-              {WORKSPACE_TAB_ORDER.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => addTab(key)}
-                  className="rounded border border-lumina-border-divider bg-lumina-surface-background px-4 py-2 text-sm font-medium text-lumina-primary-text hover:bg-lumina-primary-text/5"
-                >
-                  {WORKSPACE_TAB_META[key].label}
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : openTabs.length === 1 ? (
@@ -236,7 +278,7 @@ export default function MainWorkspace() {
           <ResizablePanelGroup orientation="horizontal">
             {openTabs.map((tab, i) => (
               <Fragment key={tab}>
-                {i > 0 ? <ResizableHandle /> : null}
+                {i > 0 && <ResizableHandle />}
                 <ResizablePanel
                   id={tab}
                   defaultSize={100 / openTabs.length}

@@ -1,24 +1,31 @@
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
-// ── Types matching backend responses ─────────────────────────────────────────
+// ── Types matching backend book_progress table ──────────────────────────────
 
-export interface UserBookRecord {
+export interface BookProgressRecord {
   id: string; // UUID
   user_id: number;
   filename: string;
   title: string;
   author: string;
   cover_color: string;
-  total_pages: number | null;
-  current_page: number;
   cfi_position: string | null;
+  spine_index: number;
+  total_spine_items: number | null;
   progress: number;
   started_at: string;
   last_read_at: string;
   created_at: string;
 }
 
-// ── API calls ────────────────────────────────────────────────────────────────
+export interface ProgressPayload {
+  cfiPosition?: string;
+  progress?: number;
+  spineIndex?: number;
+  totalSpineItems?: number;
+}
+
+// ── API calls ───────────────────────────────────────────────────────────────
 
 export async function registerBook(params: {
   userId: number;
@@ -26,8 +33,7 @@ export async function registerBook(params: {
   title: string;
   author: string;
   coverColor: string;
-  totalPages?: number;
-}): Promise<UserBookRecord> {
+}): Promise<BookProgressRecord> {
   const res = await fetch(`${API}/api/books`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -37,13 +43,13 @@ export async function registerBook(params: {
   return res.json();
 }
 
-export async function getUserBooks(userId: number): Promise<UserBookRecord[]> {
+export async function getUserBooks(userId: number): Promise<BookProgressRecord[]> {
   const res = await fetch(`${API}/api/books/user/${userId}`);
   if (!res.ok) throw new Error('Failed to fetch books');
   return res.json();
 }
 
-export async function getBookRecord(id: string): Promise<UserBookRecord> {
+export async function getBookRecord(id: string): Promise<BookProgressRecord> {
   const res = await fetch(`${API}/api/books/${id}`);
   if (!res.ok) throw new Error('Book not found');
   return res.json();
@@ -51,8 +57,8 @@ export async function getBookRecord(id: string): Promise<UserBookRecord> {
 
 export async function updateBookProgress(
   id: string,
-  params: { cfiPosition?: string; progress?: number },
-): Promise<UserBookRecord> {
+  params: ProgressPayload,
+): Promise<BookProgressRecord> {
   const res = await fetch(`${API}/api/books/${id}/progress`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -60,6 +66,16 @@ export async function updateBookProgress(
   });
   if (!res.ok) throw new Error('Failed to update progress');
   return res.json();
+}
+
+/**
+ * Fire-and-forget progress sync via sendBeacon.
+ * Survives page unload / tab close — browser guarantees delivery.
+ */
+export function sendProgressBeacon(id: string, params: ProgressPayload): void {
+  const url = `${API}/api/books/${id}/progress`;
+  const body = new Blob([JSON.stringify(params)], { type: 'application/json' });
+  navigator.sendBeacon(url, body);
 }
 
 export async function deleteBookRecord(id: string): Promise<void> {

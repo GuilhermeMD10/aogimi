@@ -21,27 +21,29 @@ Authentication + profile. Extended from the original auth-only table.
 
 ---
 
-## user_books
+## book_progress
 
-A book a user has imported. One row per user–book pair. The EPUB file itself lives in browser IndexedDB — this table holds metadata and reading state.
+Reading progress for a user's book. One row per user–book pair. The EPUB file itself lives in browser IndexedDB — this table holds metadata and reading state.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
-| id | uuid | PK, DEFAULT gen_random_uuid() | Canonical book identity |
+| id | uuid | PK, DEFAULT gen_random_uuid() | Canonical identity |
 | user_id | int | NOT NULL, FK → users(id) ON DELETE CASCADE | |
 | filename | text | NOT NULL | Original EPUB filename (for IndexedDB lookup) |
 | title | text | NOT NULL | Extracted from EPUB OPF |
 | author | text | NOT NULL DEFAULT '' | Extracted from EPUB OPF |
 | cover_color | text | NOT NULL DEFAULT '#4A4038' | Hex fallback gradient color |
-| total_pages | int | | Estimated page count (nullable) |
-| current_page | int | NOT NULL DEFAULT 0 | Last page position |
-| cfi_position | text | | EPUB CFI string for exact restore |
-| progress | smallint | NOT NULL DEFAULT 0 | 0–100 percentage |
+| cfi_position | text | | EPUB CFI string for exact restore (primary) |
+| spine_index | smallint | NOT NULL DEFAULT 0 | Chapter-level fallback position |
+| total_spine_items | smallint | | Total chapters in the EPUB |
+| progress | smallint | NOT NULL DEFAULT 0 | 0–100 percentage (derived from spine ratio) |
 | started_at | timestamptz | NOT NULL DEFAULT now() | When the book was first imported |
-| last_read_at | timestamptz | NOT NULL DEFAULT now() | Updated on each reading session |
+| last_read_at | timestamptz | NOT NULL DEFAULT now() | Updated on reading session close |
 | created_at | timestamptz | NOT NULL DEFAULT now() | |
 
 **Unique constraint:** (user_id, filename) — one import per filename per user.
+
+**Sync strategy:** Progress is saved to localStorage on every page turn. Backend is updated only on exit events (tab hidden, page unload, explicit book close) via `sendBeacon` or fetch.
 
 ---
 
@@ -52,7 +54,7 @@ Reading bookmarks within a book. Separate table to keep them queryable.
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
 | id | uuid | PK, DEFAULT gen_random_uuid() | |
-| book_id | uuid | NOT NULL, FK → user_books(id) ON DELETE CASCADE | |
+| book_id | uuid | NOT NULL, FK → book_progress(id) ON DELETE CASCADE | |
 | cfi | text | NOT NULL | EPUB CFI position |
 | label | text | NOT NULL DEFAULT '' | User-provided label |
 | created_at | timestamptz | NOT NULL DEFAULT now() | |
@@ -61,13 +63,12 @@ Reading bookmarks within a book. Separate table to keep them queryable.
 
 ## decks
 
-Flashcard decks. Can be linked to a book (optional).
+Flashcard decks. Standalone (no book FK).
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
 | id | uuid | PK, DEFAULT gen_random_uuid() | |
 | user_id | int | NOT NULL, FK → users(id) ON DELETE CASCADE | |
-| book_id | uuid | FK → user_books(id) ON DELETE SET NULL | Nullable — null means general-purpose deck |
 | name | text | NOT NULL | |
 | description | text | NOT NULL DEFAULT '' | |
 | created_at | timestamptz | NOT NULL DEFAULT now() | |
