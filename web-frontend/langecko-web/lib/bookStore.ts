@@ -2,8 +2,10 @@ import { openDB, type IDBPDatabase } from 'idb';
 import {
   registerBook as apiRegisterBook,
   getUserBooks,
+  updateBookIdentity as apiUpdateBookIdentity,
   type BookProgressRecord,
 } from '@/lib/booksApi';
+import { computeEpubIdentity, type EpubIdentity } from '@/lib/epubIdentity';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,6 +23,16 @@ export interface BookRecord {
   coverImage?: string;
   importedAt: string;
   fileSize: number;
+  /** SHA-256 of full EPUB bytes */
+  fileHash?: string;
+  /** SHA-256 of concatenated spine text */
+  contentHash?: string;
+  /** OPF dc:identifier (often ISBN) */
+  dcIdentifier?: string | null;
+  /** OPF dc:language */
+  language?: string | null;
+  /** OPF dc:publisher */
+  publisher?: string | null;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -106,15 +118,20 @@ function blobToBase64(blob: Blob): Promise<string> {
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Import an EPUB file: extracts metadata, stores file + record in IndexedDB.
- * If userId is provided, also registers the book with the backend (throws on failure).
+ * Import an EPUB file: extracts metadata + identity hashes, stores file + record
+ * in IndexedDB. If userId is provided, also registers the book with the backend.
  */
 export async function importBook(
   file: File,
   userId?: number,
 ): Promise<BookRecord> {
   const arrayBuffer = await file.arrayBuffer();
-  const { title, author, coverImage } = await extractEpubMetadata(arrayBuffer);
+
+  // Run metadata extraction and identity computation in parallel
+  const [meta, identity] = await Promise.all([
+    extractEpubMetadata(arrayBuffer),
+    computeEpubIdentity(arrayBuffer).catch((): EpubIdentity | null => null),
+  ]);
 
   const db = await getDb();
 
@@ -124,14 +141,19 @@ export async function importBook(
 
   const record: BookRecord = {
     id: file.name,
-    title,
-    author,
+    title: meta.title,
+    author: meta.author,
     filename: file.name,
     coverColor,
-    hasCover: !!coverImage,
-    coverImage,
+    hasCover: !!meta.coverImage,
+    coverImage: meta.coverImage,
     importedAt: new Date().toISOString(),
     fileSize: file.size,
+    fileHash: identity?.fileHash,
+    contentHash: identity?.contentHash,
+    dcIdentifier: identity?.dcIdentifier,
+    language: identity?.language,
+    publisher: identity?.publisher,
   };
 
   const tx = db.transaction([META_STORE, FILES_STORE], 'readwrite');
@@ -146,9 +168,14 @@ export async function importBook(
     await apiRegisterBook({
       userId,
       filename: file.name,
-      title,
-      author,
+      title: meta.title,
+      author: meta.author,
       coverColor,
+      fileHash: identity?.fileHash,
+      contentHash: identity?.contentHash,
+      dcIdentifier: identity?.dcIdentifier,
+      language: identity?.language,
+      publisher: identity?.publisher,
     });
   }
 
@@ -169,6 +196,11 @@ export async function ensureBackendBook(
     title: book.title,
     author: book.author,
     coverColor: book.coverColor,
+    fileHash: book.fileHash,
+    contentHash: book.contentHash,
+    dcIdentifier: book.dcIdentifier,
+    language: book.language,
+    publisher: book.publisher,
   });
 }
 
@@ -198,6 +230,11 @@ export async function syncLocalBooksToBackend(
         title: local.title,
         author: local.author,
         coverColor: local.coverColor,
+        fileHash: local.fileHash,
+        contentHash: local.contentHash,
+        dcIdentifier: local.dcIdentifier,
+        language: local.language,
+        publisher: local.publisher,
       });
       remoteMap.set(registered.filename, registered);
     } catch {
@@ -206,6 +243,38 @@ export async function syncLocalBooksToBackend(
   }
 
   return remoteMap;
+}
+
+/**
+ * Backfill identity hashes for a book that was imported before hash support.
+ * Computes hashes from the IndexedDB file and updates both local record and backend.
+ */
+export async function backfillBookIdentity(
+  bookId: string,
+  backendBookId: string,
+): Promise<void> {
+  const record = await getBook(bookId);
+  if (!record || record.fileHash) return; // Already has hashes
+
+  const arrayBuffer = await getBookFile(bookId);
+  if (!arrayBuffer) return;
+
+  const identity = await computeEpubIdentity(arrayBuffer);
+
+  // Update local IndexedDB record
+  const db = await getDb();
+  const updated: BookRecord = {
+    ...record,
+    fileHash: identity.fileHash,
+    contentHash: identity.contentHash,
+    dcIdentifier: identity.dcIdentifier,
+    language: identity.language,
+    publisher: identity.publisher,
+  };
+  await db.put(META_STORE, updated);
+
+  // Update backend
+  await apiUpdateBookIdentity(backendBookId, identity);
 }
 
 /** Get all book metadata records (no file data). */

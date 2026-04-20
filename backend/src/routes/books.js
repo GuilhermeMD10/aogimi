@@ -6,13 +6,28 @@ const router = Router();
 
 // POST /api/books — register a new book for a user
 router.post("/", async (req, res) => {
-  const { userId, filename, title, author, coverColor } = req.body;
+  const { userId, filename, title, author, coverColor, fileHash, contentHash, dcIdentifier, language, publisher } = req.body;
   if (!userId || !filename || !title) {
     return res.status(400).json({ error: "userId, filename, and title are required" });
   }
   try {
-    const book = await bookService.createBook(userId, { filename, title, author, coverColor });
+    const book = await bookService.createBook(userId, { filename, title, author, coverColor, fileHash, contentHash, dcIdentifier, language, publisher });
     res.json(book);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/books/match — match an array of books by hash/metadata
+// Must be before /:id to avoid "match" being captured as a book ID
+router.post("/match", async (req, res) => {
+  const { userId, books } = req.body;
+  if (!userId || !Array.isArray(books)) {
+    return res.status(400).json({ error: "userId and books array are required" });
+  }
+  try {
+    const results = await bookService.matchBooks(userId, books);
+    res.json(results);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -54,6 +69,19 @@ async function handleProgressUpdate(req, res) {
 }
 router.put("/:id/progress", handleProgressUpdate);
 router.post("/:id/progress", handleProgressUpdate);
+
+// PUT /api/books/:id/identity — update hash/metadata identity fields
+router.put("/:id/identity", async (req, res) => {
+  const { fileHash, contentHash, dcIdentifier, language, publisher } = req.body;
+  try {
+    const book = await bookService.updateIdentity(req.params.id, {
+      fileHash, contentHash, dcIdentifier, language, publisher,
+    });
+    res.json(book);
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
 
 // DELETE /api/books/:id — delete a book
 router.delete("/:id", async (req, res) => {

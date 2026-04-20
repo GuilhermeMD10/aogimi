@@ -47,5 +47,13 @@ async function deleteUser(username, password) {
   }
 }
 
-module.exports = { createUser, getUserInfo, getProfile, updateUser, deleteUser };
+async function setOnboardingCompleted(userId, completed) {
+  try {
+    return await userRepo.setOnboardingCompleted(userId, completed);
+  } catch (err) {
+    throw new Error(`userService.setOnboardingCompleted failed: ${err.message}`);
+  }
+}
+
+module.exports = { createUser, getUserInfo, getProfile, updateUser, deleteUser, setOnboardingCompleted };
 

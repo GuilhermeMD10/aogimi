@@ -7,6 +7,7 @@ const translateRouter = require("./routes/translate");
 const userRouter      = require("./routes/user");
 const booksRouter     = require("./routes/books");
 const decksRouter     = require("./routes/decks");
+const devicesRouter   = require("./routes/devices");
 
 const app = express();
 
@@ -35,5 +36,6 @@ app.use("/api/translate", translateRouter);
 app.use("/api/user",      userRouter);
 app.use("/api/books",     booksRouter);
 app.use("/api/decks",     decksRouter);
+app.use("/api/devices",   devicesRouter);
 
 module.exports = app;
