@@ -1,8 +1,9 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Plus, Columns3, Star, X } from 'lucide-react';
+import LibraryView from '@/components/views/LibraryView';
 import DictionaryView from '@/components/views/DictionaryView';
 import ReaderView from '@/components/views/ReaderView';
 import CardDeckView from '@/components/views/CardDeckView';
@@ -15,17 +16,18 @@ import {
 } from '@/lib/config/tab-config';
 import { useWorkspaceTabs } from '@/hooks/use-workspace-tabs';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
+import WorkspaceNav, { type BubbleKey } from '@/components/WorkspaceNav';
+import ProfileBubble from '@/components/ProfileBubble';
+import { getBookFile, ensureBackendBook, type BookRecord } from '@/lib/bookStore';
+import { getUserBooks } from '@/lib/booksApi';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 const LAYOUT_STORAGE_KEY = 'modular_layout';
-
-function TabContent({ tab }: { tab: WorkspaceTabKey }) {
-  if (tab === 'dictionary') return <DictionaryView storageKey="modular_dictionary_state" />;
-  if (tab === 'cards') return <CardDeckView />;
-  return <ReaderView />;
-}
+const DEFAULT_TABS: WorkspaceTabKey[] = ['library'];
 
 export default function MainWorkspace() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
   const tabsFromUrl = [searchParams.get('left'), searchParams.get('right')]
     .map(parseWorkspaceTab)
@@ -47,13 +49,89 @@ export default function MainWorkspace() {
     clearDragState,
     setDropMarker,
     handleDropAtIndex,
-  } = useWorkspaceTabs(tabsFromUrl);
+  } = useWorkspaceTabs(tabsFromUrl.length > 0 ? tabsFromUrl : DEFAULT_TABS);
 
   const layoutSaveReadyRef = useRef(false);
   const [addPickerOpen, setAddPickerOpen] = useState(false);
   const addPickerRef = useRef<HTMLDivElement>(null);
+  const [activeBubble, setActiveBubble] = useState<BubbleKey | null>(null);
 
-  const { pendingDictSearch, pendingCard } = useReaderState();
+  const {
+    pendingDictSearch,
+    pendingCard,
+    setReaderSession,
+    readerSession,
+  } = useReaderState();
+
+  // ── Open a book from LibraryView → reader tab ────────────────────────────
+  const blobUrlRef = useRef<string | null>(null);
+
+  const handleOpenBook = useCallback(async (book: BookRecord) => {
+    try {
+      const arrayBuffer = await getBookFile(book.id);
+      if (!arrayBuffer) return;
+
+      // Revoke previous blob URL
+      if (blobUrlRef.current && blobUrlRef.current !== readerSession?.fileUrl) {
+        URL.revokeObjectURL(blobUrlRef.current);
+      }
+
+      const url = URL.createObjectURL(new Blob([arrayBuffer], { type: 'application/epub+zip' }));
+      blobUrlRef.current = url;
+
+      setReaderSession({
+        activeBook: book,
+        fileUrl: url,
+        backendBookId: null,
+        backendCfi: null,
+      });
+
+      // Ensure reader tab is open
+      if (!openTabs.includes('reader')) {
+        addTab('reader');
+      }
+
+      // Resolve backend record for progress sync
+      if (user) {
+        try {
+          const remote = await getUserBooks(user.id);
+          const match = remote.find((b) => b.filename === book.filename);
+          if (match) {
+            setReaderSession((prev) =>
+              prev ? { ...prev, backendBookId: match.id, backendCfi: match.cfi_position } : prev,
+            );
+          } else {
+            const created = await ensureBackendBook(book, user.id);
+            setReaderSession((prev) =>
+              prev ? { ...prev, backendBookId: created.id } : prev,
+            );
+          }
+        } catch { /* backend unavailable */ }
+      }
+    } catch { /* failed to open */ }
+  }, [openTabs, addTab, setReaderSession, readerSession?.fileUrl, user]);
+
+  // ── Nav bar: toggle workspace tab ─────────────────────────────────────────
+  const handleToggleTab = useCallback((tab: WorkspaceTabKey) => {
+    if (openTabs.includes(tab)) {
+      closeTab(tab);
+    } else {
+      addTab(tab);
+    }
+  }, [openTabs, closeTab, addTab]);
+
+  // ── Nav bar: toggle bubble ───────────────────────────────────────────────
+  const handleToggleBubble = useCallback((key: BubbleKey) => {
+    setActiveBubble(prev => prev === key ? null : key);
+  }, []);
+
+  // ── Tab content renderer ─────────────────────────────────────────────────
+  const renderTabContent = useCallback((tab: WorkspaceTabKey) => {
+    if (tab === 'library') return <LibraryView onOpenBook={handleOpenBook} />;
+    if (tab === 'dictionary') return <DictionaryView storageKey="modular_dictionary_state" />;
+    if (tab === 'cards') return <CardDeckView />;
+    return <ReaderView />;
+  }, [handleOpenBook]);
 
   // Auto-open tab when reader queues a cross-tab action
   useEffect(() => {
@@ -272,7 +350,7 @@ export default function MainWorkspace() {
           </div>
         ) : openTabs.length === 1 ? (
           <div className="h-full overflow-auto">
-            <TabContent tab={openTabs[0]} />
+            {renderTabContent(openTabs[0])}
           </div>
         ) : (
           <ResizablePanelGroup orientation="horizontal">
@@ -285,7 +363,7 @@ export default function MainWorkspace() {
                   minSize={Math.min(20, Math.floor(90 / openTabs.length))}
                 >
                   <div className="h-full overflow-auto">
-                    <TabContent tab={tab} />
+                    {renderTabContent(tab)}
                   </div>
                 </ResizablePanel>
               </Fragment>
@@ -293,6 +371,19 @@ export default function MainWorkspace() {
           </ResizablePanelGroup>
         )}
       </div>
+
+      {/* ── Bottom navigation bar ───────────────────────────────── */}
+      <WorkspaceNav
+        openTabs={openTabs}
+        onToggleTab={handleToggleTab}
+        activeBubble={activeBubble}
+        onToggleBubble={handleToggleBubble}
+      />
+
+      {/* ── Profile bubble ──────────────────────────────────────── */}
+      {activeBubble === 'profile' && (
+        <ProfileBubble onClose={() => setActiveBubble(null)} />
+      )}
     </div>
   );
 }

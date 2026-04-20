@@ -1,10 +1,10 @@
-import { Suspense } from 'react';
-import MainWorkspace from '@/components/MainWorkspace';
+'use client';
 
-export default function ModularPage() {
-  return (
-    <Suspense>
-      <MainWorkspace />
-    </Suspense>
-  );
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function ModularRedirect() {
+  const router = useRouter();
+  useEffect(() => { router.replace('/workspace'); }, [router]);
+  return null;
 }

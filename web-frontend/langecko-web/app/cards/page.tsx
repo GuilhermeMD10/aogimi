@@ -1,5 +1,10 @@
-import CardDeckView from '@/components/views/CardDeckView';
+'use client';
 
-export default function CardsPage() {
-  return <CardDeckView />;
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function CardsRedirect() {
+  const router = useRouter();
+  useEffect(() => { router.replace('/workspace'); }, [router]);
+  return null;
 }

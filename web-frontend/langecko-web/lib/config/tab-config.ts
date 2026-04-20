@@ -1,9 +1,9 @@
 import type { LucideIcon } from 'lucide-react';
-import { BookOpen, Search, Layers } from 'lucide-react';
+import { BookOpen, Search, Layers, Library } from 'lucide-react';
 
-export type WorkspaceTabKey = 'dictionary' | 'reader' | 'cards';
+export type WorkspaceTabKey = 'library' | 'dictionary' | 'reader' | 'cards';
 
-export const MAX_MODULAR_TABS = 3;
+export const MAX_MODULAR_TABS = 4;
 
 type WorkspaceTabMeta = {
   label: string;
@@ -12,31 +12,37 @@ type WorkspaceTabMeta = {
   icon: LucideIcon;
 };
 
-export const WORKSPACE_TAB_ORDER: WorkspaceTabKey[] = ['dictionary', 'reader', 'cards'];
+export const WORKSPACE_TAB_ORDER: WorkspaceTabKey[] = ['library', 'dictionary', 'reader', 'cards'];
 
 export const WORKSPACE_TAB_META: Record<WorkspaceTabKey, WorkspaceTabMeta> = {
+  library: {
+    label: 'Library',
+    path: '/workspace',
+    dot: '#B5A27C',
+    icon: Library,
+  },
   reader: {
     label: 'Reader',
-    path: '/modular',
+    path: '/workspace',
     dot: '#D97757',
     icon: BookOpen,
   },
   dictionary: {
     label: 'Dictionary',
-    path: '/dictionary',
+    path: '/workspace',
     dot: '#4B7AA3',
     icon: Search,
   },
   cards: {
-    label: 'Cards',
-    path: '/cards',
+    label: 'Decks',
+    path: '/workspace',
     dot: '#8FB08A',
     icon: Layers,
   },
 };
 
 export function parseWorkspaceTab(value: string | null): WorkspaceTabKey | null {
-  if (value === 'dictionary' || value === 'reader' || value === 'cards') {
+  if (value === 'library' || value === 'dictionary' || value === 'reader' || value === 'cards') {
     return value;
   }
 
