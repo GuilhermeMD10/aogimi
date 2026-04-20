@@ -2,13 +2,11 @@
 
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ReaderStateProvider } from '@/components/providers/ReaderStateProvider';
-import Navbar from '@/components/Navbar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
-  // Not logged in (or still loading): render children directly, no sidebar
+  // Not logged in: render children directly (login page)
   if (!user) {
     return (
       <ReaderStateProvider>
@@ -19,17 +17,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Logged in: full app shell with sidebar + reader state
+  // Logged in: full-height layout, no sidebar — bottom nav is rendered by workspace page
   return (
-    <SidebarProvider className="h-full min-h-0 bg-background">
-      <Navbar />
-      <SidebarInset className="h-full min-h-0">
-        <ReaderStateProvider>
-          <main className="h-full w-full overflow-auto">
-            {children}
-          </main>
-        </ReaderStateProvider>
-      </SidebarInset>
-    </SidebarProvider>
+    <ReaderStateProvider>
+      <main className="h-full w-full">
+        {children}
+      </main>
+    </ReaderStateProvider>
   );
 }

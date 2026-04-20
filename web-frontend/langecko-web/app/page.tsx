@@ -205,7 +205,7 @@ export default function Home() {
   // Redirect to workspace when logged in
   useEffect(() => {
     if (!loading && user) {
-      router.replace('/library');
+      router.replace('/workspace');
     }
   }, [user, loading, router]);
 

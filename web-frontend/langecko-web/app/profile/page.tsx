@@ -407,7 +407,7 @@ export default function ProfilePage() {
       <div
         className="relative overflow-hidden"
         style={{
-          height: 160,
+          height: 108,
           background: 'linear-gradient(135deg, #1A1918 0%, #3A342C 100%)',
         }}
       >
@@ -427,24 +427,24 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      <div className="mx-auto max-w-270 px-10">
+      <div style={{ padding: '0 24px 22px' }}>
         {/* ── Avatar + basic info ──────────────────────────────────────────── */}
-        <div className="mb-5 flex items-end gap-5" style={{ marginTop: -54 }}>
+        <div className="mb-5 flex items-end gap-5" style={{ marginTop: -44 }}>
           <div className="relative">
-            <Kamon char={KAMON_SET[avatarIndex]?.k ?? '波'} size={108} />
+            <Kamon char={KAMON_SET[avatarIndex]?.k ?? '波'} size={88} />
             <button
               type="button"
               onClick={() => setShowAvatarPicker(true)}
-              className="absolute bottom-1 right-1 flex h-7.5 w-7.5 items-center justify-center rounded-full border-2 border-lgc-bg bg-lgc-accent text-white"
+              className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-lgc-bg bg-lgc-accent text-white"
             >
-              <Pencil size={13} />
+              <Pencil size={11} />
             </button>
           </div>
 
           <div className="flex-1 pb-1.5">
             <div className="mb-1 flex items-center gap-2">
               <h1
-                className="text-[28px] font-medium tracking-tight text-lgc-fg"
+                className="text-[22px] font-medium tracking-tight text-lgc-fg"
                 style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.015em' }}
               >
                 {displayName}
@@ -479,7 +479,7 @@ export default function ProfilePage() {
         </div>
 
         {/* ── Two-column layout ────────────────────────────────────────────── */}
-        <div className="grid gap-5 pb-10" style={{ gridTemplateColumns: '1.3fr 1fr' }}>
+        <div className="grid gap-5" style={{ gridTemplateColumns: '1.25fr 1fr' }}>
           {/* Left column */}
           <div>
             {/* Account section */}
@@ -511,8 +511,6 @@ export default function ProfilePage() {
             <SectionCard
               title="Your decks"
               subtitle={`${decks.length} deck${decks.length !== 1 ? 's' : ''}`}
-              actionLabel="Manage"
-              onAction={() => router.push('/cards')}
             >
               {decks.length > 0 ? (
                 <div className="lgc-card overflow-hidden">
