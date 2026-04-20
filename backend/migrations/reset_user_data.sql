@@ -8,24 +8,27 @@ BEGIN;
 
 -- ── Drop in dependency order ────────────────────────────────────────────────
 
-DROP TABLE IF EXISTS cards         CASCADE;
-DROP TABLE IF EXISTS bookmarks     CASCADE;
-DROP TABLE IF EXISTS decks         CASCADE;
-DROP TABLE IF EXISTS book_progress CASCADE;
-DROP TABLE IF EXISTS user_books    CASCADE;   -- legacy, if still lingering
-DROP TABLE IF EXISTS users         CASCADE;
+DROP TABLE IF EXISTS book_availability CASCADE;
+DROP TABLE IF EXISTS devices         CASCADE;
+DROP TABLE IF EXISTS cards           CASCADE;
+DROP TABLE IF EXISTS bookmarks       CASCADE;
+DROP TABLE IF EXISTS decks           CASCADE;
+DROP TABLE IF EXISTS book_progress   CASCADE;
+DROP TABLE IF EXISTS user_books      CASCADE;   -- legacy, if still lingering
+DROP TABLE IF EXISTS users           CASCADE;
 
 -- ── users ───────────────────────────────────────────────────────────────────
 
 CREATE TABLE users (
-  id           serial       PRIMARY KEY,
-  username     text         NOT NULL UNIQUE,
-  password     text         NOT NULL,
-  display_name text,
-  email        text,
-  language     text         NOT NULL DEFAULT 'en',
-  avatar_index smallint     NOT NULL DEFAULT 0,
-  created_at   timestamptz  NOT NULL DEFAULT now()
+  id                    serial       PRIMARY KEY,
+  username              text         NOT NULL UNIQUE,
+  password              text         NOT NULL,
+  display_name          text,
+  email                 text,
+  language              text         NOT NULL DEFAULT 'en',
+  avatar_index          smallint     NOT NULL DEFAULT 0,
+  onboarding_completed  boolean      NOT NULL DEFAULT false,
+  created_at            timestamptz  NOT NULL DEFAULT now()
 );
 
 -- ── book_progress ───────────────────────────────────────────────────────────
@@ -41,14 +44,21 @@ CREATE TABLE book_progress (
   spine_index       smallint     NOT NULL DEFAULT 0,
   total_spine_items smallint,
   progress          smallint     NOT NULL DEFAULT 0,
+  file_hash         text,
+  content_hash      text,
+  dc_identifier     text,
+  language          text,
+  publisher         text,
   started_at        timestamptz  NOT NULL DEFAULT now(),
   last_read_at      timestamptz  NOT NULL DEFAULT now(),
   created_at        timestamptz  NOT NULL DEFAULT now(),
   UNIQUE (user_id, filename)
 );
 
-CREATE INDEX idx_book_progress_user_id   ON book_progress (user_id);
-CREATE INDEX idx_book_progress_last_read ON book_progress (user_id, last_read_at DESC);
+CREATE INDEX idx_book_progress_user_id      ON book_progress (user_id);
+CREATE INDEX idx_book_progress_last_read    ON book_progress (user_id, last_read_at DESC);
+CREATE INDEX idx_book_progress_file_hash    ON book_progress (file_hash) WHERE file_hash IS NOT NULL;
+CREATE INDEX idx_book_progress_content_hash ON book_progress (content_hash) WHERE content_hash IS NOT NULL;
 
 -- ── bookmarks ───────────────────────────────────────────────────────────────
 
@@ -90,5 +100,27 @@ CREATE TABLE cards (
 
 CREATE INDEX idx_cards_deck_id ON cards (deck_id);
 CREATE INDEX idx_cards_state   ON cards (deck_id, state);
+
+-- ── devices ─────────────────────────────────────────────────────────────────
+
+CREATE TABLE devices (
+  device_id    text         NOT NULL,
+  user_id      int          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name         text         NOT NULL DEFAULT '',
+  last_seen_at timestamptz  NOT NULL DEFAULT now(),
+  created_at   timestamptz  NOT NULL DEFAULT now(),
+  PRIMARY KEY (device_id, user_id)
+);
+
+-- ── book_availability ───────────────────────────────────────────────────────
+
+CREATE TABLE book_availability (
+  user_id      int          NOT NULL,
+  device_id    text         NOT NULL,
+  book_id      uuid         NOT NULL REFERENCES book_progress(id) ON DELETE CASCADE,
+  available_at timestamptz  NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, device_id, book_id),
+  FOREIGN KEY (device_id, user_id) REFERENCES devices(device_id, user_id) ON DELETE CASCADE
+);
 
 COMMIT;

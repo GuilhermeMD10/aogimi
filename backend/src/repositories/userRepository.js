@@ -44,5 +44,11 @@ module.exports = {
       [username, password]
     );
     return result.rowCount > 0;
+  },
+  setOnboardingCompleted: async (userId, completed) => {
+    await pool.query(
+      "UPDATE users SET onboarding_completed = $2 WHERE id = $1",
+      [userId, completed]
+    );
   }
 };

@@ -109,23 +109,25 @@ export function TextReader({
   // ── Apply prefs to rendition ──────────────────────────────────────────
   const applyTheme = useCallback(
     (r: Rendition) => {
-      const t = THEMES[prefs.theme];
-      const font = FONT_STACKS[prefs.fontFamily];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (r.themes as any).default({
-        body: {
-          background: `${t.bg} !important`,
-          color: `${t.fg} !important`,
-          'font-size': `${prefs.fontSize}% !important`,
-          'line-height': `${prefs.lineSpacing} !important`,
-          'font-family': `${font} !important`,
-        },
-        '*': {
-          color: `${t.fg} !important`,
-          'user-select': 'text !important',
-          '-webkit-user-select': 'text !important',
-        },
-      });
+      try {
+        const t = THEMES[prefs.theme];
+        const font = FONT_STACKS[prefs.fontFamily];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (r.themes as any).default({
+          body: {
+            background: `${t.bg} !important`,
+            color: `${t.fg} !important`,
+            'font-size': `${prefs.fontSize}% !important`,
+            'line-height': `${prefs.lineSpacing} !important`,
+            'font-family': `${font} !important`,
+          },
+          '*': {
+            color: `${t.fg} !important`,
+            'user-select': 'text !important',
+            '-webkit-user-select': 'text !important',
+          },
+        });
+      } catch { /* epubjs themes not ready yet */ }
     },
     [prefs],
   );

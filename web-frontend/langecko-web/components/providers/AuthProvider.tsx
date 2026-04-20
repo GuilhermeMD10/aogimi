@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const data = (await res.json()) as User;
     persist(data);
+    try { localStorage.setItem('lgc_needs_onboarding', 'true'); } catch { /* ignore */ }
   }, []);
 
   const logout = useCallback(() => {

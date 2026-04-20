@@ -1,3 +1,5 @@
+import type { EpubIdentity } from '@/lib/epubIdentity';
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 // ── Types matching backend book_progress table ──────────────────────────────
@@ -13,6 +15,11 @@ export interface BookProgressRecord {
   spine_index: number;
   total_spine_items: number | null;
   progress: number;
+  file_hash: string | null;
+  content_hash: string | null;
+  dc_identifier: string | null;
+  language: string | null;
+  publisher: string | null;
   started_at: string;
   last_read_at: string;
   created_at: string;
@@ -25,6 +32,26 @@ export interface ProgressPayload {
   totalSpineItems?: number;
 }
 
+// ── Match types ─────────────────────────────────────────────────────────────
+
+export interface MatchCandidate {
+  file_hash: string;
+  content_hash: string;
+  metadata: {
+    title: string;
+    author: string;
+    dc_identifier: string | null;
+    filename: string;
+  };
+}
+
+export type MatchType = 'file_hash' | 'content' | 'metadata' | 'filename';
+
+export interface MatchResult {
+  match: BookProgressRecord;
+  match_type: MatchType;
+}
+
 // ── API calls ───────────────────────────────────────────────────────────────
 
 export async function registerBook(params: {
@@ -33,6 +60,11 @@ export async function registerBook(params: {
   title: string;
   author: string;
   coverColor: string;
+  fileHash?: string;
+  contentHash?: string;
+  dcIdentifier?: string | null;
+  language?: string | null;
+  publisher?: string | null;
 }): Promise<BookProgressRecord> {
   const res = await fetch(`${API}/api/books`, {
     method: 'POST',
@@ -81,4 +113,34 @@ export function sendProgressBeacon(id: string, params: ProgressPayload): void {
 export async function deleteBookRecord(id: string): Promise<void> {
   const res = await fetch(`${API}/api/books/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete book');
+}
+
+// ── Hash-based matching ─────────────────────────────────────────────────────
+
+export async function matchBooks(
+  userId: number,
+  books: MatchCandidate[],
+): Promise<(MatchResult | null)[]> {
+  const res = await fetch(`${API}/api/books/match`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, books }),
+  });
+  if (!res.ok) throw new Error('Failed to match books');
+  return res.json();
+}
+
+// ── Identity backfill ───────────────────────────────────────────────────────
+
+export async function updateBookIdentity(
+  id: string,
+  identity: EpubIdentity,
+): Promise<BookProgressRecord> {
+  const res = await fetch(`${API}/api/books/${id}/identity`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(identity),
+  });
+  if (!res.ok) throw new Error('Failed to update book identity');
+  return res.json();
 }

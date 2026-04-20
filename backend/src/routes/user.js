@@ -79,6 +79,20 @@ router.post("/update", async (req, res) => {
   }
 });
 
+// PUT /api/user/onboarding — mark onboarding as completed
+router.put("/onboarding", async (req, res) => {
+  const { userId, completed } = req.body;
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
+  try {
+    await userService.setOnboardingCompleted(userId, !!completed);
+    res.json({ message: "OK" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/user/delete
 router.post("/delete", async (req, res) => {
   const { username, password } = req.body;
