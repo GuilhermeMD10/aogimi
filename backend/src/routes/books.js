@@ -6,12 +6,12 @@ const router = Router();
 
 // POST /api/books — register a new book for a user
 router.post("/", async (req, res) => {
-  const { userId, filename, title, author, coverColor, totalPages } = req.body;
+  const { userId, filename, title, author, coverColor } = req.body;
   if (!userId || !filename || !title) {
     return res.status(400).json({ error: "userId, filename, and title are required" });
   }
   try {
-    const book = await bookService.createBook(userId, { filename, title, author, coverColor, totalPages });
+    const book = await bookService.createBook(userId, { filename, title, author, coverColor });
     res.json(book);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -39,16 +39,21 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// PUT /api/books/:id/progress — update reading progress
-router.put("/:id/progress", async (req, res) => {
-  const { cfiPosition, progress } = req.body;
+// PUT/POST /api/books/:id/progress — update reading progress
+// POST supported for navigator.sendBeacon() compatibility
+async function handleProgressUpdate(req, res) {
+  const { cfiPosition, progress, spineIndex, totalSpineItems } = req.body;
   try {
-    const book = await bookService.updateProgress(req.params.id, { cfiPosition, progress });
+    const book = await bookService.updateProgress(req.params.id, {
+      cfiPosition, progress, spineIndex, totalSpineItems,
+    });
     res.json(book);
   } catch (err) {
     res.status(404).json({ error: err.message });
   }
-});
+}
+router.put("/:id/progress", handleProgressUpdate);
+router.post("/:id/progress", handleProgressUpdate);
 
 // DELETE /api/books/:id — delete a book
 router.delete("/:id", async (req, res) => {

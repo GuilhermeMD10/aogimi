@@ -76,12 +76,12 @@ export function DeckDetail({
     <div className="@container min-h-full w-full">
       <div className="lgc-scroll h-full overflow-auto">
         {/* ── Header area ──────────────────────────────────────────── */}
-        <div className="px-8 pt-5">
+        <div className="px-4 pt-4 @md:px-8 @md:pt-5">
           {/* Breadcrumb */}
           <button
             type="button"
             onClick={onBack}
-            className="mb-5 flex items-center gap-1 text-xs text-lgc-fg-muted transition-colors hover:text-lgc-fg"
+            className="mb-4 flex items-center gap-1 text-xs text-lgc-fg-muted transition-colors hover:text-lgc-fg @md:mb-5"
           >
             <ArrowLeft size={12} />
             <span>Decks</span>
@@ -90,10 +90,10 @@ export function DeckDetail({
           </button>
 
           {/* Deck identity */}
-          <div className="mb-2.5 flex items-start gap-5">
+          <div className="mb-2.5 flex flex-col gap-3 @sm:flex-row @sm:items-start @sm:gap-5">
             {/* Gradient icon */}
             <div
-              className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl text-[44px] leading-none text-white/90"
+              className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-[28px] leading-none text-white/90 @sm:h-16 @sm:w-16 @sm:text-[34px] @lg:h-20 @lg:w-20 @lg:text-[44px]"
               style={{
                 background: `linear-gradient(135deg, ${color} 0%, color-mix(in oklab, ${color} 50%, black) 100%)`,
                 fontFamily: 'var(--font-display)',
@@ -104,7 +104,7 @@ export function DeckDetail({
 
             <div className="min-w-0 flex-1">
               <h1
-                className="text-[30px] font-medium tracking-tight text-lgc-fg"
+                className="text-[22px] font-medium tracking-tight text-lgc-fg @sm:text-[26px] @lg:text-[30px]"
                 style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.015em' }}
               >
                 {deck.name}
@@ -117,7 +117,7 @@ export function DeckDetail({
             </div>
 
             {/* Action buttons */}
-            <div className="flex shrink-0 gap-1.5">
+            <div className="flex shrink-0 flex-wrap gap-1.5">
               <button
                 type="button"
                 onClick={() => setMode(mode === 'add-card' ? null : 'add-card')}
@@ -144,7 +144,7 @@ export function DeckDetail({
           </div>
 
           {/* Stats strip */}
-          <div className="flex gap-7 border-b border-t border-lgc-border py-4 text-xs text-lgc-fg-muted">
+          <div className="flex gap-7 border-b border-t border-lgc-border py-3 text-xs text-lgc-fg-muted @md:py-4">
             <StatCell label="Total" value={deck.cards.length} accent />
             <StatCell label="Cards" value={deck.cards.length} />
           </div>
@@ -152,7 +152,7 @@ export function DeckDetail({
 
         {/* ── Edit deck form ───────────────────────────────────────── */}
         {mode === 'edit-deck' && (
-          <div className="px-8">
+          <div className="px-4 @md:px-8">
             <DeckForm
               submitLabel="Save"
               initial={{ name: deck.name, description: deck.description ?? '' }}
@@ -166,7 +166,7 @@ export function DeckDetail({
         {mode === 'add-card' && (
           <form
             onSubmit={submitCard}
-            className="mx-8 mt-4 rounded-lg border border-lgc-border bg-lgc-bg-elev p-5"
+            className="mx-4 mt-4 rounded-lg border border-lgc-border bg-lgc-bg-elev p-4 @md:mx-8 @md:p-5"
           >
             <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
               Front
@@ -178,7 +178,7 @@ export function DeckDetail({
                 onChange={(e) => setFront(e.target.value)}
                 placeholder="Kanji / word"
                 autoFocus
-                className="w-full border-none bg-transparent text-[30px] text-lgc-fg outline-none placeholder:text-lgc-fg-subtle"
+                className="w-full border-none bg-transparent text-[20px] text-lgc-fg outline-none placeholder:text-lgc-fg-subtle @sm:text-[24px] @lg:text-[30px]"
                 style={{
                   fontFamily: 'var(--font-display)',
                   borderBottom: '1px dashed var(--lgc-border-strong)',
@@ -220,7 +220,7 @@ export function DeckDetail({
         )}
 
         {/* ── Filter row ───────────────────────────────────────────── */}
-        <div className="flex items-center gap-2.5 px-8 pb-3 pt-4">
+        <div className="flex items-center gap-2.5 px-4 pb-3 pt-4 @md:px-8">
           <div className="flex flex-1 items-center gap-1.5 rounded-md border border-lgc-border bg-lgc-bg-elev px-2.5 py-1.5" style={{ maxWidth: 300 }}>
             <Search size={12} className="text-lgc-fg-subtle" />
             <input
@@ -242,11 +242,11 @@ export function DeckDetail({
         </div>
 
         {/* ── Card grid ────────────────────────────────────────────── */}
-        <div className="px-8 pb-10">
+        <div className="px-4 pb-10 @md:px-8">
           {deck.cards.length === 0 ? (
             <p className="py-6 text-sm text-lgc-fg-muted">No cards yet. Add one above.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 @sm:grid-cols-3 @xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 @sm:grid-cols-2 @md:gap-3 @lg:grid-cols-3 @xl:grid-cols-4">
               {filteredCards.map((card) => (
                 <MiniCard
                   key={card.id}
@@ -298,9 +298,9 @@ function MiniCard({
       </button>
 
       {/* Card content — centered JP text */}
-      <div className="flex flex-1 flex-col items-center justify-center p-3 text-center">
+      <div className="flex flex-1 flex-col items-center justify-center p-2 text-center @sm:p-3">
         <div
-          className="text-[28px] leading-none tracking-tight text-lgc-fg"
+          className="text-[20px] leading-none tracking-tight text-lgc-fg @sm:text-[24px] @lg:text-[28px]"
           style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
         >
           {front}

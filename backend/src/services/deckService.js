@@ -1,7 +1,7 @@
 const deckRepo = require("../repositories/deckRepository");
 
-async function createDeck(userId, { bookId, name, description }) {
-  return await deckRepo.create({ userId, bookId, name, description });
+async function createDeck(userId, { name, description }) {
+  return await deckRepo.create({ userId, name, description });
 }
 
 async function getUserDecks(userId) {

@@ -17,7 +17,7 @@ import {
   syncLocalBooksToBackend,
   type BookRecord,
 } from '@/lib/bookStore';
-import { type UserBookRecord } from '@/lib/booksApi';
+import { type BookProgressRecord } from '@/lib/booksApi';
 import { useAuth } from '@/components/providers/AuthProvider';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -163,7 +163,7 @@ export default function LibraryPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [books, setBooks] = useState<BookRecord[]>([]);
-  const [backendBooks, setBackendBooks] = useState<Map<string, UserBookRecord>>(new Map());
+  const [backendBooks, setBackendBooks] = useState<Map<string, BookProgressRecord>>(new Map());
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);

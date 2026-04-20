@@ -5,7 +5,6 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 export interface DeckRecord {
   id: string;
   user_id: number;
-  book_id: string | null;
   name: string;
   description: string;
   created_at: string;

@@ -34,10 +34,12 @@ export default function WordDetailView({
   id,
   onBack,
   onKanjiSearch,
+  onAddCard,
 }: {
   id: string;
   onBack?: () => void;
   onKanjiSearch?: (char: string) => void;
+  onAddCard?: (word: string, back: string) => void;
 }) {
   const router = useRouter();
   const abortRef = useRef<AbortController | null>(null);
@@ -90,7 +92,7 @@ export default function WordDetailView({
   const handleBack = onBack ?? (() => router.push('/dictionary'));
 
   return (
-    <div className="flex min-h-full w-full flex-col">
+    <div className="@container flex min-h-full w-full flex-col">
       {/* Top bar */}
       <div
         className="flex items-center gap-2.5 border-b border-lgc-border px-5 py-3"
@@ -111,10 +113,10 @@ export default function WordDetailView({
 
       {/* Content */}
       <div className="lgc-scroll flex-1 overflow-auto">
-        <div className="mx-auto max-w-215 px-8 pb-16 pt-7">
+        <div className="mx-auto max-w-215 px-4 pb-10 pt-5 @md:px-8 @md:pb-16 @md:pt-7">
           {loading && <p className="text-sm text-lgc-fg-muted">Loading&hellip;</p>}
           {error && <p className="text-sm text-lgc-error">{error}</p>}
-          {data && <WordBody data={data} onKanjiClick={searchKanji} />}
+          {data && <WordBody data={data} onKanjiClick={searchKanji} onAddCard={onAddCard} />}
         </div>
       </div>
     </div>
@@ -124,9 +126,11 @@ export default function WordDetailView({
 function WordBody({
   data,
   onKanjiClick,
+  onAddCard,
 }: {
   data: DetailsResponse;
   onKanjiClick: (char: string) => void;
+  onAddCard?: (word: string, back: string) => void;
 }) {
   const { word, kanjis } = data;
   const headword = word.kanji[0] ?? word.readings[0] ?? '\u2014';
@@ -134,20 +138,39 @@ function WordBody({
   const engMeanings = word.meanings.filter((m) => m.lang === 'eng');
   const pos = word.meanings[0]?.pos;
 
+  const handleAddCard = () => {
+    if (!onAddCard) return;
+    const parts: string[] = [];
+    if (reading) parts.push(reading);
+    if (kanjis.length > 0) {
+      const kanjiLines = kanjis.map((k) => {
+        const readings: string[] = [];
+        if (k.on_readings.length > 0) readings.push(k.on_readings.join('\u3001'));
+        if (k.kun_readings.length > 0) readings.push(k.kun_readings.join('\u3001'));
+        return `${k.literal} [${readings.join(' / ')}]`;
+      });
+      parts.push(kanjiLines.join('\n'));
+    }
+    if (engMeanings.length > 0) {
+      parts.push(engMeanings.map((m, i) => `${i + 1}. ${m.meaning}`).join('\n'));
+    }
+    onAddCard(headword, parts.join('\n'));
+  };
+
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────── */}
-      <div className="mb-1.5 flex items-end gap-6">
+      <div className="mb-1.5 flex flex-col gap-3 @lg:flex-row @lg:items-end @lg:gap-6">
         <div
-          className="text-[84px] leading-none tracking-tight text-lgc-fg"
+          className="text-[44px] leading-none tracking-tight text-lgc-fg @sm:text-[56px] @lg:text-[72px] @2xl:text-[84px]"
           style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}
         >
           {headword}
         </div>
-        <div className="flex-1 pb-3.5">
+        <div className="flex-1 @lg:pb-3.5">
           {reading && (
             <div
-              className="text-[22px] text-lgc-fg-muted"
+              className="text-[16px] text-lgc-fg-muted @sm:text-[18px] @lg:text-[22px]"
               style={{ fontFamily: 'var(--font-display)' }}
             >
               {reading}
@@ -178,10 +201,12 @@ function WordBody({
             {word.is_common && <span className="lgc-chip">common</span>}
           </div>
         </div>
-        <div className="flex shrink-0 flex-col gap-1.5 pb-3">
+        <div className="flex shrink-0 flex-wrap gap-1.5 @lg:flex-col @lg:pb-3">
           <button
             type="button"
-            className="flex items-center gap-1.5 rounded-md bg-lgc-accent px-3 py-1.5 text-xs font-medium text-lgc-accent-fg transition-opacity hover:opacity-90"
+            onClick={handleAddCard}
+            disabled={!onAddCard}
+            className="flex items-center gap-1.5 rounded-md bg-lgc-accent px-3 py-1.5 text-xs font-medium text-lgc-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <Plus size={13} /> Add to deck
           </button>
@@ -233,16 +258,16 @@ function WordBody({
       {kanjis.length > 0 && (
         <>
           <SectionHead num="02" title="Kanji breakdown" />
-          <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="mb-8 grid grid-cols-1 gap-3 @lg:grid-cols-2">
             {kanjis.map((k) => (
               <button
                 key={k.literal}
                 type="button"
                 onClick={() => onKanjiClick(k.literal)}
-                className="lgc-card flex gap-4 p-4 text-left transition-colors hover:bg-lgc-bg-sunken/50"
+                className="lgc-card flex gap-3 p-3 text-left transition-colors hover:bg-lgc-bg-sunken/50 @sm:gap-4 @sm:p-4"
               >
                 <div
-                  className="flex w-22 shrink-0 items-center justify-center border-r border-lgc-border pr-3 text-[72px] leading-none text-lgc-fg"
+                  className="flex w-14 shrink-0 items-center justify-center text-[40px] leading-none text-lgc-fg @sm:w-18 @sm:border-r @sm:border-lgc-border @sm:pr-3 @sm:text-[56px] @lg:w-22 @lg:text-[72px]"
                   style={{ fontFamily: 'var(--font-display)' }}
                 >
                   {k.literal}

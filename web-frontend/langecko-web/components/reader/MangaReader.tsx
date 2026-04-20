@@ -163,12 +163,30 @@ export function MangaReader({
         // so pending start() can fire after book ref is nulled → crash.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (renditionRef.current as any).q?.clear();
-        renditionRef.current.destroy();
+        try { renditionRef.current.destroy(); } catch { /* epubjs internal teardown */ }
       }
       renditionRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [book, viewMode]);
+
+  // Reflow rendition when container size changes (width or height)
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    const ro = new ResizeObserver(() => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        renditionRef.current?.resize(el.clientWidth, el.clientHeight);
+      }, 150);
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      if (resizeTimer) clearTimeout(resizeTimer);
+    };
+  }, []);
 
   // ── Navigation — direct spine index, bypasses epubjs scroll logic ─────
   const goToSpine = useCallback(

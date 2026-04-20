@@ -153,15 +153,37 @@ export function TextReader({
 
         let locTotal = 0;
 
-        // ── Helper: compute global page from CFI ────────────────────
+        // ── Spine-based page count (available immediately) ──────────
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const spineItems = (book.spine as any).spineItems ?? [];
+        const spineTotal = spineItems.length;
+        if (spineTotal > 0) {
+          setTotalLocations(spineTotal);
+          setGlobalPage(1);
+          globalPageRef.current = 1;
+        }
+
+        // ── Helper: compute page from CFI ───────────────────────────
         const updateGlobalPage = (cfi: string | undefined, pct: number) => {
-          if (!locationsReady.current || !cfi) return;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const locIdx = (book as any).locations.locationFromCfi(cfi);
-          const pg = typeof locIdx === 'number' && locIdx >= 0 ? locIdx + 1 : 0;
-          globalPageRef.current = pg;
-          setGlobalPage(pg);
-          setTotalLocations(locTotal);
+          if (!cfi) return;
+          if (locationsReady.current) {
+            // Locations ready — use fine-grained page numbers
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const locIdx = (book as any).locations.locationFromCfi(cfi);
+            const pg = typeof locIdx === 'number' && locIdx >= 0 ? locIdx + 1 : 0;
+            globalPageRef.current = pg;
+            setGlobalPage(pg);
+            setTotalLocations(locTotal);
+          } else {
+            // Locations still generating — use spine index as fallback
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const section = (book.spine as any).get(cfi);
+            if (section) {
+              const pg = section.index + 1;
+              globalPageRef.current = pg;
+              setGlobalPage(pg);
+            }
+          }
           progressCbRef.current?.(pct, cfi);
         };
 
@@ -271,7 +293,7 @@ export function TextReader({
       if (renditionRef.current) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (renditionRef.current as any).q?.clear();
-        renditionRef.current.destroy();
+        try { renditionRef.current.destroy(); } catch { /* epubjs internal teardown */ }
       }
       renditionRef.current = null;
     };
@@ -283,9 +305,31 @@ export function TextReader({
     if (renditionRef.current) applyTheme(renditionRef.current);
   }, [applyTheme]);
 
+  // Reflow rendition when container size changes (width or height)
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    const ro = new ResizeObserver(() => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        renditionRef.current?.resize(el.clientWidth, el.clientHeight);
+      }, 150);
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      if (resizeTimer) clearTimeout(resizeTimer);
+    };
+  }, []);
+
   // ── Navigation ────────────────────────────────────────────────────────
+  // RTL (Japanese novels): left = advance (next), right = go back (prev)
+  // LTR (Western text): left = prev, right = next
   const prev = useCallback(() => void renditionRef.current?.prev(), []);
   const next = useCallback(() => void renditionRef.current?.next(), []);
+  const onLeftBtn = rtl ? next : prev;
+  const onRightBtn = rtl ? prev : next;
 
   const goToPage = useCallback(
     (pageNum: number) => {
@@ -363,12 +407,12 @@ export function TextReader({
   );
 
   // ── Keyboard ──────────────────────────────────────────────────────────
-  const prevRef = useRef(prev);
-  const nextRef = useRef(next);
+  const leftRef = useRef(onLeftBtn);
+  const rightRef = useRef(onRightBtn);
   const ttsRef = useRef(toggleTts);
   const bmRef = useRef(addBookmark);
-  prevRef.current = prev;
-  nextRef.current = next;
+  leftRef.current = onLeftBtn;
+  rightRef.current = onRightBtn;
   ttsRef.current = toggleTts;
   bmRef.current = addBookmark;
 
@@ -377,8 +421,8 @@ export function TextReader({
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       switch (e.key) {
-        case 'ArrowRight': case 'ArrowDown': nextRef.current(); break;
-        case 'ArrowLeft': case 'ArrowUp': prevRef.current(); break;
+        case 'ArrowRight': case 'ArrowDown': rightRef.current(); break;
+        case 'ArrowLeft': case 'ArrowUp': leftRef.current(); break;
         case 'b': case 'B': bmRef.current(); break;
         case 't': case 'T': ttsRef.current(); break;
       }
@@ -503,8 +547,8 @@ export function TextReader({
           <div className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2">
             <div className="flex items-center gap-0.5 rounded-xl border border-lgc-border-strong p-1 shadow-lg" style={{ background: 'var(--lgc-bg-elev)' }}>
               {/* Prev / Next */}
-              <button type="button" className={ICON_BTN} onClick={prev} title="Previous page"><ChevronLeft size={15} /></button>
-              <button type="button" className={ICON_BTN} onClick={next} title="Next page"><ChevronRight size={15} /></button>
+              <button type="button" className={ICON_BTN} onClick={onLeftBtn} title={rtl ? 'Next page (advance)' : 'Previous page'}><ChevronLeft size={15} /></button>
+              <button type="button" className={ICON_BTN} onClick={onRightBtn} title={rtl ? 'Previous page (go back)' : 'Next page'}><ChevronRight size={15} /></button>
 
               <span className="mx-1 h-4.5 w-px bg-lgc-border" />
 

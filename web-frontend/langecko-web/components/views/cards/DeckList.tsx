@@ -42,14 +42,14 @@ export function DeckList({
   const totalCards = decks.reduce((sum, d) => sum + d.card_count, 0);
 
   return (
-    <div className="@container min-h-full w-full" style={{ padding: '28px 36px' }}>
+    <div className="@container min-h-full w-full px-4 py-5 @md:px-7 @md:py-7 @2xl:px-9">
       <div className="mx-auto max-w-250">
         {/* Header */}
-        <div className="flex items-baseline justify-between pb-1.5">
+        <div className="flex flex-col gap-2 pb-1.5 @sm:flex-row @sm:items-baseline @sm:justify-between">
           <div>
             <div className="lgc-section-label mb-1.5">Flashcards</div>
             <h1
-              className="text-[34px] font-medium tracking-tight text-lgc-fg"
+              className="text-[24px] font-medium tracking-tight text-lgc-fg @sm:text-[28px] @lg:text-[34px]"
               style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.015em' }}
             >
               Your decks
@@ -131,7 +131,7 @@ function DeckCard({
       <button
         type="button"
         onClick={() => onOpen(deck.id)}
-        className="relative h-30 w-full overflow-hidden text-left"
+        className="relative h-20 w-full overflow-hidden text-left @sm:h-24 @lg:h-30"
         style={{
           background: `linear-gradient(135deg, ${color} 0%, color-mix(in oklab, ${color} 60%, black) 100%)`,
         }}
@@ -144,7 +144,7 @@ function DeckCard({
           }}
         />
         <div
-          className="absolute bottom-3 left-3.5 text-[44px] leading-none text-white/85"
+          className="absolute bottom-2 left-3 text-[28px] leading-none text-white/85 @sm:bottom-3 @sm:left-3.5 @sm:text-[36px] @lg:text-[44px]"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           {kamon}

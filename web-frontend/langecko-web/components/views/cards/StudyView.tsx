@@ -70,10 +70,10 @@ export function StudyView({ deck, onExit }: StudyViewProps) {
       : Math.round((Math.min(session.index, session.total) / session.total) * 100);
 
   return (
-    <div className="flex min-h-full w-full flex-col">
+    <div className="@container flex min-h-full w-full flex-col">
       {/* ── Header ─────────────────────────────────────────────── */}
       <div
-        className="flex items-center gap-4 border-b border-lgc-border px-7 py-3.5"
+        className="flex items-center gap-2.5 border-b border-lgc-border px-4 py-2.5 @md:gap-4 @md:px-7 @md:py-3.5"
         style={{
           background: 'color-mix(in oklab, var(--lgc-bg) 85%, transparent)',
           backdropFilter: 'blur(10px)',
@@ -176,8 +176,8 @@ function StudyCard({
       onClick={onFlip}
       className="lgc-card relative w-full max-w-155 text-left"
       style={{
-        minHeight: 380,
-        padding: '36px 32px',
+        minHeight: 'min(380px, 60vh)',
+        padding: 'clamp(20px, 4vw, 36px) clamp(16px, 4vw, 32px)',
         boxShadow: '0 20px 50px -20px rgba(0,0,0,0.2)',
       }}
     >
@@ -190,17 +190,17 @@ function StudyCard({
       </div>
 
       {/* Content */}
-      <div className="flex min-h-72 flex-col items-center justify-center text-center">
+      <div className="flex min-h-40 flex-col items-center justify-center text-center @md:min-h-56 @lg:min-h-72">
         {!flipped ? (
           <>
             <div
-              className="mb-4 text-[96px] leading-none tracking-tight text-lgc-fg"
+              className="mb-4 text-[48px] leading-none tracking-tight text-lgc-fg @sm:text-[64px] @md:text-[80px] @lg:text-[96px]"
               style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}
             >
               {front}
             </div>
             <div
-              className="mb-8 text-[13px] text-lgc-fg-subtle"
+              className="mb-6 text-[13px] text-lgc-fg-subtle @md:mb-8"
               style={{ fontFamily: 'var(--font-mono, Geist Mono, monospace)' }}
             >
               Tap to reveal &middot; Space
@@ -212,12 +212,12 @@ function StudyCard({
         ) : (
           <>
             <div
-              className="mb-1 text-[54px] leading-none text-lgc-fg"
+              className="mb-1 text-[32px] leading-none text-lgc-fg @sm:text-[40px] @md:text-[48px] @lg:text-[54px]"
               style={{ fontFamily: 'var(--font-display)' }}
             >
               {front}
             </div>
-            <div className="mb-4 max-w-115 text-lg leading-relaxed text-lgc-fg">{back}</div>
+            <div className="mb-4 max-w-115 text-base leading-relaxed text-lgc-fg @md:text-lg">{back}</div>
           </>
         )}
       </div>
@@ -238,11 +238,11 @@ function ActionButtons({
 }) {
   if (!flipped) {
     return (
-      <div className="mt-7 w-full max-w-155">
+      <div className="mt-5 w-full max-w-155 @md:mt-7">
         <button
           type="button"
           onClick={onFlip}
-          className="flex w-full items-center justify-center gap-2.5 rounded-xl border-2 border-lgc-border-strong px-5 py-4 text-[15px] font-semibold text-lgc-fg transition-colors hover:bg-lgc-bg-elev"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-lgc-border-strong px-4 py-3 text-[13px] font-semibold text-lgc-fg transition-colors hover:bg-lgc-bg-elev @md:gap-2.5 @md:px-5 @md:py-4 @md:text-[15px]"
         >
           Reveal answer
           <kbd
@@ -257,11 +257,11 @@ function ActionButtons({
   }
 
   return (
-    <div className="mt-7 flex w-full max-w-155 gap-3">
+    <div className="mt-5 flex w-full max-w-155 gap-2 @md:mt-7 @md:gap-3">
       <button
         type="button"
         onClick={onAdvance}
-        className="flex flex-1 items-center justify-center gap-2.5 rounded-xl border-2 border-lgc-border-strong px-5 py-4 text-[15px] font-semibold text-lgc-fg transition-colors hover:bg-lgc-bg-elev"
+        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 border-lgc-border-strong px-3 py-3 text-[13px] font-semibold text-lgc-fg transition-colors hover:bg-lgc-bg-elev @md:gap-2.5 @md:px-5 @md:py-4 @md:text-[15px]"
       >
         <X size={16} /> Don&apos;t know it
         <kbd
@@ -274,7 +274,7 @@ function ActionButtons({
       <button
         type="button"
         onClick={onAdvance}
-        className="flex flex-1 items-center justify-center gap-2.5 rounded-xl bg-lgc-accent px-5 py-4 text-[15px] font-semibold text-lgc-accent-fg transition-opacity hover:opacity-90"
+        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-lgc-accent px-3 py-3 text-[13px] font-semibold text-lgc-accent-fg transition-opacity hover:opacity-90 @md:gap-2.5 @md:px-5 @md:py-4 @md:text-[15px]"
       >
         <Check size={16} /> I know it
         <kbd
@@ -311,7 +311,7 @@ function SummaryPanel({
           Session complete
         </div>
         <div
-          className="mb-2 text-[56px] leading-none text-lgc-fg"
+          className="mb-2 text-[36px] leading-none text-lgc-fg @sm:text-[44px] @md:text-[56px]"
           style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}
         >
           {'\u304A\u75B2\u308C\u3055\u307E'}

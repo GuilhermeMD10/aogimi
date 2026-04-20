@@ -79,7 +79,7 @@ export function EpubReader({
 
     return () => {
       dead = true;
-      bookRef.current?.destroy();
+      try { bookRef.current?.destroy(); } catch { /* epubjs internal teardown */ }
       bookRef.current = null;
     };
   }, [fileUrl]);

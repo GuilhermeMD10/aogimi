@@ -1,12 +1,12 @@
 const pool = require("../db");
 
 module.exports = {
-  create: async ({ userId, bookId, name, description }) => {
+  create: async ({ userId, name, description }) => {
     const result = await pool.query(
-      `INSERT INTO decks (user_id, book_id, name, description)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO decks (user_id, name, description)
+       VALUES ($1, $2, $3)
        RETURNING *`,
-      [userId, bookId || null, name, description || ""]
+      [userId, name, description || ""]
     );
     return result.rows[0];
   },
@@ -16,21 +16,12 @@ module.exports = {
       `SELECT d.*, COUNT(c.id)::int AS card_count
        FROM decks d
        LEFT JOIN cards c ON c.deck_id = d.id
-       GROUP BY d.id
-       ORDER BY d.created_at DESC`,
-      []
-    );
-    // Filter in query for safety
-    const filtered = await pool.query(
-      `SELECT d.*, COUNT(c.id)::int AS card_count
-       FROM decks d
-       LEFT JOIN cards c ON c.deck_id = d.id
        WHERE d.user_id = $1
        GROUP BY d.id
        ORDER BY d.created_at DESC`,
       [userId]
     );
-    return filtered.rows;
+    return result.rows;
   },
 
   findById: async (id) => {

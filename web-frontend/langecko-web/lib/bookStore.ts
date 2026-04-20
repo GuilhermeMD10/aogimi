@@ -2,7 +2,7 @@ import { openDB, type IDBPDatabase } from 'idb';
 import {
   registerBook as apiRegisterBook,
   getUserBooks,
-  type UserBookRecord,
+  type BookProgressRecord,
 } from '@/lib/booksApi';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ async function extractEpubMetadata(
       coverImage,
     };
   } finally {
-    book.destroy();
+    try { book.destroy(); } catch { /* no rendition to tear down */ }
   }
 }
 
@@ -162,7 +162,7 @@ export async function importBook(
 export async function ensureBackendBook(
   book: BookRecord,
   userId: number,
-): Promise<UserBookRecord> {
+): Promise<BookProgressRecord> {
   return apiRegisterBook({
     userId,
     filename: book.filename,
@@ -174,18 +174,18 @@ export async function ensureBackendBook(
 
 /**
  * Sync all local IndexedDB books to the backend for the given user.
- * Returns a map of filename → backend UserBookRecord.
+ * Returns a map of filename → backend BookProgressRecord.
  * Best-effort: books that fail to register are skipped.
  */
 export async function syncLocalBooksToBackend(
   userId: number,
-): Promise<Map<string, UserBookRecord>> {
+): Promise<Map<string, BookProgressRecord>> {
   const [localBooks, remoteBooks] = await Promise.all([
     getAllBooks(),
     getUserBooks(userId),
   ]);
 
-  const remoteMap = new Map<string, UserBookRecord>();
+  const remoteMap = new Map<string, BookProgressRecord>();
   for (const r of remoteBooks) remoteMap.set(r.filename, r);
 
   // Register any local books not yet in the backend
