@@ -85,7 +85,7 @@ export default function WorkspaceNav({ openTabs, onToggleTab, activeBubble, onTo
               onClick={() => onToggleTab(item.key)}
               onMouseEnter={() => setHoveredItem(item.key)}
               onMouseLeave={() => setHoveredItem(null)}
-              className="relative flex items-center justify-center"
+              className="relative flex items-center justify-center cursor-pointer"
               style={{
                 height: 32,
                 minWidth: 32,
@@ -93,7 +93,7 @@ export default function WorkspaceNav({ openTabs, onToggleTab, activeBubble, onTo
                 background: isBtnHovered && navHovered ? 'var(--lgc-bg-sunken)' : 'transparent',
                 padding: navHovered ? '0 10px' : '0 8px',
                 gap: navHovered ? 6 : 0,
-                transition: 'background 150ms, padding 200ms ease, gap 200ms ease',
+                transition: 'background 150ms, padding 400ms ease, gap 400ms ease',
               }}
               aria-label={meta.label}
             >
@@ -107,7 +107,7 @@ export default function WorkspaceNav({ openTabs, onToggleTab, activeBubble, onTo
                   fontSize: 11.5,
                   fontWeight: 500,
                   color: 'var(--lgc-fg)',
-                  transition: 'max-width 200ms ease, opacity 200ms ease',
+                  transition: 'max-width 400ms ease, opacity 400ms ease',
                 }}
               >
                 {meta.label}
@@ -121,7 +121,7 @@ export default function WorkspaceNav({ openTabs, onToggleTab, activeBubble, onTo
                     height: 5,
                     borderRadius: '50%',
                     background: color,
-                    bottom: -7,
+                    bottom: -2,
                     left: '50%',
                     transform: 'translateX(-50%)',
                   }}
@@ -156,7 +156,7 @@ export default function WorkspaceNav({ openTabs, onToggleTab, activeBubble, onTo
               onClick={() => onToggleBubble(item.key)}
               onMouseEnter={() => setHoveredItem(item.key)}
               onMouseLeave={() => setHoveredItem(null)}
-              className="relative flex items-center justify-center"
+              className="relative flex items-center justify-center cursor-pointer"
               style={{
                 height: 32,
                 minWidth: 32,
@@ -164,7 +164,7 @@ export default function WorkspaceNav({ openTabs, onToggleTab, activeBubble, onTo
                 background: isBtnHovered && navHovered ? 'var(--lgc-bg-sunken)' : 'transparent',
                 padding: navHovered ? '0 10px' : '0 8px',
                 gap: navHovered ? 6 : 0,
-                transition: 'background 150ms, padding 200ms ease, gap 200ms ease',
+                transition: 'background 150ms, padding 500ms ease, gap 500ms ease',
               }}
               aria-label={item.label}
             >
@@ -178,7 +178,7 @@ export default function WorkspaceNav({ openTabs, onToggleTab, activeBubble, onTo
                   fontSize: 11.5,
                   fontWeight: 500,
                   color: 'var(--lgc-fg)',
-                  transition: 'max-width 200ms ease, opacity 200ms ease',
+                  transition: 'max-width 500ms ease, opacity 500ms ease',
                 }}
               >
                 {item.label}

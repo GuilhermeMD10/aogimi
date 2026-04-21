@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { Plus, Columns3, Star, X } from 'lucide-react';
 import LibraryView from '@/components/views/LibraryView';
@@ -17,7 +18,7 @@ import {
 import { useWorkspaceTabs } from '@/hooks/use-workspace-tabs';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import WorkspaceNav, { type BubbleKey } from '@/components/WorkspaceNav';
-import ProfileBubble from '@/components/ProfileBubble';
+import ProfileBubble from '@/components/page-bubbles/ProfileBubble';
 import { getBookFile, ensureBackendBook, type BookRecord } from '@/lib/bookStore';
 import { getUserBooks } from '@/lib/booksApi';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -56,82 +57,105 @@ export default function MainWorkspace() {
   const addPickerRef = useRef<HTMLDivElement>(null);
   const [activeBubble, setActiveBubble] = useState<BubbleKey | null>(null);
 
-  const {
-    pendingDictSearch,
-    pendingCard,
-    setReaderSession,
-    readerSession,
-  } = useReaderState();
+  const { pendingDictSearch, pendingCard, setReaderSession, readerSession } = useReaderState();
+
+  // ── Stable portal targets (prevents content remount on tab reorder) ──────
+  const panelMountEls = useRef<Record<string, HTMLDivElement | null>>({});
+  const panelMountCbs = useRef<Record<string, (el: HTMLDivElement | null) => void>>({});
+  const [, setMountTick] = useState(0);
+
+  const getPanelRef = useCallback((tab: string) => {
+    if (!panelMountCbs.current[tab]) {
+      panelMountCbs.current[tab] = (el) => {
+        if (panelMountEls.current[tab] !== el) {
+          panelMountEls.current[tab] = el;
+          setMountTick((n) => n + 1);
+        }
+      };
+    }
+    return panelMountCbs.current[tab];
+  }, []);
 
   // ── Open a book from LibraryView → reader tab ────────────────────────────
   const blobUrlRef = useRef<string | null>(null);
 
-  const handleOpenBook = useCallback(async (book: BookRecord) => {
-    try {
-      const arrayBuffer = await getBookFile(book.id);
-      if (!arrayBuffer) return;
+  const handleOpenBook = useCallback(
+    async (book: BookRecord) => {
+      try {
+        const arrayBuffer = await getBookFile(book.id);
+        if (!arrayBuffer) return;
 
-      // Revoke previous blob URL
-      if (blobUrlRef.current && blobUrlRef.current !== readerSession?.fileUrl) {
-        URL.revokeObjectURL(blobUrlRef.current);
-      }
+        // Revoke previous blob URL
+        if (blobUrlRef.current && blobUrlRef.current !== readerSession?.fileUrl) {
+          URL.revokeObjectURL(blobUrlRef.current);
+        }
 
-      const url = URL.createObjectURL(new Blob([arrayBuffer], { type: 'application/epub+zip' }));
-      blobUrlRef.current = url;
+        const url = URL.createObjectURL(new Blob([arrayBuffer], { type: 'application/epub+zip' }));
+        blobUrlRef.current = url;
 
-      setReaderSession({
-        activeBook: book,
-        fileUrl: url,
-        backendBookId: null,
-        backendCfi: null,
-      });
+        setReaderSession({
+          activeBook: book,
+          fileUrl: url,
+          backendBookId: null,
+          backendCfi: null,
+        });
 
-      // Ensure reader tab is open
-      if (!openTabs.includes('reader')) {
-        addTab('reader');
-      }
+        // Ensure reader tab is open
+        if (!openTabs.includes('reader')) {
+          addTab('reader');
+        }
 
-      // Resolve backend record for progress sync
-      if (user) {
-        try {
-          const remote = await getUserBooks(user.id);
-          const match = remote.find((b) => b.filename === book.filename);
-          if (match) {
-            setReaderSession((prev) =>
-              prev ? { ...prev, backendBookId: match.id, backendCfi: match.cfi_position } : prev,
-            );
-          } else {
-            const created = await ensureBackendBook(book, user.id);
-            setReaderSession((prev) =>
-              prev ? { ...prev, backendBookId: created.id } : prev,
-            );
+        // Resolve backend record for progress sync
+        if (user) {
+          try {
+            const remote = await getUserBooks(user.id);
+            const match = remote.find((b) => b.filename === book.filename);
+            if (match) {
+              setReaderSession((prev) =>
+                prev ? { ...prev, backendBookId: match.id, backendCfi: match.cfi_position } : prev,
+              );
+            } else {
+              const created = await ensureBackendBook(book, user.id);
+              setReaderSession((prev) => (prev ? { ...prev, backendBookId: created.id } : prev));
+            }
+          } catch {
+            /* backend unavailable */
           }
-        } catch { /* backend unavailable */ }
+        }
+      } catch {
+        /* failed to open */
       }
-    } catch { /* failed to open */ }
-  }, [openTabs, addTab, setReaderSession, readerSession?.fileUrl, user]);
+    },
+    [openTabs, addTab, setReaderSession, readerSession?.fileUrl, user],
+  );
 
   // ── Nav bar: toggle workspace tab ─────────────────────────────────────────
-  const handleToggleTab = useCallback((tab: WorkspaceTabKey) => {
-    if (openTabs.includes(tab)) {
-      closeTab(tab);
-    } else {
-      addTab(tab);
-    }
-  }, [openTabs, closeTab, addTab]);
+  const handleToggleTab = useCallback(
+    (tab: WorkspaceTabKey) => {
+      if (openTabs.includes(tab)) {
+        closeTab(tab);
+      } else {
+        addTab(tab);
+      }
+    },
+    [openTabs, closeTab, addTab],
+  );
 
   // ── Nav bar: toggle bubble ───────────────────────────────────────────────
   const handleToggleBubble = useCallback((key: BubbleKey) => {
-    setActiveBubble(prev => prev === key ? null : key);
+    setActiveBubble((prev) => (prev === key ? null : key));
   }, []);
 
   // ── Tab content renderer ─────────────────────────────────────────────────
-  const renderTabContent = useCallback((tab: WorkspaceTabKey) => {
-    if (tab === 'library') return <LibraryView onOpenBook={handleOpenBook} />;
-    if (tab === 'dictionary') return <DictionaryView storageKey="modular_dictionary_state" />;
-    if (tab === 'cards') return <CardDeckView />;
-    return <ReaderView />;
-  }, [handleOpenBook]);
+  const renderTabContent = useCallback(
+    (tab: WorkspaceTabKey) => {
+      if (tab === 'library') return <LibraryView onOpenBook={handleOpenBook} />;
+      if (tab === 'dictionary') return <DictionaryView storageKey="modular_dictionary_state" />;
+      if (tab === 'cards') return <CardDeckView />;
+      return <ReaderView />;
+    },
+    [handleOpenBook],
+  );
 
   // Auto-open tab when reader queues a cross-tab action
   useEffect(() => {
@@ -153,15 +177,22 @@ export default function MainWorkspace() {
         const valid = saved.filter((k) => parseWorkspaceTab(k) !== null) as WorkspaceTabKey[];
         if (valid.length > 0) setOpenTabs(valid);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [hasUrlTabs, setOpenTabs]);
 
   // Save layout to localStorage
   useEffect(() => {
-    if (!layoutSaveReadyRef.current) { layoutSaveReadyRef.current = true; return; }
+    if (!layoutSaveReadyRef.current) {
+      layoutSaveReadyRef.current = true;
+      return;
+    }
     try {
       localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(openTabs));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [openTabs]);
 
   // Close picker on outside click
@@ -178,12 +209,14 @@ export default function MainWorkspace() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-
       {/* ── Pane bar ─────────────────────────────────────────────── */}
       {openTabs.length > 0 && (
         <div className="lgc-panebar" style={{ padding: '8px 12px' }}>
           {/* "Panes" label */}
-          <span className="select-none text-[10px] font-semibold uppercase tracking-widest text-lgc-fg-muted" style={{ marginRight: 4 }}>
+          <span
+            className="select-none text-[10px] font-semibold uppercase tracking-widest text-lgc-fg-muted"
+            style={{ marginRight: 4 }}
+          >
             Panes
           </span>
 
@@ -286,7 +319,10 @@ export default function MainWorkspace() {
                     <button
                       key={key}
                       type="button"
-                      onClick={() => { addTab(key); setAddPickerOpen(false); }}
+                      onClick={() => {
+                        addTab(key);
+                        setAddPickerOpen(false);
+                      }}
                       className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12px] text-lgc-fg transition-colors hover:bg-lgc-bg-sunken"
                     >
                       <span className="h-2 w-2 rounded-full" style={{ background: m.dot }} />
@@ -348,10 +384,6 @@ export default function MainWorkspace() {
               })}
             </div>
           </div>
-        ) : openTabs.length === 1 ? (
-          <div className="h-full overflow-auto">
-            {renderTabContent(openTabs[0])}
-          </div>
         ) : (
           <ResizablePanelGroup orientation="horizontal">
             {openTabs.map((tab, i) => (
@@ -362,15 +394,20 @@ export default function MainWorkspace() {
                   defaultSize={100 / openTabs.length}
                   minSize={Math.min(20, Math.floor(90 / openTabs.length))}
                 >
-                  <div className="h-full overflow-auto">
-                    {renderTabContent(tab)}
-                  </div>
+                  <div ref={getPanelRef(tab)} className="h-full overflow-auto" />
                 </ResizablePanel>
               </Fragment>
             ))}
           </ResizablePanelGroup>
         )}
       </div>
+
+      {/* Tab content portals — lives outside the panel tree so reorder never remounts */}
+      {openTabs.map((tab) => {
+        const el = panelMountEls.current[tab];
+        if (!el) return null;
+        return createPortal(renderTabContent(tab), el, tab);
+      })}
 
       {/* ── Bottom navigation bar ───────────────────────────────── */}
       <WorkspaceNav
@@ -381,9 +418,7 @@ export default function MainWorkspace() {
       />
 
       {/* ── Profile bubble ──────────────────────────────────────── */}
-      {activeBubble === 'profile' && (
-        <ProfileBubble onClose={() => setActiveBubble(null)} />
-      )}
+      {activeBubble === 'profile' && <ProfileBubble onClose={() => setActiveBubble(null)} />}
     </div>
   );
 }

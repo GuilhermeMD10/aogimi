@@ -350,7 +350,7 @@ export default function ProfilePage() {
 
   const handleSignOut = useCallback(() => {
     logout();
-    router.push('/');
+    router.push('/authenticate');
   }, [logout, router]);
 
   const handleRemoveDevice = useCallback(

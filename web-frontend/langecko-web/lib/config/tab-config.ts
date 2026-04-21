@@ -48,7 +48,3 @@ export function parseWorkspaceTab(value: string | null): WorkspaceTabKey | null 
 
   return null;
 }
-
-export function getCompanionTab(tab: WorkspaceTabKey): WorkspaceTabKey {
-  return tab === 'dictionary' ? 'reader' : 'dictionary';
-}

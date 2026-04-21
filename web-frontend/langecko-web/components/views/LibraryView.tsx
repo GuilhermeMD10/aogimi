@@ -68,7 +68,7 @@ export interface LibraryBook {
 
 // ── Book cover swatch ────────────────────────────────────────────────────────
 
-function BookCoverSwatch({
+export function BookCoverSwatch({
   book,
   size = 'sm',
 }: {
@@ -97,7 +97,7 @@ function BookCoverSwatch({
 
 // ── Main table row ───────────────────────────────────────────────────────────
 
-function BookTableRow({
+export function BookTableRow({
   book,
   onOpen,
   onLocate,
@@ -567,7 +567,6 @@ export default function LibraryView({ onOpenBook }: LibraryViewProps) {
 
   const handleRestoreComplete = useCallback(() => {
     setPageState('loading');
-    // Re-trigger the main useEffect by forcing a re-render
     window.location.reload();
   }, []);
 
@@ -579,7 +578,6 @@ export default function LibraryView({ onOpenBook }: LibraryViewProps) {
         userId={user!.id}
         onComplete={handleRestoreComplete}
         onSkip={() => {
-          // Convert remote books to library books as unavailable
           const merged: LibraryBook[] = remoteBooks.map(r => ({
             id: r.id,
             title: r.title,

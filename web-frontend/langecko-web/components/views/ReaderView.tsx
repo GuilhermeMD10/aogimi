@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/preserve-manual-memoization */
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -10,14 +11,8 @@ import { useReaderState, type ReaderSession } from '@/components/providers/Reade
 
 export default function ReaderView() {
   const { user } = useAuth();
-  const {
-    setPendingDictSearch,
-    setPendingCard,
-    readerSession,
-    setReaderSession,
-    recordProgress,
-    flushProgress,
-  } = useReaderState();
+  const { setPendingDictSearch, setPendingCard, readerSession, setReaderSession, recordProgress, flushProgress } =
+    useReaderState();
 
   const [books, setBooks] = useState<BookRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,56 +29,65 @@ export default function ReaderView() {
 
   // Load book list from IndexedDB
   useEffect(() => {
-    getAllBooks().then(setBooks).catch(() => {});
+    getAllBooks()
+      .then(setBooks)
+      .catch(() => {});
   }, []);
 
-  const openBook = useCallback(async (book: BookRecord) => {
-    setLoading(true);
-    setError(null);
+  const openBook = useCallback(
+    async (book: BookRecord) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const arrayBuffer = await getBookFile(book.id);
-      if (!arrayBuffer) { setError('File not found'); setLoading(false); return; }
+      try {
+        const arrayBuffer = await getBookFile(book.id);
+        if (!arrayBuffer) {
+          setError('File not found');
+          setLoading(false);
+          return;
+        }
 
-      // Revoke previous blob URL if it exists and isn't part of an active session
-      if (blobUrlRef.current && blobUrlRef.current !== readerSession?.fileUrl) {
-        URL.revokeObjectURL(blobUrlRef.current);
-      }
+        // Revoke previous blob URL if it exists and isn't part of an active session
+        if (blobUrlRef.current && blobUrlRef.current !== readerSession?.fileUrl) {
+          URL.revokeObjectURL(blobUrlRef.current);
+        }
 
-      const url = URL.createObjectURL(new Blob([arrayBuffer], { type: 'application/epub+zip' }));
-      blobUrlRef.current = url;
+        const url = URL.createObjectURL(new Blob([arrayBuffer], { type: 'application/epub+zip' }));
+        blobUrlRef.current = url;
 
-      const session: ReaderSession = {
-        activeBook: book,
-        fileUrl: url,
-        backendBookId: null,
-        backendCfi: null,
-      };
-      setReaderSession(session);
-      setLoading(false);
+        const session: ReaderSession = {
+          activeBook: book,
+          fileUrl: url,
+          backendBookId: null,
+          backendCfi: null,
+        };
+        setReaderSession(session);
+        setLoading(false);
 
-      // Resolve backend record for progress sync
-      if (user) {
-        try {
-          const remote = await getUserBooks(user.id);
-          const match = remote.find((b) => b.filename === book.filename);
-          if (match) {
-            setReaderSession((prev) =>
-              prev ? { ...prev, backendBookId: match.id, backendCfi: match.cfi_position } : prev,
-            );
-          } else {
-            const created = await ensureBackendBook(book, user.id);
-            setReaderSession((prev) =>
-              prev ? { ...prev, backendBookId: created.id } : prev,
-            );
+        // Resolve backend record for progress sync
+        if (user) {
+          try {
+            const remote = await getUserBooks(user.id);
+            const match = remote.find((b) => b.filename === book.filename);
+            if (match) {
+              setReaderSession((prev) =>
+                prev ? { ...prev, backendBookId: match.id, backendCfi: match.cfi_position } : prev,
+              );
+            } else {
+              const created = await ensureBackendBook(book, user.id);
+              setReaderSession((prev) => (prev ? { ...prev, backendBookId: created.id } : prev));
+            }
+          } catch {
+            /* backend unavailable — reading still works */
           }
-        } catch { /* backend unavailable — reading still works */ }
+        }
+      } catch {
+        setError('Failed to load book');
+        setLoading(false);
       }
-    } catch {
-      setError('Failed to load book');
-      setLoading(false);
-    }
-  }, [user, readerSession?.fileUrl, setReaderSession]);
+    },
+    [user, readerSession?.fileUrl, setReaderSession],
+  );
 
   const goBack = useCallback(() => {
     // Flush progress to backend before closing
@@ -96,7 +100,9 @@ export default function ReaderView() {
     setReaderSession(null);
     setError(null);
     // Refresh book list
-    getAllBooks().then(setBooks).catch(() => {});
+    getAllBooks()
+      .then(setBooks)
+      .catch(() => {});
   }, [flushProgress, setReaderSession]);
 
   const handleProgressChange = useCallback(
@@ -106,13 +112,19 @@ export default function ReaderView() {
     [recordProgress],
   );
 
-  const handleLookup = useCallback((word: string) => {
-    setPendingDictSearch(word);
-  }, [setPendingDictSearch]);
+  const handleLookup = useCallback(
+    (word: string) => {
+      setPendingDictSearch(word);
+    },
+    [setPendingDictSearch],
+  );
 
-  const handleAddCard = useCallback((word: string) => {
-    setPendingCard({ word });
-  }, [setPendingCard]);
+  const handleAddCard = useCallback(
+    (word: string) => {
+      setPendingCard({ word });
+    },
+    [setPendingCard],
+  );
 
   // ── Picker ──────────────────────────────────────────────────────────────────
   if (!readerSession && !loading && !error) {
@@ -132,21 +144,23 @@ export default function ReaderView() {
           <BookOpen size={12} className="text-lgc-fg-muted" />
           <span className="text-[12px] font-semibold text-lgc-fg">Choose a book</span>
         </div>
-        <div className="flex-1 overflow-auto p-3">
+        <div className="flex-1 overflow-auto">
           <div className="grid grid-cols-2 gap-2">
             {books.map((book) => (
               <button
                 key={book.id}
                 type="button"
                 onClick={() => openBook(book)}
-                className="overflow-hidden rounded-lg border border-lgc-border bg-lgc-bg-elev text-left transition-shadow hover:shadow-md"
+                className=" rounded-lg border border-lgc-border bg-lgc-bg-elev transition-shadow hover:shadow-md min-h-40 min-w-25 max-h-100 max-w-80"
               >
                 <div
-                  className="relative h-12"
-                  style={{ background: `linear-gradient(135deg, ${book.coverColor} 0%, color-mix(in oklab, ${book.coverColor} 50%, black) 100%)` }}
+                  className="  "
+                  style={{
+                    background: `linear-gradient(135deg, ${book.coverColor} 0%, color-mix(in oklab, ${book.coverColor} 50%, black) 100%)`,
+                  }}
                 >
                   {book.coverImage ? (
-                    <img src={book.coverImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    <img src={book.coverImage} alt="" className="object-cover" />
                   ) : (
                     <span
                       className="absolute bottom-1 left-2 text-lg leading-none text-white/80"
@@ -156,8 +170,11 @@ export default function ReaderView() {
                     </span>
                   )}
                 </div>
-                <div className="px-2.5 py-2">
-                  <p className="truncate text-[11px] font-medium text-lgc-fg" style={{ fontFamily: 'var(--font-display)' }}>
+                <div className="px-2.5 py-2 ">
+                  <p
+                    className="truncate text-[11px] font-medium text-lgc-fg"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
                     {book.title}
                   </p>
                   <p className="truncate text-[10px] text-lgc-fg-muted">{book.author}</p>
