@@ -16,7 +16,8 @@
       "Bash(echo \"EXIT: $?\")",
       "Read(//Users/guilhermedias/**)",
       "Bash(grep -n \"user_books\\\\|UserBook\" /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader/[bookId]/page.tsx /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/library/page.tsx /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/lib/bookStore.ts /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/lib/booksApi.ts)",
-      "Bash(curl -s -X POST http://localhost:3000/api/books -H 'Content-Type: application/json' -d '{\"userId\":1,\"filename\":\"test.epub\",\"title\":\"Test\",\"author\":\"Test\",\"coverColor\":\"#4A4038\"}')"
+      "Bash(curl -s -X POST http://localhost:3000/api/books -H 'Content-Type: application/json' -d '{\"userId\":1,\"filename\":\"test.epub\",\"title\":\"Test\",\"author\":\"Test\",\"coverColor\":\"#4A4038\"}')",
+      "Bash(find /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) ! -path \"*/node_modules/*\" ! -path \"*/.next/*\" -exec grep -l \"getCompanionTab\" {} \\\\;)"
     ],
     "additionalDirectories": [
       "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader"
