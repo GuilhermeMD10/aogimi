@@ -2,6 +2,7 @@ const kanjiRepo = require('../repositories/kanjiRepository');
 const nameRepo  = require('../repositories/nameRepository');
 const { index } = require('../search');
 const { deinflect } = require('../search/deinflector');
+const { romajiToKana } = require('../search/romajiToKana');
 
 /**
  * Unified search endpoint logic.
@@ -94,9 +95,25 @@ async function search(rawQuery) {
   // ── 4. Romaji / English meaning ─────────────────────────────────────────────
   if (IS_ROMAJI.test(q)) {
     const englishQ = q.toLowerCase().replace(/[^\w\s-]/g, '');
-    const hits = await index.searchEnglish(englishQ, RESULT_LIMIT);
-    const words = await hydrateAndAnnotate(hits);
-    return { type: 'meaning', words };
+    const kana = romajiToKana(q);
+
+    // Run Japanese (kana) and English searches in parallel when romaji converts
+    const [jpResult, englishHits] = await Promise.all([
+      kana ? japaneseWithDeinflection(kana, 'kana') : Promise.resolve(null),
+      index.searchEnglish(englishQ, RESULT_LIMIT),
+    ]);
+
+    const englishWords = await hydrateAndAnnotate(englishHits);
+
+    // Merge: Japanese matches first, then English, deduplicated
+    if (jpResult && jpResult.words.length > 0) {
+      const seenIds = new Set(jpResult.words.map(w => w.id));
+      const deduped = englishWords.filter(w => !seenIds.has(w.id));
+      const merged = [...jpResult.words, ...deduped].slice(0, RESULT_LIMIT);
+      return { type: 'meaning', words: merged };
+    }
+
+    return { type: 'meaning', words: englishWords };
   }
 
   throw Object.assign(
@@ -143,18 +160,62 @@ async function hydrateAndAnnotate(hits, metaFn) {
   if (hits.length === 0) return [];
 
   // Deduplicate while preserving first-occurrence order (= highest score).
+  // Map keys are normalized to Number because node-postgres returns bigint
+  // word_id as a string while hydrated rows expose `id` as a Number — without
+  // normalization, the lookups below silently miss.
   const seen = new Set();
   const orderedIds = [];
   const metaById = new Map();
+  const exactSenseById = new Map();
   for (const h of hits) {
-    if (seen.has(h.word_id)) continue;
-    seen.add(h.word_id);
+    const key = Number(h.word_id);
+    if (seen.has(key)) continue;
+    seen.add(key);
     orderedIds.push(h.word_id);
-    if (metaFn) metaById.set(h.word_id, metaFn(h));
+    if (metaFn) metaById.set(key, metaFn(h));
+    if (h.exact_sense_order != null) {
+      exactSenseById.set(key, h.exact_sense_order);
+    }
   }
 
   const rows = await index.hydrate(orderedIds);
   await annotateKanjiGrades(rows);
+
+  // Sort priorities:
+  //   1. Single-kanji word with an exact whole-meaning match in senses 1–5
+  //      (earlier sense first). Privileges the canonical one-kanji spelling
+  //      of a concept (e.g. 犬 for "dog") over longer compounds that also
+  //      happen to have an exact gloss match.
+  //   2. Any other exact whole-meaning match (gloss_norm = query) within the
+  //      top-10 senses, earlier sense first. Only counts when the query IS
+  //      the meaning — no partial or multi-word matches.
+  //   3. Grade ascending (nulls last).
+  //   4. Primary kanji length, then primary reading length.
+  //   5. Stable fallback preserves upstream SQL score order.
+  rows.sort((a, b) => {
+    const aEx = exactSenseById.get(a.id);
+    const bEx = exactSenseById.get(b.id);
+
+    const aTopKanji = aEx != null && aEx <= 5 && primaryLength(a.kanji) === 1;
+    const bTopKanji = bEx != null && bEx <= 5 && primaryLength(b.kanji) === 1;
+    if (aTopKanji !== bTopKanji) return aTopKanji ? -1 : 1;
+    if (aTopKanji && bTopKanji && aEx !== bEx) return aEx - bEx;
+
+    if (aEx != null && bEx != null) {
+      if (aEx !== bEx) return aEx - bEx;
+    } else if (aEx != null) return -1;
+    else if (bEx != null) return  1;
+
+    if (a.grade !== b.grade) {
+      if (a.grade == null) return  1;
+      if (b.grade == null) return -1;
+      return a.grade - b.grade;
+    }
+    const aKanjiLen = primaryLength(a.kanji);
+    const bKanjiLen = primaryLength(b.kanji);
+    if (aKanjiLen !== bKanjiLen) return aKanjiLen - bKanjiLen;
+    return primaryLength(a.readings) - primaryLength(b.readings);
+  });
 
   return rows.map(r => {
     const meta = metaById.get(r.id);
@@ -207,6 +268,15 @@ async function annotateKanjiGrades(words) {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+// Codepoint length of the first entry in a kanji/readings array. Used as a
+// simplicity tiebreaker — Array.from handles surrogate pairs so rare kanji
+// don't get double-counted. Empty arrays return Infinity so kana-only words
+// sort after kanji words of the same grade.
+function primaryLength(arr) {
+  if (!arr || arr.length === 0) return Infinity;
+  return Array.from(arr[0]).length;
+}
 
 function split(value, sep) {
   return value ? value.split(sep).map(s => s.trim()) : [];

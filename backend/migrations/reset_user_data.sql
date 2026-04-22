@@ -87,15 +87,16 @@ CREATE INDEX idx_decks_user_id ON decks (user_id);
 -- ── cards ───────────────────────────────────────────────────────────────────
 
 CREATE TABLE cards (
-  id              uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
-  deck_id         uuid         NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
-  front           text         NOT NULL,
-  reading         text         NOT NULL DEFAULT '',
-  back            text         NOT NULL,
-  notes           text         NOT NULL DEFAULT '',
-  state           text         NOT NULL DEFAULT 'new',
-  reviewed_times  int          NOT NULL DEFAULT 0,
-  created_at      timestamptz  NOT NULL DEFAULT now()
+  id                uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  deck_id           uuid         NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+  front             text         NOT NULL,
+  reading           text         NOT NULL DEFAULT '',
+  back              text         NOT NULL,
+  notes             text         NOT NULL DEFAULT '',
+  context_sentence  text         NOT NULL DEFAULT '',
+  state             text         NOT NULL DEFAULT 'new',
+  reviewed_times    int          NOT NULL DEFAULT 0,
+  created_at        timestamptz  NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_cards_deck_id ON cards (deck_id);

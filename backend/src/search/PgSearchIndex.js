@@ -10,9 +10,13 @@ const { SearchIndex } = require('./SearchIndex');
  *    600  primary gloss starts with "$1 "       ("dog " in "dog food")
  *    300  primary gloss starts with $1          ("dog" in "doggedly")
  *    100  FTS match on any gloss in the sense   (`tsv @@ plainto_tsquery`)
- *    +50  bonus if the matching sense is sense_order = 1
+ *   +5–50  sense_order gradient (sense 1 → +50, sense 2 → +45, … sense 10 → +5)
  *    +priority_score  (0–100, precomputed from JMdict priority markers)
  *    +20  is_common bonus
+ *
+ * Senses ranked 11+ are ignored entirely — only the first 10 meanings of a
+ * word count toward a match. The sense_order gradient (max 45 spread) stays
+ * within tier gaps, so a lower-tier match never overtakes a higher-tier one.
  *
  * The exact match bonus alone outweighs every other factor, so unambiguous
  * queries like "dog" resolve to their canonical word (犬) deterministically.
@@ -32,10 +36,16 @@ class PgSearchIndex extends SearchIndex {
                                                           THEN  100
                    ELSE 0
                  END
-                 + CASE WHEN wm.sense_order = 1 THEN 50 ELSE 0 END
-               ) AS match_score
+                 + GREATEST(11 - COALESCE(wm.sense_order, 10), 0) * 5
+               ) AS match_score,
+               -- Earliest sense (1-based) whose primary gloss equals the
+               -- query verbatim, else NULL. Used in JS as the top-priority
+               -- sort key: a sense-1 exact match outranks any non-exact hit.
+               MIN(CASE WHEN wm.gloss_norm = $1 THEN wm.sense_order END)
+                 AS exact_sense_order
         FROM word_meanings wm
         WHERE wm.lang = 'eng'
+          AND (wm.sense_order IS NULL OR wm.sense_order <= 10)
           AND (
                 wm.gloss_norm = $1
              OR wm.gloss_norm LIKE $1 || '%'
@@ -44,6 +54,7 @@ class PgSearchIndex extends SearchIndex {
         GROUP BY wm.word_id
       )
       SELECT c.word_id,
+             c.exact_sense_order,
              (c.match_score
               + COALESCE(w.priority_score, 0)
               + CASE WHEN w.is_common THEN 20 ELSE 0 END) AS score
@@ -55,7 +66,11 @@ class PgSearchIndex extends SearchIndex {
       `,
       [query, limit],
     );
-    return rows.map(r => ({ word_id: r.word_id, score: r.score }));
+    return rows.map(r => ({
+      word_id: r.word_id,
+      score: r.score,
+      exact_sense_order: r.exact_sense_order,
+    }));
   }
 
   async searchJapaneseForms(forms, limit = 20) {
@@ -128,13 +143,18 @@ class PgSearchIndex extends SearchIndex {
                '[]'::json
              ) AS readings,
              COALESCE(
-               (SELECT json_agg(json_build_object(
-                         'meaning', wm.meaning,
-                         'pos',     wm.pos,
-                         'lang',    wm.lang
-                       ) ORDER BY wm.sense_order NULLS LAST)
-                FROM word_meanings wm
-                WHERE wm.word_id = w.id AND wm.lang = 'eng'),
+               (SELECT json_agg(val ORDER BY ord NULLS LAST)
+                FROM (
+                  SELECT json_build_object(
+                           'meaning', wm.meaning,
+                           'pos',     wm.pos,
+                           'lang',    wm.lang
+                         ) AS val,
+                         wm.sense_order AS ord
+                  FROM word_meanings wm
+                  WHERE wm.word_id = w.id AND wm.lang = 'eng'
+                    AND (wm.sense_order IS NULL OR wm.sense_order <= 10)
+                ) s),
                '[]'::json
              ) AS meanings
       FROM words w

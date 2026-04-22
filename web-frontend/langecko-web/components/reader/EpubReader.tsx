@@ -12,8 +12,8 @@ type Props = {
   fileUrl: string;
   filename: string;
   initialCfi?: string;
-  onLookup: (word: string) => void;
-  onAddCard: (word: string) => void;
+  onLookup: (word: string, contextSentence?: string) => void;
+  onAddCard: (word: string, contextSentence?: string) => void;
   onProgressChange?: (progress: number, cfi: string) => void;
 };
 

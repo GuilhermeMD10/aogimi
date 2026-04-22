@@ -1,7 +1,7 @@
 const cardRepo = require("../repositories/cardRepository");
 
-async function createCard(deckId, { front, reading, back, notes }) {
-  return await cardRepo.create({ deckId, front, reading, back, notes });
+async function createCard(deckId, { front, reading, back, notes, contextSentence }) {
+  return await cardRepo.create({ deckId, front, reading, back, notes, contextSentence });
 }
 
 async function getDeckCards(deckId) {
@@ -14,8 +14,8 @@ async function getCard(id) {
   return card;
 }
 
-async function updateCard(id, { front, reading, back, notes, state }) {
-  const card = await cardRepo.update(id, { front, reading, back, notes, state });
+async function updateCard(id, { front, reading, back, notes, state, contextSentence }) {
+  const card = await cardRepo.update(id, { front, reading, back, notes, state, contextSentence });
   if (!card) throw new Error("Card not found");
   return card;
 }

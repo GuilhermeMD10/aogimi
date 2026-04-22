@@ -27,6 +27,33 @@ import { THEMES, ICON_BTN, ICON_BTN_ON } from '@/components/reader/readerConstan
 import { TypographyPanel } from '@/components/reader/TypographyPanel';
 import { TextContextMenu } from '@/components/reader/TextContextMenu';
 
+// ── Sentence extraction ─────────────────────────────────────────────────────
+
+/** Extract the sentence surrounding the current selection inside the epub iframe. */
+function extractSentenceFromSelection(sel: Selection): string | undefined {
+  const node = sel.anchorNode;
+  if (!node) return undefined;
+
+  const el = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+  if (!el) return undefined;
+
+  const block = el.closest('p, div, li, td, h1, h2, h3, h4, h5, h6') ?? el;
+  const fullText = block.textContent?.trim() ?? '';
+  if (!fullText) return undefined;
+
+  const word = sel.toString().trim();
+  if (!word) return undefined;
+
+  // Split on Japanese sentence terminators (keep the delimiter attached)
+  const sentences = fullText.split(/(?<=[。！？\n])/);
+  for (const s of sentences) {
+    if (s.includes(word)) return s.trim();
+  }
+
+  // Fallback — return the block text if reasonably short
+  return fullText.length <= 200 ? fullText : undefined;
+}
+
 // ── Props ────────────────────────────────────────────────────────────────────
 
 export type TextReaderProps = {
@@ -34,8 +61,8 @@ export type TextReaderProps = {
   filename: string;
   initialCfi?: string;
   rtl?: boolean;
-  onLookup: (word: string) => void;
-  onAddCard: (word: string) => void;
+  onLookup: (word: string, contextSentence?: string) => void;
+  onAddCard: (word: string, contextSentence?: string) => void;
   onProgressChange?: (progress: number, cfi: string) => void;
 };
 
@@ -97,6 +124,7 @@ export function TextReader({
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const [selectedText, setSelectedText] = useState('');
+  const [contextSentence, setContextSentence] = useState<string | undefined>(undefined);
   const [selectedCfi, setSelectedCfi] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [translation, setTranslation] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -223,6 +251,7 @@ export function TextReader({
             const text = sel?.toString().trim() ?? '';
             setSelectedText(text);
             setSelectedCfi(text ? cfiRange : null);
+            setContextSentence(sel && text ? extractSentenceFromSelection(sel) : undefined);
           } catch { /* ignore */ }
         });
 
@@ -234,6 +263,7 @@ export function TextReader({
             const sel: Selection | null = contents.window.getSelection();
             const text = sel?.toString().trim() ?? '';
             setSelectedText(text);
+            setContextSentence(sel && text ? extractSentenceFromSelection(sel) : undefined);
             if (!text) { setSelectedCfi(null); return; }
             e.preventDefault();
             const iframe = el.querySelector('iframe');
@@ -629,10 +659,10 @@ export function TextReader({
           selectedText={selectedText}
           selectedCfi={selectedCfi}
           epubHighlights={epubHighlights}
-          onLookup={() => onLookup(selectedText)}
+          onLookup={() => onLookup(selectedText, contextSentence)}
           onDeepL={() => setTranslation({ text: selectedText, x: ctxMenu.x, y: ctxMenu.y })}
           onHighlight={applyHighlight}
-          onAddCard={() => onAddCard(selectedText)}
+          onAddCard={() => onAddCard(selectedText, contextSentence)}
           onClose={() => setCtxMenu(null)}
         />,
         document.body,

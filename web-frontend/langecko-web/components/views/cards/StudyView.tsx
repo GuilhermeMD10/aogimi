@@ -141,6 +141,7 @@ export function StudyView({ deck, onExit }: StudyViewProps) {
             <StudyCard
               front={session.current.front}
               back={session.current.back}
+              contextSentence={session.current.context_sentence}
               flipped={flipped}
               onFlip={flip}
             />
@@ -162,11 +163,13 @@ export function StudyView({ deck, onExit }: StudyViewProps) {
 function StudyCard({
   front,
   back,
+  contextSentence,
   flipped,
   onFlip,
 }: {
   front: string;
   back: string;
+  contextSentence?: string;
   flipped: boolean;
   onFlip: () => void;
 }) {
@@ -218,6 +221,11 @@ function StudyCard({
               {front}
             </div>
             <div className="mb-4 max-w-115 text-base leading-relaxed text-lgc-fg @md:text-lg">{back}</div>
+            {contextSentence && (
+              <div className="max-w-115 rounded-md border border-lgc-border bg-lgc-bg-sunken px-4 py-2.5 text-[13px] leading-relaxed text-lgc-fg-muted">
+                {contextSentence}
+              </div>
+            )}
           </>
         )}
       </div>

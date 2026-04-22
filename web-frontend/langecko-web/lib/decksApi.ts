@@ -18,6 +18,7 @@ export interface CardRecord {
   reading: string;
   back: string;
   notes: string;
+  context_sentence: string;
   state: 'new' | 'learning' | 'mastered';
   reviewed_times: number;
   created_at: string;
@@ -80,7 +81,7 @@ export async function getDeckCards(deckId: string): Promise<CardRecord[]> {
 
 export async function createCard(
   deckId: string,
-  params: { front: string; back: string; reading?: string; notes?: string },
+  params: { front: string; back: string; reading?: string; notes?: string; contextSentence?: string },
 ): Promise<CardRecord> {
   const res = await fetch(`${API}/api/decks/${deckId}/cards`, {
     method: 'POST',
