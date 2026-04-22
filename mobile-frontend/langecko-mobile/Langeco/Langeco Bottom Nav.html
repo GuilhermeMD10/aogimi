@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Langeco — Bottom Nav Explorations</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="styles.css">
+<style>
+  body, html { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #f0eee9; overscroll-behavior: none; }
+  #root { width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="book-data.jsx"></script>
+<script type="text/babel" src="nav-explorations.jsx"></script>
+<script type="text/babel" src="nav-bottom.jsx"></script>
+
+<script type="text/babel">
+function AB({ width, height, children, label }) {
+  return (
+    <DCArtboard label={label} width={width} height={height}>
+      <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>{children}</div>
+    </DCArtboard>
+  );
+}
+function Row({ label, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontSize: 11, color: 'rgba(60,50,40,0.65)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, paddingLeft: 4 }}>{label}</div>
+      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>{children}</div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <div style={{ padding: '0 60px 30px' }}>
+        <div style={{ fontSize: 42, fontWeight: 500, color: 'rgba(30, 22, 15, 0.92)', letterSpacing: '-0.02em', marginBottom: 6, fontFamily: 'Instrument Serif, serif' }}>Bottom-center nav · four directions</div>
+        <div style={{ fontSize: 14, color: 'rgba(60,50,40,0.72)', maxWidth: 820, lineHeight: 1.55 }}>
+          Four horizontal bottom-center navbars. All show a 2-pane workspace (Reader + Dictionary) behind them so
+          you can judge composition. Each direction: resting · hover-expanded · dragging a chip · collapsed to a ball.
+        </div>
+      </div>
+
+      <DCSection title="B1 · Segmented dock" subtitle="One flat pill: nav icons | divider | open-pane chips | divider | actions. Hover grows vertically and puts a label under each icon. Minimal, calm.">
+        <Row label="Resting">
+          <AB width={1220} height={520} label="B1.a  resting"><BottomWS><B1/></BottomWS></AB>
+        </Row>
+        <Row label="Hover expanded · 3 panes open">
+          <AB width={1220} height={520} label="B1.b  hover, 3 panes"><BottomWS open={['reader', 'dict', 'decks']}><B1 hover open={['reader', 'dict', 'decks']}/></BottomWS></AB>
+        </Row>
+        <Row label="Dragging Dictionary chip">
+          <AB width={1220} height={520} label="B1.c  dragging"><BottomWS open={['reader', 'dict', 'decks']}><B1 open={['reader', 'dict', 'decks']} dragIdx={1}/></BottomWS></AB>
+        </Row>
+        <Row label="Collapsed to a ball">
+          <AB width={1220} height={520} label="B1.d  ball"><BottomWS><NavBall/></BottomWS></AB>
+        </Row>
+      </DCSection>
+
+      <DCSection title="B2 · Two-tier stack" subtitle="Main icon dock below; a compact 'Open' chip row floating above it. Strong visual distinction between permanent nav and transient panes. The chip row disappears when no panes are open.">
+        <Row label="Resting · 2 panes">
+          <AB width={1220} height={540} label="B2.a  resting"><BottomWS><B2/></BottomWS></AB>
+        </Row>
+        <Row label="Hover expanded · 3 panes">
+          <AB width={1220} height={540} label="B2.b  hover"><BottomWS open={['reader', 'dict', 'decks']}><B2 hover open={['reader', 'dict', 'decks']}/></BottomWS></AB>
+        </Row>
+        <Row label="Dragging · no pane open (dock only, chip row hidden)">
+          <AB width={1220} height={540} label="B2.c  empty"><BottomWS open={['reader']}><B2 open={['reader']}/></BottomWS></AB>
+        </Row>
+      </DCSection>
+
+      <DCSection title="B3 · Magnify dock (macOS feel)" subtitle="Permanent text labels. Hover magnifies the hovered icon + its neighbors (fisheye). Open-pane chips hang in a rounded pocket to the right of the dock.">
+        <Row label="Resting">
+          <AB width={1220} height={560} label="B3.a  resting"><BottomWS><B3/></BottomWS></AB>
+        </Row>
+        <Row label="Hovering Dictionary (idx 3)">
+          <AB width={1220} height={560} label="B3.b  hover magnify"><BottomWS open={['reader', 'dict', 'decks']}><B3 hoverIdx={3} open={['reader', 'dict', 'decks']}/></BottomWS></AB>
+        </Row>
+        <Row label="Dragging Dictionary chip">
+          <AB width={1220} height={560} label="B3.c  dragging"><BottomWS open={['reader', 'dict', 'decks']}><B3 open={['reader', 'dict', 'decks']} dragIdx={1}/></BottomWS></AB>
+        </Row>
+      </DCSection>
+
+      <DCSection title="B4 · Command bar (dark · Raycast feel)" subtitle="Dark glass bar. Text labels always visible; tiny dot on left of each item shows active state. Open-pane chips in the same bar after a divider. ⌘K hint on the right hints at keyboard-first power use.">
+        <Row label="Resting">
+          <AB width={1220} height={520} label="B4.a  resting"><BottomWS><B4/></BottomWS></AB>
+        </Row>
+        <Row label="Hovering Dictionary (idx 3)">
+          <AB width={1220} height={520} label="B4.b  hover"><BottomWS open={['reader', 'dict', 'decks']}><B4 hoverIdx={3} open={['reader', 'dict', 'decks']}/></BottomWS></AB>
+        </Row>
+        <Row label="Dragging Dictionary chip">
+          <AB width={1220} height={520} label="B4.c  dragging"><BottomWS open={['reader', 'dict', 'decks']}><B4 open={['reader', 'dict', 'decks']} dragIdx={1}/></BottomWS></AB>
+        </Row>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

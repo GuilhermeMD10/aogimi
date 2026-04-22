@@ -1,36 +1,25 @@
-import { ReactNode } from 'react';
-import { StyleSheet, Text } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useThemedStyles, type Colors } from '@/theme/ThemeContext';
-import { fontSize, fontFamily, spacing } from '@/theme/tokens';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { useColors } from '@/theme/ThemeContext';
 
-interface ScreenProps {
-  title?: string;
-  children: ReactNode;
-}
+type Props = {
+  children: React.ReactNode;
+  edges?: Edge[];
+  padded?: boolean;
+  style?: ViewStyle;
+};
 
-export function Screen({ title, children }: ScreenProps) {
-  const styles = useThemedStyles(createStyles);
+export function Screen({ children, edges = ['top'], padded = false, style }: Props) {
+  const c = useColors();
   return (
-    <SafeAreaView edges={['top']} style={styles.root}>
-      {title ? <Text style={styles.title}>{title}</Text> : null}
-      {children}
+    <SafeAreaView edges={edges} style={[styles.root, { backgroundColor: c.bg }, style]}>
+      <View style={[styles.inner, padded && styles.padded]}>{children}</View>
     </SafeAreaView>
   );
 }
 
-const createStyles = (c: Colors) =>
-  StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: c.bgBase,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.md,
-    },
-    title: {
-      fontFamily: fontFamily.serifSemiBold,
-      fontSize: fontSize.xxl,
-      color: c.textPrimary,
-      marginBottom: spacing.md,
-    },
-  });
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  inner: { flex: 1 },
+  padded: { paddingHorizontal: 24 },
+});
