@@ -1,66 +1,71 @@
-import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
-import { useThemedStyles, type Colors } from '@/theme/ThemeContext';
-import { fontSize, radius, spacing } from '@/theme/tokens';
+import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
+import { useColors } from '@/theme/ThemeContext';
+import { fontSize, radius } from '@/theme/tokens';
 
-type Variant = 'primary' | 'secondary';
+type Variant = 'primary' | 'secondary' | 'ghost';
 
-interface ButtonProps {
+type Props = {
   label: string;
-  onPress: () => void;
+  onPress?: () => void;
   variant?: Variant;
+  full?: boolean;
+  loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
-}
+};
 
 export function Button({
   label,
   onPress,
-  variant = 'secondary',
-  disabled = false,
+  variant = 'primary',
+  full,
+  loading,
+  disabled,
   style,
-}: ButtonProps) {
-  const styles = useThemedStyles(createStyles);
-  const isPrimary = variant === 'primary';
+}: Props) {
+  const c = useColors();
+  const isDisabled = disabled || loading;
+
+  const bg =
+    variant === 'primary' ? c.accent : variant === 'secondary' ? c.bgElev : 'transparent';
+  const fg =
+    variant === 'primary' ? c.accentFg : variant === 'secondary' ? c.fg : c.fg;
+  const borderColor = variant === 'secondary' ? c.borderStrong : 'transparent';
+  const borderWidth = variant === 'secondary' ? StyleSheet.hairlineWidth : 0;
+
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={isDisabled}
       style={({ pressed }) => [
         styles.base,
-        isPrimary ? styles.primary : styles.secondary,
-        pressed && !disabled && styles.pressed,
-        disabled && styles.disabled,
+        {
+          backgroundColor: bg,
+          borderColor,
+          borderWidth,
+          opacity: isDisabled ? 0.55 : pressed ? 0.85 : 1,
+          width: full ? '100%' : undefined,
+        },
         style,
       ]}
     >
-      <Text style={[styles.label, isPrimary ? styles.labelPrimary : styles.labelSecondary]}>
-        {label}
-      </Text>
+      {loading ? (
+        <ActivityIndicator color={fg} />
+      ) : (
+        <Text style={[styles.label, { color: fg }]}>{label}</Text>
+      )}
     </Pressable>
   );
 }
 
-const createStyles = (c: Colors) =>
-  StyleSheet.create({
-    base: {
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.lg,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    primary: {
-      backgroundColor: c.accent,
-      borderColor: c.accent,
-    },
-    secondary: {
-      backgroundColor: c.bgSurface,
-      borderColor: c.border,
-    },
-    pressed: { opacity: 0.8 },
-    disabled: { opacity: 0.4 },
-    label: { fontSize: fontSize.sm, fontWeight: '600' },
-    labelPrimary: { color: c.accentOn },
-    labelSecondary: { color: c.textPrimary },
-  });
+const styles = StyleSheet.create({
+  base: {
+    paddingVertical: 15,
+    paddingHorizontal: 24,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  label: { fontSize: fontSize.md, fontWeight: '600', letterSpacing: -0.1 },
+});

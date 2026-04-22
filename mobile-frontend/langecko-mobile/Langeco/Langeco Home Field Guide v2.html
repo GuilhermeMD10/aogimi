@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Langeco — Home · Field Guide v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="styles.css">
+<style>
+  body, html { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #f0eee9; overscroll-behavior: none; }
+  #root { width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#f0eee9">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#f0eee9"/>
+    <text x="600" y="430" text-anchor="middle" font-family="serif" font-size="220" fill="#1e160f" font-style="italic">語</text>
+    <text x="600" y="560" text-anchor="middle" font-family="serif" font-size="48" fill="#D97757" letter-spacing="8">LANGECO</text>
+  </svg>
+</template>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="book-data.jsx"></script>
+<script type="text/babel" src="nav-hybrid.jsx"></script>
+<script type="text/babel" src="home-fg-v2.jsx"></script>
+
+<script type="text/babel">
+function AB({ width, height, children, label, scrollTo = 0 }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!ref.current || !scrollTo) return;
+    const sc = ref.current.querySelector('.lgc-scroll');
+    if (sc) sc.scrollTop = scrollTo;
+  }, [scrollTo]);
+  return (
+    <DCArtboard label={label} width={width} height={height}>
+      <div ref={ref} style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
+        {children}
+        <HybridNav open={[]} hoverBar={false} activeTab="home" hideStudy/>
+      </div>
+    </DCArtboard>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <div style={{ padding: '0 60px 30px' }}>
+        <div style={{ fontSize: 42, fontWeight: 500, color: 'rgba(30, 22, 15, 0.92)', letterSpacing: '-0.02em', marginBottom: 6, fontFamily: 'Instrument Serif, serif' }}>Home · Field Guide v2</div>
+        <div style={{ fontSize: 14, color: 'rgba(60,50,40,0.72)', maxWidth: 880, lineHeight: 1.55 }}>
+          Based on V2 (Field guide). Destinations moved to the hero spot. Study removed (four places: Library, Reader, Dictionary, Decks). Three most recent books shown, with the latest as currently reading. Two how-to cards at the bottom — bottom-nav intro and a new draggable-tab / split-view demo. Two opener treatments in place of "Hello, Lucas".
+        </div>
+      </div>
+
+      <DCSection title="Opener A · Literary epigraph" subtitle="A quiet line from what you're reading, in Japanese, as the opening moment — a tiny attribution line, then 'Where to?' as the main call on the right. No name, no greeting. Reads like opening a book.">
+        <AB width={1220} height={980} label="A  literary"><HomeFG_A/></AB>
+      </DCSection>
+
+      <DCSection title="Opener A · scrolled" subtitle="The same page, scrolled down — showing the 'Recently opened' books, recent lookups, and the two 'Getting around' cards at the bottom (nav intro + draggable-tab / split-view demo).">
+        <AB width={1220} height={980} label="A  scrolled" scrollTo={780}><HomeFG_A/></AB>
+      </DCSection>
+
+      <DCSection title="What's new vs previous Field guide" subtitle="">
+        <div style={{ padding: '0 60px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, maxWidth: 1200, fontSize: 13, lineHeight: 1.7, color: 'rgba(60,50,40,0.82)' }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700, color: 'rgba(30,22,15,0.85)', marginBottom: 8 }}>Structural changes</div>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              <li><b>"What's in here" moved to the top</b> — the four places are now the hero, a row of prominent cards rather than a list tucked under the nav demo</li>
+              <li><b>Study removed</b> — four destinations now (Library, Reader, Dictionary, Decks). Also taken out of the nav demos.</li>
+              <li><b>Three recently-opened books</b> — latest is tagged "Currently reading" and shown larger; the two prior sit underneath at reduced scale</li>
+              <li><b>Two how-to cards side-by-side at the bottom</b> — nav intro + new split-view / draggable-tab demo</li>
+            </ul>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700, color: 'rgba(30,22,15,0.85)', marginBottom: 8 }}>Opener ideas</div>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              <li><b>Literary opener</b> — last-read book gets a quoted line as the page's first voice, with "Where to?" as a soft counterweight on the right</li>
+              <li>Second artboard shows the scrolled-down portion: Recently opened + Recent lookups + two Getting-around cards</li>
+            </ul>
+          </div>
+        </div>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+/* Langeco — 3 Japanese-culture themes
+   Kanagawa  — Hokusai's Great Wave: deep indigo/prussian blue, sea foam white, wave crest teal, muted sand
+   Sakura    — pink blossom, soft green leaves, warm bark brown, clear sky blue
+   Hanami    — festival lanterns: vermillion, saffron, sunset gold, deep lacquer black, ink contrast
+*/
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&family=Shippori+Mincho:wght@400;500;600;700&family=Klee+One:wght@400;600&family=Instrument+Serif&family=Inter:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,500;8..60,600&display=swap');
+
+* { box-sizing: border-box; }
+
+/* ============ DEFAULT (free tier) ============
+   Minimal, neutral, no cultural motif. Premium themes layer on top.
+*/
+.theme-default {
+  --bg: #FAFAF9;
+  --bg-elev: #FFFFFF;
+  --bg-sunken: #F2F1EE;
+  --fg: #1A1918;
+  --fg-muted: #6B6966;
+  --fg-subtle: #A8A5A0;
+  --border: rgba(26, 25, 24, 0.08);
+  --border-strong: rgba(26, 25, 24, 0.14);
+  --accent: #1A1918;
+  --accent-2: #6B6966;
+  --accent-3: #D4D2CE;
+  --accent-soft: rgba(26, 25, 24, 0.08);
+  --ring: rgba(26, 25, 24, 0.18);
+  --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.05);
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-reader: 'Source Serif 4', Georgia, serif;
+  color: var(--fg); background: var(--bg); font-family: var(--font-ui);
+}
+
+/* ============ KANAGAWA ============ */
+.theme-kanagawa {
+  --bg: #EDE6D3;                 /* aged print paper */
+  --bg-elev: #F6F0DE;
+  --bg-sunken: #E0D7BE;
+  --fg: #0F2340;                 /* prussian ink */
+  --fg-muted: #4A5E80;
+  --fg-subtle: #8494AC;
+  --border: rgba(15, 35, 64, 0.10);
+  --border-strong: rgba(15, 35, 64, 0.18);
+  --accent: #1E3D6B;             /* deep indigo wave */
+  --accent-2: #4B7AA3;           /* mid wave */
+  --accent-3: #D4C999;           /* sand/gold */
+  --accent-soft: #C9D6E4;
+  --wave-foam: #F1EEE0;
+  --ring: rgba(30, 61, 107, 0.35);
+  --shadow: 0 1px 2px rgba(15, 35, 64, 0.05), 0 6px 22px rgba(15, 35, 64, 0.08);
+  --font-display: 'Shippori Mincho', 'Noto Serif JP', serif;
+  --font-ui: 'Noto Sans JP', 'Inter', system-ui, sans-serif;
+  --font-reader: 'Shippori Mincho', 'Noto Serif JP', 'Source Serif 4', serif;
+  color: var(--fg); background: var(--bg); font-family: var(--font-ui);
+}
+.kanagawa-texture {
+  background-color: #EDE6D3;
+  background-image:
+    radial-gradient(ellipse at 10% 10%, rgba(30, 61, 107, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 90%, rgba(212, 201, 153, 0.12) 0%, transparent 55%),
+    repeating-linear-gradient(91deg, transparent 0 2px, rgba(30, 61, 107, 0.012) 2px 3px);
+}
+
+/* ============ SAKURA ============ */
+.theme-sakura {
+  --bg: #FBF4F2;                 /* petal white */
+  --bg-elev: #FFFBFA;
+  --bg-sunken: #F3E7E5;
+  --fg: #3E2A2F;                 /* bark ink */
+  --fg-muted: #7A5A5F;
+  --fg-subtle: #B09599;
+  --border: rgba(62, 42, 47, 0.08);
+  --border-strong: rgba(62, 42, 47, 0.16);
+  --accent: #D47A8C;             /* blossom pink */
+  --accent-2: #8FB08A;           /* leaf green */
+  --accent-3: #9BB8D6;           /* sky blue */
+  --accent-4: #8B5E4A;           /* bark */
+  --accent-soft: #F7DCE0;
+  --ring: rgba(212, 122, 140, 0.35);
+  --shadow: 0 1px 2px rgba(62, 42, 47, 0.04), 0 8px 28px rgba(212, 122, 140, 0.12);
+  --font-display: 'Klee One', 'Shippori Mincho', 'Noto Serif JP', serif;
+  --font-ui: 'Inter', 'Noto Sans JP', system-ui, sans-serif;
+  --font-reader: 'Shippori Mincho', 'Noto Serif JP', serif;
+  color: var(--fg); background: var(--bg); font-family: var(--font-ui);
+}
+.sakura-texture {
+  background-color: #FBF4F2;
+  background-image:
+    radial-gradient(ellipse at 85% 15%, rgba(212, 122, 140, 0.10) 0%, transparent 45%),
+    radial-gradient(ellipse at 10% 90%, rgba(155, 184, 214, 0.10) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 50%, rgba(143, 176, 138, 0.05) 0%, transparent 60%);
+}
+
+/* ============ HANAMI ============ */
+.theme-hanami {
+  --bg: #14100C;                 /* lacquer night */
+  --bg-elev: #1E1814;
+  --bg-sunken: #0E0B08;
+  --fg: #F5E9D4;                 /* paper lantern */
+  --fg-muted: #B0987A;
+  --fg-subtle: #6E6050;
+  --border: rgba(245, 233, 212, 0.10);
+  --border-strong: rgba(245, 233, 212, 0.18);
+  --accent: #E04B2A;             /* vermillion torii */
+  --accent-2: #F2B33D;           /* saffron */
+  --accent-3: #D98830;           /* sunset gold */
+  --accent-soft: rgba(224, 75, 42, 0.18);
+  --ring: rgba(224, 75, 42, 0.45);
+  --shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 18px 40px rgba(0, 0, 0, 0.55);
+  --font-display: 'Shippori Mincho', 'Noto Serif JP', serif;
+  --font-ui: 'Inter', 'Noto Sans JP', system-ui, sans-serif;
+  --font-reader: 'Shippori Mincho', 'Noto Serif JP', serif;
+  color: var(--fg); background: var(--bg); font-family: var(--font-ui);
+}
+.hanami-texture {
+  background-color: #14100C;
+  background-image:
+    radial-gradient(ellipse at 15% 20%, rgba(224, 75, 42, 0.12) 0%, transparent 40%),
+    radial-gradient(ellipse at 85% 80%, rgba(242, 179, 61, 0.09) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 50%, rgba(217, 136, 48, 0.04) 0%, transparent 70%);
+}
+
+/* ============ SHARED PRIMITIVES ============ */
+.lgc-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 6px 10px; border-radius: 6px;
+  border: 1px solid transparent; background: transparent; color: var(--fg);
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms;
+  user-select: none; line-height: 1;
+}
+.lgc-btn:hover { background: var(--bg-sunken); }
+.lgc-btn-ghost { color: var(--fg-muted); }
+.lgc-btn-ghost:hover { color: var(--fg); }
+.lgc-btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+.lgc-btn-primary:hover { filter: brightness(0.95); background: var(--accent); }
+.lgc-btn-outline { border-color: var(--border-strong); }
+.lgc-icon-btn {
+  width: 30px; height: 30px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px; color: var(--fg-muted); cursor: pointer;
+  border: 1px solid transparent; background: transparent;
+  transition: background 120ms, color 120ms;
+}
+.lgc-icon-btn:hover { background: var(--bg-sunken); color: var(--fg); }
+.lgc-input {
+  font-family: inherit; padding: 6px 10px; border-radius: 6px;
+  border: 1px solid var(--border-strong); background: var(--bg-elev);
+  color: var(--fg); font-size: 13px; outline: none;
+}
+.lgc-input:focus { box-shadow: 0 0 0 3px var(--ring); border-color: var(--accent); }
+.lgc-card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
+.lgc-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--bg-sunken); color: var(--fg-muted);
+  font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+}
+.lgc-divider { height: 1px; background: var(--border); width: 100%; }
+.lgc-vdivider { width: 1px; background: var(--border); height: 100%; }
+
+/* Pane bar — modular view. All panes are LIVE simultaneously; chips are
+   handles that mirror the panes below and can be dragged to reorder. */
+.lgc-panebar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-sunken); border-bottom: 1px solid var(--border);
+}
+.lgc-panechip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 999px;
+  font-size: 12px; font-weight: 500; color: var(--fg);
+  cursor: grab; user-select: none;
+  background: var(--bg-elev); border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: transform 120ms, box-shadow 120ms;
+  position: relative;
+}
+.lgc-panechip:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+.lgc-panechip:active { cursor: grabbing; }
+.lgc-panechip-dot { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; }
+.lgc-panechip-idx {
+  width: 20px; height: 20px; border-radius: 99px;
+  background: var(--bg-sunken); color: var(--fg-muted);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-family: 'Geist Mono', ui-monospace, monospace; font-weight: 600;
+  flex-shrink: 0;
+}
+.lgc-panechip-live {
+  width: 6px; height: 6px; border-radius: 99px; background: #22c55e;
+  box-shadow: 0 0 0 2px color-mix(in oklab, #22c55e 30%, transparent);
+  flex-shrink: 0;
+}
+.lgc-panearrow { color: var(--fg-subtle); font-size: 14px; user-select: none; }
+.lgc-panechip-ghost {
+  border: 1px dashed var(--border-strong) !important;
+  background: transparent !important;
+  opacity: 0.75;
+}
+
+::selection { background: var(--accent-soft); color: var(--fg); }
+
+.lgc-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.lgc-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 99px;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+.lgc-scroll::-webkit-scrollbar-thumb:hover { background: var(--fg-subtle); background-clip: padding-box; border: 2px solid transparent; }
+.lgc-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.reader-page { background: var(--bg-elev); color: var(--fg); }
+
+/* Highlight colors */
+.hl-1 { background: linear-gradient(transparent 55%, rgba(255, 213, 79, 0.55) 55%); }
+.hl-2 { background: linear-gradient(transparent 55%, rgba(129, 199, 132, 0.45) 55%); }
+.hl-3 { background: linear-gradient(transparent 55%, rgba(244, 143, 177, 0.45) 55%); }
+.word-hover { cursor: pointer; border-radius: 2px; transition: background 120ms; }
+.word-hover:hover { background: var(--accent-soft); }
+
+/* Vertical Japanese text */
+.vtxt {
+  writing-mode: vertical-rl; text-orientation: mixed;
+  font-feature-settings: "vert", "vrt2";
+  line-height: 1.9; letter-spacing: 0.04em;
+}
+
+/* Book cover placeholder */
+.book-cover {
+  width: 100%; aspect-ratio: 2/3; border-radius: 3px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 40%),
+    var(--cover-bg, #6B5A45);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.12);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 10px; color: rgba(255,255,255,0.9); font-size: 11px;
+  position: relative; overflow: hidden;
+}
+.book-cover::before {
+  content: ''; position: absolute; left: 8%; top: 0; bottom: 0;
+  width: 1px; background: rgba(0,0,0,0.2);
+}
+
+/* Decorative motifs */
+.seigaiha-bg {
+  background-image:
+    radial-gradient(circle at 50% 100%, transparent 14px, rgba(30,61,107,0.08) 14px, rgba(30,61,107,0.08) 15px, transparent 15px),
+    radial-gradient(circle at 0 100%, transparent 14px, rgba(30,61,107,0.08) 14px, rgba(30,61,107,0.08) 15px, transparent 15px),
+    radial-gradient(circle at 100% 100%, transparent 14px, rgba(30,61,107,0.08) 14px, rgba(30,61,107,0.08) 15px, transparent 15px);
+  background-size: 30px 15px;
+  background-position: 0 0, 15px 0, -15px 0;
+}

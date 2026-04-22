@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Maximize icon — preview sheet</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; color: #1A1918; }
+  .sheet { min-height: 100vh; padding: 72px 80px; box-sizing: border-box; }
+  .title { font-family: 'Instrument Serif', 'Source Serif 4', serif; font-size: 34px; letter-spacing: -0.01em; margin: 0 0 6px; font-weight: 500; }
+  .subtitle { font-size: 13px; color: #6B6966; margin: 0 0 48px; max-width: 560px; line-height: 1.55; }
+  .section { margin-bottom: 56px; }
+  .sectionLabel { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; color: #A8A5A0; margin-bottom: 18px; }
+  .row { display: flex; gap: 32px; align-items: flex-end; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .frame {
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; border: 1px solid #E5E3DE; border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .meta { font-size: 11px; color: #6B6966; font-family: 'Geist Mono', ui-monospace, monospace; }
+  .toolbarDemo {
+    display: inline-flex; gap: 4px; padding: 8px; background: #fff;
+    border: 1px solid #E5E3DE; border-radius: 999px;
+    box-shadow: 0 8px 28px rgba(30,22,15,0.08);
+  }
+  .toolbarBtn {
+    width: 36px; height: 36px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center;
+    color: #1A1918; cursor: pointer; transition: background 120ms;
+  }
+  .toolbarBtn:hover { background: #F2F1EE; }
+  .toolbarBtn.active { background: #1A1918; color: #fff; }
+  .codeBlock {
+    font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px;
+    background: #F2F1EE; padding: 14px 16px; border-radius: 8px;
+    color: #1A1918; line-height: 1.7; display: inline-block;
+    border: 1px solid #E5E3DE;
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <h1 class="title">Maximize icon</h1>
+  <p class="subtitle">Four arrows pointing outward to the corners of an invisible 24×24 bounding rect. Hairline stroke, inherits <code>currentColor</code>. For the reader toolbar's "adjust screen / expand view" action.</p>
+
+  <section class="section">
+    <div class="sectionLabel">Size scale</div>
+    <div class="row">
+      <div class="cell"><div class="frame" style="width:56px;height:56px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1A1918" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 20 4 20 9"/><polyline points="9 20 4 20 4 15"/><line x1="20" y1="4" x2="14" y2="10"/><line x1="4" y1="20" x2="10" y2="14"/><polyline points="9 4 4 4 4 9"/><polyline points="15 20 20 20 20 15"/><line x1="4" y1="4" x2="10" y2="10"/><line x1="20" y1="20" x2="14" y2="14"/></svg></div><div class="meta">12px</div></div>
+      <div class="cell"><div class="frame" style="width:56px;height:56px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1A1918" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 20 4 20 9"/><polyline points="9 20 4 20 4 15"/><line x1="20" y1="4" x2="14" y2="10"/><line x1="4" y1="20" x2="10" y2="14"/><polyline points="9 4 4 4 4 9"/><polyline points="15 20 20 20 20 15"/><line x1="4" y1="4" x2="10" y2="10"/><line x1="20" y1="20" x2="14" y2="14"/></svg></div><div class="meta">14px</div></div>
+      <div class="cell"><div class="frame" style="width:56px;height:56px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A1918" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 20 4 20 9"/><polyline points="9 20 4 20 4 15"/><line x1="20" y1="4" x2="14" y2="10"/><line x1="4" y1="20" x2="10" y2="14"/><polyline points="9 4 4 4 4 9"/><polyline points="15 20 20 20 20 15"/><line x1="4" y1="4" x2="10" y2="10"/><line x1="20" y1="20" x2="14" y2="14"/></svg></div><div class="meta">16px · default</div></div>
+      <div class="cell"><div class="frame" style="width:72px;height:72px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1918" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 20 4 20 9"/><polyline points="9 20 4 20 4 15"/><line x1="20" y1="4" x2="14" y2="10"/><line x1="4" y1="20" x2="10" y2="14"/><polyline points="9 4 4 4 4 9"/><polyline points="15 20 20 20 20 15"/><line x1="4" y1="4" x2="10" y2="10"/><line x1="20" y1="20" x2="14" y2="14"/></svg></div><div class="meta">20px</div></div>
+      <div class="cell"><div class="frame" style="width:96px;height:96px"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1A1918" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 20 4 20 9"/><polyline points="9 20 4 20 4 15"/><line x1="20" y1="4" x2="14" y2="10"/><line x1="4" y1="20" x2="10" y2="14"/><polyline points="9 4 4 4 4 9"/><polyline points="15 20 20 20 20 15"/><line x1="4" y1="4" x2="10" y2="10"/><line x1="20" y1="20" x2="14" y2="14"/></svg></div><div class="meta">28px</div></div>
+      <div class="cell"><div class="frame" style="width:140px;height:140px"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#1A1918" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 20 4 20 9"/><polyline points="9 20 4 20 4 15"/><line x1="20" y1="4" x2="14" y2="10"/><line x1="4" y1="20" x2="10" y2="14"/><polyline points="9 4 4 4 4 9"/><polyline points="15 20 20 20 20 15"/><line x1="4" y1="4" x2="10" y2="10"/><line x1="20" y1="20" x2="14" y2="14"/></svg></div><div class="meta">64px · display</div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sectionLabel">Stroke weights (16px)</div>
+    <div class="row">
+      <div class="cell"><div class="frame" style="width:56px;height:56px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A1918" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 20 4 20 9"/><polyline points="9 20 4 20 4 15"/><line x1="20" y1="4" x2="14" y2="10"/><line x1="4" y1="20" x2="10" y2="14"/><polyline points="9 4 4 4 4 9"/><polyline points="15 20 20 20 20 15"/><line x1="4" y1="4" x2="10" y2="10"/><line x1="20" y1="20" x2="14" y2="14"/></svg></div><div class="meta">1.25</div></div>
+      <div class="cell"><div class="frame" style="width:56px;height:56px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A1918" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 20 4 20 9"/><polyline points="9 20 4 20 4 15"/><line x1="20" y1="4" x2="14" y2="10"/><line x1="4" y1="20" x2="10" y2="14"/><polyline points="9 4 4 4 4 9"/><polyline points="15 20 20 20 20 15"/><line x1="4" y1="4" x2="10" y2="10"/><line x1="20" y1="20" x2="14" y2="14"/></svg></div><div class="meta">1.5</div></div>
+      <div class="cell"><div class="frame" style="width:56px;height:56px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A1918" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 20 4 20 9"/><polyline points="9 20 4 20 4 15"/><line x1="20" y1="4" x2="14" y2="10"/><line x1="4" y1="20" x2="10" y2="14"/><polyline points="9 4 4 4 4 9"/><polyline points="15 20 20 20 20 15"/><line x1="4" y1="4" x2="10" y2="10"/><line x1="20" y1="20" x2="14" y2="14"/></svg></div><div class="meta">1.75 · default</div></div>
+      <div class="cell"><div class="frame" style="width:56px;height:56px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A1918" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 20 4 20 9"/><polyline points="9 20 4 20 4 15"/><line x1="20" y1="4" x2="14" y2="10"/><line x1="4" y1="20" x2="10" y2="14"/><polyline points="9 4 4 4 4 9"/><polyline points="15 20 20 20 20 15"/><line x1="4" y1="4" x2="10" y2="10"/><line x1="20" y1="20" x2="14" y2="14"/></svg></div><div class="meta">2.0</div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sectionLabel">In context · reader toolbar</div>
+    <div class="toolbarDemo">
+      <div class="toolbarBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg></div>
+      <div class="toolbarBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg></div>
+      <div class="toolbarBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></div>
+      <div class="toolbarBtn active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 4 20 4 20 9"/><polyline points="9 20 4 20 4 15"/><line x1="20" y1="4" x2="14" y2="10"/><line x1="4" y1="20" x2="10" y2="14"/><polyline points="9 4 4 4 4 9"/><polyline points="15 20 20 20 20 15"/><line x1="4" y1="4" x2="10" y2="10"/><line x1="20" y1="20" x2="14" y2="14"/></svg></div>
+      <div class="toolbarBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div>
+    </div>
+    <div style="font-size:11px; color:#A8A5A0; margin-top:14px; letter-spacing:0.04em;">Resting · hover · active — inherits <code>currentColor</code> so it flips with the button background.</div>
+  </section>
+
+  <section class="section">
+    <div class="sectionLabel">Usage</div>
+    <div class="codeBlock">&lt;Ic.Maximize size={16} stroke={1.75} /&gt;</div>
+  </section>
+
+</div>
+</body>
+</html>
