@@ -8,7 +8,7 @@ import { matchBooks } from '@/lib/booksApi';
 import { getDeviceId } from '@/lib/deviceId';
 import { markBookAvailable } from '@/lib/devicesApi';
 import type { DeviceBookRecord } from '@/lib/devicesApi';
-import { BookCoverSwatch, type LibraryBook } from '@/components/views/LibraryView';
+import { BookCoverSwatch, type LibraryBook } from '@/components/library/BookList';
 
 function validateEpub(file: File): string | null {
   if (file.type !== 'application/epub+zip' && !file.name.endsWith('.epub'))
