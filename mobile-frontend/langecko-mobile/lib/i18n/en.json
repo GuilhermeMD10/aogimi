@@ -1,0 +1,105 @@
+{
+  "common": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "done": "Done",
+    "continue": "Continue",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "error": "Something went wrong"
+  },
+  "auth": {
+    "welcome": {
+      "headline": "Read Japanese\nwith confidence.",
+      "tagline": "Tap any word to see its meaning, save it to flashcards, and study in context.",
+      "signIn": "Sign in",
+      "createAccount": "Create account",
+      "google": "Google",
+      "apple": "Apple"
+    },
+    "orContinueWith": "or continue with",
+    "signIn": {
+      "title": "Sign in",
+      "username": "Username",
+      "password": "Password",
+      "submit": "Sign in",
+      "noAccount": "No account yet?",
+      "signUp": "Sign up",
+      "errorInvalid": "Invalid username or password"
+    },
+    "signUp": {
+      "title": "Create account",
+      "username": "Username",
+      "usernamePlaceholder": "@yourname",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "submit": "Create account",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "errorMismatch": "Passwords don't match",
+      "errorTaken": "That username is taken"
+    },
+    "onboarding": {
+      "syncing": "Syncing your library…",
+      "synced": "Synced {books} books · {decks} decks",
+      "noRecords": "Nothing to sync yet. Start reading to build your library.",
+      "errorOffline": "Couldn't reach the server. You can try again later.",
+      "continue": "Continue"
+    }
+  },
+  "library": {
+    "title": "Library",
+    "continueReading": "Continue reading",
+    "importEpub": "Import EPUB",
+    "empty": "No books yet"
+  },
+  "reader": {
+    "define": "Define",
+    "flashcard": "Flashcard",
+    "copy": "Copy",
+    "highlight": "Highlight",
+    "toolbar": {
+      "size": "Size",
+      "lineHeight": "Line height",
+      "font": "Font",
+      "margin": "Margin",
+      "vertical": "Vertical"
+    }
+  },
+  "dict": {
+    "title": "Dictionary",
+    "search": "Search Japanese, romaji, or English",
+    "empty": "Start typing to search",
+    "addFlashcard": "Add flashcard"
+  },
+  "decks": {
+    "title": "Decks",
+    "new": "New deck",
+    "cards": "{count} cards",
+    "studyNow": "Study now",
+    "rename": "Rename",
+    "delete": "Delete deck"
+  },
+  "study": {
+    "tapToReveal": "Tap to reveal",
+    "dontKnow": "Don't know",
+    "know": "I know it",
+    "summaryTitle": "Nice work",
+    "summaryCards": "{reviewed} cards · {pct}% known",
+    "studyAgain": "Study again",
+    "backToDeck": "Back to deck"
+  },
+  "profile": {
+    "title": "You",
+    "editProfile": "Edit profile",
+    "account": "Account",
+    "username": "Username",
+    "language": "Language",
+    "theme": "Theme",
+    "currentlyReading": "Currently reading",
+    "signOut": "Sign out",
+    "changeAvatar": "Change avatar"
+  }
+}

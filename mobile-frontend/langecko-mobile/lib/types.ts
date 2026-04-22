@@ -1,11 +1,3 @@
-/**
- * Shared domain types.
- *
- * Dictionary response types mirror the backend contract defined in
- * `backend/src/services/searchService.js` and consumed by the web
- * frontend's DictionaryView.
- */
-
 export type WordMeaning = {
   meaning: string;
   pos: string | null;
@@ -46,29 +38,80 @@ export type SearchResponse =
   | { type: 'kana';    words: WordResult[]; names: NameResult[]; kanjis: KanjiInfo[] }
   | { type: 'meaning'; words: WordResult[] };
 
-/**
- * Response shape for `GET /api/words/:id/details` — the dedicated endpoint
- * powering the word detail screen. `kanjis` is one entry per unique CJK
- * character in the word's kanji forms.
- */
 export type WordDetails = {
   word: WordResult;
   kanjis: KanjiInfo[];
 };
 
-// ── Cards ────────────────────────────────────────────────────────────────────
+// ── User ─────────────────────────────────────────────────────────────────────
 
-export type Card = {
-  id: string;
-  front: string;
-  back: string;
+export type UserPublic = {
+  id: number;
+  username: string;
 };
 
-export type Deck = {
+export type UserProfile = {
+  id: number;
+  username: string;
+  display_name: string | null;
+  email: string | null;
+  language: string;
+  avatar_index: number;
+  created_at: string;
+};
+
+export type UserProfileUpdate = Partial<{
+  display_name: string | null;
+  email: string | null;
+  language: string;
+  avatar_index: number;
+}>;
+
+// ── Books (book_progress) ────────────────────────────────────────────────────
+
+export type BookRecord = {
   id: string;
+  user_id: number;
+  filename: string;
+  title: string;
+  author: string;
+  cover_color: string;
+  cfi_position: string | null;
+  spine_index: number;
+  total_spine_items: number | null;
+  progress: number;
+  started_at: string;
+  last_read_at: string;
+  created_at: string;
+};
+
+export type BookProgressUpdate = Partial<{
+  cfiPosition: string;
+  progress: number;
+  spineIndex: number;
+  totalSpineItems: number;
+}>;
+
+// ── Decks / cards ────────────────────────────────────────────────────────────
+
+export type DeckRecord = {
+  id: string;
+  user_id: number;
   name: string;
-  /** Optional free-text note shown on the deck row and detail screen.
-   *  May be missing on decks persisted before this field existed. */
-  description?: string;
-  cards: Card[];
+  description: string;
+  created_at: string;
+};
+
+export type CardState = 'new' | 'learning' | 'mastered';
+
+export type CardRecord = {
+  id: string;
+  deck_id: string;
+  front: string;
+  reading: string;
+  back: string;
+  notes: string;
+  state: CardState;
+  reviewed_times: number;
+  created_at: string;
 };

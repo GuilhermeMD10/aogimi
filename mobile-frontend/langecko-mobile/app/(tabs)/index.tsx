@@ -1,6 +1,5 @@
-import { Redirect } from 'expo-router';
+import { LibraryScreen } from '@/components/library/LibraryScreen';
 
-// Default tab on launch: Reader.
-export default function Index() {
-  return <Redirect href="/reader" />;
+export default function LibraryTab() {
+  return <LibraryScreen />;
 }

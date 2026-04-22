@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Langeco Mobile — Native</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="styles.css">
+<style>
+  body, html { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #f0eee9; overscroll-behavior: none; }
+  #root { width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="mobile.jsx"></script>
+<script type="text/babel" src="mobile-themes.jsx"></script>
+<script type="text/babel" src="sakura-variants.jsx"></script>
+
+<script type="text/babel">
+function Note({ children, top, right, left, rotate = 0, width = 260 }) {
+  return <DCPostIt top={top} right={right} left={left} rotate={rotate} width={width}>{children}</DCPostIt>;
+}
+
+function SideBySide({ label, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontSize: 11, color: 'rgba(60,50,40,0.65)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, paddingLeft: 4 }}>{label}</div>
+      <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' }}>{children}</div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <div style={{ padding: '0 60px 30px' }}>
+        <div style={{ fontSize: 42, fontWeight: 500, color: 'rgba(30, 22, 15, 0.92)', letterSpacing: '-0.02em', marginBottom: 6, fontFamily: 'Instrument Serif, serif' }}>Langeco Mobile · 語境</div>
+        <div style={{ fontSize: 14, color: 'rgba(60,50,40,0.7)', maxWidth: 760, lineHeight: 1.55 }}>
+          Native iOS. No modular panes. Bottom tab bar for top-level nav. Dictionary and flashcard creation from the reader open as bottom drawers. Default theme only — colors, fonts, radii come from CSS vars so themes can slot in later. All UI strings are i18n-ready.
+        </div>
+      </div>
+
+      <DCSection title="00 · Auth" subtitle="Welcome & signup. Username + password for v1. Google/Apple are dummy.">
+        <SideBySide label="Welcome · Signup">
+          <Device label="00.a  Welcome"><MobileWelcome/></Device>
+          <Device label="00.b  Create account"><MobileSignup/></Device>
+        </SideBySide>
+        <Note top={140} right={80} rotate={-3} width={240}>
+          <b>Fluid idea:</b> glyph 語 scales + fades down into the header on transition to the welcome CTA (shared-element, 400ms, ease-out-cubic).
+        </Note>
+      </DCSection>
+
+      <DCSection title="01 · Library" subtitle="Large title · continue-reading hero · 2-col grid of books. No search/filter/sort in v1.">
+        <SideBySide label="Library · home tab">
+          <Device label="01.a  Library"><MobileLibrary/></Device>
+        </SideBySide>
+        <Note top={140} right={60} rotate={2} width={240}>
+          <b>Micro-animation:</b> on pull-down, hero card parallaxes 20% slower than grid; release snaps back with spring (stiffness 180, damping 20).
+        </Note>
+      </DCSection>
+
+      <DCSection title="02 · Reader — core reading surface" subtitle="Progress bar at top. Tap word → selection → context menu pops over. Floating toolbar bottom (glass pill).">
+        <SideBySide label="Reading · selection · toolbar">
+          <Device label="02.a  Reading (resting)"><MobileReader state="reading"/></Device>
+          <Device label="02.b  Word selected · context menu" note="tap 鎌倉"><MobileReader state="reading" selection/></Device>
+          <Device label="02.c  Toolbar expanded"><MobileReader state="toolbar"/></Device>
+        </SideBySide>
+        <Note top={140} right={70} rotate={-2} width={280}>
+          <b>Selection pop-over:</b> appears with a subtle scale-from-85% + fade, anchored to the selected word. Tail arrow flips if the word is too close to screen top.
+        </Note>
+      </DCSection>
+
+      <DCSection title="03 · Reader → Dictionary drawer" subtitle="Tapping 'Define' in the context menu doesn't navigate — it opens a half-sheet drawer so the book stays in view. Drag to expand full-screen or dismiss.">
+        <SideBySide label="Drawer states over the reader">
+          <Device label="03.a  Definition detail · from 鎌倉" note="drawer 60%"><MobileReaderWithDrawer drawerState="detail"/></Device>
+          <Device label="03.b  Search results (when query is ambiguous)" note="drawer 60%"><MobileReaderWithDrawer drawerState="results"/></Device>
+        </SideBySide>
+        <Note top={140} right={60} rotate={2} width={280}>
+          <b>Fluid interaction:</b><br/>
+          • Drawer enters from bottom with rubber-band spring.<br/>
+          • Three detents: 40%, 75%, 100%. Drag handle at top.<br/>
+          • Backdrop dims progressively (0 → 0.3 alpha).<br/>
+          • Swipe-down-to-dismiss with velocity; reader text stays tappable.
+        </Note>
+      </DCSection>
+
+      <DCSection title="04 · Dictionary (full-page, from tab)" subtitle="Same pages when reached from the Dictionary tab. Drawer is for in-context lookups; this is for intentional browsing.">
+        <SideBySide label="Empty · results · detail">
+          <Device label="04.a  Empty · recents"><MobileDictionary state="empty"/></Device>
+          <Device label="04.b  Results list"><MobileDictionary state="results"/></Device>
+          <Device label="04.c  Entry detail"><MobileDictionary state="detail"/></Device>
+        </SideBySide>
+      </DCSection>
+
+      <DCSection title="05 · Decks" subtitle="2-col grid (Option A — visual). Cover + kanji + name + card count. No due-today in v1.">
+        <SideBySide label="Decks overview · detail · edit">
+          <Device label="05.a  Decks"><MobileDecks/></Device>
+          <Device label="05.b  Deck detail"><MobileDeckDetail/></Device>
+          <Device label="05.c  Edit card · bottom sheet" note="tap a card"><MobileDeckDetail modal/></Device>
+        </SideBySide>
+        <Note top={140} right={80} rotate={-3} width={240}>
+          <b>Shared-element:</b> tapping a deck cover flies it from grid position into the detail header (300ms, ease-out). On back, reverse.
+        </Note>
+      </DCSection>
+
+      <DCSection title="06 · Study session" subtitle="Flip-card with two-button rating. Context toggle as a top-right pill. Summary screen on finish.">
+        <SideBySide label="Front · Back · Summary">
+          <Device label="06.a  Front · context on"><MobileStudy side="front" showContext/></Device>
+          <Device label="06.b  Back · rate" note="tap to flip"><MobileStudy side="back" showContext/></Device>
+          <Device label="06.c  Back · context off"><MobileStudy side="back" showContext={false}/></Device>
+          <Device label="06.d  Session summary"><MobileStudy summary/></Device>
+        </SideBySide>
+        <Note top={140} right={60} rotate={3} width={280}>
+          <b>Card flip:</b> 3D Y-rotation 600ms, perspective 1000px. Haptic tap on flip start + on rating.<br/>
+          <b>Rating:</b> chosen button scales to 0.96 then springs; unchosen cross-fades out. Next card slides in from right at 95% opacity → 100%.
+        </Note>
+      </DCSection>
+
+      <DCSection title="07 · Profile" subtitle="Avatar (kamon), name, handle, current book, account. Avatar picker as bottom sheet.">
+        <SideBySide label="Profile · avatar picker">
+          <Device label="07.a  Profile"><MobileProfile/></Device>
+          <Device label="07.b  Avatar picker" note="tap pencil"><MobileProfile picker/></Device>
+        </SideBySide>
+      </DCSection>
+
+      <DCSection title="08 · Motion & interaction system" subtitle="Shared principles so every micro-animation feels like one app.">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, padding: '0 20px', maxWidth: 1200 }}>
+          {[
+            { t: 'Timing', b: 'Default 280ms, ease-out-cubic. Drawers & modals 420ms with spring (stiffness 220, damping 26). Micro-feedback 150ms.' },
+            { t: 'Shared-element transitions', b: 'Book cover → reader header. Deck cover → deck-detail header. Card in grid → card edit sheet. Always FLIP technique, not cross-fade.' },
+            { t: 'Drawers (sheets)', b: 'Three detents (40/75/100%). Rubber-band at edges. Backdrop alpha tied to position. Swipe-dismiss with velocity threshold 400px/s.' },
+            { t: 'Haptics', b: 'Light on tab-tap + selection. Medium on card-flip + rating. Success on study finish. Error on delete confirm.' },
+            { t: 'Type scaling', b: 'JP display uses Hiragino Mincho. UI uses SF Pro. Dynamic Type respected — layouts use flex, never fixed width.' },
+            { t: 'Tab bar', b: 'Translucent glass (blur 24px, saturate 160%). Active tab: bolder weight + filled icon variant. Badge bubble for unread/due.' },
+            { t: 'Gestures', b: 'Swipe-right-from-edge = back. Pull-down on library = sync. Long-press on word in reader = selection (200ms threshold).' },
+            { t: 'Page transitions', b: 'Push from right (iOS default) for navigation. Modal from bottom for creation/edit. Drawer up for in-context info.' },
+          ].map(m => (
+            <div key={m.t} style={{ background: 'white', borderRadius: 12, padding: '18px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1918', marginBottom: 6 }}>{m.t}</div>
+              <div style={{ fontSize: 13, color: '#6B6966', lineHeight: 1.5 }}>{m.b}</div>
+            </div>
+          ))}
+        </div>
+      </DCSection>
+
+      <DCSection title="08.5 · Premium themes — one screen each" subtitle="Same screens, restyled across the 3 paid themes from the design exploration. Default theme stays as the v1 ship; these layer on later via CSS-var override.">
+        <SideBySide label="Welcome">
+          <ThemedWelcome theme="sakura"/>
+          <ThemedWelcome theme="kanagawa"/>
+          <ThemedWelcome theme="hanami"/>
+        </SideBySide>
+        <SideBySide label="Library">
+          <ThemedLibrary theme="sakura"/>
+          <ThemedLibrary theme="kanagawa"/>
+          <ThemedLibrary theme="hanami"/>
+        </SideBySide>
+        <SideBySide label="Reader">
+          <ThemedReader theme="sakura"/>
+          <ThemedReader theme="kanagawa"/>
+          <ThemedReader theme="hanami"/>
+        </SideBySide>
+        <SideBySide label="Dictionary detail">
+          <ThemedDict theme="sakura"/>
+          <ThemedDict theme="kanagawa"/>
+          <ThemedDict theme="hanami"/>
+        </SideBySide>
+        <SideBySide label="Decks overview">
+          <ThemedDecks theme="sakura"/>
+          <ThemedDecks theme="kanagawa"/>
+          <ThemedDecks theme="hanami"/>
+        </SideBySide>
+        <SideBySide label="Study session">
+          <ThemedStudy theme="sakura"/>
+          <ThemedStudy theme="kanagawa"/>
+          <ThemedStudy theme="hanami"/>
+        </SideBySide>
+        <SideBySide label="Profile">
+          <ThemedProfile theme="sakura"/>
+          <ThemedProfile theme="kanagawa"/>
+          <ThemedProfile theme="hanami"/>
+        </SideBySide>
+        <Note top={140} right={60} rotate={-2} width={260}>
+          <b>Sakura</b> = soft & feminine.<br/>
+          <b>Kanagawa</b> = ukiyo-e cool.<br/>
+          <b>Hanami</b> = night-festival dark mode w/ ember accent.
+        </Note>
+      </DCSection>
+
+      <DCSection title="08.6 · Sakura — expanded (3 directions × 4 screens)" subtitle="Pushing the Sakura theme beyond flat color: real imagery, ink-drawn branches, bamboo architecture, drifting petals. Three distinct treatments so you can lock a direction.">
+        <div style={{ padding: '0 20px 10px', fontSize: 13, color: 'rgba(60,50,40,0.72)', maxWidth: 760, lineHeight: 1.55 }}>
+          <b>V1 · Garden</b> — photographic hero bands (blossom tree / canopy), ambient petals, soft washi warmth. Restrained, tasteful.<br/>
+          <b>V2 · Branch</b> — ink-drawn sakura branch arcs over every header; bamboo stalk as sidebar architecture. Editorial, ukiyo-e-adjacent.<br/>
+          <b>V3 · Courtyard</b> — maximalist: full-bleed blossom photo backdrop, frosted-glass content cards, twin bamboo framing the edges. Immersive.
+        </div>
+        <SideBySide label="V1 · Garden — photographic bands + ambient petals">
+          <V1_Library/><V1_Reader/><V1_Dict/><V1_Study/>
+        </SideBySide>
+        <SideBySide label="V2 · Branch — ink sakura branch + bamboo sidebars">
+          <V2_Library/><V2_Reader/><V2_Dict/><V2_Study/>
+        </SideBySide>
+        <SideBySide label="V3 · Courtyard — full-bleed photo + frosted glass">
+          <V3_Library/><V3_Reader/><V3_Dict/><V3_Study/>
+        </SideBySide>
+        <Note top={140} right={70} rotate={-2} width={280}>
+          Imagery sources: Unsplash hotlinks. Ship build should bundle optimized WebP (hero tree @ 1200w, canopy @ 800w, branch @ 600w) — target total &lt; 280KB after theme activation.
+        </Note>
+      </DCSection>
+
+      <DCSection title="09 · Theme-ready architecture" subtitle="Single-theme v1, but layered so premium themes are a zero-code addition later.">
+        <div style={{ padding: '0 20px', maxWidth: 900, fontSize: 14, color: '#3c3228', lineHeight: 1.6 }}>
+          <p>Every visual property in the mobile build comes from a CSS variable on <code>:root</code>. To add a theme later:</p>
+          <pre style={{ background: 'white', padding: 16, borderRadius: 10, fontSize: 12, overflow: 'auto', fontFamily: 'Geist Mono, monospace' }}>{`[data-theme="kanagawa"] {
+  --bg: #EDE6D3;
+  --fg: #0F2340;
+  --accent: #1E3D6B;
+  --font-reader: 'Shippori Mincho', serif;
+  /* ...remaining overrides */
+}`}</pre>
+          <p>Theme switcher = one attribute change on <code>&lt;html data-theme="..."&gt;</code>. No component code changes. The bottom tab bar, all drawers, cards, and typography automatically restyle.</p>
+          <p style={{ marginTop: 18 }}>For i18n: every UI string already goes through a <code>t('key')</code> helper. Layouts use flex/min-content — no fixed widths — so German/Portuguese strings won't clip. Japanese book content is data, never translated.</p>
+        </div>
+      </DCSection>
+
+      <div style={{ padding: '20px 60px 60px', fontSize: 12, color: 'rgba(60,50,40,0.55)', maxWidth: 760 }}>
+        Next — decide if the dictionary drawer should support "Add to deck" inline (chip flow) vs. routing to a sheet, and whether flashcard creation from the reader gets its own dedicated sheet or extends the dictionary drawer.
+      </div>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

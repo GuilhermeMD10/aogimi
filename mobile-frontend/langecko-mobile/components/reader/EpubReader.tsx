@@ -1,199 +1,108 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { WebView, WebViewMessageEvent } from 'react-native-webview';
-import { useThemedStyles, type Colors } from '@/theme/ThemeContext';
-import { fontSize, radius, spacing } from '@/theme/tokens';
-import { epubViewerHtml, type HighlightInit } from './viewerHtml';
-import { HIGHLIGHT_COLORS, type EpubHighlight, type HighlightColor, type ReaderPrefs } from './useBookStorage';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import { File } from 'expo-file-system';
+import { bookFilePath } from '@/lib/bookFiles';
+import { useColors } from '@/theme/ThemeContext';
+import { EPUB_HTML, type EpubBridgeInbound, type EpubBridgeOutbound } from './epubHtml';
 
-export interface EpubSelectionPayload {
-  text: string;
-  cfi: string;
-}
+export type EpubReaderHandle = {
+  setFontPx: (px: number) => void;
+  goTo: (cfi: string) => void;
+  next: () => void;
+  prev: () => void;
+};
 
-/** Imperative handle exposed to the parent (ReaderScreen) so toolbar actions
- *  outside the reader can drive the viewer — add/remove highlights, jump to
- *  a saved cfi, etc. — without prop-drilling every side-effect. */
-export interface EpubReaderHandle {
-  addHighlight: (text: string, cfi: string, color: HighlightColor) => EpubHighlight | null;
-  removeHighlight: (id: string) => void;
-  goToCfi: (cfi: string) => void;
-  getCurrentCfi: () => string | undefined;
-  getHighlights: () => EpubHighlight[];
-}
-
-interface EpubReaderProps {
-  base64: string;
+type Props = {
   filename: string;
-  onSelection: (payload: EpubSelectionPayload) => void;
-  /** Book storage — owned by ReaderScreen, passed down to avoid dual hooks. */
-  loaded: boolean;
-  lastCfi: string | undefined;
-  prefs: ReaderPrefs;
-  epubHighlights: EpubHighlight[];
-  saveLastCfi: (cfi: string) => void;
-  savePrefs: (prefs: Partial<ReaderPrefs>) => void;
-  addEpubHighlight: (h: Omit<EpubHighlight, 'id' | 'createdAt'>) => EpubHighlight;
-  removeEpubHighlight: (id: string) => void;
-}
+  startCfi?: string | null;
+  onSelection?: (payload: { text: string; pageX: number; pageY: number }) => void;
+  onLocation?: (payload: { cfi: string; progress: number }) => void;
+  onReady?: () => void;
+  onError?: (message: string) => void;
+};
 
-/**
- * EPUB viewer — epub.js in a WebView, paginated flow. Position (CFI), font
- * size, and highlights are persisted per filename. Text selection inside the
- * inner iframe is captured via `rendition.on('selected')` and surfaced to the
- * parent (which then shows the SelectionActionSheet).
- */
-export const EpubReader = forwardRef<EpubReaderHandle, EpubReaderProps>(function EpubReader(
-  {
-    base64,
-    filename,
-    onSelection,
-    loaded,
-    lastCfi,
-    prefs,
-    epubHighlights,
-    saveLastCfi,
-    savePrefs,
-    addEpubHighlight,
-    removeEpubHighlight,
-  },
+export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReader(
+  { filename, startCfi, onSelection, onLocation, onReady, onError },
   ref,
 ) {
-  const styles = useThemedStyles(createStyles);
-
-  const webRef = useRef<WebView>(null);
-  // Mirror last CFI from the relocated event so `getCurrentCfi()` is cheap.
-  // Sync from storage when lastCfi changes (e.g. file switch).
-  const currentCfiRef = useRef<string | undefined>(lastCfi);
-  useEffect(() => { currentCfiRef.current = lastCfi; }, [lastCfi]);
-
-  const html = useMemo(() => {
-    if (!loaded) return null;
-    const init: HighlightInit[] = epubHighlights.map((h) => ({
-      id: h.id,
-      cfi: h.cfi,
-      color: HIGHLIGHT_COLORS[h.color],
-    }));
-    return epubViewerHtml(base64, lastCfi, prefs.fontSize, init);
-    // Only rebuild on file change — font size / highlight updates are
-    // pushed via postMessage so we don't lose reading position on mutation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, base64]);
-
-  const postToWeb = (msg: Record<string, unknown>) => {
-    webRef.current?.postMessage(JSON.stringify(msg));
-  };
-
-  const bumpFontSize = (delta: number) => {
-    const next = Math.max(70, Math.min(200, prefs.fontSize + delta));
-    savePrefs({ fontSize: next });
-    postToWeb({ type: 'setFontSize', size: next });
-  };
+  const webviewRef = useRef<WebView | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const c = useColors();
 
   useImperativeHandle(
     ref,
     () => ({
-      addHighlight: (text, cfi, color) => {
-        if (!text || !cfi) return null;
-        const h = addEpubHighlight({ text, cfi, color, note: '' });
-        postToWeb({ type: 'addHighlight', id: h.id, cfi, color: HIGHLIGHT_COLORS[color] });
-        return h;
-      },
-      removeHighlight: (id) => {
-        const h = epubHighlights.find((x) => x.id === id);
-        removeEpubHighlight(id);
-        postToWeb({ type: 'removeHighlight', id, cfi: h?.cfi });
-      },
-      goToCfi: (cfi) => postToWeb({ type: 'goToCfi', cfi }),
-      getCurrentCfi: () => currentCfiRef.current,
-      getHighlights: () => epubHighlights,
+      setFontPx: (px) => post(webviewRef.current, { type: 'setFontPx', value: px }),
+      goTo: (cfi) => post(webviewRef.current, { type: 'goToCfi', cfi }),
+      next: () => post(webviewRef.current, { type: 'next' }),
+      prev: () => post(webviewRef.current, { type: 'prev' }),
     }),
-    [addEpubHighlight, removeEpubHighlight, epubHighlights],
+    [],
   );
 
-  const onMessage = (e: WebViewMessageEvent) => {
-    try {
-      const data = JSON.parse(e.nativeEvent.data) as
-        | { type: 'loaded' }
-        | { type: 'relocated'; cfi: string; page?: number; total?: number }
-        | { type: 'selection'; text: string; cfi?: string }
-        | { type: 'error'; error: string };
-
-      if (data.type === 'relocated' && data.cfi) {
-        currentCfiRef.current = data.cfi;
-        saveLastCfi(data.cfi);
-      } else if (data.type === 'selection' && data.text) {
-        onSelection({ text: data.text, cfi: data.cfi ?? '' });
+  // When the WebView has finished loading the HTML shell, read the book
+  // file as base64 and send it into the WebView for epub.js to open.
+  useEffect(() => {
+    if (!loaded) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const file = new File(bookFilePath(filename));
+        if (!file.exists) throw new Error('Book file missing on device');
+        const base64 = await file.base64();
+        if (cancelled) return;
+        post(webviewRef.current, { type: 'load', base64, cfi: startCfi ?? null });
+      } catch (err) {
+        if (!cancelled) onError?.(err instanceof Error ? err.message : 'Failed to open EPUB');
       }
-    } catch { /* ignore */ }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loaded, filename, startCfi, onError]);
+
+  const handleMessage = (e: WebViewMessageEvent) => {
+    let msg: EpubBridgeOutbound;
+    try {
+      msg = JSON.parse(e.nativeEvent.data);
+    } catch {
+      return;
+    }
+    if (msg.type === 'ready') onReady?.();
+    else if (msg.type === 'error') onError?.(msg.message);
+    else if (msg.type === 'relocated') onLocation?.({ cfi: msg.cfi, progress: msg.progress });
+    else if (msg.type === 'selection')
+      onSelection?.({ text: msg.text, pageX: msg.pageX, pageY: msg.pageY });
   };
 
-  if (!html) return <View style={styles.container} />;
-
   return (
-    <View style={styles.container}>
+    <View style={[styles.root, { backgroundColor: c.bg }]}>
       <WebView
-        ref={webRef}
+        ref={webviewRef}
         originWhitelist={['*']}
-        source={{ html }}
-        onMessage={onMessage}
+        source={{ html: EPUB_HTML }}
+        onLoadEnd={() => setLoaded(true)}
+        onMessage={handleMessage}
         javaScriptEnabled
         domStorageEnabled
-        style={styles.web}
-        androidLayerType="hardware"
+        allowFileAccess
+        allowFileAccessFromFileURLs
+        allowUniversalAccessFromFileURLs
         setSupportMultipleWindows={false}
+        scrollEnabled={false}
+        style={{ backgroundColor: c.bg }}
       />
-      <View style={styles.bar}>
-        <NavBtn label="‹ Prev" onPress={() => postToWeb({ type: 'prev' })} styles={styles} />
-        <NavBtn label="Next ›" onPress={() => postToWeb({ type: 'next' })} styles={styles} />
-        <View style={styles.spacer} />
-        <NavBtn label="A−" onPress={() => bumpFontSize(-10)} styles={styles} />
-        <Text style={styles.size}>{prefs.fontSize}%</Text>
-        <NavBtn label="A+" onPress={() => bumpFontSize(+10)} styles={styles} />
-      </View>
     </View>
   );
 });
 
-type Styles = ReturnType<typeof createStyles>;
-
-function NavBtn({ label, onPress, disabled, styles }: { label: string; onPress: () => void; disabled?: boolean; styles: Styles }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        styles.navBtn,
-        pressed && !disabled && { opacity: 0.7 },
-        disabled && { opacity: 0.3 },
-      ]}
-    >
-      <Text style={styles.navBtnLabel}>{label}</Text>
-    </Pressable>
-  );
+function post(ref: WebView | null, msg: EpubBridgeInbound) {
+  if (!ref) return;
+  const script = `(function(){var m=${JSON.stringify(JSON.stringify(msg))};window.postMessage(m);document.dispatchEvent(new MessageEvent('message',{data:m}));})();true;`;
+  ref.injectJavaScript(script);
 }
 
-const createStyles = (c: Colors) => StyleSheet.create({
-  container: { flex: 1 },
-  web:       { flex: 1, backgroundColor: c.bgBase },
-  bar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.bgSurface,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs,
-  },
-  navBtn: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  navBtnLabel: { fontSize: fontSize.sm, color: c.textPrimary, fontWeight: '500' },
-  spacer:      { flex: 1 },
-  size:        { fontSize: fontSize.xs, color: c.textSecondary, minWidth: 40, textAlign: 'center' },
+const styles = StyleSheet.create({
+  root: { flex: 1 },
 });

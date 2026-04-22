@@ -10,22 +10,12 @@ import {
   Lora_700Bold,
   Lora_400Regular_Italic,
 } from '@expo-google-fonts/lora';
-import { ThemeProvider, useThemeMode } from '@/theme/ThemeContext';
-import { DictionaryDrawerProvider } from '@/components/layout/DictionaryDrawerContext';
-import { DictionaryDrawer } from '@/components/layout/DictionaryDrawer';
-import { ReaderStateProvider } from '@/components/providers/ReaderStateContext';
-import { PendingCardOverlay } from '@/components/cards/PendingCardOverlay';
+import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
+import { I18nProvider } from '@/lib/i18n/I18nContext';
+import { AuthProvider } from '@/lib/auth/AuthContext';
 
 SplashScreen.preventAutoHideAsync();
 
-/**
- * Root providers + font loading.
- *
- * Provider order (outermost → innermost):
- *   SafeAreaProvider → ThemeProvider → ReaderStateProvider → DictionaryDrawerProvider
- *
- * Overlays (DictionaryDrawer, PendingCardOverlay) float above every route.
- */
 export default function RootLayout() {
   const [fontsLoaded, fontsError] = useFonts({
     Lora_400Regular,
@@ -43,20 +33,22 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider onLayout={onLayoutReady}>
       <ThemeProvider>
-        <ReaderStateProvider>
-          <DictionaryDrawerProvider>
+        <I18nProvider>
+          <AuthProvider>
             <ThemedStatusBar />
-            <Stack screenOptions={{ headerShown: false }} />
-            <DictionaryDrawer />
-            <PendingCardOverlay />
-          </DictionaryDrawerProvider>
-        </ReaderStateProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(tabs)" />
+            </Stack>
+          </AuthProvider>
+        </I18nProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
 function ThemedStatusBar() {
-  const { mode } = useThemeMode();
-  return <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />;
+  const { theme } = useTheme();
+  return <StatusBar style={theme.meta.isDark ? 'light' : 'dark'} />;
 }

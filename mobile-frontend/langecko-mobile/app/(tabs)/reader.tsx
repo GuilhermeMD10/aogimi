@@ -1,5 +1,5 @@
-import { ReaderScreen } from '@/components/reader/ReaderScreen';
+import { PlaceholderScreen } from '@/components/placeholder/PlaceholderScreen';
 
 export default function ReaderTab() {
-  return <ReaderScreen />;
+  return <PlaceholderScreen title="Reader" />;
 }
