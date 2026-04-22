@@ -43,10 +43,10 @@ type ReaderContextValue = {
   pdfScale: number;
   setPdfScale: React.Dispatch<React.SetStateAction<number>>;
 
-  pendingDictSearch: string | null;
-  setPendingDictSearch: React.Dispatch<React.SetStateAction<string | null>>;
-  pendingCard: { word: string; back?: string } | null;
-  setPendingCard: React.Dispatch<React.SetStateAction<{ word: string; back?: string } | null>>;
+  pendingDictSearch: { word: string; contextSentence?: string } | null;
+  setPendingDictSearch: React.Dispatch<React.SetStateAction<{ word: string; contextSentence?: string } | null>>;
+  pendingCard: { word: string; back?: string; contextSentence?: string } | null;
+  setPendingCard: React.Dispatch<React.SetStateAction<{ word: string; back?: string; contextSentence?: string } | null>>;
 
   // Reader session — persists across tab reorder
   readerSession: ReaderSession | null;
@@ -77,8 +77,8 @@ export function ReaderStateProvider({ children }: { children: React.ReactNode })
   const [pdfFilename,  setPdfFilenameState]  = useState<string | null>(null);
   const [pdfPageNumber, setPdfPageNumber] = useState(1);
   const [pdfScale,      setPdfScale]      = useState(1);
-  const [pendingDictSearch, setPendingDictSearch] = useState<string | null>(null);
-  const [pendingCard,   setPendingCard]   = useState<{ word: string; back?: string } | null>(null);
+  const [pendingDictSearch, setPendingDictSearch] = useState<{ word: string; contextSentence?: string } | null>(null);
+  const [pendingCard,   setPendingCard]   = useState<{ word: string; back?: string; contextSentence?: string } | null>(null);
 
   // Reader session — survives tab reorder
   const [readerSession, setReaderSession] = useState<ReaderSession | null>(null);

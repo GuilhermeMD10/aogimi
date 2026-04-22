@@ -1,13 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Library, BookOpen, Search, Layers, User, Home, Settings } from 'lucide-react';
+import { BookOpen, Search, Layers, User, Home, Settings } from 'lucide-react';
 import { WORKSPACE_TAB_META, type WorkspaceTabKey } from '@/lib/config/tab-config';
 
 // ── Item colors from design handoff ─────────────────────────────────────────
 
 const ITEM_COLORS: Record<string, string> = {
-  library: '#B5A27C',
   reader: '#D97757',
   dictionary: '#4B7AA3',
   cards: '#8FB08A',
@@ -18,8 +17,7 @@ const ITEM_COLORS: Record<string, string> = {
 
 // ── Workspace toggle buttons (left side) ────────────────────────────────────
 
-const WORKSPACE_ITEMS: { key: WorkspaceTabKey; icon: typeof Library }[] = [
-  { key: 'library', icon: Library },
+const WORKSPACE_ITEMS: { key: WorkspaceTabKey; icon: typeof BookOpen }[] = [
   { key: 'reader', icon: BookOpen },
   { key: 'dictionary', icon: Search },
   { key: 'cards', icon: Layers },

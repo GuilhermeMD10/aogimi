@@ -76,6 +76,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [selectedWordId, setSelectedWordId] = useState<number | null>(null);
+  const [lastContextSentence, setLastContextSentence] = useState<string | undefined>(undefined);
 
   // Persist / restore state
   useEffect(() => {
@@ -141,8 +142,9 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
   useEffect(() => {
     if (!pendingDictSearch) return;
     setSelectedWordId(null);
-    setQuery(pendingDictSearch);
-    void runSearch(pendingDictSearch);
+    setQuery(pendingDictSearch.word);
+    setLastContextSentence(pendingDictSearch.contextSentence);
+    void runSearch(pendingDictSearch.word);
     setPendingDictSearch(null);
   }, [pendingDictSearch, setPendingDictSearch, runSearch]);
 
@@ -173,7 +175,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
           setQuery(char);
           void runSearch(char);
         }}
-        onAddCard={(word, back) => setPendingCard({ word, back })}
+        onAddCard={(word, back) => setPendingCard({ word, back, contextSentence: lastContextSentence })}
       />
     );
   }
@@ -227,7 +229,18 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
         {error && <p className="px-5 py-3 text-sm text-lgc-error">{error}</p>}
 
         {/* Kanji info panel */}
-        {kanjiInfo && <KanjiPanel kanji={kanjiInfo} />}
+        {kanjiInfo && (
+          <KanjiPanel
+            kanji={kanjiInfo}
+            onAddCard={() => {
+              const parts: string[] = [];
+              if (kanjiInfo.on_readings.length > 0) parts.push(kanjiInfo.on_readings.join('\u3001'));
+              if (kanjiInfo.kun_readings.length > 0) parts.push(kanjiInfo.kun_readings.join('\u3001'));
+              if (kanjiInfo.meanings.length > 0) parts.push(kanjiInfo.meanings.join(', '));
+              setPendingCard({ word: kanjiInfo.literal, back: parts.join('\n'), contextSentence: lastContextSentence });
+            }}
+          />
+        )}
 
         {/* Word results */}
         {words.length > 0 && (
@@ -435,7 +448,7 @@ function ResultRow({
   );
 }
 
-function KanjiPanel({ kanji }: { kanji: KanjiInfo }) {
+function KanjiPanel({ kanji, onAddCard }: { kanji: KanjiInfo; onAddCard?: () => void }) {
   return (
     <div className="mx-3 mt-4 flex flex-col gap-3 rounded-lg border border-lgc-border bg-lgc-bg-elev p-4 @sm:mx-5 @sm:mt-5 @sm:flex-row @sm:gap-4 @sm:p-5">
       <div
@@ -456,6 +469,15 @@ function KanjiPanel({ kanji }: { kanji: KanjiInfo }) {
         <InfoRow label="Strokes" value={String(kanji.stroke_count ?? '\u2014')} />
         <InfoRow label="Grade" value={kanji.grade != null ? String(kanji.grade) : '\u2014'} />
         <InfoRow label="Radical" value={kanji.radical != null ? String(kanji.radical) : '\u2014'} />
+        {onAddCard && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onAddCard(); }}
+            className="mt-2 flex items-center gap-1.5 rounded-md bg-lgc-accent px-3 py-1.5 text-xs font-medium text-lgc-accent-fg transition-opacity hover:opacity-90"
+          >
+            <Plus size={13} /> Add to deck
+          </button>
+        )}
       </div>
     </div>
   );

@@ -65,12 +65,12 @@ router.delete("/:id", async (req, res) => {
 
 // POST /api/decks/:id/cards — add a card to a deck
 router.post("/:id/cards", async (req, res) => {
-  const { front, reading, back, notes } = req.body;
+  const { front, reading, back, notes, contextSentence } = req.body;
   if (!front || !back) {
     return res.status(400).json({ error: "front and back are required" });
   }
   try {
-    const card = await cardService.createCard(req.params.id, { front, reading, back, notes });
+    const card = await cardService.createCard(req.params.id, { front, reading, back, notes, contextSentence });
     res.json(card);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -89,9 +89,9 @@ router.get("/:id/cards", async (req, res) => {
 
 // PUT /api/decks/cards/:cardId — update a card
 router.put("/cards/:cardId", async (req, res) => {
-  const { front, reading, back, notes, state } = req.body;
+  const { front, reading, back, notes, state, contextSentence } = req.body;
   try {
-    const card = await cardService.updateCard(req.params.cardId, { front, reading, back, notes, state });
+    const card = await cardService.updateCard(req.params.cardId, { front, reading, back, notes, state, contextSentence });
     res.json(card);
   } catch (err) {
     res.status(404).json({ error: err.message });

@@ -13,6 +13,7 @@ export type CardModel = {
   back: string;
   reading?: string;
   notes?: string;
+  context_sentence?: string;
   state?: 'new' | 'learning' | 'mastered';
   reviewed_times?: number;
 };

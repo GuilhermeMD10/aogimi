@@ -5,8 +5,8 @@ import type { CardModel, DeckSummary } from './types';
 import { btnBase, btnPrimary } from './types';
 
 export type PendingCardFlow =
-  | { phase: 'select-deck'; word: string; initialBack?: string }
-  | { phase: 'create-card'; word: string; deckId: string; initialBack?: string }
+  | { phase: 'select-deck'; word: string; initialBack?: string; contextSentence?: string }
+  | { phase: 'create-card'; word: string; deckId: string; initialBack?: string; contextSentence?: string }
   | null;
 
 interface PendingCardOverlayProps {
@@ -15,7 +15,7 @@ interface PendingCardOverlayProps {
   onCancel: () => void;
   onSelectDeck: (deckId: string) => void;
   onCreateDeckAndUse: (name: string) => void;
-  onSubmitCard: (back: string) => void;
+  onSubmitCard: (back: string, contextSentence?: string) => void;
 }
 
 export function PendingCardOverlay({
@@ -57,7 +57,7 @@ export function PendingCardOverlay({
     e.preventDefault();
     const back = pendingBack.trim();
     if (!back) return;
-    onSubmitCard(back);
+    onSubmitCard(back, flow?.contextSentence);
     setPendingBack('');
   };
 
@@ -192,7 +192,7 @@ function CreateCardPhase({
   onSubmit,
   onCancel,
 }: {
-  flow: { phase: 'create-card'; word: string; deckId: string };
+  flow: { phase: 'create-card'; word: string; deckId: string; contextSentence?: string };
   decks: DeckSummary[];
   pendingBack: string;
   setPendingBack: (v: string) => void;
@@ -237,6 +237,16 @@ function CreateCardPhase({
             autoFocus
           />
         </div>
+        {flow.contextSentence && (
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
+              Context
+            </label>
+            <div className="mt-1 rounded-md border border-lgc-border bg-lgc-bg-sunken px-3 py-2 text-[13px] leading-relaxed text-lgc-fg-muted">
+              {flow.contextSentence}
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <button
             type="button"

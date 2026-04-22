@@ -69,6 +69,7 @@ export default function CardDeckView() {
           back: c.back,
           reading: c.reading || undefined,
           notes: c.notes || undefined,
+          context_sentence: c.context_sentence || undefined,
           state: c.state,
           reviewed_times: c.reviewed_times,
         })),
@@ -84,7 +85,7 @@ export default function CardDeckView() {
   // ── Reader → pending-card hand-off ──────────────────────────────────────────
   useEffect(() => {
     if (!pendingCard) return;
-    setPendingCardFlow({ phase: 'select-deck', word: pendingCard.word, initialBack: pendingCard.back });
+    setPendingCardFlow({ phase: 'select-deck', word: pendingCard.word, initialBack: pendingCard.back, contextSentence: pendingCard.contextSentence });
     setPendingCard(null);
   }, [pendingCard, setPendingCard]);
 
@@ -213,7 +214,7 @@ export default function CardDeckView() {
 
   const selectDeckForPending = useCallback((deckId: string) => {
     setPendingCardFlow((prev) =>
-      prev ? { phase: 'create-card', word: prev.word, deckId, initialBack: prev.initialBack } : prev,
+      prev ? { phase: 'create-card', word: prev.word, deckId, initialBack: prev.initialBack, contextSentence: prev.contextSentence } : prev,
     );
   }, []);
 
@@ -223,17 +224,17 @@ export default function CardDeckView() {
       const deck = await api.createDeck({ userId: user.id, name });
       await fetchDecks();
       setPendingCardFlow((prev) =>
-        prev ? { phase: 'create-card', word: prev.word, deckId: deck.id, initialBack: prev.initialBack } : prev,
+        prev ? { phase: 'create-card', word: prev.word, deckId: deck.id, initialBack: prev.initialBack, contextSentence: prev.contextSentence } : prev,
       );
     },
     [user, fetchDecks],
   );
 
   const submitPendingCard = useCallback(
-    async (back: string) => {
+    async (back: string, contextSentence?: string) => {
       const flow = pendingCardFlow;
       if (flow?.phase !== 'create-card') return;
-      await api.createCard(flow.deckId, { front: flow.word, back });
+      await api.createCard(flow.deckId, { front: flow.word, back, contextSentence });
       await fetchDecks();
       setPendingCardFlow(null);
       setScreen({ type: 'deck', deckId: flow.deckId });
@@ -261,7 +262,7 @@ export default function CardDeckView() {
       onCancel={cancelPendingFlow}
       onSelectDeck={selectDeckForPending}
       onCreateDeckAndUse={(name) => void createDeckAndUseForPending(name)}
-      onSubmitCard={(back) => void submitPendingCard(back)}
+      onSubmitCard={(back, ctx) => void submitPendingCard(back, ctx)}
     />
   );
 

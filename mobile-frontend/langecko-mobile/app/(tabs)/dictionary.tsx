@@ -1,5 +1,5 @@
-import { PlaceholderScreen } from '@/components/placeholder/PlaceholderScreen';
+import { DictionaryScreen } from '@/components/dictionary/DictionaryScreen';
 
 export default function DictionaryTab() {
-  return <PlaceholderScreen titleKey="dict.title" />;
+  return <DictionaryScreen />;
 }
