@@ -54,7 +54,8 @@ function validateEpub(file: File): string | null {
 
 export default function ReaderView() {
   const { user } = useAuth();
-  const { setPendingDictSearch, setPendingCard, readerSession, setReaderSession, recordProgress, flushProgress } =
+  const { setPendingDictSearch, setPendingCard, readerSession, setReaderSession, recordProgress, flushProgress,
+    pendingBookOpen, setPendingBookOpen } =
     useReaderState();
 
   // Library state
@@ -435,6 +436,24 @@ export default function ReaderView() {
     },
     [user, readerSession?.fileUrl, setReaderSession],
   );
+
+  // ── Auto-open a book queued from the home shortcut ────────────────────────
+  useEffect(() => {
+    if (!pendingBookOpen) return;
+    if (readerSession?.activeBook.filename === pendingBookOpen) {
+      setPendingBookOpen(null);
+      return;
+    }
+    if (pageState !== 'library') return;
+    const target = books.find(b => b.filename === pendingBookOpen && b.available);
+    if (!target) {
+      // Book unavailable on this device; clear the pending request and let the user locate it.
+      setPendingBookOpen(null);
+      return;
+    }
+    setPendingBookOpen(null);
+    openBook(target.id);
+  }, [pendingBookOpen, books, pageState, readerSession, openBook, setPendingBookOpen]);
 
   // ── Go back to book list ──────────────────────────────────────────────────
 
