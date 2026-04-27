@@ -2,7 +2,6 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useSearchParams } from 'next/navigation';
 import { Plus, Columns3, Star, X } from 'lucide-react';
 import DictionaryView from '@/components/views/DictionaryView';
 import ReaderView from '@/components/views/ReaderView';
@@ -11,31 +10,15 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import {
   WORKSPACE_TAB_META,
   WORKSPACE_TAB_ORDER,
-  parseWorkspaceTab,
   type WorkspaceTabKey,
 } from '@/lib/config/tab-config';
-import { useWorkspaceTabs } from '@/hooks/use-workspace-tabs';
+import { useWorkspaceTabs } from '@/components/providers/WorkspaceTabsProvider';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
-import WorkspaceNav, { type BubbleKey } from '@/components/WorkspaceNav';
-import ProfileBubble from '@/components/page-bubbles/ProfileBubble';
 import ReaderBubble from '@/components/page-bubbles/ReaderBubble';
 
-const LAYOUT_STORAGE_KEY = 'modular_layout';
-const DEFAULT_TABS: WorkspaceTabKey[] = ['reader'];
-
 export default function MainWorkspace() {
-  const searchParams = useSearchParams();
-
-  const tabsFromUrl = [searchParams.get('left'), searchParams.get('right')]
-    .map(parseWorkspaceTab)
-    .filter((v): v is WorkspaceTabKey => v !== null)
-    .filter((v, i, arr) => arr.indexOf(v) === i);
-
-  const hasUrlTabs = tabsFromUrl.length > 0;
-
   const {
     openTabs,
-    setOpenTabs,
     tabsAvailableToAdd,
     canDragTabs,
     addTab,
@@ -46,12 +29,10 @@ export default function MainWorkspace() {
     clearDragState,
     setDropMarker,
     handleDropAtIndex,
-  } = useWorkspaceTabs(tabsFromUrl.length > 0 ? tabsFromUrl : DEFAULT_TABS);
+  } = useWorkspaceTabs();
 
-  const layoutSaveReadyRef = useRef(false);
   const [addPickerOpen, setAddPickerOpen] = useState(false);
   const addPickerRef = useRef<HTMLDivElement>(null);
-  const [activeBubble, setActiveBubble] = useState<BubbleKey | null>(null);
 
   const { pendingDictSearch, setPendingDictSearch, pendingCard, setPendingCard } = useReaderState();
   const [readerBubble, setReaderBubble] = useState<{
@@ -76,23 +57,6 @@ export default function MainWorkspace() {
       };
     }
     return panelMountCbs.current[tab];
-  }, []);
-
-  // ── Nav bar: toggle workspace tab ─────────────────────────────────────────
-  const handleToggleTab = useCallback(
-    (tab: WorkspaceTabKey) => {
-      if (openTabs.includes(tab)) {
-        closeTab(tab);
-      } else {
-        addTab(tab);
-      }
-    },
-    [openTabs, closeTab, addTab],
-  );
-
-  // ── Nav bar: toggle bubble ───────────────────────────────────────────────
-  const handleToggleBubble = useCallback((key: BubbleKey) => {
-    setActiveBubble((prev) => (prev === key ? null : key));
   }, []);
 
   // ── Tab content renderer ─────────────────────────────────────────────────
@@ -126,35 +90,6 @@ export default function MainWorkspace() {
     });
     setPendingCard(null);
   }, [pendingCard, setPendingCard, openTabs]);
-
-  // Load layout from localStorage when no URL params
-  useEffect(() => {
-    if (hasUrlTabs) return;
-    try {
-      const raw = localStorage.getItem(LAYOUT_STORAGE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as WorkspaceTabKey[];
-      if (Array.isArray(saved) && saved.length > 0) {
-        const valid = saved.filter((k) => parseWorkspaceTab(k) !== null) as WorkspaceTabKey[];
-        if (valid.length > 0) setOpenTabs(valid);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [hasUrlTabs, setOpenTabs]);
-
-  // Save layout to localStorage
-  useEffect(() => {
-    if (!layoutSaveReadyRef.current) {
-      layoutSaveReadyRef.current = true;
-      return;
-    }
-    try {
-      localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(openTabs));
-    } catch {
-      /* ignore */
-    }
-  }, [openTabs]);
 
   // Close picker on outside click
   useEffect(() => {
@@ -369,17 +304,6 @@ export default function MainWorkspace() {
         if (!el) return null;
         return createPortal(renderTabContent(tab), el, tab);
       })}
-
-      {/* ── Bottom navigation bar ───────────────────────────────── */}
-      <WorkspaceNav
-        openTabs={openTabs}
-        onToggleTab={handleToggleTab}
-        activeBubble={activeBubble}
-        onToggleBubble={handleToggleBubble}
-      />
-
-      {/* ── Profile bubble ──────────────────────────────────────── */}
-      {activeBubble === 'profile' && <ProfileBubble onClose={() => setActiveBubble(null)} />}
 
       {/* ── Reader dictionary bubble ───────────────────────────── */}
       {readerBubble && (

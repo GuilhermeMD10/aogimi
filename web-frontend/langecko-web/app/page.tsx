@@ -1,14 +1,5 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import HomeView from '@/components/home/HomeView';
 
 export default function Home() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace('/workspace');
-  }, [router]);
-
-  return null;
+  return <HomeView />;
 }

@@ -29,9 +29,11 @@ type Props = {
   prefill: FlashcardPrefill | null;
   onDismiss: () => void;
   onSaved?: () => void;
+  /** If provided, skip the deck picker and save straight to this deck. */
+  lockedDeckId?: string;
 };
 
-export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved }: Props) {
+export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDeckId }: Props) {
   const c = useColors();
   const t = useT();
   const { user } = useAuth();
@@ -57,7 +59,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved }: Props)
   }, [onDismiss]);
 
   useEffect(() => {
-    if (!visible || !user) return;
+    if (!visible || !user || lockedDeckId) return;
     (async () => {
       try {
         const list = await fetchUserDecks(user.id);
@@ -68,7 +70,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved }: Props)
         /* surface on save */
       }
     })();
-  }, [visible, user, deckId]);
+  }, [visible, user, deckId, lockedDeckId]);
 
   useEffect(() => {
     if (!visible || !prefill) return;
@@ -81,7 +83,11 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved }: Props)
   const canSave =
     front.trim().length > 0 &&
     back.trim().length > 0 &&
-    (creatingNewDeck ? newDeckName.trim().length > 0 : Boolean(deckId)) &&
+    (lockedDeckId
+      ? true
+      : creatingNewDeck
+        ? newDeckName.trim().length > 0
+        : Boolean(deckId)) &&
     !saving;
 
   async function handleSave() {
@@ -89,8 +95,8 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved }: Props)
     setError(null);
     setSaving(true);
     try {
-      let targetDeckId = deckId;
-      if (creatingNewDeck) {
+      let targetDeckId = lockedDeckId ?? deckId;
+      if (!lockedDeckId && creatingNewDeck) {
         const created = await createDeck(user.id, newDeckName.trim());
         targetDeckId = created.id;
       }
@@ -157,7 +163,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved }: Props)
             />
           </Field>
 
-          <Field label="Deck">
+          {!lockedDeckId && <Field label="Deck">
             {decks.length > 0 && !creatingNewDeck && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.deckRow}>
                 {decks.map((d) => {
@@ -207,7 +213,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved }: Props)
                 )}
               </View>
             )}
-          </Field>
+          </Field>}
 
           {error && <Text style={[styles.error, { color: c.error }]}>{error}</Text>}
         </ScrollView>

@@ -1,53 +1,106 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
+import { File } from 'expo-file-system';
 import { useColors } from '@/theme/ThemeContext';
 import { fetchBook, updateBookProgress } from '@/lib/api';
 import type { BookRecord, WordDetails } from '@/lib/types';
-import { seedChapterFor } from '@/lib/seedBookText';
-import { bookFileExists, importEpub } from '@/lib/bookFiles';
-import { File } from 'expo-file-system';
-import { bookFilePath } from '@/lib/bookFiles';
+import { bookFileExists, bookFilePath, importEpub } from '@/lib/bookFiles';
+import {
+  HIGHLIGHT_COLORS,
+  READER_FONT_STACKS,
+  READER_THEMES,
+  useReaderStorage,
+  type HighlightColor,
+} from '@/lib/readerStorage';
 import { DictDrawer } from '@/components/dictionary/DictDrawer';
-import { FlashcardDrawer, type FlashcardPrefill } from '@/components/flashcards/FlashcardDrawer';
+import {
+  FlashcardDrawer,
+  type FlashcardPrefill,
+} from '@/components/flashcards/FlashcardDrawer';
 import { Button } from '@/components/ui/Button';
 import { ReaderTopBar } from './ReaderTopBar';
-import { ReaderBody, type SelectionAnchor } from './ReaderBody';
-import { SelectionPopover, type SelectionAction } from './SelectionPopover';
-import { ReaderToolbar, type ReaderSettings } from './ReaderToolbar';
-import { EpubReader, type EpubReaderHandle } from './EpubReader';
+import {
+  EpubReader,
+  type CustomMenuEvent,
+  type EpubReaderHandle,
+  type ReadyPayload,
+  type RelocatedPayload,
+  type SelectionPayload,
+} from './EpubReader';
+import { TextReader } from './TextReader';
+import { NovelReader } from './NovelReader';
+import { MangaReader } from './MangaReader';
+import { HighlightPicker } from './HighlightPicker';
+import { DeepLPopup } from './DeepLPopup';
+import type {
+  BookType,
+  EpubTocItem,
+  HighlightStyle,
+  ReaderThemeStyle,
+  ReaderViewMode,
+} from './epubHtml';
 
 type Props = { bookId: string };
-
-const DEFAULT_SETTINGS: ReaderSettings = {
-  fontPx: 18,
-  lineHeightMul: 2.05,
-  vertical: false,
-};
-
-type BodySource = 'epub' | 'seed' | 'missing';
 
 export function ReaderScreen({ bookId }: Props) {
   const c = useColors();
   const router = useRouter();
 
+  // ── Book record ─────────────────────────────────────────────────────
   const [book, setBook] = useState<BookRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasFile, setHasFile] = useState(false);
 
-  const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
-  const [toolbarExpanded, setToolbarExpanded] = useState(false);
-  const [selection, setSelection] = useState<SelectionAnchor | null>(null);
-  const [bookmarked, setBookmarked] = useState(false);
+  // ── Reader storage (prefs / highlights / bookmarks) ─────────────────
+  const storage = useReaderStorage(book?.filename ?? null);
+  const {
+    hydrated,
+    prefs,
+    highlights,
+    bookmarks,
+    saveLastCfi,
+    savePrefs,
+    addHighlight,
+    removeHighlight,
+    setHighlightColor,
+    addBookmark,
+    removeBookmark,
+  } = storage;
+
+  // ── EPUB state (set after WebView ready) ────────────────────────────
+  const [bookType, setBookType] = useState<BookType | null>(null);
+  const [toc, setToc] = useState<EpubTocItem[]>([]);
+  const [chapterLabel, setChapterLabel] = useState('');
+  const [progress, setProgress] = useState(0);
+  const [currentCfi, setCurrentCfi] = useState<string>('');
+  const [viewMode, setViewMode] = useState<ReaderViewMode>('single');
+
+  // ── Selection / menus ───────────────────────────────────────────────
+  const [selection, setSelection] = useState<SelectionPayload | null>(null);
   const [dictTerm, setDictTerm] = useState<string | null>(null);
   const [flashcardPrefill, setFlashcardPrefill] = useState<FlashcardPrefill | null>(null);
+  const [deepLText, setDeepLText] = useState<string | null>(null);
+  const [highlightPicker, setHighlightPicker] = useState<{
+    cfi: string;
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const epubRef = useRef<EpubReaderHandle | null>(null);
   const latestLocationRef = useRef<{ cfi: string; progress: number } | null>(null);
 
+  // ── Load the book record ────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -57,7 +110,8 @@ export function ReaderScreen({ bookId }: Props) {
         setBook(data);
         setHasFile(bookFileExists(data.filename));
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load book');
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : 'Failed to load book');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -67,79 +121,182 @@ export function ReaderScreen({ bookId }: Props) {
     };
   }, [bookId]);
 
-  // Keep EpubReader font in sync with settings
+  // ── Style derivation (vertical=true for JP novels) ──────────────────
+  const style = useMemo<ReaderThemeStyle>(
+    () => ({
+      bg: READER_THEMES[prefs.theme].bg,
+      fg: READER_THEMES[prefs.theme].fg,
+      fontFamily: READER_FONT_STACKS[prefs.fontFamily],
+      fontPx: prefs.fontPx,
+      lineHeight: prefs.lineHeight,
+      vertical: bookType === 'novel',
+    }),
+    [prefs, bookType],
+  );
+
   useEffect(() => {
-    if (hasFile) epubRef.current?.setFontPx(settings.fontPx);
-  }, [hasFile, settings.fontPx]);
+    if (!hasFile || !hydrated || !bookType) return;
+    epubRef.current?.setStyle(style);
+  }, [style, hasFile, hydrated, bookType]);
 
-  const seedChapter = book ? seedChapterFor(book.title) : null;
-  const bodySource: BodySource = hasFile
-    ? 'epub'
-    : seedChapter
-      ? 'seed'
-      : 'missing';
-
-  const handleSelectToken = useCallback((anchor: SelectionAnchor) => {
-    setSelection(anchor);
-    setToolbarExpanded(false);
+  // ── EPUB callbacks ──────────────────────────────────────────────────
+  const handleReady = useCallback((payload: ReadyPayload) => {
+    setBookType(payload.bookType);
+    setToc(payload.toc);
   }, []);
 
-  const dismissSelection = useCallback(() => setSelection(null), []);
+  const handleRelocated = useCallback(
+    (loc: RelocatedPayload) => {
+      setProgress(loc.progress);
+      setChapterLabel(loc.chapterLabel ?? '');
+      setCurrentCfi(loc.cfi);
+      latestLocationRef.current = { cfi: loc.cfi, progress: loc.progress };
+      saveLastCfi(loc.cfi);
+    },
+    [saveLastCfi],
+  );
 
-  const handleAction = useCallback(
-    (action: SelectionAction) => {
-      if (!selection) return;
-      const term = selection.text;
-      if (action === 'copy') {
+  const handleSelection = useCallback((payload: SelectionPayload) => {
+    setSelection(payload);
+  }, []);
+
+  const handleEpubError = useCallback((message: string) => {
+    setError(message);
+  }, []);
+
+  // ── Custom menu (dict / card / deepl / highlight / copy) ────────────
+  const handleCustomMenu = useCallback(
+    ({ key, selectedText }: CustomMenuEvent) => {
+      const term = (selectedText || selection?.text || '').trim();
+      if (!term) return;
+      if (key === 'copy') {
         Clipboard.setStringAsync(term);
-        dismissSelection();
         return;
       }
-      if (action === 'highlight') {
-        dismissSelection();
-        return;
-      }
-      if (action === 'define') {
+      if (key === 'dict') {
         setDictTerm(term);
-        dismissSelection();
         return;
       }
-      if (action === 'flashcard') {
+      if (key === 'card') {
         setFlashcardPrefill({ front: term, reading: '', back: '' });
-        dismissSelection();
+        return;
+      }
+      if (key === 'deepl') {
+        setDeepLText(term);
+        return;
+      }
+      if (key === 'highlight' && selection) {
+        setHighlightPicker({
+          cfi: selection.cfi,
+          text: term,
+          x: selection.pageX,
+          y: selection.pageY,
+        });
       }
     },
-    [selection, dismissSelection],
+    [selection],
   );
+
+  // ── Highlight create / replace / remove ─────────────────────────────
+  const applyHighlightColor = useCallback(
+    (color: HighlightColor) => {
+      if (!highlightPicker) return;
+      const { cfi, text } = highlightPicker;
+      const existing = highlights.find((h) => h.cfi === cfi);
+      if (existing) {
+        epubRef.current?.removeHighlight(cfi);
+        if (existing.color === color) {
+          removeHighlight(existing.id);
+        } else {
+          setHighlightColor(existing.id, color);
+          epubRef.current?.addHighlight(existing.id, cfi, HIGHLIGHT_COLORS[color]);
+        }
+      } else {
+        const created = addHighlight({ cfi, text, color });
+        epubRef.current?.addHighlight(created.id, cfi, HIGHLIGHT_COLORS[color]);
+      }
+      setHighlightPicker(null);
+    },
+    [highlightPicker, highlights, addHighlight, removeHighlight, setHighlightColor],
+  );
+
+  const clearHighlightAtPicker = useCallback(() => {
+    if (!highlightPicker) return;
+    const existing = highlights.find((h) => h.cfi === highlightPicker.cfi);
+    if (existing) {
+      epubRef.current?.removeHighlight(existing.cfi);
+      removeHighlight(existing.id);
+    }
+    setHighlightPicker(null);
+  }, [highlightPicker, highlights, removeHighlight]);
+
+  const existingHighlightAtPicker =
+    highlightPicker
+      ? (highlights.find((h) => h.cfi === highlightPicker.cfi)?.color ?? null)
+      : null;
 
   const handleAddFlashcardFromDict = useCallback((details: WordDetails) => {
     const w = details.word;
     setFlashcardPrefill({
       front: w.kanji[0] ?? w.readings[0] ?? '',
       reading: w.readings[0] ?? '',
-      back:
-        w.meanings
-          .filter((m) => m.lang === 'eng' || m.lang === 'en')
-          .slice(0, 2)
-          .map((m) => m.meaning)
-          .join('; ') ?? '',
+      back: w.meanings
+        .filter((m) => m.lang === 'eng' || m.lang === 'en')
+        .slice(0, 2)
+        .map((m) => m.meaning)
+        .join('; '),
     });
     setDictTerm(null);
   }, []);
 
-  const handleEpubSelection = useCallback(
-    (payload: { text: string; pageX: number; pageY: number }) => {
-      handleSelectToken({
-        paragraphIdx: -1,
-        tokenIdx: -1,
-        text: payload.text,
-        pageX: payload.pageX,
-        pageY: payload.pageY,
-      });
-    },
-    [handleSelectToken],
+  // ── Bookmark add/toggle ─────────────────────────────────────────────
+  const isBookmarked = useMemo(
+    () => bookmarks.some((b) => b.cfi === currentCfi),
+    [bookmarks, currentCfi],
   );
 
+  const toggleBookmark = useCallback(() => {
+    if (!currentCfi) return;
+    const existing = bookmarks.find((b) => b.cfi === currentCfi);
+    if (existing) {
+      removeBookmark(existing.id);
+      return;
+    }
+    const label = chapterLabel
+      ? `${chapterLabel} · ${progress}%`
+      : `${progress}%`;
+    addBookmark({ cfi: currentCfi, label });
+  }, [currentCfi, bookmarks, chapterLabel, progress, addBookmark, removeBookmark]);
+
+  // ── Initial highlights for the WebView ──────────────────────────────
+  const initialHighlights = useMemo<HighlightStyle[]>(
+    () =>
+      highlights.map((h) => ({
+        id: h.id,
+        cfi: h.cfi,
+        color: HIGHLIGHT_COLORS[h.color],
+      })),
+    // captured at mount via hydrated transition
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hydrated],
+  );
+
+  const handleDeleteHighlight = useCallback(
+    (id: string) => {
+      const h = highlights.find((x) => x.id === id);
+      if (h) epubRef.current?.removeHighlight(h.cfi);
+      removeHighlight(id);
+    },
+    [highlights, removeHighlight],
+  );
+
+  // ── Manga view mode ─────────────────────────────────────────────────
+  const handleSetViewMode = useCallback((mode: ReaderViewMode) => {
+    setViewMode(mode);
+    epubRef.current?.setViewMode(mode);
+  }, []);
+
+  // ── Back: persist progress to backend ───────────────────────────────
   const handleBack = useCallback(async () => {
     if (book && latestLocationRef.current) {
       try {
@@ -148,30 +305,30 @@ export function ReaderScreen({ bookId }: Props) {
           progress: latestLocationRef.current.progress,
         });
       } catch {
-        /* best-effort — don't block the back action */
+        /* best-effort */
       }
     }
     router.back();
   }, [book, router]);
 
-  async function handleImportMissingFile() {
+  // ── Missing-file recovery ───────────────────────────────────────────
+  const handleImportMissingFile = useCallback(async () => {
     if (!book) return;
     const imported = await importEpub();
     if (!imported) return;
-    // Use the existing record's filename so local file matches what backend knows.
     try {
-      const local = new File(bookFilePath(imported.filename));
       if (imported.filename !== book.filename) {
-        // User picked a different file; copy under the record's filename.
+        const local = new File(bookFilePath(imported.filename));
         local.copy(new File(bookFilePath(book.filename)));
         local.delete();
       }
       setHasFile(true);
     } catch {
-      /* ignore — next open will retry */
+      /* next open will retry */
     }
-  }
+  }, [book]);
 
+  // ── Render guards ───────────────────────────────────────────────────
   if (loading) {
     return (
       <View style={[styles.root, { backgroundColor: c.bg }]}>
@@ -184,7 +341,9 @@ export function ReaderScreen({ bookId }: Props) {
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
         <View style={styles.errorWrap}>
-          <Text style={[styles.errorTitle, { color: c.fg }]}>{error ?? 'Book not found'}</Text>
+          <Text style={[styles.errorTitle, { color: c.fg }]}>
+            {error ?? 'Book not found'}
+          </Text>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Text style={[styles.back, { color: c.fgMuted }]}>‹ Back</Text>
           </Pressable>
@@ -193,70 +352,96 @@ export function ReaderScreen({ bookId }: Props) {
     );
   }
 
-  const topChapterLabel =
-    bodySource === 'seed' && seedChapter ? seedChapter.label : '';
+  const ready = hasFile && hydrated;
+
+  // Common props for the text/novel overlays
+  const sharedTextProps = {
+    toc,
+    prefs,
+    onChangePrefs: savePrefs,
+    highlights,
+    bookmarks,
+    isBookmarked,
+    onPrev: () => epubRef.current?.prev(),
+    onNext: () => epubRef.current?.next(),
+    onJumpHref: (href: string) => epubRef.current?.goTo(href),
+    onJumpCfi: (cfi: string) => epubRef.current?.goTo(cfi),
+    onToggleBookmark: toggleBookmark,
+    onDeleteBookmark: removeBookmark,
+    onDeleteHighlight: handleDeleteHighlight,
+  };
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
       <ReaderTopBar
-        chapterLabel={topChapterLabel}
-        progress={book.progress}
-        bookmarked={bookmarked}
+        chapterLabel={chapterLabel}
+        progress={progress}
+        bookmarked={isBookmarked}
         onBack={handleBack}
-        onToggleBookmark={() => setBookmarked((b) => !b)}
+        onToggleBookmark={toggleBookmark}
       />
 
       <View style={styles.body}>
-        {bodySource === 'epub' && (
+        {ready ? (
           <EpubReader
             ref={epubRef}
             filename={book.filename}
             startCfi={book.cfi_position}
-            onSelection={handleEpubSelection}
-            onLocation={(loc) => {
-              latestLocationRef.current = loc;
-            }}
-            onError={(msg) => setError(msg)}
+            initialStyle={style}
+            initialHighlights={initialHighlights}
+            bgColor={style.bg}
+            onReady={handleReady}
+            onRelocated={handleRelocated}
+            onSelection={handleSelection}
+            onCustomMenu={handleCustomMenu}
+            onError={handleEpubError}
           />
-        )}
-        {bodySource === 'seed' && seedChapter && (
-          <ReaderBody
-            paragraphs={seedChapter.paragraphs}
-            fontPx={settings.fontPx}
-            lineHeightMul={settings.lineHeightMul}
-            selection={selection}
-            onSelectToken={handleSelectToken}
-            onDismissSelection={dismissSelection}
-          />
-        )}
-        {bodySource === 'missing' && (
+        ) : !hasFile ? (
           <View style={styles.missingWrap}>
             <Text style={[styles.missingTitle, { color: c.fg }]}>
               File not on this device
             </Text>
             <Text style={[styles.missingBody, { color: c.fgMuted }]}>
-              This book is in your library from another device. Import the EPUB
+              This book is on your account from another device. Import the EPUB
               file here to start reading.
             </Text>
             <Button label="Import EPUB" onPress={handleImportMissingFile} />
           </View>
+        ) : (
+          <View style={styles.missingWrap}>
+            <ActivityIndicator color={c.fg} />
+          </View>
         )}
       </View>
 
-      {selection && (
-        <SelectionPopover
-          pageX={selection.pageX}
-          pageY={selection.pageY}
-          onAction={handleAction}
+      {/* Type-specific overlay */}
+      {ready && bookType === 'text' && <TextReader {...sharedTextProps} />}
+      {ready && bookType === 'novel' && <NovelReader {...sharedTextProps} />}
+      {ready && bookType === 'manga' && (
+        <MangaReader
+          toc={toc}
+          bookmarks={bookmarks}
+          isBookmarked={isBookmarked}
+          viewMode={viewMode}
+          onPrev={() => epubRef.current?.prev()}
+          onNext={() => epubRef.current?.next()}
+          onJumpHref={(href) => epubRef.current?.goTo(href)}
+          onJumpCfi={(cfi) => epubRef.current?.goTo(cfi)}
+          onToggleBookmark={toggleBookmark}
+          onDeleteBookmark={removeBookmark}
+          onSetViewMode={handleSetViewMode}
         />
       )}
 
-      {!selection && bodySource !== 'missing' && (
-        <ReaderToolbar
-          expanded={toolbarExpanded}
-          settings={settings}
-          onToggleExpanded={() => setToolbarExpanded((v) => !v)}
-          onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
+      {/* Highlight color picker (shown after "Highlight" custom-menu tap) */}
+      {highlightPicker && (
+        <HighlightPicker
+          pageX={highlightPicker.x}
+          pageY={highlightPicker.y}
+          existingColor={existingHighlightAtPicker}
+          onPick={applyHighlightColor}
+          onClear={clearHighlightAtPicker}
+          onDismiss={() => setHighlightPicker(null)}
         />
       )}
 
@@ -271,6 +456,12 @@ export function ReaderScreen({ bookId }: Props) {
         visible={flashcardPrefill !== null}
         prefill={flashcardPrefill}
         onDismiss={() => setFlashcardPrefill(null)}
+      />
+
+      <DeepLPopup
+        visible={deepLText !== null}
+        text={deepLText ?? ''}
+        onDismiss={() => setDeepLText(null)}
       />
     </SafeAreaView>
   );

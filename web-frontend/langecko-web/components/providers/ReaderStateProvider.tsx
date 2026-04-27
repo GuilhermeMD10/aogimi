@@ -48,6 +48,10 @@ type ReaderContextValue = {
   pendingCard: { word: string; back?: string; contextSentence?: string } | null;
   setPendingCard: React.Dispatch<React.SetStateAction<{ word: string; back?: string; contextSentence?: string } | null>>;
 
+  /** Filename of a book the reader should auto-open on next mount (e.g. from home shortcut). */
+  pendingBookOpen: string | null;
+  setPendingBookOpen: React.Dispatch<React.SetStateAction<string | null>>;
+
   // Reader session — persists across tab reorder
   readerSession: ReaderSession | null;
   setReaderSession: React.Dispatch<React.SetStateAction<ReaderSession | null>>;
@@ -79,6 +83,7 @@ export function ReaderStateProvider({ children }: { children: React.ReactNode })
   const [pdfScale,      setPdfScale]      = useState(1);
   const [pendingDictSearch, setPendingDictSearch] = useState<{ word: string; contextSentence?: string } | null>(null);
   const [pendingCard,   setPendingCard]   = useState<{ word: string; back?: string; contextSentence?: string } | null>(null);
+  const [pendingBookOpen, setPendingBookOpen] = useState<string | null>(null);
 
   // Reader session — survives tab reorder
   const [readerSession, setReaderSession] = useState<ReaderSession | null>(null);
@@ -227,6 +232,7 @@ export function ReaderStateProvider({ children }: { children: React.ReactNode })
         pdfScale, setPdfScale,
         pendingDictSearch, setPendingDictSearch,
         pendingCard, setPendingCard,
+        pendingBookOpen, setPendingBookOpen,
         readerSession, setReaderSession,
         recordProgress, flushProgress,
       }}
