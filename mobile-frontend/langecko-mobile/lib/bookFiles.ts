@@ -62,6 +62,34 @@ export function deleteBookFile(filename: string): void {
   if (file.exists) file.delete();
 }
 
+/**
+ * Prompt the user to pick an EPUB and store it under the given target filename
+ * (i.e. the filename already in an existing book record). Useful for
+ * reconciling cross-device records that don't yet have the file locally.
+ *
+ * Returns the stored URI on success, or null on cancel.
+ */
+export async function importEpubForFilename(
+  targetFilename: string,
+): Promise<string | null> {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: ['application/epub+zip', 'application/zip', '*/*'],
+    copyToCacheDirectory: true,
+    multiple: false,
+  });
+  if (result.canceled) return null;
+  const asset = result.assets[0];
+  if (!asset) return null;
+
+  const dir = booksDir();
+  const target = new File(dir, targetFilename);
+  if (target.exists) target.delete();
+
+  const source = new File(asset.uri);
+  source.copy(target);
+  return target.uri;
+}
+
 function metadataFromFilename(filename: string): { title: string; author: string } {
   const stem = filename.replace(/\.[^.]+$/, '');
   // Common patterns: "Title - Author", "Author - Title", "Title_Author"

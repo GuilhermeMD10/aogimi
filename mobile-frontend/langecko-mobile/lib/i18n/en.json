@@ -42,15 +42,20 @@
       "errorTaken": "That username is taken"
     },
     "onboarding": {
-      "syncing": "Syncing your library…",
+      "syncing": "Syncing your books…",
       "synced": "Synced {books} books · {decks} decks",
-      "noRecords": "Nothing to sync yet. Start reading to build your library.",
+      "noRecords": "Nothing to sync yet. Start reading to build your collection.",
       "errorOffline": "Couldn't reach the server. You can try again later.",
-      "continue": "Continue"
+      "continue": "Continue",
+      "reconcileTitle": "Bring your books here",
+      "reconcileBody": "{count} books from your account don't have a file on this device yet. Find each EPUB now, or skip and import later.",
+      "find": "Find",
+      "found": "Found",
+      "skipAll": "Skip for now"
     }
   },
-  "library": {
-    "title": "Library",
+  "home": {
+    "title": "Reader",
     "continueReading": "Continue reading",
     "importEpub": "Import EPUB",
     "empty": "No books yet"

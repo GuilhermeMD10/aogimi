@@ -140,15 +140,25 @@ export function TextReader({
       try {
         const t = THEMES[prefs.theme];
         const font = FONT_STACKS[prefs.fontFamily];
+        const bodyStyles: Record<string, string> = {
+          background: `${t.bg} !important`,
+          color: `${t.fg} !important`,
+          'font-size': `${prefs.fontSize}% !important`,
+          'line-height': `${prefs.lineSpacing} !important`,
+          'font-family': `${font} !important`,
+        };
+        // JP novel mode: top-to-bottom, right-to-left columns. Many JP EPUBs
+        // ship with their own vertical-rl CSS, but plenty don't — force it
+        // on so the reading direction matches the metadata.
+        if (rtl) {
+          bodyStyles['writing-mode'] = 'vertical-rl !important';
+          bodyStyles['-webkit-writing-mode'] = 'vertical-rl !important';
+          bodyStyles['text-orientation'] = 'mixed !important';
+          bodyStyles['-webkit-text-orientation'] = 'mixed !important';
+        }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (r.themes as any).default({
-          body: {
-            background: `${t.bg} !important`,
-            color: `${t.fg} !important`,
-            'font-size': `${prefs.fontSize}% !important`,
-            'line-height': `${prefs.lineSpacing} !important`,
-            'font-family': `${font} !important`,
-          },
+          body: bodyStyles,
           '*': {
             color: `${t.fg} !important`,
             'user-select': 'text !important',
@@ -157,7 +167,7 @@ export function TextReader({
         });
       } catch { /* epubjs themes not ready yet */ }
     },
-    [prefs],
+    [prefs, rtl],
   );
   const applyThemeRef = useRef(applyTheme);
   applyThemeRef.current = applyTheme;

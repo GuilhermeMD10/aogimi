@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ReaderStateProvider } from '@/components/providers/ReaderStateProvider';
+import { WorkspaceTabsProvider } from '@/components/providers/WorkspaceTabsProvider';
+import WorkspaceNav, { type BubbleKey } from '@/components/WorkspaceNav';
+import ProfileBubble from '@/components/page-bubbles/ProfileBubble';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -18,30 +21,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!user && !isAuthPage) {
       router.replace('/authenticate');
     } else if (user && isAuthPage) {
-      router.replace('/workspace');
+      router.replace('/');
     }
   }, [user, loading, isAuthPage, router]);
 
-  // While loading auth state, show nothing to avoid flash
-  if (loading) {
-    return null;
-  }
-
-  // Not logged in and not on auth page — will redirect, show nothing
-  if (!user && !isAuthPage) {
-    return null;
-  }
-
-  // Logged in but on auth page — will redirect, show nothing
-  if (user && isAuthPage) {
-    return null;
-  }
+  if (loading) return null;
+  if (!user && !isAuthPage) return null;
+  if (user && isAuthPage) return null;
 
   return (
     <ReaderStateProvider>
-      <main className="h-full w-full">
-        {children}
-      </main>
+      <WorkspaceTabsProvider>
+        <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
+      </WorkspaceTabsProvider>
     </ReaderStateProvider>
+  );
+}
+
+function ShellContent({ isAuthPage, children }: { isAuthPage: boolean; children: React.ReactNode }) {
+  const [activeBubble, setActiveBubble] = useState<BubbleKey | null>(null);
+
+  const handleToggleBubble = useCallback((key: BubbleKey) => {
+    setActiveBubble((prev) => (prev === key ? null : key));
+  }, []);
+
+  return (
+    <main className="h-full w-full">
+      {children}
+
+      {!isAuthPage && (
+        <WorkspaceNav activeBubble={activeBubble} onToggleBubble={handleToggleBubble} />
+      )}
+
+      {activeBubble === 'profile' && <ProfileBubble onClose={() => setActiveBubble(null)} />}
+    </main>
   );
 }

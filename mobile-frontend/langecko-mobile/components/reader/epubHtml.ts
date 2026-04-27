@@ -1,22 +1,74 @@
 // HTML template for the WebView-based EPUB renderer.
-// Loads epub.js from unpkg at runtime. The native side passes the EPUB as
-// a base64 string via postMessage; the WebView decodes it into an
-// ArrayBuffer and opens it with epub.js. All user events (page change,
-// selection, ready) are relayed back to RN via window.ReactNativeWebView.
+//
+// One WebView is shared by every reader type. After opening the EPUB we
+// detect its layout/direction from package metadata and post the resulting
+// bookType back to RN, which renders the matching overlay shell.
+
+export type BookType = 'text' | 'novel' | 'manga';
+
+export type ReaderViewMode = 'single' | 'double' | 'scroll';
+
+export type ReaderThemeStyle = {
+  bg: string;
+  fg: string;
+  fontFamily: string;
+  fontPx: number;
+  lineHeight: number;
+  /** When true, applies CSS writing-mode: vertical-rl (JP novel mode). */
+  vertical: boolean;
+};
+
+export type EpubTocItem = {
+  label: string;
+  href: string;
+};
+
+export type HighlightStyle = { id: string; cfi: string; color: string };
 
 export type EpubBridgeInbound =
-  | { type: 'load'; base64: string; cfi?: string | null }
-  | { type: 'setFontPx'; value: number }
-  | { type: 'setVertical'; value: boolean }
+  | {
+      type: 'load';
+      base64: string;
+      cfi?: string | null;
+      style: ReaderThemeStyle;
+      highlights: HighlightStyle[];
+    }
+  | { type: 'setStyle'; style: ReaderThemeStyle }
+  | { type: 'setViewMode'; mode: ReaderViewMode }
   | { type: 'goToCfi'; cfi: string }
+  | { type: 'goToSpine'; index: number }
   | { type: 'next' }
-  | { type: 'prev' };
+  | { type: 'prev' }
+  | { type: 'addHighlight'; id: string; cfi: string; color: string }
+  | { type: 'removeHighlight'; cfi: string };
 
 export type EpubBridgeOutbound =
-  | { type: 'ready' }
+  | {
+      type: 'ready';
+      toc: EpubTocItem[];
+      bookType: BookType;
+      direction: 'ltr' | 'rtl';
+      spineCount: number;
+    }
   | { type: 'error'; message: string }
-  | { type: 'relocated'; cfi: string; progress: number }
-  | { type: 'selection'; text: string; pageX: number; pageY: number };
+  | {
+      type: 'relocated';
+      cfi: string;
+      progress: number;
+      page: number;
+      totalPages: number;
+      spineIndex: number;
+      spineTotal: number;
+      chapterHref?: string;
+      chapterLabel?: string;
+    }
+  | {
+      type: 'selection';
+      text: string;
+      cfi: string;
+      pageX: number;
+      pageY: number;
+    };
 
 export const EPUB_HTML = String.raw`<!DOCTYPE html>
 <html>
@@ -31,23 +83,12 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
       padding: 0;
       height: 100%;
       overflow: hidden;
-      background: var(--bg, #FAFAF9);
-      color: var(--fg, #1A1918);
+      background: var(--reader-bg, #FAFAF9);
+      color: var(--reader-fg, #1A1918);
       font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
-    #viewer {
-      position: absolute;
-      inset: 0;
-    }
-    .tap-layer {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 30%;
-      z-index: 10;
-    }
-    .tap-prev { left: 0; }
-    .tap-next { right: 0; }
+    #viewer { position: absolute; inset: 0; }
     .status {
       position: absolute;
       top: 50%;
@@ -60,14 +101,23 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
 </head>
 <body>
   <div id="viewer"></div>
-  <div class="tap-layer tap-prev" id="tap-prev"></div>
-  <div class="tap-layer tap-next" id="tap-next"></div>
   <div class="status" id="status">Loading…</div>
 
   <script>
     (function () {
       var rendition = null;
       var book = null;
+      var bookBuffer = null;          // kept so we can recreate rendition on view-mode switch
+      var locationsReady = false;
+      var totalLocations = 0;
+      var spineTotal = 0;
+      var currentStyle = null;
+      var tocItems = [];
+      var bookType = 'text';
+      var direction = 'ltr';
+      var viewMode = 'single';
+      var currentHighlights = [];
+      var startCfi = null;
 
       function post(payload) {
         if (window.ReactNativeWebView) {
@@ -83,85 +133,329 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
         return bytes.buffer;
       }
 
-      function loadBook(base64, cfi) {
+      function applyStyle(style) {
+        currentStyle = style;
+        document.documentElement.style.setProperty('--reader-bg', style.bg);
+        document.documentElement.style.setProperty('--reader-fg', style.fg);
+        document.body.style.background = style.bg;
+        if (!rendition) return;
         try {
-          var buffer = base64ToArrayBuffer(base64);
-          book = ePub(buffer);
-          rendition = book.renderTo('viewer', {
-            width: '100%',
-            height: '100%',
-            spread: 'none',
-            flow: 'paginated',
-            manager: 'default',
-          });
+          var bodyRule = {
+            'background': style.bg + ' !important',
+            'color': style.fg + ' !important',
+            'font-size': style.fontPx + 'px !important',
+            'line-height': style.lineHeight + ' !important',
+            'font-family': style.fontFamily + ' !important',
+          };
+          if (style.vertical) {
+            bodyRule['writing-mode'] = 'vertical-rl !important';
+            bodyRule['-webkit-writing-mode'] = 'vertical-rl !important';
+            bodyRule['text-orientation'] = 'mixed !important';
+            bodyRule['-webkit-text-orientation'] = 'mixed !important';
+          } else {
+            bodyRule['writing-mode'] = 'horizontal-tb !important';
+            bodyRule['-webkit-writing-mode'] = 'horizontal-tb !important';
+          }
           rendition.themes.default({
-            body: {
-              'font-size': (window.__fontPx || 18) + 'px',
-              'line-height': '1.75',
+            'html, body': {
+              'background': style.bg + ' !important',
+              'color': style.fg + ' !important',
             },
-            p: { 'margin-bottom': '1em' },
+            'body': bodyRule,
+            'p, div, span, li, h1, h2, h3, h4, h5, h6, a': {
+              'color': style.fg + ' !important',
+              '-webkit-user-select': 'text !important',
+              'user-select': 'text !important',
+            },
           });
-          var start = cfi || undefined;
-          rendition.display(start).then(function () {
-            document.getElementById('status').style.display = 'none';
-            post({ type: 'ready' });
-          }).catch(function (err) {
-            post({ type: 'error', message: String((err && err.message) || err) });
-          });
+        } catch (e) { /* themes not ready */ }
+      }
 
-          rendition.on('relocated', function (location) {
-            var progress = 0;
-            try {
-              progress = Math.round((book.locations && book.locations.percentageFromCfi(location.start.cfi) || 0) * 100);
-            } catch (e) {}
-            post({ type: 'relocated', cfi: location.start.cfi, progress: progress });
-          });
+      function chapterFromHref(href) {
+        if (!href || !tocItems.length) return null;
+        var base = String(href).split('#')[0];
+        for (var i = 0; i < tocItems.length; i++) {
+          var ti = tocItems[i];
+          if (!ti.href) continue;
+          var tHref = ti.href.split('#')[0];
+          if (tHref && base.indexOf(tHref) !== -1) return ti;
+        }
+        return null;
+      }
 
-          rendition.on('selected', function (cfiRange, contents) {
+      function flattenToc(nav) {
+        var out = [];
+        function walk(items) {
+          if (!items) return;
+          for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            out.push({ label: it.label ? String(it.label).trim() : '', href: it.href || '' });
+            if (it.subitems && it.subitems.length) walk(it.subitems);
+          }
+        }
+        walk(nav);
+        return out;
+      }
+
+      function detectType(b) {
+        try {
+          var meta = b.package && b.package.metadata;
+          var dir = (meta && meta.direction) ? String(meta.direction).toLowerCase() : '';
+          var layout = (meta && meta.layout) ? String(meta.layout).toLowerCase() : '';
+          var fxlOpts = b.displayOptions && b.displayOptions.fixedLayout;
+          var isFxl = layout === 'pre-paginated' || fxlOpts === 'true' || fxlOpts === true;
+          var t = isFxl ? 'manga' : (dir === 'rtl' ? 'novel' : 'text');
+          return { bookType: t, direction: (dir === 'rtl' ? 'rtl' : 'ltr') };
+        } catch (e) {
+          return { bookType: 'text', direction: 'ltr' };
+        }
+      }
+
+      function emitRelocated(loc) {
+        if (!loc || !loc.start) return;
+        var cfi = loc.start.cfi;
+        var pct = 0;
+        var page = 0;
+        var spineIdx = 0;
+        try {
+          if (locationsReady && book.locations) {
+            pct = Math.round((book.locations.percentageFromCfi(cfi) || 0) * 100);
+            var idx = book.locations.locationFromCfi(cfi);
+            page = (typeof idx === 'number' && idx >= 0) ? idx + 1 : 0;
+          } else {
+            pct = Math.round(((loc.start.percentage || 0) * 100));
+          }
+          var section = book.spine && book.spine.get && book.spine.get(cfi);
+          if (section && typeof section.index === 'number') spineIdx = section.index;
+        } catch (e) {}
+        var chapter = chapterFromHref(loc.start.href);
+        post({
+          type: 'relocated',
+          cfi: cfi,
+          progress: pct,
+          page: page,
+          totalPages: totalLocations,
+          spineIndex: spineIdx,
+          spineTotal: spineTotal,
+          chapterHref: loc.start.href || '',
+          chapterLabel: chapter ? chapter.label : '',
+        });
+      }
+
+      // Inside-iframe tap-to-page: left edge = prev, right edge = next.
+      // For RTL books (manga, JP novels) the directions are swapped so the
+      // tap matches reading direction.
+      function attachTapNav(contents) {
+        try {
+          var doc = contents.document;
+          var win = contents.window;
+          doc.addEventListener('click', function (ev) {
+            var sel = win && win.getSelection && win.getSelection();
+            if (sel && String(sel).trim().length > 0) return;
+            var w = win.innerWidth || doc.documentElement.clientWidth || 0;
+            var x = ev.clientX;
+            var rtl = (direction === 'rtl');
+            if (x < w * 0.28) {
+              ev.preventDefault();
+              if (rendition) (rtl ? rendition.next() : rendition.prev());
+            } else if (x > w * 0.72) {
+              ev.preventDefault();
+              if (rendition) (rtl ? rendition.prev() : rendition.next());
+            }
+          }, true);
+        } catch (e) {}
+      }
+
+      function buildRenditionOptions() {
+        var opts = {
+          width: '100%',
+          height: '100%',
+          allowScriptedContent: true,
+        };
+        if (bookType === 'manga') {
+          opts.flow = (viewMode === 'scroll') ? 'scrolled' : 'paginated';
+          opts.spread = (viewMode === 'double') ? 'auto' : 'none';
+          opts.manager = 'default';
+        } else {
+          opts.flow = 'paginated';
+          opts.spread = 'none';
+          opts.manager = 'default';
+        }
+        return opts;
+      }
+
+      function buildRendition(initialCfi) {
+        rendition = book.renderTo('viewer', buildRenditionOptions());
+        applyStyle(currentStyle);
+
+        rendition.hooks.content.register(function (contents) {
+          attachTapNav(contents);
+        });
+
+        rendition.display(initialCfi || undefined).then(function () {
+          var statusEl = document.getElementById('status');
+          if (statusEl) statusEl.style.display = 'none';
+          if (currentStyle) applyStyle(currentStyle);
+          for (var i = 0; i < currentHighlights.length; i++) {
+            addHighlightAnnotation(
+              currentHighlights[i].id,
+              currentHighlights[i].cfi,
+              currentHighlights[i].color
+            );
+          }
+        }).catch(function (err) {
+          post({ type: 'error', message: String((err && err.message) || err) });
+        });
+
+        rendition.on('relocated', emitRelocated);
+
+        rendition.on('selected', function (cfiRange, contents) {
+          try {
+            var range = rendition.getRange(cfiRange);
+            var text = range ? range.toString() : '';
+            text = (text || '').trim();
+            if (!text) return;
+            var rect = { x: 0, y: 0 };
             try {
-              var text = rendition.getRange(cfiRange).toString();
               var sel = contents.window.getSelection();
-              var rect = { x: 0, y: 0 };
               if (sel && sel.rangeCount > 0) {
                 var r = sel.getRangeAt(0).getBoundingClientRect();
                 rect = { x: r.left + r.width / 2, y: r.top };
               }
-              post({ type: 'selection', text: text, pageX: rect.x, pageY: rect.y });
-            } catch (e) {
-              post({ type: 'error', message: 'selection: ' + e });
+            } catch (e) {}
+            post({ type: 'selection', text: text, cfi: cfiRange, pageX: rect.x, pageY: rect.y });
+          } catch (e) {
+            post({ type: 'error', message: 'selection: ' + e });
+          }
+        });
+      }
+
+      function loadBook(base64, cfi, style, highlights) {
+        try {
+          bookBuffer = base64ToArrayBuffer(base64);
+          book = ePub(bookBuffer);
+          startCfi = cfi || null;
+          currentHighlights = (highlights || []).slice();
+          currentStyle = style;
+
+          book.ready.then(function () {
+            try {
+              tocItems = flattenToc(book.navigation && book.navigation.toc);
+            } catch (e) { tocItems = []; }
+            try {
+              spineTotal = (book.spine && book.spine.spineItems && book.spine.spineItems.length) || 0;
+            } catch (e) { spineTotal = 0; }
+
+            var detected = detectType(book);
+            bookType = detected.bookType;
+            direction = detected.direction;
+            // Default manga view-mode to single. The user can change later.
+            viewMode = (bookType === 'manga') ? 'single' : 'single';
+
+            // Now build the rendition with type-appropriate options
+            buildRendition(startCfi);
+
+            post({
+              type: 'ready',
+              toc: tocItems,
+              bookType: bookType,
+              direction: direction,
+              spineCount: spineTotal,
+            });
+
+            if (book.locations) {
+              book.locations.generate(1024).then(function (cfis) {
+                locationsReady = true;
+                totalLocations = (cfis && cfis.length) || 0;
+              }).catch(function () {});
             }
           });
-
-          // Generate locations lazily for progress percentages
-          if (book.locations) {
-            book.ready.then(function () {
-              book.locations.generate(1000).catch(function () {});
-            });
-          }
         } catch (err) {
           post({ type: 'error', message: String((err && err.message) || err) });
         }
       }
 
-      document.getElementById('tap-prev').addEventListener('click', function () {
-        if (rendition) rendition.prev();
-      });
-      document.getElementById('tap-next').addEventListener('click', function () {
-        if (rendition) rendition.next();
-      });
+      function setViewMode(mode) {
+        if (mode === viewMode) return;
+        if (bookType !== 'manga') return;
+        viewMode = mode;
+        // Capture current spine index so we can restore the same page after rebuild
+        var restoreIdx = 0;
+        try {
+          var loc = rendition && rendition.currentLocation && rendition.currentLocation();
+          if (loc && loc.start && loc.start.cfi) {
+            var section = book.spine && book.spine.get(loc.start.cfi);
+            if (section && typeof section.index === 'number') restoreIdx = section.index;
+          }
+        } catch (e) {}
+
+        try {
+          if (rendition) {
+            try { rendition.q && rendition.q.clear && rendition.q.clear(); } catch (e) {}
+            try { rendition.destroy(); } catch (e) {}
+          }
+        } catch (e) {}
+        rendition = null;
+
+        try {
+          // Recreate the book object — destroying the rendition leaves epub.js's
+          // internal queues in a bad state otherwise.
+          book = ePub(bookBuffer);
+          book.ready.then(function () {
+            try {
+              spineTotal = (book.spine && book.spine.spineItems && book.spine.spineItems.length) || 0;
+            } catch (e) {}
+            var item = book.spine && book.spine.spineItems && book.spine.spineItems[restoreIdx];
+            buildRendition(item ? item.href : null);
+          });
+        } catch (err) {
+          post({ type: 'error', message: 'setViewMode: ' + err });
+        }
+      }
+
+      function addHighlightAnnotation(id, cfi, color) {
+        if (!rendition || !rendition.annotations) return;
+        try {
+          rendition.annotations.add(
+            'highlight', cfi, { id: id }, null,
+            'reader-hl-' + id,
+            { fill: color, 'fill-opacity': '0.35', 'mix-blend-mode': 'multiply' }
+          );
+        } catch (e) {}
+      }
+
+      function removeHighlightAnnotation(cfi) {
+        if (!rendition || !rendition.annotations) return;
+        try { rendition.annotations.remove(cfi, 'highlight'); } catch (e) {}
+        currentHighlights = currentHighlights.filter(function (h) { return h.cfi !== cfi; });
+      }
+
+      function goToSpine(index) {
+        if (!book) return;
+        var items = book.spine && book.spine.spineItems;
+        if (!items || index < 0 || index >= items.length) return;
+        var item = items[index];
+        if (item && rendition) rendition.display(item.href);
+      }
 
       function handleInbound(raw) {
         var msg;
         try { msg = JSON.parse(raw); } catch (e) { return; }
         if (!msg || !msg.type) return;
-        if (msg.type === 'load') return loadBook(msg.base64, msg.cfi);
+        if (msg.type === 'load') return loadBook(msg.base64, msg.cfi, msg.style, msg.highlights);
+        if (msg.type === 'setViewMode') return setViewMode(msg.mode);
         if (!rendition) return;
         if (msg.type === 'next') rendition.next();
         else if (msg.type === 'prev') rendition.prev();
         else if (msg.type === 'goToCfi') rendition.display(msg.cfi);
-        else if (msg.type === 'setFontPx') {
-          window.__fontPx = msg.value;
-          rendition.themes.override('font-size', msg.value + 'px');
+        else if (msg.type === 'goToSpine') goToSpine(msg.index);
+        else if (msg.type === 'setStyle') applyStyle(msg.style);
+        else if (msg.type === 'addHighlight') {
+          currentHighlights.push({ id: msg.id, cfi: msg.cfi, color: msg.color });
+          addHighlightAnnotation(msg.id, msg.cfi, msg.color);
+        }
+        else if (msg.type === 'removeHighlight') {
+          removeHighlightAnnotation(msg.cfi);
         }
       }
 

@@ -1,5 +1,5 @@
-import { PlaceholderScreen } from '@/components/placeholder/PlaceholderScreen';
+import { ProfileScreen } from '@/components/profile/ProfileScreen';
 
 export default function ProfileTab() {
-  return <PlaceholderScreen titleKey="profile.title" />;
+  return <ProfileScreen />;
 }

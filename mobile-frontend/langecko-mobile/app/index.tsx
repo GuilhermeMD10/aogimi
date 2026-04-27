@@ -15,5 +15,5 @@ export default function Index() {
     );
   }
 
-  return <Redirect href={status === 'signed-in' ? '/(tabs)' : '/(auth)/welcome'} />;
+  return <Redirect href={status === 'signed-in' ? '/(tabs)/reader' : '/(auth)/welcome'} />;
 }

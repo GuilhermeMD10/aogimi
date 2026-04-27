@@ -1,5 +1,5 @@
-import { PlaceholderScreen } from '@/components/placeholder/PlaceholderScreen';
+import { DecksListScreen } from '@/components/decks/DecksListScreen';
 
 export default function DecksTab() {
-  return <PlaceholderScreen titleKey="decks.title" />;
+  return <DecksListScreen />;
 }

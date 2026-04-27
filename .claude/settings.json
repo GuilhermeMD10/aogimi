@@ -26,10 +26,12 @@
       "Bash(node -e ' *)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(npx expo *)",
-      "Bash(./node_modules/.bin/tsc --noEmit)"
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(echo \"EXIT=$?\")"
     ],
     "additionalDirectories": [
-      "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader"
+      "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader",
+      "/Users/guilhermedias/solo-projects/jp-eco/mobile-frontend/langecko-mobile/app/decks"
     ]
   }
 }
