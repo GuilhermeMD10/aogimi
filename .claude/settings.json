@@ -27,7 +27,16 @@
       "Bash(echo \"EXIT:$?\")",
       "Bash(npx expo *)",
       "Bash(./node_modules/.bin/tsc --noEmit)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(node -e \"require\\('./src/search/PgSearchIndex.js'\\); require\\('./src/services/searchService.js'\\); require\\('./src/services/assembler.js'\\); require\\('./src/repositories/wordRepository.js'\\); require\\('./src/repositories/kanjiRepository.js'\\); console.log\\('ok'\\);\")",
+      "Read(//Applications/Postgres.app/Contents/**)",
+      "Bash(brew list *)",
+      "Read(//Applications/**)",
+      "Read(//usr/local/**)",
+      "Read(//Library/PostgreSQL/18/bin/**)",
+      "Read(//Library/PostgreSQL/**)",
+      "Bash(grep -v '^$')",
+      "Bash(grep -n \"</div>$\" /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/components/views/cards/PendingCardOverlay.tsx)"
     ],
     "additionalDirectories": [
       "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader",

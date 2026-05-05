@@ -1,0 +1,26 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   THEME: Hanami — Festival lanterns, lacquer night
+   Vermillion torii, saffron, deep lacquer black.
+   Dark theme; color-only override; inherits shape defaults.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+html[data-theme="hanami"] {
+  --lgc-bg:            #14100C;
+  --lgc-bg-elev:       #1E1814;
+  --lgc-bg-sunken:     #0E0B08;
+
+  --lgc-fg:            #F5E9D4;
+  --lgc-fg-muted:      #B0987A;
+  --lgc-fg-subtle:     #6E6050;
+
+  --lgc-border:        rgba(245, 233, 212, 0.10);
+  --lgc-border-strong: rgba(245, 233, 212, 0.18);
+
+  --lgc-accent:        #E04B2A;
+  --lgc-accent-soft:   rgba(224, 75, 42, 0.18);
+  --lgc-accent-fg:     #FFFFFF;
+
+  --lgc-success:       #5AB85A;
+  --lgc-warning:       #E0A030;
+  --lgc-error:         #E05050;
+}

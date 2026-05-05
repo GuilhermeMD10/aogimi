@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import type Book from 'epubjs/types/book';
 import type Rendition from 'epubjs/types/rendition';
 import {
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   List,
@@ -26,10 +27,49 @@ import { DeepLTranslationPopup } from '@/components/DeepLTranslationPopup';
 import { THEMES, ICON_BTN, ICON_BTN_ON } from '@/components/reader/readerConstants';
 import { TypographyPanel } from '@/components/reader/TypographyPanel';
 import { TextContextMenu } from '@/components/reader/TextContextMenu';
+import { useTheme } from '@/components/providers/ThemeProvider';
+import { ReaderProgressBar } from '@/components/reader/ReaderProgressBar';
+
+// ── Ruby / reading stripping ────────────────────────────────────────────────
+
+// Drop parenthetical readings encoded inline (some EPUBs write 漢字（かんじ）
+// instead of using <ruby> tags). Only strips parens that contain ONLY
+// hiragana, katakana, the long-vowel mark (ー), and middle dots (・) — this
+// keeps regular parenthetical author commentary untouched.
+const PAREN_READING_RE =
+  /[（(][぀-ゟ゠-ヿ・ー]+[）)]/g;
+
+function stripParenReadings(text: string): string {
+  return text.replace(PAREN_READING_RE, '');
+}
+
+/** Clone a DOM element, drop <ruby> reading nodes (<rt>, <rp>), strip
+ *  inline-paren readings, return clean text. */
+function cleanElementText(el: Element): string {
+  const cloned = el.cloneNode(true) as Element;
+  cloned.querySelectorAll('rt, rp').forEach((node) => node.remove());
+  return stripParenReadings(cloned.textContent ?? '');
+}
+
+/** Get the user's selection as text, with <rt>/<rp> ruby readings and
+ *  inline parenthetical readings stripped out. */
+function cleanSelectionText(sel: Selection): string {
+  try {
+    if (sel.rangeCount === 0) return '';
+    const range = sel.getRangeAt(0);
+    const frag = range.cloneContents();
+    frag.querySelectorAll('rt, rp').forEach((el) => el.remove());
+    return stripParenReadings(frag.textContent ?? '').trim();
+  } catch {
+    return stripParenReadings(sel.toString()).trim();
+  }
+}
 
 // ── Sentence extraction ─────────────────────────────────────────────────────
 
-/** Extract the sentence surrounding the current selection inside the epub iframe. */
+/** Extract the sentence surrounding the current selection, with ruby
+ *  readings stripped from both the surrounding block and the selected word
+ *  so the matching/output stays kanji-only. */
 function extractSentenceFromSelection(sel: Selection): string | undefined {
   const node = sel.anchorNode;
   if (!node) return undefined;
@@ -38,10 +78,10 @@ function extractSentenceFromSelection(sel: Selection): string | undefined {
   if (!el) return undefined;
 
   const block = el.closest('p, div, li, td, h1, h2, h3, h4, h5, h6') ?? el;
-  const fullText = block.textContent?.trim() ?? '';
+  const fullText = cleanElementText(block).trim();
   if (!fullText) return undefined;
 
-  const word = sel.toString().trim();
+  const word = cleanSelectionText(sel);
   if (!word) return undefined;
 
   // Split on Japanese sentence terminators (keep the delimiter attached)
@@ -59,11 +99,13 @@ function extractSentenceFromSelection(sel: Selection): string | undefined {
 export type TextReaderProps = {
   book: Book;
   filename: string;
+  bookTitle: string;
   initialCfi?: string;
   rtl?: boolean;
   onLookup: (word: string, contextSentence?: string) => void;
   onAddCard: (word: string, contextSentence?: string) => void;
   onProgressChange?: (progress: number, cfi: string) => void;
+  onBack: () => void;
 };
 
 type Panel = 'toc' | 'annotations' | null;
@@ -75,11 +117,13 @@ type Panel = 'toc' | 'annotations' | null;
 export function TextReader({
   book,
   filename,
+  bookTitle,
   initialCfi,
   rtl = false,
   onLookup,
   onAddCard,
   onProgressChange,
+  onBack,
 }: TextReaderProps) {
   // ── Local storage ─────────────────────────────────────────────────────
   const {
@@ -258,7 +302,7 @@ export function TextReader({
           if (dead) return;
           try {
             const sel: Selection | null = contents.window.getSelection();
-            const text = sel?.toString().trim() ?? '';
+            const text = sel ? cleanSelectionText(sel) : '';
             setSelectedText(text);
             setSelectedCfi(text ? cfiRange : null);
             setContextSentence(sel && text ? extractSentenceFromSelection(sel) : undefined);
@@ -271,7 +315,7 @@ export function TextReader({
           contents.document.addEventListener('contextmenu', (e: MouseEvent) => {
             if (dead) return;
             const sel: Selection | null = contents.window.getSelection();
-            const text = sel?.toString().trim() ?? '';
+            const text = sel ? cleanSelectionText(sel) : '';
             setSelectedText(text);
             setContextSentence(sel && text ? extractSentenceFromSelection(sel) : undefined);
             if (!text) { setSelectedCfi(null); return; }
@@ -509,6 +553,8 @@ export function TextReader({
 
   // ── Computed ──────────────────────────────────────────────────────────
   const theme = THEMES[prefs.theme];
+  const { theme: appTheme } = useTheme();
+  const isStamp = appTheme === 'stamp';
   const pageFraction = totalLocations > 0 ? ((globalPage / totalLocations) * 100).toFixed(1) : '0';
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -517,36 +563,107 @@ export function TextReader({
   return (
     <div className="relative flex h-full min-h-0 flex-col" style={{ background: theme.bg }}>
 
-      {/* ── Top info bar ──────────────────────────────────────────────── */}
+      {/* ── Single top bar: back + title + chapter/progress + tools ─── */}
       <div
-        className="flex shrink-0 items-center gap-2 border-b border-lgc-border px-4 py-2.5"
+        className="flex shrink-0 items-center gap-2 border-b border-lgc-border px-2 py-1"
         style={{
           fontSize: 12,
           color: 'var(--lgc-fg-muted)',
-          background: 'color-mix(in oklab, var(--lgc-bg) 85%, transparent)',
-          backdropFilter: 'blur(10px)',
+          background: isStamp
+            ? 'var(--lgc-bg-elev)'
+            : 'color-mix(in oklab, var(--lgc-bg) 85%, transparent)',
+          backdropFilter: isStamp ? 'none' : 'blur(10px)',
           zIndex: 5,
         }}
       >
-        <div className="flex min-w-0 items-center gap-2">
-          {chapterLabel && <span className="truncate text-lgc-fg-muted">{chapterLabel}</span>}
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          <span
-            className="text-[11px] text-lgc-fg-muted"
-            style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
-          >
-            {globalPage} / {totalLocations}
+        {/* Back + book title */}
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex shrink-0 items-center gap-1 px-1.5 py-1 text-[12px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg"
+          title="Back to library"
+          style={{
+            borderRadius: isStamp ? 0 : 6,
+            fontFamily: isStamp ? 'var(--lgc-font-mono)' : undefined,
+            letterSpacing: isStamp ? '0.18em' : undefined,
+            textTransform: isStamp ? 'uppercase' : undefined,
+          }}
+        >
+          <ArrowLeft size={12} />
+          <span>Books</span>
+        </button>
+        <span
+          className="min-w-0 max-w-[24ch] shrink truncate text-[12px] font-medium text-lgc-fg"
+          style={{ fontFamily: 'var(--lgc-font-display)' }}
+          title={bookTitle}
+        >
+          {bookTitle}
+        </span>
+
+        <span className="mx-0.5 h-4 w-px shrink-0 bg-lgc-border" />
+
+        {/* Chapter + page count + mini progress */}
+        {chapterLabel && (
+          <span className="min-w-0 max-w-[24ch] shrink truncate text-[11.5px] text-lgc-fg-muted">
+            {chapterLabel}
           </span>
-          <div
-            className="relative h-0.75 w-15 rounded-full bg-lgc-bg-sunken"
-            style={rtl ? { direction: 'rtl' } : undefined}
-          >
-            <div
-              className={`absolute inset-y-0 rounded-full bg-lgc-accent transition-[width] duration-300 ${rtl ? 'right-0' : 'left-0'}`}
-              style={{ width: `${pageFraction}%` }}
-            />
-          </div>
+        )}
+        <span
+          className="shrink-0 text-[11px] text-lgc-fg-muted"
+          style={{
+            fontFamily: 'var(--lgc-font-mono)',
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: isStamp ? '0.16em' : undefined,
+          }}
+        >
+          {globalPage} / {totalLocations}
+        </span>
+        <ReaderProgressBar fraction={Number(pageFraction)} rtl={rtl} />
+
+        {/* Right-aligned tool group */}
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          <button type="button" className={ICON_BTN} onClick={onLeftBtn} title={rtl ? 'Next page (advance)' : 'Previous page'}><ChevronLeft size={14} /></button>
+          <button type="button" className={ICON_BTN} onClick={onRightBtn} title={rtl ? 'Previous page (go back)' : 'Next page'}><ChevronRight size={14} /></button>
+
+          <span className="mx-1 h-4 w-px bg-lgc-border" />
+
+          <button type="button" className={`${ICON_BTN} ${panel === 'toc' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'toc' ? null : 'toc'))} title="Table of contents"><List size={14} /></button>
+          <button type="button" className={`${ICON_BTN} ${panel === 'annotations' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'annotations' ? null : 'annotations'))} title="Bookmarks & highlights"><Highlighter size={14} /></button>
+          <button type="button" className={ICON_BTN} onClick={addBookmark} title="Add bookmark (B)"><BookmarkPlus size={14} /></button>
+
+          <span className="mx-1 h-4 w-px bg-lgc-border" />
+
+          <button data-typo-toggle type="button" className={`${ICON_BTN} ${showTypo ? ICON_BTN_ON : ''}`} onClick={() => setShowTypo((v) => !v)} title="Typography & layout"><Type size={14} /></button>
+          <button type="button" className={`${ICON_BTN} ${isSpeaking ? ICON_BTN_ON : ''}`} onClick={toggleTts} title="Read aloud (T)">
+            {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+          </button>
+
+          <span className="mx-1 h-4 w-px bg-lgc-border" />
+
+          {showPageJump ? (
+            <form
+              className="flex items-center px-1"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const input = (e.currentTarget.elements as HTMLFormControlsCollection).namedItem('page') as HTMLInputElement;
+                const val = parseInt(input.value, 10);
+                if (val > 0 && val <= totalLocations) goToPage(val);
+                setShowPageJump(false);
+              }}
+            >
+              <input
+                name="page" type="number" min={1} max={totalLocations} defaultValue={globalPage} autoFocus
+                onBlur={() => setShowPageJump(false)}
+                onKeyDown={(e) => { if (e.key === 'Escape') setShowPageJump(false); }}
+                className="w-12 rounded-md border border-lgc-border bg-lgc-bg-sunken px-1.5 py-0.5 text-center text-[11px] text-lgc-fg outline-none focus:border-lgc-accent"
+                style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
+              />
+            </form>
+          ) : (
+            <button type="button" onClick={() => setShowPageJump(true)} className="px-2 text-[11px] text-lgc-fg-muted transition-colors hover:text-lgc-fg" style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }} title="Go to page">
+              p. {globalPage}
+            </button>
+          )}
         </div>
       </div>
 
@@ -578,70 +695,12 @@ export function TextReader({
 
           <div ref={wrapperRef} className="absolute inset-0 overflow-hidden" />
 
-          {/* ── Typography panel ──────────────────────────────────────── */}
+          {/* ── Typography panel (anchored under its toolbar button) ──── */}
           {showTypo && (
-            <div ref={typoPanelRef} className="absolute bottom-16 left-1/2 z-30 -translate-x-1/2">
+            <div ref={typoPanelRef} className="absolute right-3 top-2 z-30">
               <TypographyPanel prefs={prefs} onSavePrefs={savePrefs} onClose={() => setShowTypo(false)} />
             </div>
           )}
-
-          {/* ── Bottom floating toolbar ───────────────────────────────── */}
-          <div className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2">
-            <div className="flex items-center gap-0.5 rounded-xl border border-lgc-border-strong p-1 shadow-lg" style={{ background: 'var(--lgc-bg-elev)' }}>
-              {/* Prev / Next */}
-              <button type="button" className={ICON_BTN} onClick={onLeftBtn} title={rtl ? 'Next page (advance)' : 'Previous page'}><ChevronLeft size={15} /></button>
-              <button type="button" className={ICON_BTN} onClick={onRightBtn} title={rtl ? 'Previous page (go back)' : 'Next page'}><ChevronRight size={15} /></button>
-
-              <span className="mx-1 h-4.5 w-px bg-lgc-border" />
-
-              {/* TOC */}
-              <button type="button" className={`${ICON_BTN} ${panel === 'toc' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'toc' ? null : 'toc'))} title="Table of contents"><List size={15} /></button>
-
-              {/* Annotations */}
-              <button type="button" className={`${ICON_BTN} ${panel === 'annotations' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'annotations' ? null : 'annotations'))} title="Bookmarks & highlights"><Highlighter size={15} /></button>
-
-              {/* Bookmark */}
-              <button type="button" className={ICON_BTN} onClick={addBookmark} title="Add bookmark (B)"><BookmarkPlus size={15} /></button>
-
-              <span className="mx-1 h-4.5 w-px bg-lgc-border" />
-
-              {/* Typography */}
-              <button data-typo-toggle type="button" className={`${ICON_BTN} ${showTypo ? ICON_BTN_ON : ''}`} onClick={() => setShowTypo((v) => !v)} title="Typography & layout"><Type size={15} /></button>
-
-              {/* TTS */}
-              <button type="button" className={`${ICON_BTN} ${isSpeaking ? ICON_BTN_ON : ''}`} onClick={toggleTts} title="Read aloud (T)">
-                {isSpeaking ? <VolumeX size={15} /> : <Volume2 size={15} />}
-              </button>
-
-              <span className="mx-1 h-4.5 w-px bg-lgc-border" />
-
-              {/* Page indicator — click to jump */}
-              {showPageJump ? (
-                <form
-                  className="flex items-center px-1"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const input = (e.currentTarget.elements as HTMLFormControlsCollection).namedItem('page') as HTMLInputElement;
-                    const val = parseInt(input.value, 10);
-                    if (val > 0 && val <= totalLocations) goToPage(val);
-                    setShowPageJump(false);
-                  }}
-                >
-                  <input
-                    name="page" type="number" min={1} max={totalLocations} defaultValue={globalPage} autoFocus
-                    onBlur={() => setShowPageJump(false)}
-                    onKeyDown={(e) => { if (e.key === 'Escape') setShowPageJump(false); }}
-                    className="w-12 rounded-md border border-lgc-border bg-lgc-bg-sunken px-1.5 py-0.5 text-center text-[11px] text-lgc-fg outline-none focus:border-lgc-accent"
-                    style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
-                  />
-                </form>
-              ) : (
-                <button type="button" onClick={() => setShowPageJump(true)} className="px-2.5 text-[11px] text-lgc-fg-muted transition-colors hover:text-lgc-fg" style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }} title="Go to page">
-                  p. {globalPage}
-                </button>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Annotations panel */}

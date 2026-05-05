@@ -1,0 +1,34 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   THEME: Default — clean, neutral, minimal
+   Free tier; the only theme that ships in v1.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+:root,
+html[data-theme="default"] {
+  /* Backgrounds */
+  --lgc-bg:            #FAFAF9;
+  --lgc-bg-elev:       #FFFFFF;
+  --lgc-bg-sunken:     #F2F1EE;
+
+  /* Foregrounds */
+  --lgc-fg:            #1A1918;
+  --lgc-fg-muted:      #6B6966;
+  --lgc-fg-subtle:     #A8A5A0;
+
+  /* Borders */
+  --lgc-border:        #E5E3DE;
+  --lgc-border-strong: #D4D2CE;
+
+  /* Accent */
+  --lgc-accent:        #1A1918;
+  --lgc-accent-soft:   rgba(26, 25, 24, 0.08);
+  --lgc-accent-fg:     #FFFFFF;
+
+  /* Feedback */
+  --lgc-success:       #3B7A40;
+  --lgc-warning:       #B8802A;
+  --lgc-error:         #A04040;
+
+  /* shadcn extras */
+  --radius:            0.625rem;
+}

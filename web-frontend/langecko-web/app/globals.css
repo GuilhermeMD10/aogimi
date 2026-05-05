@@ -2,16 +2,31 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* ── Theme palettes (one file per theme) ───────────────────────────────── */
+@import "../styles/themes/default.css";
+@import "../styles/themes/kanagawa.css";
+@import "../styles/themes/sakura.css";
+@import "../styles/themes/hanami.css";
+@import "../styles/themes/stamp.css";
+
+/* ── Shape tokens — defaults; themes may override ──────────────────────── */
+@import "../styles/shape-defaults.css";
+
+/* ── Shared primitives + utilities ─────────────────────────────────────── */
+@import "../styles/primitives.css";
+@import "../styles/utilities.css";
+
 @custom-variant dark (&:is(.dark *));
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   DESIGN TOKENS — Langeco
-   Tailwind v4 inline theme. Maps CSS custom properties to Tailwind colors
-   so you can write `bg-lgc-bg`, `text-lgc-fg`, `border-lgc-border`, etc.
+   DESIGN TOKENS — Tailwind v4 alias layer
+   Maps `--lgc-*` and `--font-*` CSS variables onto Tailwind's color/font
+   namespaces. So `bg-lgc-bg`, `text-lgc-fg-muted`, `font-display`, etc. all
+   work, and per-theme overrides flow through automatically.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 @theme inline {
-  /* ── Langeco tokens ─────────────────────────────────────────────────── */
+  /* ── Langeco color tokens ─────────────────────────────────────────── */
   --color-lgc-bg:            var(--lgc-bg);
   --color-lgc-bg-elev:       var(--lgc-bg-elev);
   --color-lgc-bg-sunken:     var(--lgc-bg-sunken);
@@ -31,7 +46,7 @@
   --color-lgc-warning:       var(--lgc-warning);
   --color-lgc-error:         var(--lgc-error);
 
-  /* ── shadcn system (wired to Langeco tokens) ────────────────────────── */
+  /* ── shadcn system (wired to Langeco tokens) ──────────────────────── */
   --color-background:                 var(--lgc-bg);
   --color-foreground:                 var(--lgc-fg);
   --color-card:                       var(--lgc-bg-elev);
@@ -67,15 +82,17 @@
   --color-chart-4: oklch(0.50 0.06 85);
   --color-chart-5: oklch(0.45 0.04 300);
 
-  /* ── Typography ─────────────────────────────────────────────────────── */
-  --font-sans:     var(--font-inter, 'Inter'), system-ui, sans-serif;
-  --font-serif:    var(--font-source-serif, 'Source Serif 4'), var(--font-shippori, 'Shippori Mincho'), Georgia, serif;
-  --font-mono:     var(--font-geist-mono, 'Geist Mono'), ui-monospace, monospace;
-  --font-display:  var(--font-source-serif, 'Source Serif 4'), var(--font-shippori, 'Shippori Mincho'), serif;
-  --font-reader:   var(--font-source-serif, 'Source Serif 4'), var(--font-shippori, 'Shippori Mincho'), serif;
-  --font-ui:       var(--font-inter, 'Inter'), system-ui, sans-serif;
+  /* ── Typography — alias Tailwind font-* classes onto theme tokens ─── */
+  --font-sans:    var(--lgc-font-ui);
+  --font-ui:      var(--lgc-font-ui);
+  --font-display: var(--lgc-font-display);
+  --font-serif:   var(--lgc-font-display);
+  --font-reader:  var(--lgc-font-display);
+  --font-mono:    var(--lgc-font-mono);
+  --font-jp:      var(--lgc-font-jp);
+  --font-body:    var(--lgc-font-body);
 
-  /* ── Radii ──────────────────────────────────────────────────────────── */
+  /* ── Radii ────────────────────────────────────────────────────────── */
   --radius-sm:  4px;
   --radius-md:  6px;
   --radius-lg:  10px;
@@ -83,326 +100,6 @@
   --radius-2xl: 18px;
   --radius-3xl: 22px;
   --radius-4xl: 26px;
-}
-
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   THEME: Default (free, neutral, minimal)
-   The only theme that ships in v1. Future themes override via
-   [data-theme="kanagawa"], etc.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
-:root,
-html[data-theme="default"] {
-  /* Backgrounds */
-  --lgc-bg:            #FAFAF9;
-  --lgc-bg-elev:       #FFFFFF;
-  --lgc-bg-sunken:     #F2F1EE;
-
-  /* Foregrounds */
-  --lgc-fg:            #1A1918;
-  --lgc-fg-muted:      #6B6966;
-  --lgc-fg-subtle:     #A8A5A0;
-
-  /* Borders */
-  --lgc-border:        #E5E3DE;
-  --lgc-border-strong: #D4D2CE;
-
-  /* Accent (primary action) — neutral ink for Default theme */
-  --lgc-accent:        #1A1918;
-  --lgc-accent-soft:   rgba(26, 25, 24, 0.08);
-  --lgc-accent-fg:     #FFFFFF;
-
-  /* Feedback */
-  --lgc-success:       #3B7A40;
-  --lgc-warning:       #B8802A;
-  --lgc-error:         #A04040;
-
-  /* shadcn extras */
-  --radius:            0.625rem;
-}
-
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   THEME: Kanagawa — Hokusai's Great Wave
-   Deep indigo / prussian blue, aged paper, sea foam.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
-html[data-theme="kanagawa"] {
-  --lgc-bg:            #EDE6D3;
-  --lgc-bg-elev:       #F6F0DE;
-  --lgc-bg-sunken:     #E0D7BE;
-
-  --lgc-fg:            #0F2340;
-  --lgc-fg-muted:      #4A5E80;
-  --lgc-fg-subtle:     #8494AC;
-
-  --lgc-border:        rgba(15, 35, 64, 0.10);
-  --lgc-border-strong: rgba(15, 35, 64, 0.18);
-
-  --lgc-accent:        #1E3D6B;
-  --lgc-accent-soft:   #C9D6E4;
-  --lgc-accent-fg:     #FFFFFF;
-
-  --lgc-success:       #3B7A40;
-  --lgc-warning:       #B8802A;
-  --lgc-error:         #A04040;
-}
-
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   THEME: Sakura — Cherry blossoms in full bloom
-   Soft petal pink, bark ink, leaf green accents.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
-html[data-theme="sakura"] {
-  --lgc-bg:            #FBF4F2;
-  --lgc-bg-elev:       #FFFBFA;
-  --lgc-bg-sunken:     #F3E7E5;
-
-  --lgc-fg:            #3E2A2F;
-  --lgc-fg-muted:      #7A5A5F;
-  --lgc-fg-subtle:     #B09599;
-
-  --lgc-border:        rgba(62, 42, 47, 0.08);
-  --lgc-border-strong: rgba(62, 42, 47, 0.16);
-
-  --lgc-accent:        #D47A8C;
-  --lgc-accent-soft:   #F7DCE0;
-  --lgc-accent-fg:     #FFFFFF;
-
-  --lgc-success:       #3B7A40;
-  --lgc-warning:       #B8802A;
-  --lgc-error:         #A04040;
-}
-
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   THEME: Hanami — Festival lanterns, lacquer night
-   Vermillion torii, saffron, deep lacquer black.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
-html[data-theme="hanami"] {
-  --lgc-bg:            #14100C;
-  --lgc-bg-elev:       #1E1814;
-  --lgc-bg-sunken:     #0E0B08;
-
-  --lgc-fg:            #F5E9D4;
-  --lgc-fg-muted:      #B0987A;
-  --lgc-fg-subtle:     #6E6050;
-
-  --lgc-border:        rgba(245, 233, 212, 0.10);
-  --lgc-border-strong: rgba(245, 233, 212, 0.18);
-
-  --lgc-accent:        #E04B2A;
-  --lgc-accent-soft:   rgba(224, 75, 42, 0.18);
-  --lgc-accent-fg:     #FFFFFF;
-
-  --lgc-success:       #5AB85A;
-  --lgc-warning:       #E0A030;
-  --lgc-error:         #E05050;
-}
-
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   LEGACY COMPAT — bridge old lumina-* names to new tokens
-   Allows existing components to keep working during migration.
-   Remove these once all components are updated.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
-:root,
-html[data-theme="default"] {
-  /* Old lumina → new lgc mapping */
-  --lumina-primary-teal:       var(--lgc-accent);
-  --lumina-teal-light:         var(--lgc-accent-soft);
-  --lumina-teal-dark:          var(--lgc-fg);
-
-  --lumina-app-background:     var(--lgc-bg);
-  --lumina-surface-background: var(--lgc-bg-elev);
-
-  --lumina-sidebar-background: var(--lgc-bg-sunken);
-  --lumina-sidebar-text:       var(--lgc-fg);
-  --lumina-sidebar-active-bg:  var(--lgc-bg-elev);
-  --lumina-sidebar-hover-bg:   rgba(26, 25, 24, 0.06);
-  --lumina-sidebar-label:      var(--lgc-fg-muted);
-
-  --lumina-border-divider:     var(--lgc-border);
-
-  --lumina-primary-text:       var(--lgc-fg);
-  --lumina-secondary-text:     var(--lgc-fg-muted);
-  --lumina-icon-gray:          var(--lgc-fg-muted);
-
-  --lumina-success:            var(--lgc-success);
-  --lumina-warning:            var(--lgc-warning);
-  --lumina-error:              var(--lgc-error);
-
-  /* Tailwind color bridge for lumina-* class names */
-  --color-lumina-primary-teal:        var(--lgc-accent);
-  --color-lumina-teal-light:          var(--lgc-accent-soft);
-  --color-lumina-teal-dark:           var(--lgc-fg);
-  --color-lumina-app-background:      var(--lgc-bg);
-  --color-lumina-sidebar-background:  var(--lgc-bg-sunken);
-  --color-lumina-surface-background:  var(--lgc-bg-elev);
-  --color-lumina-border-divider:      var(--lgc-border);
-  --color-lumina-primary-text:        var(--lgc-fg);
-  --color-lumina-secondary-text:      var(--lgc-fg-muted);
-  --color-lumina-icon-gray:           var(--lgc-fg-muted);
-  --color-lumina-sidebar-text:        var(--lgc-fg);
-  --color-lumina-sidebar-active-bg:   var(--lgc-bg-elev);
-  --color-lumina-sidebar-hover-bg:    rgba(26, 25, 24, 0.06);
-  --color-lumina-sidebar-label:       var(--lgc-fg-muted);
-  --color-lumina-success:             var(--lgc-success);
-  --color-lumina-warning:             var(--lgc-warning);
-  --color-lumina-error:               var(--lgc-error);
-}
-
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   SHARED PRIMITIVES — Langeco component classes
-   Lightweight utility classes matching the design canvas.
-   Use these alongside Tailwind for components that map 1:1 to the design.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
-/* Card surface */
-.lgc-card {
-  background: var(--lgc-bg-elev);
-  border: 1px solid var(--lgc-border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.05);
-}
-
-/* Chip / tag / badge */
-.lgc-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--lgc-bg-sunken);
-  color: var(--lgc-fg-muted);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-}
-
-/* Section label — uppercase accent text used throughout the design */
-.lgc-section-label {
-  font-size: 11px;
-  color: var(--lgc-accent);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-/* Pane bar — modular workspace */
-.lgc-panebar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: var(--lgc-bg-sunken);
-  border-bottom: 1px solid var(--lgc-border);
-}
-
-.lgc-panechip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px 6px 6px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--lgc-fg);
-  cursor: grab;
-  user-select: none;
-  background: var(--lgc-bg-elev);
-  border: 1px solid var(--lgc-border);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  transition: transform 120ms, box-shadow 120ms;
-  position: relative;
-}
-.lgc-panechip:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-}
-.lgc-panechip:active { cursor: grabbing; }
-
-.lgc-panechip-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 99px;
-  flex-shrink: 0;
-}
-
-.lgc-panechip-idx {
-  width: 20px;
-  height: 20px;
-  border-radius: 99px;
-  background: var(--lgc-bg-sunken);
-  color: var(--lgc-fg-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.lgc-panechip-live {
-  width: 6px;
-  height: 6px;
-  border-radius: 99px;
-  background: #22c55e;
-  box-shadow: 0 0 0 2px color-mix(in oklab, #22c55e 30%, transparent);
-  flex-shrink: 0;
-}
-
-.lgc-panearrow {
-  color: var(--lgc-fg-subtle);
-  font-size: 14px;
-  user-select: none;
-}
-
-.lgc-panechip-ghost {
-  border: 1px dashed var(--lgc-border-strong) !important;
-  background: transparent !important;
-  opacity: 0.75;
-}
-
-/* Highlight colors for reader text */
-.hl-1 { background: linear-gradient(transparent 55%, rgba(255, 213, 79, 0.55) 55%); }
-.hl-2 { background: linear-gradient(transparent 55%, rgba(129, 199, 132, 0.45) 55%); }
-.hl-3 { background: linear-gradient(transparent 55%, rgba(244, 143, 177, 0.45) 55%); }
-.word-hover {
-  cursor: pointer;
-  border-radius: 2px;
-  transition: background 120ms;
-}
-.word-hover:hover { background: var(--lgc-accent-soft); }
-
-/* Vertical Japanese text */
-.vtxt {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  font-feature-settings: "vert", "vrt2";
-  line-height: 1.9;
-  letter-spacing: 0.04em;
-}
-
-/* Custom scrollbar (opt-in with .lgc-scroll) */
-.lgc-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
-.lgc-scroll::-webkit-scrollbar-thumb {
-  background: var(--lgc-border-strong);
-  border-radius: 99px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-.lgc-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--lgc-fg-subtle);
-  background-clip: padding-box;
-  border: 2px solid transparent;
-}
-.lgc-scroll::-webkit-scrollbar-track { background: transparent; }
-
-/* Selection */
-::selection {
-  background: var(--lgc-accent-soft);
-  color: var(--lgc-fg);
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -420,21 +117,21 @@ html[data-theme="default"] {
   }
 
   html {
-    font-family: var(--font-ui);
+    font-family: var(--lgc-font-ui);
   }
 
-  /* Display headings use the serif display font */
+  /* Display headings use the serif/display font */
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-display);
+    font-family: var(--lgc-font-display);
   }
 
-  /* UI chrome stays sans-serif */
+  /* UI chrome stays in the UI font */
   button,
   input,
   select,
   textarea,
   nav {
-    font-family: var(--font-ui);
+    font-family: var(--lgc-font-ui);
   }
 
   body {

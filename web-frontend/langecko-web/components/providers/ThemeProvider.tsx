@@ -4,13 +4,14 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type AppTheme = 'default' | 'kanagawa' | 'sakura' | 'hanami';
+export type AppTheme = 'default' | 'kanagawa' | 'sakura' | 'hanami' | 'stamp';
 
 export const THEMES: Record<AppTheme, { label: string; description: string; premium: boolean }> = {
-  default:  { label: 'Default',   description: 'Clean, neutral, minimal',         premium: false },
-  kanagawa: { label: 'Kanagawa',  description: 'The Great Wave off Kanagawa',     premium: true },
-  sakura:   { label: 'Sakura',    description: 'Cherry blossoms in full bloom',    premium: true },
-  hanami:   { label: 'Hanami',    description: 'Hanami festival — lantern night',  premium: true },
+  default:  { label: 'Default',   description: 'Clean, neutral, minimal',           premium: false },
+  kanagawa: { label: 'Kanagawa',  description: 'The Great Wave off Kanagawa',       premium: true },
+  sakura:   { label: 'Sakura',    description: 'Cherry blossoms in full bloom',     premium: true },
+  hanami:   { label: 'Hanami',    description: 'Hanami festival — lantern night',   premium: true },
+  stamp:    { label: 'Stamp',     description: '1930s Japanese postage — vermillion on cream paper', premium: true },
 };
 
 type ThemeContextValue = {
@@ -23,7 +24,7 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const STORAGE_KEY = 'app-theme';
-const VALID_THEMES: AppTheme[] = ['default', 'kanagawa', 'sakura', 'hanami'];
+const VALID_THEMES: AppTheme[] = ['default', 'kanagawa', 'sakura', 'hanami', 'stamp'];
 
 function applyTheme(theme: AppTheme) {
   document.documentElement.setAttribute('data-theme', theme);

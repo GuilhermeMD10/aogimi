@@ -4,7 +4,8 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Search, Plus, Volume2 } from 'lucide-react';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
-import WordDetailView from '@/components/views/WordDetailView';
+import { useTheme } from '@/components/providers/ThemeProvider';
+import WordDetailView, { preferredHeadword } from '@/components/views/WordDetailView';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,7 @@ type WordMeaning = { meaning: string; pos: string | null; lang: string };
 type WordResult = {
   id: number;
   is_common: boolean;
+  jlpt_level: number | null;
   grade: number | null;
   char_grades: { char: string; grade: number | null }[];
   kanji: string[];
@@ -23,6 +25,7 @@ type WordResult = {
 type KanjiInfo = {
   literal: string;
   grade: number | null;
+  jlpt_level: number | null;
   stroke_count: number | null;
   radical: number | null;
   meanings: string[];
@@ -43,6 +46,19 @@ type SearchResponse =
   | { type: 'word'; words: WordResult[] }
   | { type: 'kana'; words: WordResult[]; names: NameResult[]; kanjis: KanjiInfo[] }
   | { type: 'meaning'; words: WordResult[] };
+
+// ── Result ordering ──────────────────────────────────────────────────────────
+
+/** Mean grade of the kanji in a word (lower = simpler → ranks higher).
+ *  Words without per-character grades fall back to 0 (kana-only / trivial),
+ *  pushing them to the top. Used purely for ordering — never displayed. */
+function meanWordGrade(word: WordResult): number {
+  const grades = (word.char_grades ?? [])
+    .map((c) => c.grade)
+    .filter((g): g is number => g != null);
+  if (grades.length > 0) return grades.reduce((a, b) => a + b, 0) / grades.length;
+  return 0;
+}
 
 // ── API call ──────────────────────────────────────────────────────────────────
 
@@ -65,6 +81,8 @@ async function queryDictionary(q: string, signal: AbortSignal): Promise<SearchRe
 
 export default function DictionaryView({ storageKey = 'dictionary_state' }: { storageKey?: string }) {
   const { pendingDictSearch, setPendingDictSearch, setPendingCard } = useReaderState();
+  const { theme } = useTheme();
+  const isStamp = theme === 'stamp';
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get('q');
   const abortRef = useRef<AbortController | null>(null);
@@ -161,7 +179,10 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
     void runSearch(query);
   };
 
-  const words = result ? ('words' in result ? result.words : []) : [];
+  const rawWords = result ? ('words' in result ? result.words : []) : [];
+  // Sort by mean kanji grade (simpler words first). Stable sort preserves the
+  // dictionary's relevance ranking inside each grade tier.
+  const words = [...rawWords].sort((a, b) => meanWordGrade(a) - meanWordGrade(b));
   const names = result && 'names' in result ? result.names : [];
   const kanjiInfo = result?.type === 'kanji' ? result.kanji : null;
 
@@ -169,6 +190,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
     return (
       <WordDetailView
         id={String(selectedWordId)}
+        query={query}
         onBack={() => setSelectedWordId(null)}
         onKanjiSearch={(char) => {
           setSelectedWordId(null);
@@ -186,14 +208,16 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
       <div
         className="flex items-center gap-2.5 border-b border-lgc-border px-3 py-2.5 @md:px-5 @md:py-3"
         style={{
-          background: 'color-mix(in oklab, var(--lgc-bg) 85%, transparent)',
-          backdropFilter: 'blur(10px)',
+          background: isStamp
+            ? 'var(--lgc-bg-elev)'
+            : 'color-mix(in oklab, var(--lgc-bg) 85%, transparent)',
+          backdropFilter: isStamp ? 'none' : 'blur(10px)',
         }}
       >
         <form
           onSubmit={handleSubmit}
-          className="flex flex-1 items-center gap-2 rounded-lg border border-lgc-border-strong bg-lgc-bg-elev px-3 py-2"
-          style={{ maxWidth: 540 }}
+          className="flex flex-1 items-center gap-2 border border-lgc-border-strong bg-lgc-bg-elev px-3 py-2"
+          style={{ maxWidth: 540, borderRadius: isStamp ? 0 : 8 }}
         >
           <Search size={14} className="shrink-0 text-lgc-fg-subtle" />
           <input
@@ -202,11 +226,14 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Kanji, kana, or English..."
             className="flex-1 border-none bg-transparent text-[15px] text-lgc-fg outline-none placeholder:text-lgc-fg-subtle"
-            style={{ fontFamily: 'var(--font-display)' }}
+            style={{ fontFamily: 'var(--lgc-font-display)' }}
           />
           <kbd
-            className="rounded border border-lgc-border-strong px-1.5 py-0.5 text-[10px] text-lgc-fg-muted"
-            style={{ fontFamily: 'var(--font-mono, Geist Mono, monospace)' }}
+            className="border border-lgc-border-strong px-1.5 py-0.5 text-[10px] text-lgc-fg-muted"
+            style={{
+              fontFamily: 'var(--lgc-font-mono)',
+              borderRadius: isStamp ? 0 : 3,
+            }}
           >
             {'\u2318'}K
           </kbd>
@@ -217,7 +244,13 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
             form=""
             onClick={() => void runSearch(query)}
             disabled={loading}
-            className="rounded-md px-2.5 py-1.5 text-xs font-medium text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev disabled:opacity-50"
+            className="px-2.5 py-1.5 text-xs font-medium text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev disabled:opacity-50"
+            style={{
+              borderRadius: isStamp ? 0 : 6,
+              fontFamily: isStamp ? 'var(--lgc-font-mono)' : undefined,
+              letterSpacing: isStamp ? '0.18em' : undefined,
+              textTransform: isStamp ? 'uppercase' : undefined,
+            }}
           >
             {loading ? 'Searching\u2026' : 'JA \u2192 EN'}
           </button>
@@ -232,6 +265,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
         {kanjiInfo && (
           <KanjiPanel
             kanji={kanjiInfo}
+            isStamp={isStamp}
             onAddCard={() => {
               const parts: string[] = [];
               if (kanjiInfo.on_readings.length > 0) parts.push(kanjiInfo.on_readings.join('\u3001'));
@@ -251,7 +285,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
               </div>
               <div
                 className="mt-1 text-[16px] font-medium tracking-tight text-lgc-fg @sm:text-[18px] @lg:text-[22px]"
-                style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+                style={{ fontFamily: 'var(--lgc-font-display)', letterSpacing: '-0.01em' }}
               >
                 {words.length} result{words.length !== 1 ? 's' : ''} for{' '}
                 <span className="text-lgc-accent">{'\u300C'}{query}{'\u300D'}</span>
@@ -263,7 +297,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
               </span>
               <span
                 className="text-[11px] text-lgc-fg-muted"
-                style={{ fontFamily: 'var(--font-mono, Geist Mono, monospace)' }}
+                style={{ fontFamily: 'var(--lgc-font-mono)' }}
               >
                 sort &middot; relevance &darr;
               </span>
@@ -276,6 +310,8 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
                   word={word}
                   index={i}
                   active={i === 0}
+                  query={query}
+                  isStamp={isStamp}
                   onClick={() => setSelectedWordId(word.id)}
                 />
               ))}
@@ -293,8 +329,11 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
         {/* Name results */}
         {names.length > 0 && (
           <div className="px-3 pb-6 @md:px-5">
-            <SectionHead num="02" title="Names" />
-            <div className="overflow-hidden rounded-lg border border-lgc-border">
+            <SectionHead num="02" title="Names" isStamp={isStamp} />
+            <div
+              className="overflow-hidden border border-lgc-border"
+              style={{ borderRadius: isStamp ? 0 : 8 }}
+            >
               {names.slice(0, 10).map((name) => (
                 <div
                   key={name.id}
@@ -302,7 +341,7 @@ export default function DictionaryView({ storageKey = 'dictionary_state' }: { st
                 >
                   <span
                     className="font-medium text-lgc-fg"
-                    style={{ fontFamily: 'var(--font-display)' }}
+                    style={{ fontFamily: 'var(--lgc-font-display)' }}
                   >
                     {name.kanji ?? name.kana}
                   </span>
@@ -338,14 +377,18 @@ function ResultRow({
   word,
   index,
   active,
+  query,
+  isStamp,
   onClick,
 }: {
   word: WordResult;
   index: number;
   active: boolean;
+  query: string;
+  isStamp: boolean;
   onClick: () => void;
 }) {
-  const headword = word.kanji[0] ?? word.readings[0] ?? '\u2014';
+  const headword = preferredHeadword(word, query);
   const reading = word.kanji.length > 0 ? word.readings[0] : null;
   const glosses = word.meanings.filter((m) => m.lang === 'eng').map((m) => m.meaning);
   const pos = word.meanings[0]?.pos;
@@ -358,12 +401,18 @@ function ResultRow({
       style={{
         background: active ? 'var(--lgc-bg-elev)' : undefined,
         borderLeft: active ? '2px solid var(--lgc-accent)' : '2px solid transparent',
+        borderBottomStyle: isStamp ? 'dashed' : 'solid',
       }}
     >
-      {/* Row number */}
+      {/* Row number — vermillion mono under stamp */}
       <div
-        className="hidden min-w-4.5 pt-1.5 text-[11px] text-lgc-fg-subtle @sm:block"
-        style={{ fontFamily: 'var(--font-mono, Geist Mono, monospace)' }}
+        className="hidden min-w-4.5 pt-1.5 text-[11px] @sm:block"
+        style={{
+          fontFamily: 'var(--lgc-font-mono)',
+          color: isStamp ? 'var(--lgc-accent)' : 'var(--lgc-fg-subtle)',
+          letterSpacing: isStamp ? '0.18em' : undefined,
+          fontWeight: isStamp ? 500 : undefined,
+        }}
       >
         {String(index + 1).padStart(2, '0')}
       </div>
@@ -373,21 +422,26 @@ function ResultRow({
         <div className="flex items-baseline gap-2">
           <span
             className="text-[20px] leading-none tracking-tight text-lgc-fg @sm:text-[24px] @lg:text-[30px]"
-            style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+            style={{ fontFamily: 'var(--lgc-font-display)', letterSpacing: '-0.01em' }}
           >
             {headword}
           </span>
           {word.is_common && (
             <span
-              className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-lgc-accent"
+              className="inline-block h-1.5 w-1.5 shrink-0 bg-lgc-accent"
+              style={{ borderRadius: isStamp ? 0 : '50%' }}
               title="Common"
             />
           )}
         </div>
         {reading && (
           <div
-            className="mt-1 text-[13px] text-lgc-fg-muted"
-            style={{ fontFamily: 'var(--font-display)' }}
+            className="mt-1 text-[13px]"
+            style={{
+              fontFamily: 'var(--lgc-font-display)',
+              color: isStamp ? 'var(--lgc-accent)' : 'var(--lgc-fg-muted)',
+              letterSpacing: isStamp ? '0.04em' : undefined,
+            }}
           >
             {reading}
           </div>
@@ -397,19 +451,8 @@ function ResultRow({
       {/* Chips + glosses */}
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex flex-wrap gap-1">
-          {word.grade != null && (
-            <span
-              className="lgc-chip"
-              style={{
-                background: 'var(--lgc-accent-soft)',
-                color: 'var(--lgc-accent)',
-                fontWeight: 600,
-              }}
-            >
-              G{word.grade}
-            </span>
-          )}
           {pos && <span className="lgc-chip">{pos}</span>}
+          {word.jlpt_level != null && <JlptChip level={word.jlpt_level} />}
           {word.char_grades?.length > 1 &&
             word.char_grades.map(({ char, grade }) => (
               <span key={char} className="lgc-chip">
@@ -432,13 +475,15 @@ function ResultRow({
       {/* Action icons */}
       <div className="hidden shrink-0 flex-col items-end gap-1 @md:flex">
         <span
-          className="rounded-md border border-lgc-border p-1.5 text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken"
+          className="border border-lgc-border p-1.5 text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken"
+          style={{ borderRadius: isStamp ? 0 : 6 }}
           title="Add to flashcards"
         >
           <Plus size={14} />
         </span>
         <span
-          className="rounded-md border border-lgc-border p-1.5 text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken"
+          className="border border-lgc-border p-1.5 text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken"
+          style={{ borderRadius: isStamp ? 0 : 6 }}
           title="Audio"
         >
           <Volume2 size={14} />
@@ -448,19 +493,37 @@ function ResultRow({
   );
 }
 
-function KanjiPanel({ kanji, onAddCard }: { kanji: KanjiInfo; onAddCard?: () => void }) {
+function KanjiPanel({
+  kanji,
+  isStamp,
+  onAddCard,
+}: {
+  kanji: KanjiInfo;
+  isStamp: boolean;
+  onAddCard?: () => void;
+}) {
   return (
-    <div className="mx-3 mt-4 flex flex-col gap-3 rounded-lg border border-lgc-border bg-lgc-bg-elev p-4 @sm:mx-5 @sm:mt-5 @sm:flex-row @sm:gap-4 @sm:p-5">
+    <div
+      className="mx-3 mt-4 flex flex-col gap-3 border border-lgc-border bg-lgc-bg-elev p-4 @sm:mx-5 @sm:mt-5 @sm:flex-row @sm:gap-4 @sm:p-5"
+      style={{
+        borderRadius: isStamp ? 0 : 8,
+        boxShadow: isStamp ? '3px 3px 0 var(--lgc-fg)' : undefined,
+      }}
+    >
       <div
         className="flex h-16 w-16 shrink-0 items-center justify-center text-[48px] leading-none text-lgc-fg @sm:h-22 @sm:w-22 @sm:border-r @sm:border-lgc-border @sm:pr-3 @sm:text-[72px]"
-        style={{ fontFamily: 'var(--font-display)' }}
+        style={{ fontFamily: 'var(--lgc-font-display)' }}
       >
         {kanji.literal}
       </div>
       <div className="flex-1 text-[12.5px] leading-relaxed">
         <div
           className="mb-1 text-[15px] font-medium"
-          style={{ fontFamily: 'var(--font-display)' }}
+          style={{
+            fontFamily: 'var(--lgc-font-display)',
+            color: isStamp ? 'var(--lgc-accent)' : 'var(--lgc-fg)',
+            fontSize: isStamp ? 16 : undefined,
+          }}
         >
           {kanji.meanings.join(', ') || '\u2014'}
         </div>
@@ -468,12 +531,20 @@ function KanjiPanel({ kanji, onAddCard }: { kanji: KanjiInfo; onAddCard?: () => 
         <InfoRow label="Kun" value={kanji.kun_readings.join('\u3001') || '\u2014'} jp />
         <InfoRow label="Strokes" value={String(kanji.stroke_count ?? '\u2014')} />
         <InfoRow label="Grade" value={kanji.grade != null ? String(kanji.grade) : '\u2014'} />
+        <InfoRow label="JLPT" value={kanji.jlpt_level != null ? `N${kanji.jlpt_level}` : '\u2014'} />
         <InfoRow label="Radical" value={kanji.radical != null ? String(kanji.radical) : '\u2014'} />
         {onAddCard && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onAddCard(); }}
-            className="mt-2 flex items-center gap-1.5 rounded-md bg-lgc-accent px-3 py-1.5 text-xs font-medium text-lgc-accent-fg transition-opacity hover:opacity-90"
+            className="mt-2 flex items-center gap-1.5 bg-lgc-accent px-3 py-1.5 text-xs font-medium text-lgc-accent-fg transition-opacity hover:opacity-90"
+            style={{
+              borderRadius: isStamp ? 0 : 6,
+              border: isStamp ? '1px solid var(--lgc-fg)' : undefined,
+              boxShadow: isStamp ? '2px 2px 0 var(--lgc-fg)' : undefined,
+              fontFamily: isStamp ? 'var(--lgc-font-display)' : undefined,
+              letterSpacing: isStamp ? '0.04em' : undefined,
+            }}
           >
             <Plus size={13} /> Add to deck
           </button>
@@ -483,12 +554,16 @@ function KanjiPanel({ kanji, onAddCard }: { kanji: KanjiInfo; onAddCard?: () => 
   );
 }
 
-function SectionHead({ num, title }: { num: string; title: string }) {
+function SectionHead({ num, title, isStamp }: { num: string; title: string; isStamp: boolean }) {
   return (
     <div className="mb-3 flex items-baseline gap-2.5">
       <span
-        className="text-[11px] font-semibold text-lgc-fg-subtle"
-        style={{ fontFamily: 'var(--font-mono, Geist Mono, monospace)' }}
+        className="text-[11px] font-semibold"
+        style={{
+          fontFamily: 'var(--lgc-font-mono)',
+          color: isStamp ? 'var(--lgc-accent)' : 'var(--lgc-fg-subtle)',
+          letterSpacing: isStamp ? '0.2em' : undefined,
+        }}
       >
         {num}
       </span>
@@ -509,11 +584,41 @@ function InfoRow({ label, value, jp }: { label: string; value: string; jp?: bool
       <span
         className="text-[13px] text-lgc-fg"
         style={{
-          fontFamily: jp ? 'var(--font-display)' : 'var(--font-mono, Geist Mono, monospace)',
+          fontFamily: jp ? 'var(--lgc-font-display)' : 'var(--lgc-font-mono)',
         }}
       >
         {value}
       </span>
     </div>
+  );
+}
+
+// Per-level palette: warmer for easier (N5), cooler for harder (N1). The
+// values land on the same `--lgc-accent` family the rest of the chrome uses,
+// just shifted around the color wheel — the chip stays tonally consistent
+// with grade chips next to it.
+const JLPT_PALETTE: Record<number, string> = {
+  5: '#8FB08A', // green   — N5 (easiest)
+  4: '#B5A27C', // sand
+  3: '#D9A557', // amber
+  2: '#D97757', // accent  — orange
+  1: '#A05C7B', // plum    — N1 (hardest)
+};
+
+export function JlptChip({ level }: { level: number }) {
+  const color = JLPT_PALETTE[level] ?? 'var(--lgc-fg-muted)';
+  return (
+    <span
+      className="lgc-chip"
+      style={{
+        background: `color-mix(in oklab, ${color} 18%, transparent)`,
+        color,
+        fontWeight: 600,
+        letterSpacing: '0.04em',
+      }}
+      title={`JLPT N${level}`}
+    >
+      N{level}
+    </span>
   );
 }

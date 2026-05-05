@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Feather from '@expo/vector-icons/Feather';
@@ -24,6 +24,8 @@ const FALLBACK_LABELS: Record<string, string> = {
   profile: 'You',
 };
 
+const ANIM_DURATION = 300;
+
 // ── PillNav ──────────────────────────────────────────────────────────────────
 
 export function PillNav({ state, descriptors, navigation }: BottomTabBarProps) {
@@ -31,6 +33,24 @@ export function PillNav({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   const pillBg = theme.meta.isDark ? 'rgba(30,24,20,1)' : 'rgba(255,255,255,1)';
+
+  // `progress` is a shared 0→1 value that drives the current transition.
+  // `prevIndex` is the tab the user is leaving; only it and the new active
+  // tab animate. Everything else stays put — no in-between sweep.
+  const progress = useRef(new Animated.Value(1)).current;
+  const [prevIndex, setPrevIndex] = useState(state.index);
+
+  useLayoutEffect(() => {
+    if (prevIndex === state.index) return;
+    progress.setValue(0);
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: ANIM_DURATION,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (finished) setPrevIndex(state.index);
+    });
+  }, [state.index, prevIndex, progress]);
 
   return (
     <View pointerEvents="box-none" style={[styles.host, { bottom: 6 + insets.bottom }]}>
@@ -48,11 +68,21 @@ export function PillNav({ state, descriptors, navigation }: BottomTabBarProps) {
                 ? labelOpt
                 : (descriptor?.options.title ?? FALLBACK_LABELS[route.name] ?? route.name);
 
+            // Only the entering tab animates 0→1, only the leaving tab
+            // animates 1→0, everything else is a static 0.
+            const proximity =
+              idx === state.index
+                ? progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1] })
+                : idx === prevIndex
+                  ? progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })
+                  : progress.interpolate({ inputRange: [0, 1], outputRange: [0, 0] });
+
             return (
               <PillTab
                 key={route.key}
                 label={label}
                 iconName={iconName}
+                proximity={proximity}
                 active={active}
                 colors={colors}
                 onPress={() => {
@@ -74,47 +104,46 @@ export function PillNav({ state, descriptors, navigation }: BottomTabBarProps) {
   );
 }
 
-// ── Tab button with inflate animation ───────────────────────────────────────
+// ── Tab button (every animated style derives from the shared `proximity`) ──
 
 function PillTab({
   label,
   iconName,
+  proximity,
   active,
   colors,
   onPress,
 }: {
   label: string;
   iconName: FeatherName;
+  proximity: Animated.AnimatedInterpolation<number>;
   active: boolean;
   colors: ThemeColors;
   onPress: () => void;
 }) {
-  const anim = useRef(new Animated.Value(active ? 1 : 0)).current;
-
-  useEffect(() => {
-    Animated.timing(anim, {
-      toValue: active ? 1 : 0,
-      duration: 220,
-      useNativeDriver: false,
-    }).start();
-  }, [active, anim]);
-
-  const paddingLeft = anim.interpolate({
+  const paddingLeft = proximity.interpolate({
     inputRange: [0, 1],
     outputRange: [10, 14],
   });
-  const paddingRight = anim.interpolate({
+  const paddingRight = proximity.interpolate({
     inputRange: [0, 1],
     outputRange: [10, 16],
   });
-  const labelOpacity = anim;
-  const labelMaxWidth = anim.interpolate({
+  const labelMaxWidth = proximity.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 120],
   });
-  const labelMargin = anim.interpolate({
+  const labelMargin = proximity.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 7],
+  });
+  const bgColor = proximity.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(0,0,0,0)', colors.fg],
+  });
+  const inactiveIconOpacity = proximity.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
   });
 
   return (
@@ -131,18 +160,26 @@ function PillTab({
           {
             paddingLeft,
             paddingRight,
-            backgroundColor: active ? colors.fg : 'transparent',
+            backgroundColor: bgColor,
           },
         ]}
       >
-        <Feather name={iconName} size={20} color={active ? colors.accentFg : colors.fgMuted} />
+        {/* Two icons crossfaded — Feather's color prop isn't animatable */}
+        <View style={styles.iconWrap}>
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: inactiveIconOpacity }]}>
+            <Feather name={iconName} size={20} color={colors.fgMuted} />
+          </Animated.View>
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: proximity }]}>
+            <Feather name={iconName} size={20} color={colors.accentFg} />
+          </Animated.View>
+        </View>
         <Animated.Text
           numberOfLines={1}
           style={[
             styles.label,
             {
               color: colors.accentFg,
-              opacity: labelOpacity,
+              opacity: proximity,
               maxWidth: labelMaxWidth,
               marginLeft: labelMargin,
             },
@@ -186,6 +223,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderRadius: 999,
+  },
+  iconWrap: {
+    width: 20,
+    height: 20,
   },
   label: {
     fontSize: 13,

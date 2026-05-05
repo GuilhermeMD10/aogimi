@@ -5,6 +5,7 @@ function assembleWords(rows) {
       map.set(row.word_id, {
         id: row.word_id,
         is_common: row.is_common,
+        jlpt_level: row.jlpt_level ?? null,
         grade: null,
         kanji: new Set(),
         readings: new Set(),
