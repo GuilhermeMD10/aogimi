@@ -13,6 +13,7 @@ const { SearchIndex } = require('./SearchIndex');
  *   +5–50  sense_order gradient (sense 1 → +50, sense 2 → +45, … sense 10 → +5)
  *    +priority_score  (0–100, precomputed from JMdict priority markers)
  *    +20  is_common bonus
+ *    +50 + jlpt_level*5  JLPT tier boost (N1 → +55, N5 → +75; non-JLPT → 0)
  *
  * Senses ranked 11+ are ignored entirely — only the first 10 meanings of a
  * word count toward a match. The sense_order gradient (max 45 spread) stays
@@ -20,7 +21,17 @@ const { SearchIndex } = require('./SearchIndex');
  *
  * The exact match bonus alone outweighs every other factor, so unambiguous
  * queries like "dog" resolve to their canonical word (犬) deterministically.
+ *
+ * The JLPT boost is large enough to surface JLPT entries above non-JLPT in
+ * tied-relevance situations, but stays well below the exact-match tier so a
+ * non-JLPT word that *exactly* matches a query still wins over a JLPT word
+ * that only matches via FTS.
  */
+// JLPT scoring contribution shared by all three search paths. Kept here so
+// the boost stays consistent — change once, all queries follow.
+const JLPT_BOOST_SQL =
+  "CASE WHEN w.jlpt_level IS NOT NULL THEN 50 + w.jlpt_level * 5 ELSE 0 END";
+
 class PgSearchIndex extends SearchIndex {
   async searchEnglish(query, limit = 20) {
     const { rows } = await pool.query(
@@ -57,7 +68,8 @@ class PgSearchIndex extends SearchIndex {
              c.exact_sense_order,
              (c.match_score
               + COALESCE(w.priority_score, 0)
-              + CASE WHEN w.is_common THEN 20 ELSE 0 END) AS score
+              + CASE WHEN w.is_common THEN 20 ELSE 0 END
+              + ${JLPT_BOOST_SQL}) AS score
       FROM candidates c
       JOIN words w ON w.id = c.word_id
       WHERE c.match_score > 0
@@ -80,19 +92,25 @@ class PgSearchIndex extends SearchIndex {
       SELECT form, word_id
       FROM (
         SELECT wk.kanji AS form, wk.word_id,
-               COALESCE(w.priority_score, 0) + CASE WHEN w.is_common THEN 20 ELSE 0 END AS score
+               COALESCE(w.priority_score, 0)
+                 + CASE WHEN w.is_common THEN 20 ELSE 0 END
+                 + ${JLPT_BOOST_SQL} AS score
           FROM word_kanji wk
           JOIN words w ON w.id = wk.word_id
          WHERE wk.kanji = ANY($1::text[])
         UNION
         SELECT wr.kana, wr.word_id,
-               COALESCE(w.priority_score, 0) + CASE WHEN w.is_common THEN 20 ELSE 0 END
+               COALESCE(w.priority_score, 0)
+                 + CASE WHEN w.is_common THEN 20 ELSE 0 END
+                 + ${JLPT_BOOST_SQL}
           FROM word_readings wr
           JOIN words w ON w.id = wr.word_id
          WHERE wr.kana = ANY($1::text[])
         UNION
         SELECT wf.form, wf.base_id,
-               COALESCE(w.priority_score, 0) + CASE WHEN w.is_common THEN 20 ELSE 0 END
+               COALESCE(w.priority_score, 0)
+                 + CASE WHEN w.is_common THEN 20 ELSE 0 END
+                 + ${JLPT_BOOST_SQL}
           FROM word_forms wf
           JOIN words w ON w.id = wf.base_id
          WHERE wf.form = ANY($1::text[])
@@ -111,6 +129,7 @@ class PgSearchIndex extends SearchIndex {
       SELECT DISTINCT ON (wk.word_id) wk.word_id,
              (COALESCE(w.priority_score, 0)
               + CASE WHEN w.is_common THEN 20 ELSE 0 END
+              + ${JLPT_BOOST_SQL}
               -- Prefer shorter kanji forms (more canonical uses of the character).
               - length(wk.kanji)) AS score
       FROM word_kanji wk
@@ -132,6 +151,7 @@ class PgSearchIndex extends SearchIndex {
       SELECT w.id,
              w.is_common,
              w.priority_score,
+             w.jlpt_level,
              COALESCE(
                (SELECT json_agg(DISTINCT wk.kanji)
                 FROM word_kanji wk WHERE wk.word_id = w.id),
@@ -172,6 +192,7 @@ class PgSearchIndex extends SearchIndex {
         id: Number(r.id),
         is_common: !!r.is_common,
         priority_score: r.priority_score ?? 0,
+        jlpt_level: r.jlpt_level ?? null,
         kanji:    r.kanji    ?? [],
         readings: r.readings ?? [],
         meanings: r.meanings ?? [],

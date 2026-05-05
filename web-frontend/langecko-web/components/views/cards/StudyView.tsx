@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { X, Check, RotateCcw, ArrowLeft, Volume2 } from 'lucide-react';
 import type { Deck } from './types';
 import { useStudySession } from './useStudySession';
+import { useTheme } from '@/components/providers/ThemeProvider';
+import { ReaderProgressBar } from '@/components/reader/ReaderProgressBar';
 
 interface StudyViewProps {
   deck: Deck;
@@ -12,6 +14,8 @@ interface StudyViewProps {
 
 export function StudyView({ deck, onExit }: StudyViewProps) {
   const session = useStudySession(deck.cards);
+  const { theme } = useTheme();
+  const isStamp = theme === 'stamp';
   const [flipped, setFlipped] = useState(false);
 
   useEffect(() => {
@@ -75,8 +79,10 @@ export function StudyView({ deck, onExit }: StudyViewProps) {
       <div
         className="flex items-center gap-2.5 border-b border-lgc-border px-4 py-2.5 @md:gap-4 @md:px-7 @md:py-3.5"
         style={{
-          background: 'color-mix(in oklab, var(--lgc-bg) 85%, transparent)',
-          backdropFilter: 'blur(10px)',
+          background: isStamp
+            ? 'var(--lgc-bg-elev)'
+            : 'color-mix(in oklab, var(--lgc-bg) 85%, transparent)',
+          backdropFilter: isStamp ? 'none' : 'blur(10px)',
         }}
       >
         <button
@@ -96,12 +102,10 @@ export function StudyView({ deck, onExit }: StudyViewProps) {
               ? `${session.total} / ${session.total}`
               : `${session.index + 1} / ${session.total}`}
           </div>
-          <div className="h-1 max-w-150 flex-1 overflow-hidden rounded-full bg-lgc-bg-sunken">
-            <div
-              className="h-full bg-lgc-accent transition-[width] duration-300"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
+          <ReaderProgressBar
+            fraction={pct}
+            className="h-1 max-w-150 flex-1 overflow-hidden"
+          />
           <div
             className="min-w-12 text-right text-[11px] text-lgc-fg-muted"
             style={{ fontFamily: 'var(--font-mono, Geist Mono, monospace)' }}
@@ -144,6 +148,7 @@ export function StudyView({ deck, onExit }: StudyViewProps) {
               contextSentence={session.current.context_sentence}
               flipped={flipped}
               onFlip={flip}
+              isStamp={isStamp}
             />
             <ActionButtons flipped={flipped} onFlip={flip} onAdvance={advance} />
           </>
@@ -166,12 +171,14 @@ function StudyCard({
   contextSentence,
   flipped,
   onFlip,
+  isStamp,
 }: {
   front: string;
   back: string;
   contextSentence?: string;
   flipped: boolean;
   onFlip: () => void;
+  isStamp: boolean;
 }) {
   return (
     <button
@@ -181,7 +188,7 @@ function StudyCard({
       style={{
         minHeight: 'min(380px, 60vh)',
         padding: 'clamp(20px, 4vw, 36px) clamp(16px, 4vw, 32px)',
-        boxShadow: '0 20px 50px -20px rgba(0,0,0,0.2)',
+        boxShadow: isStamp ? undefined : '0 20px 50px -20px rgba(0,0,0,0.2)',
       }}
     >
       {/* Side label */}

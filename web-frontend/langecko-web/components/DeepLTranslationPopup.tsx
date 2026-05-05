@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTheme } from '@/components/providers/ThemeProvider';
 
 type Position = { x: number; y: number };
 
@@ -15,15 +16,13 @@ type Props = {
   onClose: () => void;
 };
 
-async function callTranslateApi(
-  text: string,
-): Promise<{ translatedText: string; detectedLanguage: string }> {
+async function callTranslateApi(text: string): Promise<{ translatedText: string; detectedLanguage: string }> {
   const res = await fetch('/api/translate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
   });
-  const data = await res.json() as {
+  const data = (await res.json()) as {
     translatedText?: string;
     detectedLanguage?: string;
     error?: string;
@@ -35,6 +34,8 @@ async function callTranslateApi(
 }
 
 export function DeepLTranslationPopup({ originalText, position, onClose }: Props) {
+  const { theme } = useTheme();
+  const isStamp = theme === 'stamp';
   const [state, setState] = useState<TranslationState>({ status: 'loading' });
   const popupRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPos] = useState<Position>(position);
@@ -54,7 +55,9 @@ export function DeepLTranslationPopup({ originalText, position, onClose }: Props
           });
         }
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [originalText]);
 
   // Clamp popup within viewport after mount / state change
@@ -86,7 +89,15 @@ export function DeepLTranslationPopup({ originalText, position, onClose }: Props
   return (
     <div
       ref={popupRef}
-      style={{ position: 'fixed', left: adjustedPos.x, top: adjustedPos.y, zIndex: 10000 }}
+      style={{
+        position: 'fixed',
+        left: adjustedPos.x,
+        top: adjustedPos.y,
+        zIndex: 10000,
+        boxShadow: isStamp ? '4px 4px 0 var(--lgc-fg)' : undefined,
+        borderWidth: isStamp ? 1.5 : undefined,
+        borderColor: isStamp ? 'var(--lgc-fg)' : undefined,
+      }}
       className="w-72 rounded-lg border border-lgc-border-strong bg-lgc-bg shadow-lg"
     >
       {/* Header */}
@@ -105,9 +116,7 @@ export function DeepLTranslationPopup({ originalText, position, onClose }: Props
       {/* Original text */}
       <div className="px-3 pt-2 pb-1">
         <p className="mb-1 text-xs font-medium text-lgc-fg-muted">Original</p>
-        <p className="rounded bg-lgc-bg-sunken px-2 py-1.5 text-sm text-lgc-fg break-words">
-          {originalText}
-        </p>
+        <p className="rounded bg-lgc-bg-sunken px-2 py-1.5 text-sm text-lgc-fg wrap-break-word">{originalText}</p>
       </div>
 
       {/* Translation */}
@@ -115,20 +124,17 @@ export function DeepLTranslationPopup({ originalText, position, onClose }: Props
         <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-lgc-fg-muted">
           Translation
           {state.status === 'success' && (
-            <span className="rounded px-1 py-0.5 text-[10px] font-normal text-lgc-accent" style={{ background: 'var(--lgc-accent-soft)' }}>
+            <span
+              className="rounded px-1 py-0.5 text-[10px] font-normal text-lgc-accent"
+              style={{ background: 'var(--lgc-accent-soft)' }}
+            >
               {state.detectedLanguage} → EN
             </span>
           )}
         </p>
-        {state.status === 'loading' && (
-          <p className="text-sm italic text-lgc-fg-muted">Translating…</p>
-        )}
-        {state.status === 'error' && (
-          <p className="text-sm text-red-500">{state.message}</p>
-        )}
-        {state.status === 'success' && (
-          <p className="text-sm text-lgc-fg break-words">{state.translatedText}</p>
-        )}
+        {state.status === 'loading' && <p className="text-sm italic text-lgc-fg-muted">Translating…</p>}
+        {state.status === 'error' && <p className="text-sm text-red-500">{state.message}</p>}
+        {state.status === 'success' && <p className="text-sm text-lgc-fg wrap-break-word">{state.translatedText}</p>}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import ProfilePage from '@/app/profile/page';
+import { useTheme } from '@/components/providers/ThemeProvider';
 
 type Props = {
   onClose: () => void;
@@ -9,6 +10,8 @@ type Props = {
 
 export default function ProfileBubble({ onClose }: Props) {
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
+  const isStamp = theme === 'stamp';
 
   // Close on Escape
   useEffect(() => {
@@ -51,9 +54,9 @@ export default function ProfileBubble({ onClose }: Props) {
           left: '50%',
           transform: 'translateX(-50%)',
           background: 'var(--lgc-bg-elev)',
-          border: '1px solid var(--lgc-border)',
-          borderRadius: 20,
-          boxShadow: '0 32px 80px rgba(0,0,0,0.22)',
+          border: isStamp ? '2px solid var(--lgc-fg)' : '1px solid var(--lgc-border)',
+          borderRadius: isStamp ? 0 : 20,
+          boxShadow: isStamp ? '6px 6px 0 var(--lgc-fg)' : '0 32px 80px rgba(0,0,0,0.22)',
         }}
       >
         <div className="h-full overflow-auto">

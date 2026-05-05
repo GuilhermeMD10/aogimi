@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
-import { TocSheet } from './TocSheet';
-import { AnnotationsSheet } from './AnnotationsSheet';
-import type { EpubTocItem, ReaderViewMode } from './epubHtml';
+import { TocSheet } from '../TocSheet';
+import { AnnotationsSheet } from '../AnnotationsSheet';
+import type { EpubTocItem, ReaderViewMode } from '../epubHtml';
 import type { EpubBookmark } from '@/lib/readerStorage';
 
 type Sheet = 'toc' | 'annotations' | null;
@@ -52,12 +52,7 @@ export function MangaReader({
   return (
     <>
       <View pointerEvents="box-none" style={styles.host}>
-        <View
-          style={[
-            styles.bar,
-            { backgroundColor: c.bgElev, borderColor: c.borderStrong },
-          ]}
-        >
+        <View style={[styles.bar, { backgroundColor: c.bgElev, borderColor: c.borderStrong }]}>
           {/* Manga is RTL: left button advances */}
           <Btn label="‹" onPress={onNext} c={c} />
           <Btn label="›" onPress={onPrev} c={c} />
@@ -72,18 +67,11 @@ export function MangaReader({
           />
           <Btn
             label="★"
-            onPress={() =>
-              setSheet((s) => (s === 'annotations' ? null : 'annotations'))
-            }
+            onPress={() => setSheet((s) => (s === 'annotations' ? null : 'annotations'))}
             active={sheet === 'annotations'}
             c={c}
           />
-          <Btn
-            label={isBookmarked ? '●' : '+'}
-            onPress={onToggleBookmark}
-            active={isBookmarked}
-            c={c}
-          />
+          <Btn label={isBookmarked ? '●' : '+'} onPress={onToggleBookmark} active={isBookmarked} c={c} />
 
           <Divider c={c} />
 
@@ -101,12 +89,7 @@ export function MangaReader({
         </View>
       </View>
 
-      <TocSheet
-        visible={sheet === 'toc'}
-        toc={toc}
-        onDismiss={() => setSheet(null)}
-        onNavigate={onJumpHref}
-      />
+      <TocSheet visible={sheet === 'toc'} toc={toc} onDismiss={() => setSheet(null)} onNavigate={onJumpHref} />
 
       <AnnotationsSheet
         visible={sheet === 'annotations'}
@@ -138,22 +121,10 @@ function Btn({
   return (
     <Pressable
       onPress={onPress}
-      style={[
-        styles.btn,
-        small ? styles.btnSmall : undefined,
-        active && { backgroundColor: c.accentSoft },
-      ]}
+      style={[styles.btn, small ? styles.btnSmall : undefined, active && { backgroundColor: c.accentSoft }]}
       hitSlop={4}
     >
-      <Text
-        style={[
-          styles.label,
-          { color: active ? c.accent : c.fg },
-          small && styles.labelSmall,
-        ]}
-      >
-        {label}
-      </Text>
+      <Text style={[styles.label, { color: active ? c.accent : c.fg }, small && styles.labelSmall]}>{label}</Text>
     </Pressable>
   );
 }

@@ -3,6 +3,7 @@
 import { forwardRef, useLayoutEffect, useRef, useState } from 'react';
 import { Search, Languages, Plus } from 'lucide-react';
 import { HIGHLIGHT_COLORS, type HighlightColor, type EpubHighlight } from '@/components/reader/useBookStorage';
+import { useTheme } from '@/components/providers/ThemeProvider';
 
 const CTX_BTN =
   'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12.5px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg';
@@ -24,6 +25,8 @@ type Props = {
 
 export const TextContextMenu = forwardRef<HTMLDivElement, Props>(
   function TextContextMenu({ x, y, selectedCfi, epubHighlights, onLookup, onDeepL, onHighlight, onAddCard, onClose }, ref) {
+    const { theme } = useTheme();
+    const isStamp = theme === 'stamp';
     const innerRef = useRef<HTMLDivElement>(null);
     const [pos, setPos] = useState({ left: x, top: y });
 
@@ -56,7 +59,15 @@ export const TextContextMenu = forwardRef<HTMLDivElement, Props>(
           if (typeof ref === 'function') ref(el);
           else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = el;
         }}
-        style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 50 }}
+        style={{
+          position: 'fixed',
+          left: pos.left,
+          top: pos.top,
+          zIndex: 50,
+          boxShadow: isStamp ? '3px 3px 0 var(--lgc-fg)' : undefined,
+          borderWidth: isStamp ? 1.5 : undefined,
+          borderColor: isStamp ? 'var(--lgc-fg)' : undefined,
+        }}
         className="flex items-center gap-0.5 rounded-lg border border-lgc-border-strong bg-lgc-bg-elev p-1.5 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.25)]"
       >
         <button type="button" onClick={() => { onLookup(); onClose(); }} className={CTX_BTN}><Search size={13} /> Dictionary</button>

@@ -11,10 +11,12 @@ import { MangaReader } from '@/components/reader/MangaReader';
 type Props = {
   fileUrl: string;
   filename: string;
+  bookTitle: string;
   initialCfi?: string;
   onLookup: (word: string, contextSentence?: string) => void;
   onAddCard: (word: string, contextSentence?: string) => void;
   onProgressChange?: (progress: number, cfi: string) => void;
+  onBack: () => void;
 };
 
 type ReaderType = 'text' | 'novel' | 'manga';
@@ -26,10 +28,12 @@ type ReaderType = 'text' | 'novel' | 'manga';
 export function EpubReader({
   fileUrl,
   filename,
+  bookTitle,
   initialCfi,
   onLookup,
   onAddCard,
   onProgressChange,
+  onBack,
 }: Props) {
   const [book, setBook] = useState<Book | null>(null);
   const [readerType, setReaderType] = useState<ReaderType | null>(null);
@@ -106,7 +110,7 @@ export function EpubReader({
 
   // ── Render the appropriate reader ───────────────────────────────────────
 
-  const shared = { book, filename, initialCfi, onLookup, onAddCard, onProgressChange };
+  const shared = { book, filename, bookTitle, initialCfi, onLookup, onAddCard, onProgressChange, onBack };
 
   switch (readerType) {
     case 'manga':

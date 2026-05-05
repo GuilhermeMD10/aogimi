@@ -1,7 +1,7 @@
 const pool = require("../db");
 
 const KANJI_SELECT = `
-  SELECT literal, grade, stroke_count, radical,
+  SELECT literal, grade, jlpt_level, stroke_count, radical,
          meaning, on_readings, kun_readings, pinyin`;
 
 async function findByLiteral(literal) {

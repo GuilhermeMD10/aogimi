@@ -1,11 +1,4 @@
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { File } from 'expo-file-system';
@@ -19,7 +12,7 @@ import {
   type HighlightStyle,
   type ReaderThemeStyle,
   type ReaderViewMode,
-} from './epubHtml';
+} from '../epubHtml';
 
 export type EpubReaderHandle = {
   setStyle: (style: ReaderThemeStyle) => void;
@@ -57,12 +50,7 @@ export type SelectionPayload = {
   pageY: number;
 };
 
-export type CustomMenuKey =
-  | 'dict'
-  | 'card'
-  | 'deepl'
-  | 'highlight'
-  | 'copy';
+export type CustomMenuKey = 'dict' | 'card' | 'deepl' | 'highlight' | 'copy';
 
 export type CustomMenuEvent = {
   key: CustomMenuKey;
@@ -114,9 +102,7 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
     const json = JSON.stringify(msg);
     const safe = JSON.stringify(json);
     wv.injectJavaScript(
-      `(function(){var m=${safe};` +
-        `document.dispatchEvent(new MessageEvent('message',{data:m}));` +
-        `})();true;`,
+      `(function(){var m=${safe};` + `document.dispatchEvent(new MessageEvent('message',{data:m}));` + `})();true;`,
     );
   }, []);
 
@@ -129,8 +115,7 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
       goToSpine: (index) => post({ type: 'goToSpine', index }),
       next: () => post({ type: 'next' }),
       prev: () => post({ type: 'prev' }),
-      addHighlight: (id, cfi, color) =>
-        post({ type: 'addHighlight', id, cfi, color }),
+      addHighlight: (id, cfi, color) => post({ type: 'addHighlight', id, cfi, color }),
       removeHighlight: (cfi) => post({ type: 'removeHighlight', cfi }),
     }),
     [post],
@@ -153,8 +138,7 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
           highlights: initialHighlights,
         });
       } catch (err) {
-        if (!cancelled)
-          onError?.(err instanceof Error ? err.message : 'Failed to open EPUB');
+        if (!cancelled) onError?.(err instanceof Error ? err.message : 'Failed to open EPUB');
       }
     })();
     return () => {
@@ -188,13 +172,7 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
   const handleCustomMenu = useCallback(
     (e: { nativeEvent: { key: string; label: string; selectedText: string } }) => {
       const { key, selectedText } = e.nativeEvent;
-      if (
-        key === 'dict' ||
-        key === 'card' ||
-        key === 'deepl' ||
-        key === 'highlight' ||
-        key === 'copy'
-      ) {
+      if (key === 'dict' || key === 'card' || key === 'deepl' || key === 'highlight' || key === 'copy') {
         onCustomMenu?.({ key: key as CustomMenuKey, selectedText });
       }
     },

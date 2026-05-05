@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ReaderStateProvider } from '@/components/providers/ReaderStateProvider';
 import { WorkspaceTabsProvider } from '@/components/providers/WorkspaceTabsProvider';
-import WorkspaceNav, { type BubbleKey } from '@/components/WorkspaceNav';
+import { BubbleProvider, useBubble } from '@/components/providers/BubbleProvider';
+import WorkspaceNav from '@/components/WorkspaceNav';
 import ProfileBubble from '@/components/page-bubbles/ProfileBubble';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -32,25 +33,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ReaderStateProvider>
       <WorkspaceTabsProvider>
-        <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
+        <BubbleProvider>
+          <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
+        </BubbleProvider>
       </WorkspaceTabsProvider>
     </ReaderStateProvider>
   );
 }
 
 function ShellContent({ isAuthPage, children }: { isAuthPage: boolean; children: React.ReactNode }) {
-  const [activeBubble, setActiveBubble] = useState<BubbleKey | null>(null);
-
-  const handleToggleBubble = useCallback((key: BubbleKey) => {
-    setActiveBubble((prev) => (prev === key ? null : key));
-  }, []);
+  const { activeBubble, setActiveBubble, toggleBubble } = useBubble();
 
   return (
     <main className="h-full w-full">
       {children}
 
       {!isAuthPage && (
-        <WorkspaceNav activeBubble={activeBubble} onToggleBubble={handleToggleBubble} />
+        <WorkspaceNav activeBubble={activeBubble} onToggleBubble={toggleBubble} />
       )}
 
       {activeBubble === 'profile' && <ProfileBubble onClose={() => setActiveBubble(null)} />}

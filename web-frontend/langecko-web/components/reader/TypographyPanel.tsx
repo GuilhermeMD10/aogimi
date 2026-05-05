@@ -3,6 +3,7 @@
 import { Minus, Plus, X } from 'lucide-react';
 import type { ReaderPrefs } from '@/components/reader/useBookStorage';
 import { THEMES, ICON_BTN } from '@/components/reader/readerConstants';
+import { useTheme } from '@/components/providers/ThemeProvider';
 
 const TYPO_LABEL = 'mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-lgc-fg-muted';
 const TYPO_BTN = 'rounded-md px-2.5 py-1.5 text-[11px] transition-colors';
@@ -16,8 +17,21 @@ type Props = {
 };
 
 export function TypographyPanel({ prefs, onSavePrefs, onClose }: Props) {
+  const { theme } = useTheme();
+  const isStamp = theme === 'stamp';
   return (
-    <div className="w-80 rounded-xl border border-lgc-border-strong bg-lgc-bg-elev p-4 shadow-xl">
+    <div
+      className="w-80 rounded-xl border border-lgc-border-strong bg-lgc-bg-elev p-4 shadow-xl"
+      style={
+        isStamp
+          ? {
+              borderWidth: 1.5,
+              borderColor: 'var(--lgc-fg)',
+              boxShadow: '4px 4px 0 var(--lgc-fg)',
+            }
+          : undefined
+      }
+    >
       <div className="mb-3.5 flex items-center justify-between">
         <span className="text-[12.5px] font-semibold text-lgc-fg">Typography & Layout</span>
         <button type="button" onClick={onClose} className={ICON_BTN} style={{ width: 24, height: 24 }}>

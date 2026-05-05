@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { CardModel, DeckSummary } from './types';
 import { btnBase, btnPrimary } from './types';
+import { useTheme } from '@/components/providers/ThemeProvider';
 
 export type PendingCardFlow =
   | { phase: 'select-deck'; word: string; initialBack?: string; contextSentence?: string }
@@ -26,6 +27,8 @@ export function PendingCardOverlay({
   onCreateDeckAndUse,
   onSubmitCard,
 }: PendingCardOverlayProps) {
+  const { theme } = useTheme();
+  const isStamp = theme === 'stamp';
   const [newDeckName, setNewDeckName] = useState('');
   const [showNewDeck, setShowNewDeck] = useState(false);
   const [pendingBack, setPendingBack] = useState('');
@@ -63,7 +66,14 @@ export function PendingCardOverlay({
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-xl border border-lgc-border bg-lgc-bg-elev p-6 shadow-xl">
+      <div
+        className="w-full max-w-sm rounded-xl border border-lgc-border bg-lgc-bg-elev p-6 shadow-xl"
+        style={{
+          borderWidth: isStamp ? 2 : undefined,
+          borderColor: isStamp ? 'var(--lgc-fg)' : undefined,
+          boxShadow: isStamp ? '6px 6px 0 var(--lgc-fg)' : undefined,
+        }}
+      >
         {flow.phase === 'select-deck' ? (
           <SelectDeckPhase
             word={flow.word}

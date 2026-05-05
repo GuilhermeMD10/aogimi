@@ -55,6 +55,7 @@ const THEME_PREVIEW: Record<AppTheme, { bg: string; bgElev: string; fg: string; 
   kanagawa: { bg: '#EDE6D3', bgElev: '#F6F0DE', fg: '#0F2340', fgMuted: '#4A5E80', accent: '#1E3D6B', border: 'rgba(15,35,64,0.14)' },
   sakura:   { bg: '#FBF4F2', bgElev: '#FFFBFA', fg: '#3E2A2F', fgMuted: '#7A5A5F', accent: '#D47A8C', border: 'rgba(62,42,47,0.12)' },
   hanami:   { bg: '#14100C', bgElev: '#1E1814', fg: '#F5E9D4', fgMuted: '#B0987A', accent: '#E04B2A', border: 'rgba(245,233,212,0.14)' },
+  stamp:    { bg: '#EBE2D0', bgElev: '#F0E6D2', fg: '#1A1411', fgMuted: '#3B2F26', accent: '#C8362B', border: '#1A1411' },
 };
 
 // ── Kamon avatar component ───────────────────────────────────────────────────
@@ -218,11 +219,24 @@ function AvatarPickerModal({
   onClose: () => void;
 }) {
   const [selected, setSelected] = useState(current);
+  const { theme: appTheme } = useTheme();
+  const isStamp = appTheme === 'stamp';
 
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-140 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg-elev shadow-2xl">
+      <div
+        className="fixed left-1/2 top-1/2 z-50 w-full max-w-140 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg-elev shadow-2xl"
+        style={
+          isStamp
+            ? {
+                borderWidth: 2,
+                borderColor: 'var(--lgc-fg)',
+                boxShadow: '6px 6px 0 var(--lgc-fg)',
+              }
+            : undefined
+        }
+      >
         {/* Header */}
         <div className="flex items-center border-b border-lgc-border px-5 py-4">
           <div>
@@ -768,7 +782,18 @@ export default function ProfilePage() {
       {showOnboarding && (
         <>
           <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setShowOnboarding(false)} />
-          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg shadow-2xl">
+          <div
+            className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg shadow-2xl"
+            style={
+              theme === 'stamp'
+                ? {
+                    borderWidth: 2,
+                    borderColor: 'var(--lgc-fg)',
+                    boxShadow: '6px 6px 0 var(--lgc-fg)',
+                  }
+                : undefined
+            }
+          >
             <OnboardingExplainer
               userId={user!.id}
               onDismiss={() => setShowOnboarding(false)}

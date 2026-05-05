@@ -1,14 +1,10 @@
 import { useState } from 'react';
-import { ReaderToolbar, type ToolbarAction } from './ReaderToolbar';
-import { TocSheet } from './TocSheet';
-import { AnnotationsSheet } from './AnnotationsSheet';
-import { TypographyPanel } from './TypographyPanel';
-import type { EpubTocItem } from './epubHtml';
-import type {
-  EpubBookmark,
-  EpubHighlight,
-  ReaderPrefs,
-} from '@/lib/readerStorage';
+import { ReaderToolbar, type ToolbarAction } from '../ReaderToolbar';
+import { TocSheet } from '../TocSheet';
+import { AnnotationsSheet } from '../AnnotationsSheet';
+import { TypographyPanel } from '../TypographyPanel';
+import type { EpubTocItem } from '../epubHtml';
+import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '@/lib/readerStorage';
 
 type Sheet = 'toc' | 'annotations' | 'typography' | null;
 
@@ -92,12 +88,7 @@ export function TextReader({
     <>
       <ReaderToolbar active={active} onAction={handleAction} />
 
-      <TocSheet
-        visible={sheet === 'toc'}
-        toc={toc}
-        onDismiss={() => setSheet(null)}
-        onNavigate={onJumpHref}
-      />
+      <TocSheet visible={sheet === 'toc'} toc={toc} onDismiss={() => setSheet(null)} onNavigate={onJumpHref} />
 
       <AnnotationsSheet
         visible={sheet === 'annotations'}

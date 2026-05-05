@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
@@ -22,10 +16,7 @@ import {
   type HighlightColor,
 } from '@/lib/readerStorage';
 import { DictDrawer } from '@/components/dictionary/DictDrawer';
-import {
-  FlashcardDrawer,
-  type FlashcardPrefill,
-} from '@/components/flashcards/FlashcardDrawer';
+import { FlashcardDrawer, type FlashcardPrefill } from '@/components/flashcards/FlashcardDrawer';
 import { Button } from '@/components/ui/Button';
 import { ReaderTopBar } from './ReaderTopBar';
 import {
@@ -35,19 +26,13 @@ import {
   type ReadyPayload,
   type RelocatedPayload,
   type SelectionPayload,
-} from './EpubReader';
-import { TextReader } from './TextReader';
-import { NovelReader } from './NovelReader';
-import { MangaReader } from './MangaReader';
+} from './readers/EpubReader';
+import { TextReader } from './readers/TextReader';
+import { NovelReader } from './readers/NovelReader';
+import { MangaReader } from './readers/MangaReader';
 import { HighlightPicker } from './HighlightPicker';
 import { DeepLPopup } from './DeepLPopup';
-import type {
-  BookType,
-  EpubTocItem,
-  HighlightStyle,
-  ReaderThemeStyle,
-  ReaderViewMode,
-} from './epubHtml';
+import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle, ReaderViewMode } from './epubHtml';
 
 type Props = { bookId: string };
 
@@ -110,8 +95,7 @@ export function ReaderScreen({ bookId }: Props) {
         setBook(data);
         setHasFile(bookFileExists(data.filename));
       } catch (err) {
-        if (!cancelled)
-          setError(err instanceof Error ? err.message : 'Failed to load book');
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load book');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -230,30 +214,37 @@ export function ReaderScreen({ bookId }: Props) {
     setHighlightPicker(null);
   }, [highlightPicker, highlights, removeHighlight]);
 
-  const existingHighlightAtPicker =
-    highlightPicker
-      ? (highlights.find((h) => h.cfi === highlightPicker.cfi)?.color ?? null)
-      : null;
+  const existingHighlightAtPicker = highlightPicker
+    ? (highlights.find((h) => h.cfi === highlightPicker.cfi)?.color ?? null)
+    : null;
 
-  const handleAddFlashcardFromDict = useCallback((details: WordDetails) => {
-    const w = details.word;
-    setFlashcardPrefill({
-      front: w.kanji[0] ?? w.readings[0] ?? '',
-      reading: w.readings[0] ?? '',
-      back: w.meanings
-        .filter((m) => m.lang === 'eng' || m.lang === 'en')
-        .slice(0, 2)
-        .map((m) => m.meaning)
-        .join('; '),
-    });
-    setDictTerm(null);
-  }, []);
+  const handleAddFlashcardFromDict = useCallback(
+    (details: WordDetails) => {
+      const w = details.word;
+      // Force the searched form into the front of the card — the dictionary
+      // entry's `kanji[0]` is often a more common variant that's not what
+      // the user actually highlighted. Fall back to the entry default.
+      const q = (dictTerm ?? '').trim();
+      const front =
+        (q && (w.kanji.includes(q) || w.readings.includes(q))
+          ? q
+          : w.kanji[0] ?? w.readings[0]) ?? '';
+      setFlashcardPrefill({
+        front,
+        reading: w.readings[0] ?? '',
+        back: w.meanings
+          .filter((m) => m.lang === 'eng' || m.lang === 'en')
+          .slice(0, 3)
+          .map((m) => m.meaning)
+          .join('; '),
+      });
+      setDictTerm(null);
+    },
+    [dictTerm],
+  );
 
   // ── Bookmark add/toggle ─────────────────────────────────────────────
-  const isBookmarked = useMemo(
-    () => bookmarks.some((b) => b.cfi === currentCfi),
-    [bookmarks, currentCfi],
-  );
+  const isBookmarked = useMemo(() => bookmarks.some((b) => b.cfi === currentCfi), [bookmarks, currentCfi]);
 
   const toggleBookmark = useCallback(() => {
     if (!currentCfi) return;
@@ -262,9 +253,7 @@ export function ReaderScreen({ bookId }: Props) {
       removeBookmark(existing.id);
       return;
     }
-    const label = chapterLabel
-      ? `${chapterLabel} · ${progress}%`
-      : `${progress}%`;
+    const label = chapterLabel ? `${chapterLabel} · ${progress}%` : `${progress}%`;
     addBookmark({ cfi: currentCfi, label });
   }, [currentCfi, bookmarks, chapterLabel, progress, addBookmark, removeBookmark]);
 
@@ -341,9 +330,7 @@ export function ReaderScreen({ bookId }: Props) {
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
         <View style={styles.errorWrap}>
-          <Text style={[styles.errorTitle, { color: c.fg }]}>
-            {error ?? 'Book not found'}
-          </Text>
+          <Text style={[styles.errorTitle, { color: c.fg }]}>{error ?? 'Book not found'}</Text>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <Text style={[styles.back, { color: c.fgMuted }]}>‹ Back</Text>
           </Pressable>
@@ -398,12 +385,9 @@ export function ReaderScreen({ bookId }: Props) {
           />
         ) : !hasFile ? (
           <View style={styles.missingWrap}>
-            <Text style={[styles.missingTitle, { color: c.fg }]}>
-              File not on this device
-            </Text>
+            <Text style={[styles.missingTitle, { color: c.fg }]}>File not on this device</Text>
             <Text style={[styles.missingBody, { color: c.fgMuted }]}>
-              This book is on your account from another device. Import the EPUB
-              file here to start reading.
+              This book is on your account from another device. Import the EPUB file here to start reading.
             </Text>
             <Button label="Import EPUB" onPress={handleImportMissingFile} />
           </View>
@@ -458,11 +442,7 @@ export function ReaderScreen({ bookId }: Props) {
         onDismiss={() => setFlashcardPrefill(null)}
       />
 
-      <DeepLPopup
-        visible={deepLText !== null}
-        text={deepLText ?? ''}
-        onDismiss={() => setDeepLText(null)}
-      />
+      <DeepLPopup visible={deepLText !== null} text={deepLText ?? ''} onDismiss={() => setDeepLText(null)} />
     </SafeAreaView>
   );
 }

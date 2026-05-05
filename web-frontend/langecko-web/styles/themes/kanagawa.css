@@ -1,0 +1,26 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   THEME: Kanagawa — Hokusai's Great Wave
+   Deep indigo / prussian blue, aged paper, sea foam.
+   Color-only override; inherits shape defaults.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+html[data-theme="kanagawa"] {
+  --lgc-bg:            #EDE6D3;
+  --lgc-bg-elev:       #F6F0DE;
+  --lgc-bg-sunken:     #E0D7BE;
+
+  --lgc-fg:            #0F2340;
+  --lgc-fg-muted:      #4A5E80;
+  --lgc-fg-subtle:     #8494AC;
+
+  --lgc-border:        rgba(15, 35, 64, 0.10);
+  --lgc-border-strong: rgba(15, 35, 64, 0.18);
+
+  --lgc-accent:        #1E3D6B;
+  --lgc-accent-soft:   #C9D6E4;
+  --lgc-accent-fg:     #FFFFFF;
+
+  --lgc-success:       #3B7A40;
+  --lgc-warning:       #B8802A;
+  --lgc-error:         #A04040;
+}

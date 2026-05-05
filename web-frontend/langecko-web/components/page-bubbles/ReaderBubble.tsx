@@ -3,8 +3,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, Plus, Search, X } from 'lucide-react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { preferredHeadword } from '@/components/views/WordDetailView';
+import { useTheme } from '@/components/providers/ThemeProvider';
 import * as decksApi from '@/lib/decksApi';
 import type { DeckRecord } from '@/lib/decksApi';
+
+const MAX_MEANINGS_ON_CARD = 3;
+
+/** Mean grade of the kanji in a word (lower = simpler → ranks higher).
+ *  Used for ordering only — not displayed. */
+function meanWordGrade(word: WordResult): number {
+  const grades = (word.char_grades ?? [])
+    .map((c) => c.grade)
+    .filter((g): g is number => g != null);
+  if (grades.length > 0) return grades.reduce((a, b) => a + b, 0) / grades.length;
+  return 0;
+}
 
 // ── Types (matching backend search / details responses) ─────────────────────
 
@@ -95,6 +109,8 @@ interface ReaderBubbleProps {
 }
 
 export default function ReaderBubble({ initialWord, contextSentence, startAtAddCard, initialBack, onClose }: ReaderBubbleProps) {
+  const { theme } = useTheme();
+  const isStamp = theme === 'stamp';
   const [phase, setPhase] = useState<Phase>(
     startAtAddCard
       ? { type: 'select-deck', word: initialWord, back: initialBack ?? '', wordId: null }
@@ -172,9 +188,9 @@ export default function ReaderBubble({ initialWord, contextSentence, startAtAddC
           left: '50%',
           transform: 'translateX(-50%)',
           background: 'var(--lgc-bg-elev)',
-          border: '1px solid var(--lgc-border)',
-          borderRadius: 20,
-          boxShadow: '0 32px 80px rgba(0,0,0,0.22)',
+          border: isStamp ? '2px solid var(--lgc-fg)' : '1px solid var(--lgc-border)',
+          borderRadius: isStamp ? 0 : 20,
+          boxShadow: isStamp ? '6px 6px 0 var(--lgc-fg)' : '0 32px 80px rgba(0,0,0,0.22)',
         }}
       >
         {phase.type === 'search' && (
@@ -195,6 +211,7 @@ export default function ReaderBubble({ initialWord, contextSentence, startAtAddC
         {phase.type === 'word-detail' && (
           <WordDetailPhase
             wordId={phase.wordId}
+            query={query}
             onBack={() => setPhase({ type: 'search' })}
             onAddCard={(word, back) =>
               setPhase({ type: 'select-deck', word, back, wordId: phase.wordId })
@@ -270,7 +287,8 @@ function SearchPhase({
   onAddKanjiCard: (word: string, back: string) => void;
   onClose: () => void;
 }) {
-  const words = result ? ('words' in result ? result.words : []) : [];
+  const rawWords = result ? ('words' in result ? result.words : []) : [];
+  const words = [...rawWords].sort((a, b) => meanWordGrade(a) - meanWordGrade(b));
   const kanjiInfo = result?.type === 'kanji' ? result.kanji : null;
 
   return (
@@ -349,6 +367,7 @@ function SearchPhase({
                   word={word}
                   index={i}
                   active={i === 0}
+                  query={query}
                   onClick={() => onWordClick(word.id)}
                 />
               ))}
@@ -373,12 +392,15 @@ function SearchPhase({
 
 function WordDetailPhase({
   wordId,
+  query,
   onBack,
   onAddCard,
   onKanjiSearch,
   onClose,
 }: {
   wordId: number;
+  /** User's current query — preferred form forced into the headword. */
+  query?: string;
   onBack: () => void;
   onAddCard: (word: string, back: string) => void;
   onKanjiSearch: (char: string) => void;
@@ -412,24 +434,17 @@ function WordDetailPhase({
 
   const handleAddCard = () => {
     if (!data) return;
-    const { word, kanjis } = data;
-    const headword = word.kanji[0] ?? word.readings[0] ?? '\u2014';
+    const { word } = data;
+    const headword = preferredHeadword(word, query);
     const reading = word.readings[0];
     const engMeanings = word.meanings.filter((m) => m.lang === 'eng');
 
+    // Back = kana reading + up to 3 numbered meanings. No per-kanji breakdown.
     const parts: string[] = [];
     if (reading) parts.push(reading);
-    if (kanjis.length > 0) {
-      const kanjiLines = kanjis.map((k) => {
-        const readings: string[] = [];
-        if (k.on_readings.length > 0) readings.push(k.on_readings.join('\u3001'));
-        if (k.kun_readings.length > 0) readings.push(k.kun_readings.join('\u3001'));
-        return `${k.literal} [${readings.join(' / ')}]`;
-      });
-      parts.push(kanjiLines.join('\n'));
-    }
     if (engMeanings.length > 0) {
-      parts.push(engMeanings.map((m, i) => `${i + 1}. ${m.meaning}`).join('\n'));
+      const cappedMeanings = engMeanings.slice(0, MAX_MEANINGS_ON_CARD);
+      parts.push(cappedMeanings.map((m, i) => `${i + 1}. ${m.meaning}`).join('\n'));
     }
     onAddCard(headword, parts.join('\n'));
   };
@@ -468,6 +483,7 @@ function WordDetailPhase({
           {data && (
             <WordDetailContent
               data={data}
+              query={query}
               onKanjiSearch={onKanjiSearch}
               onAddCard={handleAddCard}
             />
@@ -480,15 +496,17 @@ function WordDetailPhase({
 
 function WordDetailContent({
   data,
+  query,
   onKanjiSearch,
   onAddCard,
 }: {
   data: DetailsResponse;
+  query?: string;
   onKanjiSearch: (char: string) => void;
   onAddCard: () => void;
 }) {
   const { word, kanjis } = data;
-  const headword = word.kanji[0] ?? word.readings[0] ?? '\u2014';
+  const headword = preferredHeadword(word, query);
   const reading = word.readings[0];
   const engMeanings = word.meanings.filter((m) => m.lang === 'eng');
   const pos = word.meanings[0]?.pos;
@@ -513,18 +531,6 @@ function WordDetailContent({
             </div>
           )}
           <div className="mt-2 flex flex-wrap gap-1">
-            {word.grade != null && (
-              <span
-                className="lgc-chip"
-                style={{
-                  background: 'var(--lgc-accent-soft)',
-                  color: 'var(--lgc-accent)',
-                  fontWeight: 600,
-                }}
-              >
-                G{word.grade}
-              </span>
-            )}
             {pos && <span className="lgc-chip">{pos}</span>}
             {word.is_common && <span className="lgc-chip">common</span>}
           </div>
@@ -904,14 +910,16 @@ function ResultRow({
   word,
   index,
   active,
+  query,
   onClick,
 }: {
   word: WordResult;
   index: number;
   active: boolean;
+  query: string;
   onClick: () => void;
 }) {
-  const headword = word.kanji[0] ?? word.readings[0] ?? '\u2014';
+  const headword = preferredHeadword(word, query);
   const reading = word.kanji.length > 0 ? word.readings[0] : null;
   const glosses = word.meanings.filter((m) => m.lang === 'eng').map((m) => m.meaning);
   const pos = word.meanings[0]?.pos;
@@ -958,19 +966,14 @@ function ResultRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex flex-wrap gap-1">
-          {word.grade != null && (
-            <span
-              className="lgc-chip"
-              style={{
-                background: 'var(--lgc-accent-soft)',
-                color: 'var(--lgc-accent)',
-                fontWeight: 600,
-              }}
-            >
-              G{word.grade}
-            </span>
-          )}
           {pos && <span className="lgc-chip">{pos}</span>}
+          {word.char_grades?.length > 1 &&
+            word.char_grades.map(({ char, grade }) => (
+              <span key={char} className="lgc-chip">
+                {char}
+                {grade != null ? ` G${grade}` : ''}
+              </span>
+            ))}
         </div>
         {glosses.length > 0 && (
           <ol className="list-decimal pl-4.5 text-[13.5px] leading-relaxed text-lgc-fg">
