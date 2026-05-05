@@ -6,6 +6,7 @@ import { Plus, Columns3, Star, X } from 'lucide-react';
 import DictionaryView from '@/components/views/DictionaryView';
 import ReaderView from '@/components/views/ReaderView';
 import CardDeckView from '@/components/views/CardDeckView';
+import HomeView from '@/components/home/HomeView';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import {
   WORKSPACE_TAB_META,
@@ -256,30 +257,7 @@ export default function MainWorkspace() {
       {/* ── Content area ─────────────────────────────────────────── */}
       <div className="min-h-0 flex-1">
         {openTabs.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-5">
-            <div className="text-center">
-              <p className="text-sm font-medium text-lgc-fg">Open a pane to get started</p>
-              <p className="mt-1 text-xs text-lgc-fg-muted">Choose a view below or use the keyboard</p>
-            </div>
-            <div className="flex gap-2.5">
-              {WORKSPACE_TAB_ORDER.map((key) => {
-                const m = WORKSPACE_TAB_META[key];
-                const TabIcon = m.icon;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => addTab(key)}
-                    className="lgc-card flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-medium text-lgc-fg transition-shadow hover:shadow-md"
-                  >
-                    <span className="h-2 w-2 rounded-full" style={{ background: m.dot }} />
-                    <TabIcon size={13} className="text-lgc-fg-muted" />
-                    {m.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <HomeView />
         ) : (
           <ResizablePanelGroup orientation="horizontal">
             {openTabs.map((tab, i) => (

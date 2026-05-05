@@ -101,10 +101,18 @@ These are populated from JMdict/KANJIDIC2/JMnedict imports. Not user-editable.
 
 | Table | Purpose |
 |-------|---------|
-| words | JMdict word entries (id, jmdict_id, is_common, priority_score) |
+| words | JMdict word entries (id, jmdict_id, is_common, priority_score, jlpt_level) |
 | word_kanji | Kanji forms per word |
 | word_readings | Kana readings per word |
 | word_meanings | Glosses per word (multilingual, FTS-indexed) |
 | word_forms | Deinflection table for irregular verbs |
-| kanji | KANJIDIC2 kanji data (literal, grade, strokes, readings) |
+| kanji | KANJIDIC2 kanji data (literal, grade, jlpt_level, strokes, readings) |
 | names | JMnedict name entries |
+
+**JLPT levels (`words.jlpt_level`, `kanji.jlpt_level`):** smallint 1–5 (1 = N1
+hardest, 5 = N5 easiest), NULL when not in any of the JLPT N1..N5 lists.
+Sourced from `backend/jlptwordslist/n{1..5}.csv`. Loaded via migrations 010
+(schema + staging), 011 (`\copy` from CSV), 012 (match → JMdict + derive
+per-character level + drop staging). Used as a ranking boost in search
+(`+50 + jlpt_level*5`) and surfaced to the frontend as a chip on word rows
+and per-kanji breakdowns.

@@ -189,9 +189,12 @@ async function hydrateAndAnnotate(hits, metaFn) {
   //   2. Any other exact whole-meaning match (gloss_norm = query) within the
   //      top-10 senses, earlier sense first. Only counts when the query IS
   //      the meaning — no partial or multi-word matches.
-  //   3. Grade ascending (nulls last).
-  //   4. Primary kanji length, then primary reading length.
-  //   5. Stable fallback preserves upstream SQL score order.
+  //   3. JLPT presence: JLPT-tagged entries before non-JLPT, then higher
+  //      numeric level first (N5 = 5 outranks N1 = 1, since N5 entries are
+  //      more frequently encountered and learners want them surfaced first).
+  //   4. Grade ascending (nulls last).
+  //   5. Primary kanji length, then primary reading length.
+  //   6. Stable fallback preserves upstream SQL score order.
   rows.sort((a, b) => {
     const aEx = exactSenseById.get(a.id);
     const bEx = exactSenseById.get(b.id);
@@ -205,6 +208,14 @@ async function hydrateAndAnnotate(hits, metaFn) {
       if (aEx !== bEx) return aEx - bEx;
     } else if (aEx != null) return -1;
     else if (bEx != null) return  1;
+
+    const aJlpt = a.jlpt_level ?? null;
+    const bJlpt = b.jlpt_level ?? null;
+    if (aJlpt !== bJlpt) {
+      if (aJlpt == null) return  1;
+      if (bJlpt == null) return -1;
+      return bJlpt - aJlpt;
+    }
 
     if (a.grade !== b.grade) {
       if (a.grade == null) return  1;
@@ -286,6 +297,7 @@ function formatKanji(row) {
   return {
     literal: row.literal,
     grade: row.grade ?? null,
+    jlpt_level: row.jlpt_level ?? null,
     stroke_count: row.stroke_count,
     radical: row.radical ?? null,
     meanings:     split(row.meaning,      ', '),

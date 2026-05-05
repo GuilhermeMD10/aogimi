@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BookOpen,
-  ArrowLeft,
   SlidersHorizontal,
   ArrowUpDown,
   Plus,
@@ -31,7 +30,8 @@ import {
 } from '@/lib/devicesApi';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
-import { BookTableRow, type LibraryBook } from '@/components/library/BookList';
+import { BookStampCard, BookTableRow, type LibraryBook } from '@/components/library/BookList';
+import { useTheme } from '@/components/providers/ThemeProvider';
 import RestoreLibrary from '@/components/library/RestoreLibrary';
 import FsAccessBanner from '@/components/library/FsAccessBanner';
 import OnboardingExplainer from '@/components/onboarding/OnboardingExplainer';
@@ -57,6 +57,8 @@ export default function ReaderView() {
   const { setPendingDictSearch, setPendingCard, readerSession, setReaderSession, recordProgress, flushProgress,
     pendingBookOpen, setPendingBookOpen } =
     useReaderState();
+  const { theme } = useTheme();
+  const isStamp = theme === 'stamp';
 
   // Library state
   const [pageState, setPageState] = useState<PageState>('loading');
@@ -550,29 +552,16 @@ export default function ReaderView() {
   if (readerSession) {
     return (
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-2 border-b border-lgc-border px-3 py-1.5">
-          <button
-            type="button"
-            onClick={goBack}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg"
-          >
-            <ArrowLeft size={12} />
-            Books
-          </button>
-          <span className="truncate text-[12px] text-lgc-fg" style={{ fontFamily: 'var(--font-display)' }}>
-            {readerSession.activeBook.title}
-          </span>
-        </div>
-        <div className="min-h-0 flex-1">
-          <EpubReader
-            fileUrl={readerSession.fileUrl}
-            filename={readerSession.activeBook.filename}
-            initialCfi={readerSession.backendCfi ?? undefined}
-            onLookup={handleLookup}
-            onAddCard={handleAddCard}
-            onProgressChange={handleProgressChange}
-          />
-        </div>
+        <EpubReader
+          fileUrl={readerSession.fileUrl}
+          filename={readerSession.activeBook.filename}
+          bookTitle={readerSession.activeBook.title}
+          initialCfi={readerSession.backendCfi ?? undefined}
+          onLookup={handleLookup}
+          onAddCard={handleAddCard}
+          onProgressChange={handleProgressChange}
+          onBack={goBack}
+        />
       </div>
     );
   }
@@ -649,28 +638,50 @@ export default function ReaderView() {
           </div>
         )}
 
-        {/* Book table */}
+        {/* Book list — stamp grid under stamp theme, table row otherwise */}
         {books.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border border-lgc-border bg-lgc-bg-elev">
+          isStamp ? (
             <div
-              className="grid border-b border-lgc-border px-3.5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-lgc-fg-muted"
-              style={{ gridTemplateColumns: '32px 1fr 140px 36px' }}
+              className="grid"
+              style={{
+                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                gap: 28,
+                paddingTop: 8,
+                paddingBottom: 8,
+              }}
             >
-              <span />
-              <span>Title</span>
-              <span>Progress</span>
-              <span />
+              {books.map((book) => (
+                <BookStampCard
+                  key={book.id}
+                  book={book}
+                  onOpen={() => openBook(book.id)}
+                  onLocate={() => handleLocateClick(book.id)}
+                  onDelete={() => setDeletingBook(book)}
+                />
+              ))}
             </div>
-            {books.map((book) => (
-              <BookTableRow
-                key={book.id}
-                book={book}
-                onOpen={() => openBook(book.id)}
-                onLocate={() => handleLocateClick(book.id)}
-                onDelete={() => setDeletingBook(book)}
-              />
-            ))}
-          </div>
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-lgc-border bg-lgc-bg-elev">
+              <div
+                className="grid border-b border-lgc-border px-3.5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-lgc-fg-muted"
+                style={{ gridTemplateColumns: '32px 1fr 140px 36px' }}
+              >
+                <span />
+                <span>Title</span>
+                <span>Progress</span>
+                <span />
+              </div>
+              {books.map((book) => (
+                <BookTableRow
+                  key={book.id}
+                  book={book}
+                  onOpen={() => openBook(book.id)}
+                  onLocate={() => handleLocateClick(book.id)}
+                  onDelete={() => setDeletingBook(book)}
+                />
+              ))}
+            </div>
+          )
         ) : pageState === 'loading' ? (
           <div className="flex items-center justify-center py-20 text-sm text-lgc-fg-muted">
             Loading library...
@@ -708,7 +719,18 @@ export default function ReaderView() {
       {deletingBook && (
         <>
           <div className="fixed inset-0 z-40 bg-black/60" onClick={() => setDeletingBook(null)} />
-          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-lgc-border-strong bg-lgc-bg p-6 shadow-2xl">
+          <div
+            className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-lgc-border-strong bg-lgc-bg p-6 shadow-2xl"
+            style={
+              isStamp
+                ? {
+                    borderWidth: 2,
+                    borderColor: 'var(--lgc-fg)',
+                    boxShadow: '6px 6px 0 var(--lgc-fg)',
+                  }
+                : undefined
+            }
+          >
             <div className="mb-1 flex items-center gap-2 text-red-500">
               <Trash2 size={16} />
               <h2 className="text-[15px] font-medium" style={{ fontFamily: 'var(--font-display)' }}>
@@ -745,7 +767,18 @@ export default function ReaderView() {
       {showOnboarding && user && (
         <>
           <div className="fixed inset-0 z-40 bg-black/40" />
-          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg shadow-2xl">
+          <div
+            className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg shadow-2xl"
+            style={
+              isStamp
+                ? {
+                    borderWidth: 2,
+                    borderColor: 'var(--lgc-fg)',
+                    boxShadow: '6px 6px 0 var(--lgc-fg)',
+                  }
+                : undefined
+            }
+          >
             <OnboardingExplainer
               userId={user.id}
               onDismiss={() => setShowOnboarding(false)}

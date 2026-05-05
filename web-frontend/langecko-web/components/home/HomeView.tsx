@@ -1,32 +1,44 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BookOpen,
   Search,
   Layers,
-  Library,
   ChevronRight,
   Star,
   Home,
   User,
   Settings,
+  Plus,
+  Columns3,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import { useWorkspaceTabs } from '@/components/providers/WorkspaceTabsProvider';
+import { useBubble } from '@/components/providers/BubbleProvider';
+import { useTheme } from '@/components/providers/ThemeProvider';
+import { StampMark } from '@/components/theme-decorations/stamp/StampMark';
 import { getDeviceBooks, type DeviceBookRecord } from '@/lib/devicesApi';
 import { getDeviceId } from '@/lib/deviceId';
-import type { WorkspaceTabKey } from '@/lib/config/tab-config';
+import {
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_ORDER,
+  type WorkspaceTabKey,
+} from '@/lib/config/tab-config';
+import type { BubbleKey } from '@/components/WorkspaceNav';
 
 // ── Destination cards ──────────────────────────────────────────────────────
 
 type Destination = {
-  k: 'reader' | 'dict' | 'decks' | 'library';
-  /** Workspace tab to toggle. Library has no dedicated pane yet → falls back to reader. */
-  tab: WorkspaceTabKey;
+  k: 'reader' | 'dict' | 'decks' | 'profile';
+  /** Either opens a workspace tab… */
+  tab?: WorkspaceTabKey;
+  /** …or pops a bubble (mutually exclusive with `tab`). */
+  bubble?: BubbleKey;
   icon: LucideIcon;
   label: string;
   dot: string;
@@ -37,7 +49,7 @@ const DESTINATIONS: Destination[] = [
   { k: 'reader',  tab: 'reader',     icon: BookOpen, label: 'Reader',     dot: '#D97757', desc: 'Read with tap-to-look-up and inline context.' },
   { k: 'dict',    tab: 'dictionary', icon: Search,   label: 'Dictionary', dot: '#4B7AA3', desc: 'Full JMdict entries, kanji breakdown, audio.'  },
   { k: 'decks',   tab: 'cards',      icon: Layers,   label: 'Decks',      dot: '#8FB08A', desc: 'Flashcards built from what you read.'         },
-  { k: 'library', tab: 'reader',     icon: Library,  label: 'Library',    dot: '#B5A27C', desc: 'Your books, organised how you like.'          },
+  { k: 'profile', bubble: 'profile', icon: User,     label: 'Profile',    dot: '#B5A27C', desc: 'Account, themes, and reading history.'        },
 ];
 
 // ── Recent dictionary lookups (placeholder data per design) ────────────────
@@ -59,6 +71,9 @@ export default function HomeView() {
   const { user } = useAuth();
   const { addTab, openTabs } = useWorkspaceTabs();
   const { setPendingBookOpen } = useReaderState();
+  const { setActiveBubble } = useBubble();
+  const { theme } = useTheme();
+  const isStamp = theme === 'stamp';
 
   const [recent, setRecent] = useState<DeviceBookRecord[]>([]);
 
@@ -79,11 +94,17 @@ export default function HomeView() {
   }, [user]);
 
   const goToDestination = useCallback(
-    (tab: WorkspaceTabKey) => {
-      if (!openTabs.includes(tab)) addTab(tab);
-      router.push('/workspace');
+    (d: Destination) => {
+      if (d.bubble) {
+        setActiveBubble(d.bubble);
+        return;
+      }
+      if (d.tab) {
+        if (!openTabs.includes(d.tab)) addTab(d.tab);
+        router.push('/workspace');
+      }
     },
-    [addTab, openTabs, router],
+    [addTab, openTabs, router, setActiveBubble],
   );
 
   const resumeBook = useCallback(
@@ -108,24 +129,25 @@ export default function HomeView() {
           title={epigraphTitle}
           author={epigraphAuthor}
           isResume={!!currentlyReading}
+          isStamp={isStamp}
         />
 
         {/* ── What's in here — 4 destination cards ────────────── */}
         <section style={{ marginTop: 40 }}>
-          <SectionLabel>What&apos;s in here</SectionLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          <SectionLabel isStamp={isStamp}>What&apos;s in here</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: isStamp ? 18 : 12 }}>
             {DESTINATIONS.map((d) => {
               const Icon = d.icon;
               return (
                 <button
                   key={d.k}
                   type="button"
-                  onClick={() => goToDestination(d.tab)}
-                  className="text-left transition-colors hover:bg-lgc-bg-sunken/40"
+                  onClick={() => goToDestination(d)}
+                  className={isStamp ? 'lgc-card lgc-pressable text-left' : 'text-left transition-colors hover:bg-lgc-bg-sunken/40'}
                   style={{
-                    background: 'var(--lgc-bg-elev)',
-                    border: '1px solid var(--lgc-border)',
-                    borderRadius: 14,
+                    background: isStamp ? undefined : 'var(--lgc-bg-elev)',
+                    border: isStamp ? undefined : '1px solid var(--lgc-border)',
+                    borderRadius: isStamp ? undefined : 14,
                     padding: '20px 18px',
                     cursor: 'pointer',
                     display: 'flex',
@@ -139,9 +161,10 @@ export default function HomeView() {
                       style={{
                         width: 38,
                         height: 38,
-                        borderRadius: 10,
-                        background: `color-mix(in oklab, ${d.dot} 14%, transparent)`,
-                        color: d.dot,
+                        borderRadius: isStamp ? 0 : 10,
+                        border: isStamp ? '1px solid var(--lgc-fg)' : undefined,
+                        background: isStamp ? d.dot : `color-mix(in oklab, ${d.dot} 14%, transparent)`,
+                        color: isStamp ? 'var(--lgc-bg)' : d.dot,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -154,10 +177,10 @@ export default function HomeView() {
                   <div>
                     <div
                       style={{
-                        fontFamily: 'var(--font-display)',
+                        fontFamily: 'var(--lgc-font-display)',
                         fontSize: 18,
-                        fontWeight: 500,
-                        letterSpacing: '-0.01em',
+                        fontWeight: isStamp ? 600 : 500,
+                        letterSpacing: isStamp ? '0.02em' : '-0.01em',
                       }}
                     >
                       {d.label}
@@ -175,10 +198,11 @@ export default function HomeView() {
         {/* ── Recently opened + Recent lookups ────────────────── */}
         <section style={{ marginTop: 48, display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 40 }}>
           <div>
-            <SectionLabel>Recently opened</SectionLabel>
+            <SectionLabel isStamp={isStamp}>Recently opened</SectionLabel>
             {recent.length === 0 ? (
               <div
-                className="rounded-lg border border-dashed border-lgc-border-strong px-5 py-8 text-[13px] text-lgc-fg-muted"
+                className="border border-dashed border-lgc-border-strong px-5 py-8 text-[13px] text-lgc-fg-muted"
+                style={{ borderRadius: isStamp ? 0 : 8 }}
               >
                 Nothing yet — import an EPUB from the Reader to get started.
               </div>
@@ -197,7 +221,8 @@ export default function HomeView() {
                       background: i === 0 ? 'var(--lgc-bg-elev)' : 'transparent',
                       border: i === 0 ? '1px solid var(--lgc-border)' : '1px solid transparent',
                       borderBottom: '1px solid var(--lgc-border)',
-                      borderRadius: i === 0 ? 12 : 0,
+                      borderRadius: isStamp ? 0 : (i === 0 ? 12 : 0),
+                      boxShadow: isStamp && i === 0 ? '3px 3px 0 var(--lgc-fg)' : undefined,
                       alignItems: 'center',
                       marginBottom: i === 0 ? 6 : 0,
                       cursor: 'pointer',
@@ -276,7 +301,7 @@ export default function HomeView() {
           </div>
 
           <div>
-            <SectionLabel>Recent lookups</SectionLabel>
+            <SectionLabel isStamp={isStamp}>Recent lookups</SectionLabel>
             <div
               style={{
                 background: 'var(--lgc-bg-elev)',
@@ -291,7 +316,10 @@ export default function HomeView() {
             </div>
             <button
               type="button"
-              onClick={() => goToDestination('dictionary')}
+              onClick={() => {
+                if (!openTabs.includes('dictionary')) addTab('dictionary');
+                router.push('/workspace');
+              }}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -312,7 +340,7 @@ export default function HomeView() {
 
         {/* ── Getting around — onboarding cards ────────────────── */}
         <section style={{ marginTop: 56 }}>
-          <SectionLabel>Getting around</SectionLabel>
+          <SectionLabel isStamp={isStamp}>Getting around</SectionLabel>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
             <OnboardingCard
               demo={<NavDemoCompact />}
@@ -342,19 +370,26 @@ export default function HomeView() {
 
 // ── Atoms ──────────────────────────────────────────────────────────────────
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({ children, isStamp }: { children: React.ReactNode; isStamp?: boolean }) {
   return (
     <div
       style={{
-        fontSize: 10,
-        color: 'var(--lgc-fg-muted)',
-        letterSpacing: '0.18em',
+        fontFamily: isStamp ? 'var(--lgc-font-mono)' : undefined,
+        fontSize: 11,
+        color: isStamp ? 'var(--lgc-accent)' : 'var(--lgc-fg-muted)',
+        letterSpacing: isStamp ? '0.22em' : '0.18em',
         textTransform: 'uppercase',
-        fontWeight: 700,
+        fontWeight: isStamp ? 500 : 700,
         marginBottom: 14,
+        display: isStamp ? 'flex' : undefined,
+        alignItems: isStamp ? 'center' : undefined,
+        gap: isStamp ? 12 : undefined,
       }}
     >
-      {children}
+      <span>{children}</span>
+      {isStamp && (
+        <span aria-hidden style={{ flex: 1, height: 1, background: 'var(--lgc-fg-subtle)', opacity: 0.5 }} />
+      )}
     </div>
   );
 }
@@ -469,11 +504,23 @@ function DictEntry({ q }: { q: DictPlaceholder }) {
 
 // ── Opener ─────────────────────────────────────────────────────────────────
 
-function OpenerLiterary({ title, author, isResume }: { title: string; author: string; isResume: boolean }) {
+function OpenerLiterary({
+  title,
+  author,
+  isResume,
+  isStamp,
+}: {
+  title: string;
+  author: string;
+  isResume: boolean;
+  isStamp: boolean;
+}) {
   const epigraph = useMemo(
     () => '「私はその人の記憶を呼び起すごとに、すぐ『先生』といいたくなる。」',
     [],
   );
+
+  if (isStamp) return <OpenerStamp title={title} author={author} isResume={isResume} />;
 
   return (
     <div style={{ position: 'relative', paddingBottom: 4 }}>
@@ -548,14 +595,104 @@ function OpenerLiterary({ title, author, isResume }: { title: string; author: st
   );
 }
 
+// ── Opener (Stamp variant) — postage masthead ─────────────────────────────
+
+function OpenerStamp({ title, author, isResume }: { title: string; author: string; isResume: boolean }) {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 40,
+        paddingBottom: 32,
+        borderBottom: '2px solid var(--lgc-fg)',
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Vertical kanji label */}
+        <div
+          style={{
+            fontFamily: 'var(--lgc-font-display)',
+            fontSize: 18,
+            letterSpacing: '0.4em',
+            color: 'var(--lgc-accent)',
+            marginBottom: 14,
+          }}
+        >
+          語 境 · 切 手
+        </div>
+
+        {/* Big serif h1 */}
+        <h1
+          style={{
+            fontFamily: 'var(--lgc-font-display)',
+            fontSize: 56,
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            margin: '0 0 6px',
+            lineHeight: 1.05,
+            color: 'var(--lgc-fg)',
+          }}
+        >
+          Where to today?
+        </h1>
+
+        {/* Lede */}
+        <p
+          style={{
+            fontFamily: 'var(--lgc-font-ui)',
+            fontSize: 15,
+            maxWidth: 580,
+            color: 'var(--lgc-fg-muted)',
+            lineHeight: 1.65,
+            margin: 0,
+          }}
+        >
+          {isResume
+            ? `Picking up where you left off in ${author}「${title}」. Or wander into the dictionary, the deck, or a fresh book — no schedule, no streak.`
+            : 'Read in Japanese with tap-to-look-up, a full JMdict dictionary, and decks that grow from what you read. Pick a place that feels right today.'}
+        </p>
+
+        {/* Mono meta strip */}
+        <div
+          style={{
+            fontFamily: 'var(--lgc-font-mono)',
+            fontSize: 11,
+            color: 'var(--lgc-fg-subtle)',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            marginTop: 14,
+            display: 'flex',
+            gap: 18,
+          }}
+        >
+          <span>
+            CURRENT &nbsp;
+            <b style={{ color: 'var(--lgc-accent)', fontWeight: 500 }}>
+              {title}
+            </b>
+          </span>
+          <span>&middot;</span>
+          <span>{author}</span>
+        </div>
+      </div>
+
+      {/* Stamp mark in the corner */}
+      <StampMark size={96} rotate={-6}>語</StampMark>
+    </div>
+  );
+}
+
 // ── Onboarding card 1 — bottom-nav illustration ────────────────────────────
 
 function NavDemoCompact() {
   const items = [
-    { I: Library,  dot: '#B5A27C' },
     { I: BookOpen, dot: '#D97757', active: true },
     { I: Search,   dot: '#4B7AA3', active: true },
     { I: Layers,   dot: '#8FB08A' },
+    { I: User,     dot: '#B5A27C' },
   ];
   const plain = [
     { I: Home,     active: true },
@@ -640,11 +777,65 @@ function NavDemoCompact() {
   );
 }
 
-// ── Onboarding card 2 — split-view + drag illustration ─────────────────────
+// ── Onboarding card 2 — split-view + workspace tab-bar illustration ────────
 
 function SplitDemo() {
+  // Local-only demo state — drag/add/close are wired up but don't affect the real workspace.
+  const [demoTabs, setDemoTabs] = useState<WorkspaceTabKey[]>(['reader', 'dictionary']);
+  const [draggedTab, setDraggedTab] = useState<WorkspaceTabKey | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  const tabsAvailableToAdd = useMemo(
+    () => WORKSPACE_TAB_ORDER.filter((t) => !demoTabs.includes(t)),
+    [demoTabs],
+  );
+
+  const closeTab = (key: WorkspaceTabKey) => {
+    setDemoTabs((prev) => prev.filter((t) => t !== key));
+  };
+
+  const addTab = (key: WorkspaceTabKey) => {
+    setDemoTabs((prev) => (prev.includes(key) ? prev : [...prev, key]));
+  };
+
+  const handleDropAtIndex = (e: React.DragEvent, index?: number) => {
+    e.preventDefault();
+    if (!draggedTab) return;
+    const targetIndex = index ?? dropIndex;
+    if (targetIndex == null) return;
+    setDemoTabs((prev) => {
+      const fromIdx = prev.indexOf(draggedTab);
+      if (fromIdx === -1) return prev;
+      const without = prev.filter((t) => t !== draggedTab);
+      const adjusted = fromIdx < targetIndex ? targetIndex - 1 : targetIndex;
+      const next = [...without];
+      next.splice(adjusted, 0, draggedTab);
+      return next;
+    });
+    setDraggedTab(null);
+    setDropIndex(null);
+  };
+
+  const clearDrag = () => {
+    setDraggedTab(null);
+    setDropIndex(null);
+  };
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [pickerOpen]);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
       {/* Mini split-view sample */}
       <div
         style={{
@@ -811,124 +1002,12 @@ function SplitDemo() {
         />
       </div>
 
-      {/* Hover-expanded bottom bar showing drag-state */}
-      <div
-        style={{
-          background: 'rgba(255,255,255,0.92)',
-          backdropFilter: 'blur(22px) saturate(170%)',
-          WebkitBackdropFilter: 'blur(22px) saturate(170%)',
-          border: '1px solid var(--lgc-border)',
-          borderRadius: 14,
-          boxShadow: '0 14px 36px rgba(0,0,0,0.13), 0 2px 6px rgba(0,0,0,0.05)',
-          padding: 5,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 3,
-          position: 'relative',
-          fontFamily: 'var(--font-ui)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {[
-            { I: BookOpen, dot: '#D97757', label: 'Reader',     active: true, order: 1 },
-            { I: Search,   dot: '#4B7AA3', label: 'Dictionary', active: true, order: 2, dragging: true },
-            { I: Library,  dot: '#B5A27C', label: 'Library' },
-            { I: Layers,   dot: '#8FB08A', label: 'Decks' },
-          ].map((it, i) => {
-            const Icon = it.I;
-            return (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  padding: '5px 8px 5px 6px',
-                  borderRadius: 9,
-                  background: it.active ? 'var(--lgc-bg-sunken)' : 'transparent',
-                  border: it.active ? `1px solid ${it.dot}55` : '1px solid transparent',
-                  color: it.active ? 'var(--lgc-fg)' : 'var(--lgc-fg-muted)',
-                  cursor: 'grab',
-                  position: 'relative',
-                  whiteSpace: 'nowrap',
-                  opacity: it.dragging ? 0.45 : 1,
-                  outline: it.dragging ? `1.5px dashed ${it.dot}` : 'none',
-                  outlineOffset: 1,
-                }}
-              >
-                <span
-                  style={{
-                    color: 'var(--lgc-fg-subtle)',
-                    fontSize: 8,
-                    letterSpacing: -1,
-                    fontFamily: 'var(--font-mono)',
-                    userSelect: 'none',
-                  }}
-                >
-                  ⋮⋮
-                </span>
-                <Icon size={12} />
-                <span style={{ fontSize: 10, fontWeight: it.active ? 600 : 500 }}>{it.label}</span>
-                {it.active && (
-                  <span
-                    style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: 99,
-                      background: it.dot,
-                    }}
-                  />
-                )}
-                {it.active && (
-                  <span
-                    style={{
-                      fontSize: 7.5,
-                      padding: '0 3px',
-                      borderRadius: 3,
-                      background: 'var(--lgc-bg)',
-                      border: '1px solid var(--lgc-border)',
-                      color: 'var(--lgc-fg-subtle)',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  >
-                    {it.order}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div style={{ width: 1, height: 22, background: 'var(--lgc-border)', margin: '0 3px' }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {[
-            { I: Home, active: true },
-            { I: User },
-            { I: Settings },
-          ].map((it, i) => {
-            const Icon = it.I;
-            return (
-              <div
-                key={i}
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: 6,
-                  background: it.active ? 'var(--lgc-bg-sunken)' : 'transparent',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: it.active ? 'var(--lgc-fg)' : 'var(--lgc-fg-subtle)',
-                }}
-              >
-                <Icon size={12} />
-              </div>
-            );
-          })}
-        </div>
+      {/* Static replica of the workspace pane bar — drag/add/close are wired locally */}
+      <div style={{ position: 'relative', width: '100%', maxWidth: 460 }}>
         <div
           style={{
             position: 'absolute',
-            top: -16,
+            top: -14,
             left: '50%',
             transform: 'translateX(-50%)',
             fontSize: 7.5,
@@ -939,7 +1018,159 @@ function SplitDemo() {
             whiteSpace: 'nowrap',
           }}
         >
-          click to toggle · drag to reorder
+          drag to reorder · + to add
+        </div>
+        <div
+          className="lgc-panebar"
+          style={{
+            padding: '8px 12px',
+            borderRadius: 12,
+            border: '1px solid var(--lgc-border)',
+            borderBottom: '1px solid var(--lgc-border)',
+            boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
+            fontFamily: 'var(--font-ui)',
+            minHeight: 44,
+            flexWrap: 'wrap',
+          }}
+          onDragOver={(e) => {
+            if (draggedTab) e.preventDefault();
+          }}
+          onDrop={clearDrag}
+        >
+          <span
+            className="select-none text-[10px] font-semibold uppercase tracking-widest text-lgc-fg-muted"
+            style={{ marginRight: 4 }}
+          >
+            Panes
+          </span>
+
+          {demoTabs.map((tabKey, index) => {
+            const meta = WORKSPACE_TAB_META[tabKey];
+            const Icon = meta.icon;
+            const isDragged = draggedTab === tabKey;
+
+            return (
+              <Fragment key={tabKey}>
+                {index > 0 && <span className="lgc-panearrow">⇄</span>}
+
+                <div
+                  className="relative flex h-8 w-1 items-center justify-center"
+                  onDragOver={(e) => {
+                    if (!draggedTab) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    setDropIndex(index);
+                  }}
+                  onDrop={(e) => handleDropAtIndex(e, index)}
+                >
+                  {dropIndex === index && (
+                    <span className="pointer-events-none absolute h-6 w-0.5 rounded-full bg-lgc-accent" />
+                  )}
+                </div>
+
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggedTab(tabKey);
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', tabKey);
+                  }}
+                  onDragOver={(e) => {
+                    if (!draggedTab) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setDropIndex(e.clientX < rect.left + rect.width / 2 ? index : index + 1);
+                  }}
+                  onDrop={(e) => handleDropAtIndex(e)}
+                  onDragEnd={clearDrag}
+                  className={`lgc-panechip ${isDragged ? 'lgc-panechip-ghost' : ''}`}
+                >
+                  <span className="lgc-panechip-dot" style={{ background: meta.dot }} />
+                  <Icon size={12} className="text-lgc-fg-muted" />
+                  <span className="text-[12px] font-medium">{meta.label}</span>
+                  <button
+                    type="button"
+                    onClick={() => closeTab(tabKey)}
+                    draggable={false}
+                    className="ml-1 flex h-4 w-4 items-center justify-center rounded-full text-lgc-fg-subtle transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg"
+                    aria-label={`Close ${meta.label}`}
+                  >
+                    <X size={9} />
+                  </button>
+                </div>
+              </Fragment>
+            );
+          })}
+
+          <div
+            className="relative flex h-8 w-1 items-center justify-center"
+            onDragOver={(e) => {
+              if (!draggedTab) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              setDropIndex(demoTabs.length);
+            }}
+            onDrop={(e) => handleDropAtIndex(e, demoTabs.length)}
+          >
+            {dropIndex === demoTabs.length && (
+              <span className="pointer-events-none absolute h-6 w-0.5 rounded-full bg-lgc-accent" />
+            )}
+          </div>
+
+          <div ref={pickerRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setPickerOpen((v) => !v)}
+              disabled={tabsAvailableToAdd.length === 0}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Plus size={11} /> Add pane
+            </button>
+
+            {pickerOpen && tabsAvailableToAdd.length > 0 && (
+              <div className="absolute left-0 top-full z-50 mt-1.5 min-w-40 overflow-hidden rounded-lg border border-lgc-border-strong bg-lgc-bg-elev py-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]">
+                {tabsAvailableToAdd.map((key) => {
+                  const m = WORKSPACE_TAB_META[key];
+                  const TabIcon = m.icon;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        addTab(key);
+                        setPickerOpen(false);
+                      }}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12px] text-lgc-fg transition-colors hover:bg-lgc-bg-sunken"
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ background: m.dot }} />
+                      <TabIcon size={12} className="text-lgc-fg-muted" />
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="ml-auto flex gap-1">
+            <button
+              type="button"
+              disabled
+              className="flex h-7 w-7 items-center justify-center rounded-md text-lgc-fg-subtle opacity-40"
+              title="Layouts"
+            >
+              <Columns3 size={13} />
+            </button>
+            <button
+              type="button"
+              disabled
+              className="flex h-7 w-7 items-center justify-center rounded-md text-lgc-fg-subtle opacity-40"
+              title="Save workspace"
+            >
+              <Star size={13} />
+            </button>
+          </div>
         </div>
       </div>
     </div>
