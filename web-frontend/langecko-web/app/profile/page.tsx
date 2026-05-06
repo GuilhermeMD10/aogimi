@@ -12,40 +12,19 @@ import {
   MoreHorizontal,
   X,
   Check,
-  Lightbulb,
   Monitor,
   Trash2,
   Info,
 } from 'lucide-react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useTheme, THEMES, type AppTheme } from '@/components/providers/ThemeProvider';
-import { getUserProfile, updateUserProfile, type UserProfile, type ProfileUpdate } from '@/lib/userApi';
+import { getUserProfile, updateUserProfile, type UserProfile } from '@/lib/userApi';
 import { getUserBooks, type BookProgressRecord } from '@/lib/booksApi';
 import { getUserDecks, type DeckRecord } from '@/lib/decksApi';
 import { getUserDevices, removeDevice, renameDevice, type DeviceRecord } from '@/lib/devicesApi';
 import { getDeviceId } from '@/lib/deviceId';
-import OnboardingExplainer from '@/components/onboarding/OnboardingExplainer';
-
-// ── Kamon set ────────────────────────────────────────────────────────────────
-
-const KAMON_SET = [
-  { k: '波', label: 'nami · wave' },
-  { k: '桜', label: 'sakura · blossom' },
-  { k: '月', label: 'tsuki · moon' },
-  { k: '龍', label: 'ryū · dragon' },
-  { k: '虎', label: 'tora · tiger' },
-  { k: '鶴', label: 'tsuru · crane' },
-  { k: '梅', label: 'ume · plum' },
-  { k: '竹', label: 'take · bamboo' },
-  { k: '松', label: 'matsu · pine' },
-  { k: '山', label: 'yama · mountain' },
-  { k: '川', label: 'kawa · river' },
-  { k: '風', label: 'kaze · wind' },
-  { k: '火', label: 'hi · fire' },
-  { k: '星', label: 'hoshi · star' },
-  { k: '雷', label: 'kaminari · thunder' },
-  { k: '狐', label: 'kitsune · fox' },
-];
+import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
+import AvatarPickerModal, { KAMON_SET, Kamon } from '@/components/AvatarPickerModal';
 
 const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const;
 
@@ -57,54 +36,6 @@ const THEME_PREVIEW: Record<AppTheme, { bg: string; bgElev: string; fg: string; 
   hanami:   { bg: '#14100C', bgElev: '#1E1814', fg: '#F5E9D4', fgMuted: '#B0987A', accent: '#E04B2A', border: 'rgba(245,233,212,0.14)' },
   stamp:    { bg: '#EBE2D0', bgElev: '#F0E6D2', fg: '#1A1411', fgMuted: '#3B2F26', accent: '#C8362B', border: '#1A1411' },
 };
-
-// ── Kamon avatar component ───────────────────────────────────────────────────
-
-function Kamon({
-  char,
-  size = 48,
-  active,
-  onClick,
-}: {
-  char: string;
-  size?: number;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className={`relative flex shrink-0 items-center justify-center rounded-full ${
-        onClick ? 'cursor-pointer' : ''
-      }`}
-      style={{
-        width: size,
-        height: size,
-        background: 'var(--lgc-bg-elev)',
-        border: active ? '2px solid var(--lgc-accent)' : '1px solid var(--lgc-border)',
-        boxShadow: active ? '0 0 0 3px color-mix(in oklab, var(--lgc-accent) 25%, transparent)' : 'none',
-      }}
-    >
-      <div
-        className="absolute rounded-full"
-        style={{
-          inset: 4,
-          border: '1px dashed color-mix(in oklab, currentColor 12%, transparent)',
-        }}
-      />
-      <div
-        className="text-lgc-fg"
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: size * 0.5,
-          lineHeight: 1,
-        }}
-      >
-        {char}
-      </div>
-    </div>
-  );
-}
 
 // ── Section card ─────────────────────────────────────────────────────────────
 
@@ -205,99 +136,6 @@ function deckColor(name: string) {
   for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
   const idx = Math.abs(hash);
   return { color: DECK_COLORS[idx % DECK_COLORS.length], kamon: DECK_KAMONS[idx % DECK_KAMONS.length] };
-}
-
-// ── Avatar picker modal ──────────────────────────────────────────────────────
-
-function AvatarPickerModal({
-  current,
-  onSelect,
-  onClose,
-}: {
-  current: number;
-  onSelect: (idx: number) => void;
-  onClose: () => void;
-}) {
-  const [selected, setSelected] = useState(current);
-  const { theme: appTheme } = useTheme();
-  const isStamp = appTheme === 'stamp';
-
-  return (
-    <>
-      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
-      <div
-        className="fixed left-1/2 top-1/2 z-50 w-full max-w-140 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg-elev shadow-2xl"
-        style={
-          isStamp
-            ? {
-                borderWidth: 2,
-                borderColor: 'var(--lgc-fg)',
-                boxShadow: '6px 6px 0 var(--lgc-fg)',
-              }
-            : undefined
-        }
-      >
-        {/* Header */}
-        <div className="flex items-center border-b border-lgc-border px-5 py-4">
-          <div>
-            <div className="lgc-section-label">Choose avatar</div>
-            <div className="mt-0.5 text-sm font-medium text-lgc-fg">
-              Kamon — traditional family crest monograms
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg"
-          >
-            <X size={14} />
-          </button>
-        </div>
-
-        {/* Grid */}
-        <div className="px-5 py-5">
-          <div className="mb-3.5 text-[11px] text-lgc-fg-muted">
-            16 kamon options — select one to represent your profile.
-          </div>
-          <div className="grid grid-cols-8 gap-2.5">
-            {KAMON_SET.map((k, i) => (
-              <div key={k.k} className="flex flex-col items-center gap-1">
-                <Kamon char={k.k} size={52} active={selected === i} onClick={() => setSelected(i)} />
-                <div
-                  className="text-center text-[9px] leading-tight text-lgc-fg-muted"
-                  style={{ fontFamily: 'var(--font-display)' }}
-                >
-                  {k.k}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 flex items-center gap-2 rounded-lg bg-lgc-bg-sunken px-3 py-2.5 text-xs text-lgc-fg-muted">
-            <Lightbulb size={14} className="shrink-0" />
-            <span>Custom upload coming when social features ship.</span>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 border-t border-lgc-border px-5 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-lgc-border px-3 py-1.5 text-sm text-lgc-fg transition-colors hover:bg-lgc-bg-sunken"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => { onSelect(selected); onClose(); }}
-            className="flex items-center gap-1.5 rounded-md bg-lgc-accent px-4 py-1.5 text-sm font-medium text-lgc-accent-fg transition-opacity hover:opacity-90"
-          >
-            <Check size={13} /> Save
-          </button>
-        </div>
-      </div>
-    </>
-  );
 }
 
 // ── Profile page ─────────────────────────────────────────────────────────────
@@ -778,28 +616,11 @@ export default function ProfilePage() {
         />
       )}
 
-      {/* ── Onboarding explainer modal ─────────────────────────────────────── */}
       {showOnboarding && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setShowOnboarding(false)} />
-          <div
-            className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg shadow-2xl"
-            style={
-              theme === 'stamp'
-                ? {
-                    borderWidth: 2,
-                    borderColor: 'var(--lgc-fg)',
-                    boxShadow: '6px 6px 0 var(--lgc-fg)',
-                  }
-                : undefined
-            }
-          >
-            <OnboardingExplainer
-              userId={user!.id}
-              onDismiss={() => setShowOnboarding(false)}
-            />
-          </div>
-        </>
+        <OnboardingExplainerModal
+          userId={user!.id}
+          onDismiss={() => setShowOnboarding(false)}
+        />
       )}
     </div>
   );

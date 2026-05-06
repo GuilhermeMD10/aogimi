@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MAX_MODULAR_TABS,
   WORKSPACE_TAB_ORDER,
@@ -19,20 +19,19 @@ type WorkspaceTabsContextValue = {
   addTab: (tab: WorkspaceTabKey) => boolean;
   closeTab: (tab: WorkspaceTabKey) => void;
   toggleTab: (tab: WorkspaceTabKey) => void;
-  draggedTab: WorkspaceTabKey | null;
-  setDraggedTab: React.Dispatch<React.SetStateAction<WorkspaceTabKey | null>>;
-  dropIndex: number | null;
-  clearDragState: () => void;
-  setDropMarker: (nextIndex: number) => void;
-  handleDropAtIndex: (event: DragEvent<HTMLElement>, forcedIndex?: number) => void;
+  /**
+   * Move the chip at `sourceIndex` so that, after removal, it lands at
+   * `targetIndex` in the resulting array. (`targetIndex` uses the
+   * "between-positions" convention: 0 = before first, length = after last.)
+   * No-ops when source/target collide.
+   */
+  reorderTab: (sourceIndex: number, targetIndex: number) => void;
 };
 
 const WorkspaceTabsContext = createContext<WorkspaceTabsContextValue | null>(null);
 
 export function WorkspaceTabsProvider({ children }: { children: React.ReactNode }) {
   const [openTabs, setOpenTabs] = useState<WorkspaceTabKey[]>(DEFAULT_TABS);
-  const [draggedTab, setDraggedTab] = useState<WorkspaceTabKey | null>(null);
-  const [dropIndex, setDropIndex] = useState<number | null>(null);
   const persistReadyRef = useRef(false);
 
   // Hydrate from localStorage on mount
@@ -77,8 +76,6 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
 
   const closeTab = useCallback((tabToClose: WorkspaceTabKey) => {
     setOpenTabs((tabs) => tabs.filter((key) => key !== tabToClose));
-    setDraggedTab((prev) => (prev === tabToClose ? null : prev));
-    setDropIndex(null);
   }, []);
 
   const toggleTab = useCallback((tab: WorkspaceTabKey) => {
@@ -89,47 +86,18 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
-  const clearDragState = useCallback(() => {
-    setDraggedTab(null);
-    setDropIndex(null);
-  }, []);
-
-  const reorderTabs = useCallback((sourceTab: WorkspaceTabKey, targetIndex: number) => {
+  const reorderTab = useCallback((sourceIndex: number, targetIndex: number) => {
     setOpenTabs((tabs) => {
       if (tabs.length < 2) return tabs;
-      const sourceIndex = tabs.indexOf(sourceTab);
-      if (sourceIndex === -1) return tabs;
+      if (sourceIndex < 0 || sourceIndex >= tabs.length) return tabs;
       const clamped = Math.max(0, Math.min(targetIndex, tabs.length));
       if (clamped === sourceIndex || clamped === sourceIndex + 1) return tabs;
       const next = [...tabs];
-      next.splice(sourceIndex, 1);
-      next.splice(sourceIndex < clamped ? clamped - 1 : clamped, 0, sourceTab);
+      const [item] = next.splice(sourceIndex, 1);
+      next.splice(sourceIndex < clamped ? clamped - 1 : clamped, 0, item);
       return next;
     });
   }, []);
-
-  const setDropMarker = useCallback((nextIndex: number) => {
-    if (!canDragTabs || !draggedTab) return;
-    const sourceIndex = openTabs.indexOf(draggedTab);
-    if (sourceIndex === -1) return;
-    if (nextIndex === sourceIndex || nextIndex === sourceIndex + 1) {
-      setDropIndex(null);
-      return;
-    }
-    setDropIndex(nextIndex);
-  }, [canDragTabs, draggedTab, openTabs]);
-
-  const handleDropAtIndex = useCallback((event: DragEvent<HTMLElement>, forcedIndex?: number) => {
-    event.preventDefault();
-    const sourceTab = parseWorkspaceTab(event.dataTransfer.getData('text/plain')) ?? draggedTab;
-    const targetIndex = forcedIndex ?? dropIndex;
-    if (!sourceTab || targetIndex === null) {
-      clearDragState();
-      return;
-    }
-    reorderTabs(sourceTab, targetIndex);
-    clearDragState();
-  }, [draggedTab, dropIndex, reorderTabs, clearDragState]);
 
   return (
     <WorkspaceTabsContext.Provider
@@ -141,12 +109,7 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
         addTab,
         closeTab,
         toggleTab,
-        draggedTab,
-        setDraggedTab,
-        dropIndex,
-        clearDragState,
-        setDropMarker,
-        handleDropAtIndex,
+        reorderTab,
       }}
     >
       {children}

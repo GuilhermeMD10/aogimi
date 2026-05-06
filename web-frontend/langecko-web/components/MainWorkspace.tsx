@@ -2,38 +2,19 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Columns3, Star, X } from 'lucide-react';
 import DictionaryView from '@/components/views/DictionaryView';
 import ReaderView from '@/components/views/ReaderView';
 import CardDeckView from '@/components/views/CardDeckView';
 import HomeView from '@/components/home/HomeView';
+import WorkspacePaneBar from '@/components/WorkspacePaneBar';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import {
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_ORDER,
-  type WorkspaceTabKey,
-} from '@/lib/config/tab-config';
+import { type WorkspaceTabKey } from '@/lib/config/tab-config';
 import { useWorkspaceTabs } from '@/components/providers/WorkspaceTabsProvider';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import ReaderBubble from '@/components/page-bubbles/ReaderBubble';
 
 export default function MainWorkspace() {
-  const {
-    openTabs,
-    tabsAvailableToAdd,
-    canDragTabs,
-    addTab,
-    closeTab,
-    draggedTab,
-    setDraggedTab,
-    dropIndex,
-    clearDragState,
-    setDropMarker,
-    handleDropAtIndex,
-  } = useWorkspaceTabs();
-
-  const [addPickerOpen, setAddPickerOpen] = useState(false);
-  const addPickerRef = useRef<HTMLDivElement>(null);
+  const { openTabs } = useWorkspaceTabs();
 
   const { pendingDictSearch, setPendingDictSearch, pendingCard, setPendingCard } = useReaderState();
   const [readerBubble, setReaderBubble] = useState<{
@@ -92,167 +73,10 @@ export default function MainWorkspace() {
     setPendingCard(null);
   }, [pendingCard, setPendingCard, openTabs]);
 
-  // Close picker on outside click
-  useEffect(() => {
-    if (!addPickerOpen) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (addPickerRef.current && !addPickerRef.current.contains(event.target as Node)) {
-        setAddPickerOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [addPickerOpen]);
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* ── Pane bar ─────────────────────────────────────────────── */}
-      {openTabs.length > 0 && (
-        <div className="lgc-panebar" style={{ padding: '8px 12px' }}>
-          {/* "Panes" label */}
-          <span
-            className="select-none text-[10px] font-semibold uppercase tracking-widest text-lgc-fg-muted"
-            style={{ marginRight: 4 }}
-          >
-            Panes
-          </span>
-
-          {/* Chips + arrows */}
-          {openTabs.map((tabKey, index) => {
-            const meta = WORKSPACE_TAB_META[tabKey];
-            const Icon = meta.icon;
-            const isDragged = draggedTab === tabKey;
-
-            return (
-              <Fragment key={tabKey}>
-                {/* Arrow between chips */}
-                {index > 0 && <span className="lgc-panearrow">⇄</span>}
-
-                {/* Drop zone before this chip */}
-                <div
-                  className="relative flex h-8 w-1 items-center justify-center"
-                  onDragOver={(e) => {
-                    if (!canDragTabs || !draggedTab) return;
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    setDropMarker(index);
-                  }}
-                  onDrop={(e) => handleDropAtIndex(e, index)}
-                >
-                  {dropIndex === index && (
-                    <span className="pointer-events-none absolute h-6 w-0.5 rounded-full bg-lgc-accent" />
-                  )}
-                </div>
-
-                {/* Chip */}
-                <div
-                  draggable={canDragTabs}
-                  onDragStart={(e) => {
-                    setDraggedTab(tabKey);
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('text/plain', tabKey);
-                  }}
-                  onDragOver={(e) => {
-                    if (!canDragTabs || !draggedTab) return;
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setDropMarker(e.clientX < rect.left + rect.width / 2 ? index : index + 1);
-                  }}
-                  onDrop={handleDropAtIndex}
-                  onDragEnd={clearDragState}
-                  className={`lgc-panechip ${isDragged ? 'lgc-panechip-ghost' : ''}`}
-                >
-                  <span className="lgc-panechip-dot" style={{ background: meta.dot }} />
-                  <Icon size={12} className="text-lgc-fg-muted" />
-                  <span className="text-[12px] font-medium">{meta.label}</span>
-                  <button
-                    type="button"
-                    onClick={() => closeTab(tabKey)}
-                    draggable={false}
-                    className="ml-1 flex h-4 w-4 items-center justify-center rounded-full text-lgc-fg-subtle transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg"
-                    aria-label={`Close ${meta.label}`}
-                  >
-                    <X size={9} />
-                  </button>
-                </div>
-              </Fragment>
-            );
-          })}
-
-          {/* Drop zone after last chip */}
-          <div
-            className="relative flex h-8 w-1 items-center justify-center"
-            onDragOver={(e) => {
-              if (!canDragTabs || !draggedTab) return;
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'move';
-              setDropMarker(openTabs.length);
-            }}
-            onDrop={(e) => handleDropAtIndex(e, openTabs.length)}
-          >
-            {dropIndex === openTabs.length && (
-              <span className="pointer-events-none absolute h-6 w-0.5 rounded-full bg-lgc-accent" />
-            )}
-          </div>
-
-          {/* Add pane button + picker */}
-          <div ref={addPickerRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setAddPickerOpen((v) => !v)}
-              disabled={tabsAvailableToAdd.length === 0}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Plus size={11} /> Add pane
-            </button>
-
-            {addPickerOpen && tabsAvailableToAdd.length > 0 && (
-              <div className="absolute left-0 top-full z-50 mt-1.5 min-w-40 overflow-hidden rounded-lg border border-lgc-border-strong bg-lgc-bg-elev py-1 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.12)]">
-                {tabsAvailableToAdd.map((key) => {
-                  const m = WORKSPACE_TAB_META[key];
-                  const TabIcon = m.icon;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => {
-                        addTab(key);
-                        setAddPickerOpen(false);
-                      }}
-                      className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12px] text-lgc-fg transition-colors hover:bg-lgc-bg-sunken"
-                    >
-                      <span className="h-2 w-2 rounded-full" style={{ background: m.dot }} />
-                      <TabIcon size={12} className="text-lgc-fg-muted" />
-                      {m.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Right-side placeholder buttons */}
-          <div className="ml-auto flex gap-1">
-            <button
-              type="button"
-              disabled
-              className="flex h-7.5 w-7.5 items-center justify-center rounded-md text-lgc-fg-subtle opacity-40"
-              title="Layouts"
-            >
-              <Columns3 size={13} />
-            </button>
-            <button
-              type="button"
-              disabled
-              className="flex h-7.5 w-7.5 items-center justify-center rounded-md text-lgc-fg-subtle opacity-40"
-              title="Save workspace"
-            >
-              <Star size={13} />
-            </button>
-          </div>
-        </div>
-      )}
+      <WorkspacePaneBar />
 
       {/* ── Content area ─────────────────────────────────────────── */}
       <div className="min-h-0 flex-1">
