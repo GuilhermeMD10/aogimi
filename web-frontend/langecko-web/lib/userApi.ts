@@ -1,6 +1,9 @@
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+import { apiSend, apiSendVoid, API_URL } from './api';
+import type { StoredAuthUser } from '@/lib/storage/auth';
 
 // ── Types ────────────────────────────────────────────────────────────────────
+
+export type AuthUser = StoredAuthUser;
 
 export interface UserProfile {
   id: number;
@@ -19,24 +22,34 @@ export interface ProfileUpdate {
   avatar_index?: number;
 }
 
-// ── API calls ────────────────────────────────────────────────────────────────
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
+export function loginUser(username: string, password: string): Promise<AuthUser> {
+  return apiSend<AuthUser>('/api/user/info', 'POST', { username, password });
+}
+
+export function signupUser(username: string, password: string): Promise<AuthUser> {
+  return apiSend<AuthUser>('/api/user/create', 'POST', { username, password });
+}
+
+// ── Profile ──────────────────────────────────────────────────────────────────
 
 export async function getUserProfile(userId: number): Promise<UserProfile> {
-  const res = await fetch(`${API}/api/user/${userId}`);
+  const res = await fetch(`${API_URL}/api/user/${userId}`);
   if (!res.ok) throw new Error('Failed to fetch profile');
   return res.json();
 }
 
-export async function updateUserProfile(
+export function updateUserProfile(
   username: string,
   password: string,
   updates: ProfileUpdate,
 ): Promise<UserProfile> {
-  const res = await fetch(`${API}/api/user/update`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password, updates }),
-  });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed to update profile');
-  return res.json();
+  return apiSend<UserProfile>('/api/user/update', 'POST', { username, password, updates });
+}
+
+// ── Onboarding ───────────────────────────────────────────────────────────────
+
+export function markOnboardingCompleted(userId: number): Promise<void> {
+  return apiSendVoid('/api/user/onboarding', 'PUT', { userId, completed: true });
 }

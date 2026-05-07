@@ -3,9 +3,9 @@
 import { useCallback } from 'react';
 import { Cloud, HardDrive, RefreshCw } from 'lucide-react';
 import { StampMark } from '@/components/theme-decorations/stamp/StampMark';
+import { clearNeedsOnboarding } from '@/lib/storage/onboarding';
+import { markOnboardingCompleted } from '@/lib/userApi';
 import type { OnboardingExplainerProps } from '@/components/onboarding/OnboardingExplainer/OnboardingExplainer';
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 const POINTS = [
   {
@@ -27,18 +27,8 @@ const POINTS = [
 
 export default function OnboardingExplainer({ userId, onDismiss }: OnboardingExplainerProps) {
   const handleGotIt = useCallback(async () => {
-    try { localStorage.removeItem('lgc_needs_onboarding'); } catch { /* ignore */ }
-
-    try {
-      await fetch(`${API}/api/user/onboarding`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, completed: true }),
-      });
-    } catch {
-      // best-effort
-    }
-
+    clearNeedsOnboarding();
+    try { await markOnboardingCompleted(userId); } catch { /* best-effort */ }
     onDismiss();
   }, [userId, onDismiss]);
 
@@ -50,34 +40,25 @@ export default function OnboardingExplainer({ userId, onDismiss }: OnboardingExp
         </div>
 
         <h1
-          className="mb-1.5 text-center font-medium tracking-tight text-lgc-fg"
-          style={{
-            fontFamily: 'var(--lgc-font-display)',
-            fontSize: 28,
+          className="mb-1.5 text-center font-medium tracking-tight text-lgc-fg font-display"
+          style={{ fontSize: 28,
             fontWeight: 700,
-            letterSpacing: '-0.02em',
-          }}
+            letterSpacing: '-0.02em', }}
         >
           Your progress syncs.
         </h1>
         <h2
-          className="mb-1.5 text-center font-medium tracking-tight text-lgc-fg"
-          style={{
-            fontFamily: 'var(--lgc-font-display)',
-            fontSize: 28,
+          className="mb-1.5 text-center font-medium tracking-tight text-lgc-fg font-display"
+          style={{ fontSize: 28,
             fontWeight: 700,
-            letterSpacing: '-0.02em',
-          }}
+            letterSpacing: '-0.02em', }}
         >
           Your files stay yours.
         </h2>
         <p
-          className="mb-8 text-center text-[13px] text-lgc-fg-muted"
-          style={{
-            fontFamily: 'var(--lgc-font-mono)',
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-          }}
+          className="mb-8 text-center text-[13px] text-lgc-fg-muted font-mono"
+          style={{ letterSpacing: '0.18em',
+            textTransform: 'uppercase', }}
         >
           How Langeco handles your books
         </p>
@@ -101,8 +82,7 @@ export default function OnboardingExplainer({ userId, onDismiss }: OnboardingExp
               </div>
               <div>
                 <div
-                  className="mb-0.5 text-[13px] font-medium text-lgc-fg"
-                  style={{ fontFamily: 'var(--lgc-font-display)' }}
+                  className="mb-0.5 text-[13px] font-medium text-lgc-fg font-display"
                 >
                   {title}
                 </div>

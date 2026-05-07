@@ -26,6 +26,12 @@ async function updateProgress(id, { cfiPosition, progress, spineIndex, totalSpin
   return book;
 }
 
+async function updateTitle(id, title) {
+  const book = await bookRepo.updateBookTitle(id, title);
+  if (!book) throw new Error("Book not found");
+  return book;
+}
+
 async function updateIdentity(id, { fileHash, contentHash, dcIdentifier, language, publisher }) {
   const book = await bookRepo.updateBookIdentity(id, { fileHash, contentHash, dcIdentifier, language, publisher });
   if (!book) throw new Error("Book not found");
@@ -79,4 +85,4 @@ async function deleteBook(id) {
   return true;
 }
 
-module.exports = { createBook, getUserBooks, getBook, updateProgress, updateIdentity, matchBooks, deleteBook };
+module.exports = { createBook, getUserBooks, getBook, updateProgress, updateTitle, updateIdentity, matchBooks, deleteBook };

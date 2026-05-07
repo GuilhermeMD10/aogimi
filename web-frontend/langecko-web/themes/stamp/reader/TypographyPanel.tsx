@@ -46,7 +46,7 @@ export function TypographyPanel({ prefs, onSavePrefs, onClose }: TypographyPanel
         <div className={TYPO_LABEL}>Size</div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => onSavePrefs({ fontSize: Math.max(70, prefs.fontSize - 10) })} className={ICON_BTN} style={{ width: 28, height: 28 }}><Minus size={12} /></button>
-          <div className="flex-1 text-center text-xs font-medium text-lgc-fg" style={{ fontFamily: 'var(--font-mono)' }}>{prefs.fontSize}%</div>
+          <div className="flex-1 text-center text-xs font-medium text-lgc-fg font-mono">{prefs.fontSize}%</div>
           <button type="button" onClick={() => onSavePrefs({ fontSize: Math.min(200, prefs.fontSize + 10) })} className={ICON_BTN} style={{ width: 28, height: 28 }}><Plus size={12} /></button>
         </div>
       </div>

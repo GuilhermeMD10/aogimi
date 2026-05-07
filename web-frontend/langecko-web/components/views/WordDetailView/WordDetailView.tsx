@@ -3,37 +3,16 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Plus, Volume2, Star } from 'lucide-react';
-import { JlptChip } from '@/components/views/DictionaryView';
-
-type WordMeaning = { meaning: string; pos: string | null; lang: string };
-
-type WordResult = {
-  id: number;
-  is_common: boolean;
-  jlpt_level?: number | null;
-  kanji: string[];
-  readings: string[];
-  meanings: WordMeaning[];
-  grade?: number | null;
-  char_grades?: { char: string; grade: number | null }[];
-};
-
-type KanjiInfo = {
-  literal: string;
-  grade: number | null;
-  jlpt_level: number | null;
-  stroke_count: number | null;
-  radical: number | null;
-  meanings: string[];
-  on_readings: string[];
-  kun_readings: string[];
-};
-
-type DetailsResponse = { word: WordResult; kanjis: KanjiInfo[] };
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
-
-const MAX_MEANINGS_ON_CARD = 3;
+import { InfoRow } from '@/components/ui/InfoRow';
+import { JlptChip } from '@/components/ui/JlptChip';
+import { SectionHead } from '@/components/ui/SectionHead';
+import { ThemedDecoration } from '@/components/theme-decorations/ThemedDecoration';
+import { Postmark } from '@/components/theme-decorations/stamp/Postmark';
+import {
+  getWordDetails,
+  type DetailsResponse,
+} from '@/lib/dictApi';
+import { MAX_MEANINGS_ON_CARD } from '@/lib/config/limits';
 
 // If the user's query matches one of the entry's kanji or reading forms exactly,
 // surface that form instead of the dict's "primary" common kanji.
@@ -73,18 +52,7 @@ export default function WordDetailView({
     setError(null);
     setData(null);
 
-    fetch(`${API}/api/words/${encodeURIComponent(id)}/details`, {
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(body.error ?? 'Failed to load word');
-        }
-        return res.json() as Promise<DetailsResponse>;
-      })
+    getWordDetails(id, controller.signal)
       .then(setData)
       .catch((err) => {
         if (err instanceof Error && err.name === 'AbortError') return;
@@ -112,15 +80,20 @@ export default function WordDetailView({
       <div
         className="flex items-center gap-2.5 border-b border-lgc-border px-5 py-3"
         style={{
-          background: 'color-mix(in oklab, var(--lgc-bg) 85%, transparent)',
-          backdropFilter: 'blur(10px)',
+          background: 'var(--lgc-toolbar-bg)',
+          backdropFilter: 'var(--lgc-toolbar-backdrop-filter)',
         }}
       >
         <button
           type="button"
           onClick={handleBack}
           className="flex items-center gap-1.5 px-2 py-1 text-[13px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev hover:text-lgc-fg"
-          style={{ borderRadius: 6 }}
+          style={{
+            borderRadius: 'var(--lgc-toolbar-button-radius)',
+            fontFamily: 'var(--lgc-toolbar-button-font-family)',
+            letterSpacing: 'var(--lgc-toolbar-button-tracking)',
+            textTransform: 'var(--lgc-toolbar-button-text-transform)' as React.CSSProperties['textTransform'],
+          }}
         >
           <ArrowLeft size={14} />
           Results
@@ -129,6 +102,13 @@ export default function WordDetailView({
 
       <div className="lgc-scroll flex-1 overflow-auto">
         <div className="relative mx-auto max-w-215 px-4 pb-10 pt-5 @md:px-8 @md:pb-16 @md:pt-7">
+          {/* Stamp-only postmark decoration in the top-right corner. */}
+          <ThemedDecoration theme="stamp">
+            <div aria-hidden className="pointer-events-none hidden @md:block">
+              <Postmark size={86} rotate={-8} />
+            </div>
+          </ThemedDecoration>
+
           {loading && <p className="text-sm text-lgc-fg-muted">Loading&hellip;</p>}
           {error && <p className="text-sm text-lgc-error">{error}</p>}
           {data && (
@@ -172,25 +152,23 @@ function WordBody({
     <>
       <div className="mb-1.5 flex flex-col gap-3 @lg:flex-row @lg:items-end @lg:gap-6">
         <div
-          className="text-[44px] leading-none tracking-tight text-lgc-fg @sm:text-[56px] @lg:text-[72px] @2xl:text-[84px]"
-          style={{ fontFamily: 'var(--lgc-font-display)', letterSpacing: '-0.02em' }}
+          className="text-[44px] leading-none tracking-tight text-lgc-fg @sm:text-[56px] @lg:text-[72px] @2xl:text-[84px] font-display"
+          style={{ letterSpacing: '-0.02em' }}
         >
           {headword}
         </div>
         <div className="flex-1 @lg:pb-3.5">
           {reading && (
             <div
-              className="text-[16px] @sm:text-[18px] @lg:text-[22px]"
-              style={{
-                fontFamily: 'var(--lgc-font-display)',
-                color: 'var(--lgc-fg-muted)',
-              }}
+              className="text-[16px] @sm:text-[18px] @lg:text-[22px] font-display"
+              style={{ color: 'var(--lgc-row-reading-color)',
+                letterSpacing: 'var(--lgc-row-reading-tracking)', }}
             >
               {reading}
             </div>
           )}
           {word.readings.length > 1 && (
-            <div className="mt-0.5 text-[13px] text-lgc-fg-subtle" style={{ fontFamily: 'var(--lgc-font-mono)' }}>
+            <div className="mt-0.5 text-[13px] text-lgc-fg-subtle font-mono">
               {word.readings.join(' · ')}
             </div>
           )}
@@ -206,21 +184,30 @@ function WordBody({
             onClick={handleAddCard}
             disabled={!onAddCard}
             className="flex items-center gap-1.5 bg-lgc-accent px-3 py-1.5 text-xs font-medium text-lgc-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
-            style={{ borderRadius: 6 }}
+            style={{
+              borderRadius: 'var(--lgc-button-radius)',
+              borderWidth: 'var(--lgc-button-border-width)',
+              borderStyle: 'var(--lgc-button-border-style)' as React.CSSProperties['borderStyle'],
+              borderColor: 'var(--lgc-button-border-color)',
+              boxShadow: 'var(--lgc-button-shadow)',
+              fontFamily: 'var(--lgc-button-font-family)',
+              letterSpacing: 'var(--lgc-button-letter-spacing)',
+              textTransform: 'var(--lgc-button-text-transform)' as React.CSSProperties['textTransform'],
+            }}
           >
             <Plus size={13} /> Add to deck
           </button>
           <button
             type="button"
             className="flex items-center gap-1.5 border border-lgc-border px-3 py-1.5 text-xs font-medium text-lgc-fg transition-colors hover:bg-lgc-bg-elev"
-            style={{ borderRadius: 6 }}
+            style={{ borderRadius: 'var(--lgc-icon-button-radius)' }}
           >
             <Volume2 size={13} /> Play audio
           </button>
           <button
             type="button"
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev hover:text-lgc-fg"
-            style={{ borderRadius: 6 }}
+            style={{ borderRadius: 'var(--lgc-icon-button-radius)' }}
           >
             <Star size={13} /> Save word
           </button>
@@ -235,16 +222,21 @@ function WordBody({
               key={`${m.lang}-${i}`}
               className="flex gap-3.5 py-2.5"
               style={{
-                borderTop: i > 0 ? '1px solid var(--lgc-border)' : undefined,
+                borderTopWidth: i > 0 ? '1px' : undefined,
+                borderTopStyle: 'var(--lgc-divider-style)' as React.CSSProperties['borderTopStyle'],
+                borderTopColor: 'var(--lgc-border)',
+                paddingBottom: 'var(--lgc-meaning-padding-bottom)',
               }}
             >
               <div
                 className="font-semibold text-lgc-accent"
                 style={{
-                  fontFamily: 'var(--lgc-font-mono)',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  paddingTop: 2,
+                  fontFamily: 'var(--lgc-meaning-num-font)',
+                  fontSize: 'var(--lgc-meaning-num-size)',
+                  fontWeight: 'var(--lgc-meaning-num-weight)' as React.CSSProperties['fontWeight'],
+                  lineHeight: 'var(--lgc-meaning-num-line-height)',
+                  minWidth: 'var(--lgc-meaning-num-min-width)',
+                  paddingTop: 'var(--lgc-meaning-num-padding-top)',
                 }}
               >
                 {String(i + 1).padStart(2, '0')}
@@ -272,19 +264,15 @@ function WordBody({
                 className="lgc-card flex gap-3 p-3 text-left transition-colors hover:bg-lgc-bg-sunken/50 @sm:gap-4 @sm:p-4"
               >
                 <div
-                  className="flex w-14 shrink-0 items-center justify-center text-[40px] leading-none text-lgc-fg @sm:w-18 @sm:border-r @sm:border-lgc-border @sm:pr-3 @sm:text-[56px] @lg:w-22 @lg:text-[72px]"
-                  style={{ fontFamily: 'var(--lgc-font-display)' }}
+                  className="flex w-14 shrink-0 items-center justify-center text-[40px] leading-none text-lgc-fg @sm:w-18 @sm:border-r @sm:border-lgc-border @sm:pr-3 @sm:text-[56px] @lg:w-22 @lg:text-[72px] font-display"
                 >
                   {k.literal}
                 </div>
                 <div className="flex-1 text-[12.5px] leading-relaxed">
                   <div
-                    className="mb-1 font-medium"
-                    style={{
-                      fontFamily: 'var(--lgc-font-display)',
-                      color: 'var(--lgc-fg)',
-                      fontSize: 15,
-                    }}
+                    className="mb-1 font-medium font-display"
+                    style={{ color: 'var(--lgc-kanji-meanings-color)',
+                      fontSize: 'var(--lgc-kanji-meanings-size)', }}
                   >
                     {k.meanings.join(', ') || '—'}
                   </div>
@@ -303,39 +291,5 @@ function WordBody({
 
       <div className="flex justify-end gap-1.5 text-[11px] text-lgc-fg-subtle">Source &middot; JMdict</div>
     </>
-  );
-}
-
-function SectionHead({ num, title }: { num: string; title: string }) {
-  return (
-    <div className="mb-3 flex items-baseline gap-2.5">
-      <span
-        className="text-[11px] font-semibold"
-        style={{
-          fontFamily: 'var(--lgc-font-mono)',
-          color: 'var(--lgc-fg-subtle)',
-        }}
-      >
-        {num}
-      </span>
-      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-lgc-accent">{title}</span>
-      <span className="h-px flex-1 bg-lgc-border" />
-    </div>
-  );
-}
-
-function InfoRow({ label, value, jp }: { label: string; value: string; jp?: boolean }) {
-  return (
-    <div className="flex gap-2.5">
-      <span className="w-16 text-[11px] font-semibold uppercase tracking-[0.06em] text-lgc-fg-muted">{label}</span>
-      <span
-        className="text-[13px] text-lgc-fg"
-        style={{
-          fontFamily: jp ? 'var(--lgc-font-display)' : 'var(--lgc-font-mono)',
-        }}
-      >
-        {value}
-      </span>
-    </div>
   );
 }

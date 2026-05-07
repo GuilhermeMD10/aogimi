@@ -1,17 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
-import { useTheme } from '@/components/providers/ThemeProvider';
-import { themeComponentRegistry } from '@/themes';
+import { useThemedComponent } from '@/themes/useThemedComponent';
 import { TypographyPanel as DefaultTypographyPanel, type TypographyPanelProps } from './TypographyPanel';
 
 export type { TypographyPanelProps } from './TypographyPanel';
 
 export function TypographyPanel(props: TypographyPanelProps) {
-  const { theme } = useTheme();
-  const Resolved = useMemo(
-    () => themeComponentRegistry[theme]?.TypographyPanel ?? DefaultTypographyPanel,
-    [theme],
-  );
+  const Resolved = useThemedComponent('TypographyPanel', DefaultTypographyPanel);
   return <Resolved {...props} />;
 }

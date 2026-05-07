@@ -1,6 +1,5 @@
+import { API_URL } from './api';
 import type { EpubIdentity } from '@/lib/epubIdentity';
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 // ── Types matching backend book_progress table ──────────────────────────────
 
@@ -66,7 +65,7 @@ export async function registerBook(params: {
   language?: string | null;
   publisher?: string | null;
 }): Promise<BookProgressRecord> {
-  const res = await fetch(`${API}/api/books`, {
+  const res = await fetch(`${API_URL}/api/books`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -76,13 +75,13 @@ export async function registerBook(params: {
 }
 
 export async function getUserBooks(userId: number): Promise<BookProgressRecord[]> {
-  const res = await fetch(`${API}/api/books/user/${userId}`);
+  const res = await fetch(`${API_URL}/api/books/user/${userId}`);
   if (!res.ok) throw new Error('Failed to fetch books');
   return res.json();
 }
 
 export async function getBookRecord(id: string): Promise<BookProgressRecord> {
-  const res = await fetch(`${API}/api/books/${id}`);
+  const res = await fetch(`${API_URL}/api/books/${id}`);
   if (!res.ok) throw new Error('Book not found');
   return res.json();
 }
@@ -91,7 +90,7 @@ export async function updateBookProgress(
   id: string,
   params: ProgressPayload,
 ): Promise<BookProgressRecord> {
-  const res = await fetch(`${API}/api/books/${id}/progress`, {
+  const res = await fetch(`${API_URL}/api/books/${id}/progress`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -105,14 +104,27 @@ export async function updateBookProgress(
  * Survives page unload / tab close — browser guarantees delivery.
  */
 export function sendProgressBeacon(id: string, params: ProgressPayload): void {
-  const url = `${API}/api/books/${id}/progress`;
+  const url = `${API_URL}/api/books/${id}/progress`;
   const body = new Blob([JSON.stringify(params)], { type: 'application/json' });
   navigator.sendBeacon(url, body);
 }
 
 export async function deleteBookRecord(id: string): Promise<void> {
-  const res = await fetch(`${API}/api/books/${id}`, { method: 'DELETE' });
+  const res = await fetch(`${API_URL}/api/books/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete book');
+}
+
+export async function updateBookTitle(
+  id: string,
+  title: string,
+): Promise<BookProgressRecord> {
+  const res = await fetch(`${API_URL}/api/books/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error('Failed to update book title');
+  return res.json();
 }
 
 // ── Hash-based matching ─────────────────────────────────────────────────────
@@ -121,7 +133,7 @@ export async function matchBooks(
   userId: number,
   books: MatchCandidate[],
 ): Promise<(MatchResult | null)[]> {
-  const res = await fetch(`${API}/api/books/match`, {
+  const res = await fetch(`${API_URL}/api/books/match`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, books }),
@@ -136,7 +148,7 @@ export async function updateBookIdentity(
   id: string,
   identity: EpubIdentity,
 ): Promise<BookProgressRecord> {
-  const res = await fetch(`${API}/api/books/${id}/identity`, {
+  const res = await fetch(`${API_URL}/api/books/${id}/identity`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(identity),

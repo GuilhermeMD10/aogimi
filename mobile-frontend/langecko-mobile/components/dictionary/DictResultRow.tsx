@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
 import type { WordResult } from '@/lib/types';
+import { JlptChip } from '@/components/ui/JlptChip';
 
 type Props = {
   word: WordResult;
@@ -35,6 +36,7 @@ export function DictResultRow({ word, query, onPress }: Props) {
             {highlightMatch(reading, query, c.accent)}
           </Text>
         )}
+        {word.jlpt_level != null && <JlptChip level={word.jlpt_level} compact />}
       </View>
       {gloss && (
         <Text style={[styles.gloss, { color: c.fgMuted }]} numberOfLines={2}>
