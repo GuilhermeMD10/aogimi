@@ -7,7 +7,8 @@ import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
 import { queryDictionary, fetchWordDetails } from '@/lib/api';
 import type { SearchResponse, WordDetails } from '@/lib/types';
-import { DictEntry } from './DictEntry';
+import { DictEntry as DefaultDictEntry } from './DictEntry';
+import { useThemedComponent } from '@/themes/useThemedComponent';
 
 type Props = {
   visible: boolean;
@@ -26,6 +27,7 @@ type DictState =
 export function DictDrawer({ visible, term, onDismiss, onAddFlashcard }: Props) {
   const c = useColors();
   const t = useT();
+  const DictEntry = useThemedComponent('DictEntry', DefaultDictEntry);
   const [state, setState] = useState<DictState>({ kind: 'idle' });
 
   useEffect(() => {

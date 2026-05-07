@@ -13,44 +13,37 @@ import { Button } from '@/components/ui/Button';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import { fetchWordDetails } from '@/lib/api';
+import { useNavVisibility } from '@/lib/navVisibility';
 import type { SearchResponse, WordDetails, WordResult } from '@/lib/types';
 import { FlashcardDrawer, type FlashcardPrefill } from '@/components/flashcards/FlashcardDrawer';
 import { DictEntry } from './DictEntry';
 import { DictResultRow } from './DictResultRow';
 import { useDictionarySearch } from './useDictionarySearch';
+import { useDictionaryNav } from './useDictionaryNav';
 
-type Mode =
-  | { kind: 'search' }
-  | { kind: 'detailLoading' }
-  | { kind: 'detail'; details: WordDetails };
+const NAV_CLAIM = 'dictionary-detail';
 
 export function DictionaryScreen() {
   const c = useColors();
   const t = useT();
 
-  const [query, setQuery] = useState('');
-  const [mode, setMode] = useState<Mode>({ kind: 'search' });
-  const [detailError, setDetailError] = useState<string | null>(null);
-  const [flashcardPrefill, setFlashcardPrefill] = useState<FlashcardPrefill | null>(null);
+  const nav = useDictionaryNav();
+  const { current, canGoBack, query, setQuery, openDetail, openKanjiSearch, back, detailError } =
+    nav;
 
+  const [flashcardPrefill, setFlashcardPrefill] = useState<FlashcardPrefill | null>(null);
   const searchState = useDictionarySearch(query);
 
-  const openDetail = useCallback(async (id: number) => {
-    setDetailError(null);
-    setMode({ kind: 'detailLoading' });
-    try {
-      const details = await fetchWordDetails(id);
-      setMode({ kind: 'detail', details });
-    } catch (err) {
-      setDetailError(err instanceof Error ? err.message : t('common.error'));
-      setMode({ kind: 'search' });
+  // Hide the bottom tab bar while a detail (or its loading state) is on top.
+  const { claim, release } = useNavVisibility();
+  useEffect(() => {
+    const inDetail = current.kind === 'detail' || current.kind === 'detailLoading';
+    if (inDetail) {
+      claim(NAV_CLAIM);
+      return () => release(NAV_CLAIM);
     }
-  }, [t]);
-
-  const backToSearch = useCallback(() => {
-    setMode({ kind: 'search' });
-  }, []);
+    return undefined;
+  }, [current.kind, claim, release]);
 
   const addFlashcardFromDetails = useCallback((details: WordDetails) => {
     const w = details.word;
@@ -66,38 +59,32 @@ export function DictionaryScreen() {
     });
   }, []);
 
-  // Clear detail if the user starts a new search after landing on detail
-  useEffect(() => {
-    if (mode.kind !== 'search' && query.length > 0) {
-      setMode({ kind: 'search' });
-    }
-    // only trigger when query changes meaningfully
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
-
   return (
     <Screen padded>
-      {mode.kind === 'search' && (
+      {current.kind === 'search' && (
         <SearchView
           query={query}
           setQuery={setQuery}
           searchState={searchState}
           onPickResult={openDetail}
           errorBanner={detailError}
+          canGoBack={canGoBack}
+          onBack={back}
         />
       )}
 
-      {mode.kind === 'detailLoading' && (
+      {current.kind === 'detailLoading' && (
         <View style={styles.centered}>
           <ActivityIndicator color={c.fg} />
         </View>
       )}
 
-      {mode.kind === 'detail' && (
+      {current.kind === 'detail' && (
         <DetailView
-          details={mode.details}
-          onBack={backToSearch}
-          onAddFlashcard={() => addFlashcardFromDetails(mode.details)}
+          details={current.details}
+          onBack={back}
+          onAddFlashcard={() => addFlashcardFromDetails(current.details)}
+          onKanjiPress={openKanjiSearch}
         />
       )}
 
@@ -118,12 +105,16 @@ function SearchView({
   searchState,
   onPickResult,
   errorBanner,
+  canGoBack,
+  onBack,
 }: {
   query: string;
   setQuery: (v: string) => void;
   searchState: ReturnType<typeof useDictionarySearch>;
   onPickResult: (id: number) => void;
   errorBanner: string | null;
+  canGoBack: boolean;
+  onBack: () => void;
 }) {
   const c = useColors();
   const t = useT();
@@ -133,6 +124,11 @@ function SearchView({
   return (
     <View style={styles.flex}>
       <View style={styles.header}>
+        {canGoBack && (
+          <Pressable onPress={onBack} hitSlop={12} style={{ marginBottom: spacing.xs }}>
+            <Text style={[styles.back, { color: c.fgMuted }]}>‹ {t('common.back')}</Text>
+          </Pressable>
+        )}
         <Text style={[styles.title, { color: c.fg }]}>{t('dict.title')}</Text>
       </View>
 
@@ -241,10 +237,12 @@ function DetailView({
   details,
   onBack,
   onAddFlashcard,
+  onKanjiPress,
 }: {
   details: WordDetails;
   onBack: () => void;
   onAddFlashcard: () => void;
+  onKanjiPress: (literal: string) => void;
 }) {
   const c = useColors();
   const t = useT();
@@ -256,7 +254,11 @@ function DetailView({
         </Pressable>
       </View>
       <View style={{ flex: 1 }}>
-        <DictEntry word={details.word} kanjis={details.kanjis} />
+        <DictEntry
+          word={details.word}
+          kanjis={details.kanjis}
+          onKanjiPress={onKanjiPress}
+        />
       </View>
       <View style={[styles.detailFooter, { borderTopColor: c.border }]}>
         <Button label={t('dict.addFlashcard')} onPress={onAddFlashcard} full />

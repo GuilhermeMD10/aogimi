@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@/components/providers/AuthProvider';
+import { useCallback, useEffect, useState } from 'react';
+import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import * as api from '@/lib/decksApi';
 import { DeckList } from './cards/DeckList';
@@ -19,7 +19,7 @@ type Screen =
   | { type: 'study'; deckId: string };
 
 export default function CardDeckView() {
-  const { user } = useAuth();
+  const user = useAuthedUser();
 
   const [deckSummaries, setDeckSummaries] = useState<DeckSummary[]>([]);
   const [activeDeck, setActiveDeck] = useState<Deck | null>(null);
@@ -31,7 +31,6 @@ export default function CardDeckView() {
 
   // ── Fetch deck list ─────────────────────────────────────────────────────────
   const fetchDecks = useCallback(async () => {
-    if (!user) return;
     try {
       const records = await api.getUserDecks(user.id);
       setDeckSummaries(
@@ -92,7 +91,6 @@ export default function CardDeckView() {
   // ── Deck mutations ──────────────────────────────────────────────────────────
   const addDeck = useCallback(
     async (name: string, description: string) => {
-      if (!user) return;
       await api.createDeck({ userId: user.id, name, description });
       await fetchDecks();
     },
@@ -220,7 +218,6 @@ export default function CardDeckView() {
 
   const createDeckAndUseForPending = useCallback(
     async (name: string) => {
-      if (!user) return;
       const deck = await api.createDeck({ userId: user.id, name });
       await fetchDecks();
       setPendingCardFlow((prev) =>
@@ -242,17 +239,6 @@ export default function CardDeckView() {
     },
     [pendingCardFlow, fetchDecks, fetchDeckWithCards],
   );
-
-  // ── Not logged in ─────────────────────────────────────────────────────────
-  if (!user) {
-    return (
-      <div className="flex min-h-full items-center justify-center p-8 text-center">
-        <div>
-          <p className="text-sm text-lgc-fg-muted">Log in to use flashcards.</p>
-        </div>
-      </div>
-    );
-  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
   const overlay = (

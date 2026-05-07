@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, Search, Layers, ChevronRight, User, type LucideIcon } from 'lucide-react';
-import { useAuth } from '@/components/providers/AuthProvider';
+import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import { useWorkspaceTabs } from '@/components/providers/WorkspaceTabsProvider';
 import { useBubble } from '@/components/providers/BubbleProvider';
 import { getDeviceBooks, type DeviceBookRecord } from '@/lib/devicesApi';
-import { getDeviceId } from '@/lib/deviceId';
+import { getDeviceId } from '@/lib/storage/device';
 import type { WorkspaceTabKey } from '@/lib/config/tab-config';
 import type { BubbleKey } from '@/components/WorkspaceNav';
 import {
@@ -17,7 +17,6 @@ import {
   NavDemoCompact,
   OnboardingCard,
   RECENT_LOOKUPS,
-  SplitDemo,
 } from './HomeDemos';
 
 type Destination = {
@@ -39,7 +38,7 @@ const DESTINATIONS: Destination[] = [
 
 export default function HomeView() {
   const router = useRouter();
-  const { user } = useAuth();
+  const user = useAuthedUser();
   const { addTab, openTabs } = useWorkspaceTabs();
   const { setPendingBookOpen } = useReaderState();
   const { setActiveBubble } = useBubble();
@@ -47,7 +46,6 @@ export default function HomeView() {
   const [recent, setRecent] = useState<DeviceBookRecord[]>([]);
 
   useEffect(() => {
-    if (!user) return;
     let cancelled = false;
     const deviceId = getDeviceId();
     getDeviceBooks(deviceId, user.id)
@@ -302,26 +300,18 @@ export default function HomeView() {
 
         <section style={{ marginTop: 56 }}>
           <SectionLabel>Getting around</SectionLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-            <OnboardingCard
-              demo={<NavDemoCompact />}
-              title="A bottom bar, always within reach"
-              body={
-                <>
-                  Three places on the left — <span style={{ color: 'var(--lgc-fg)' }}>Reader, Dictionary, Decks</span>.
-                  Tap to open, tap again to close. On the right, small windows float open for{' '}
-                  <span style={{ color: 'var(--lgc-fg)' }}>Home, Profile, Settings</span> without taking over.
-                </>
-              }
-              demoPad="12px 0 14px"
-            />
-            <OnboardingCard
-              demo={<SplitDemo />}
-              title="Drag a tab, work in two places"
-              body="Hold a tab and drag to rearrange — or pull it next to another to split the view. Read and look up a word at the same time. Drag again to collapse back."
-              demoPad="6px 0 14px"
-            />
-          </div>
+          <OnboardingCard
+            demo={<NavDemoCompact />}
+            title="A bottom bar, always within reach"
+            body={
+              <>
+                Three places on the left — <span style={{ color: 'var(--lgc-fg)' }}>Reader, Dictionary, Decks</span>.
+                Tap to open, tap again to close. On the right, small windows float open for{' '}
+                <span style={{ color: 'var(--lgc-fg)' }}>Home, Profile, Settings</span> without taking over.
+              </>
+            }
+            demoPad="12px 0 14px"
+          />
         </section>
       </div>
     </div>

@@ -1,15 +1,20 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { KanjiInfo, WordResult } from '@/lib/types';
+import { JlptChip } from '@/components/ui/JlptChip';
 
 type Props = {
   word: WordResult;
   kanjis?: KanjiInfo[];
   compact?: boolean;
+  /** When provided, each kanji card becomes pressable and fires this with
+   *  the kanji's literal — the parent typically opens a fresh dictionary
+   *  search for that character (drill-down). */
+  onKanjiPress?: (literal: string) => void;
 };
 
-export function DictEntry({ word, kanjis = [], compact }: Props) {
+export function DictEntry({ word, kanjis = [], compact, onKanjiPress }: Props) {
   const c = useColors();
   const headword = word.kanji[0] ?? word.readings[0] ?? '';
   const reading = word.readings[0] ?? '';
@@ -28,6 +33,7 @@ export function DictEntry({ word, kanjis = [], compact }: Props) {
             {reading}
           </Text>
         )}
+        {word.jlpt_level != null && <JlptChip level={word.jlpt_level} />}
       </View>
 
       {englishMeanings.length > 0 && (
@@ -49,7 +55,11 @@ export function DictEntry({ word, kanjis = [], compact }: Props) {
       {kanjis.length > 0 && (
         <View style={styles.kanjiRow}>
           {kanjis.map((k) => (
-            <KanjiCard key={k.literal} kanji={k} />
+            <KanjiCard
+              key={k.literal}
+              kanji={k}
+              onPress={onKanjiPress ? () => onKanjiPress(k.literal) : undefined}
+            />
           ))}
         </View>
       )}
@@ -57,11 +67,20 @@ export function DictEntry({ word, kanjis = [], compact }: Props) {
   );
 }
 
-function KanjiCard({ kanji }: { kanji: KanjiInfo }) {
+function KanjiCard({
+  kanji,
+  onPress,
+}: {
+  kanji: KanjiInfo;
+  onPress?: () => void;
+}) {
   const c = useColors();
-  return (
-    <View style={[styles.kanjiCard, { backgroundColor: c.bgSunken, borderColor: c.border }]}>
-      <Text style={[styles.kanjiChar, { color: c.fg }]}>{kanji.literal}</Text>
+  const body = (
+    <>
+      <View style={styles.kanjiHeader}>
+        <Text style={[styles.kanjiChar, { color: c.fg }]}>{kanji.literal}</Text>
+        {kanji.jlpt_level != null && <JlptChip level={kanji.jlpt_level} compact />}
+      </View>
       {kanji.on_readings.length > 0 && (
         <Text style={[styles.kanjiReading, { color: c.fgMuted }]} numberOfLines={1}>
           音 {kanji.on_readings.slice(0, 3).join('、')}
@@ -77,7 +96,32 @@ function KanjiCard({ kanji }: { kanji: KanjiInfo }) {
           {kanji.meanings.slice(0, 3).join(', ')}
         </Text>
       )}
-    </View>
+    </>
+  );
+
+  if (!onPress) {
+    return (
+      <View style={[styles.kanjiCard, { backgroundColor: c.bgSunken, borderColor: c.border }]}>
+        {body}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Search ${kanji.literal}`}
+      style={({ pressed }) => [
+        styles.kanjiCard,
+        {
+          backgroundColor: pressed ? c.bgElev : c.bgSunken,
+          borderColor: c.border,
+        },
+      ]}
+    >
+      {body}
+    </Pressable>
   );
 }
 
@@ -102,6 +146,12 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     minWidth: 120,
     gap: 4,
+  },
+  kanjiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   kanjiChar: { fontFamily: fontFamily.jp, fontSize: 32, fontWeight: '500' },
   kanjiReading: { fontSize: fontSize.xs, fontFamily: fontFamily.jp },

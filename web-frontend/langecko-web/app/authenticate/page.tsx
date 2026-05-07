@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { setStoredAuthUser } from '@/lib/storage/auth';
 
 type Mode = 'login' | 'signup';
 
@@ -45,14 +46,13 @@ function BrandPanel({ mode }: { mode: Mode }) {
       {/* Top: logo */}
       <div className="relative z-10 flex items-center gap-2.5">
         <div
-          className="flex h-9.5 w-9.5 items-center justify-center rounded-lg border border-white/20 bg-white/12"
-          style={{ fontFamily: 'var(--font-display)', fontSize: 20 }}
+          className="flex h-9.5 w-9.5 items-center justify-center rounded-lg border border-white/20 bg-white/12 font-display"
+          style={{ fontSize: 20 }}
         >
           {crestChar}
         </div>
         <div
-          className="text-[22px] font-normal tracking-tight"
-          style={{ fontFamily: 'var(--font-display)' }}
+          className="text-[22px] font-normal tracking-tight font-display"
         >
           Langeco
         </div>
@@ -68,12 +68,9 @@ function BrandPanel({ mode }: { mode: Mode }) {
           }}
         >
           <div
-            className="text-white/92"
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 110,
-              lineHeight: 1,
-            }}
+            className="text-white/92 font-display"
+            style={{ fontSize: 110,
+              lineHeight: 1, }}
           >
             {crestChar}
           </div>
@@ -81,12 +78,9 @@ function BrandPanel({ mode }: { mode: Mode }) {
           <div className="absolute inset-3.5 rounded-full border border-dashed border-white/12" />
         </div>
         <div
-          className="mb-1.5 opacity-95"
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 22,
-            letterSpacing: '0.06em',
-          }}
+          className="mb-1.5 opacity-95 font-display"
+          style={{ fontSize: 22,
+            letterSpacing: '0.06em', }}
         >
           {tagline}
         </div>
@@ -98,8 +92,7 @@ function BrandPanel({ mode }: { mode: Mode }) {
 
       {/* Bottom: footer */}
       <div
-        className="relative z-10 flex justify-between text-[11px] opacity-55"
-        style={{ fontFamily: 'var(--font-mono)' }}
+        className="relative z-10 flex justify-between text-[11px] opacity-55 font-mono"
       >
         <span>&copy; 2026 Langeco</span>
         <span>
@@ -244,8 +237,7 @@ export default function AuthenticatePage() {
   };
 
   const handleDevBypass = () => {
-    const fakeUser = { id: 0, username: 'dev' };
-    localStorage.setItem('auth_user', JSON.stringify(fakeUser));
+    setStoredAuthUser({ id: 0, username: 'dev' });
     window.location.reload();
   };
 
@@ -263,14 +255,12 @@ export default function AuthenticatePage() {
       <div className="flex w-full max-w-110 flex-col overflow-auto px-11 py-12 lg:w-110">
         {/* Logo */}
         <div className="mb-auto flex items-center gap-2 pb-10">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-lgc-accent text-[14px] font-semibold text-lgc-accent-fg"
-            style={{ fontFamily: 'var(--font-display)' }}
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-lgc-accent text-[14px] font-semibold text-lgc-accent-fg font-display"
           >
             読
           </div>
           <span
-            className="text-[15px] font-medium"
-            style={{ fontFamily: 'var(--font-display)' }}
+            className="text-[15px] font-medium font-display"
           >
             Langeco
           </span>
@@ -282,8 +272,8 @@ export default function AuthenticatePage() {
             {mode === 'login' ? 'Sign in' : 'Create account'}
           </div>
           <h1
-            className="mb-1.5 text-[30px] font-medium tracking-tight"
-            style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.015em' }}
+            className="mb-1.5 text-[30px] font-medium tracking-tight font-display"
+            style={{ letterSpacing: '-0.015em' }}
           >
             {mode === 'login' ? 'Welcome back' : 'Join Langeco'}
           </h1>

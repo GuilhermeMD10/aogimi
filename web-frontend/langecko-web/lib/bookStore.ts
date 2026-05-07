@@ -3,9 +3,10 @@ import {
   registerBook as apiRegisterBook,
   getUserBooks,
   updateBookIdentity as apiUpdateBookIdentity,
+  updateBookTitle as apiUpdateBookTitle,
   type BookProgressRecord,
 } from '@/lib/booksApi';
-import { computeEpubIdentity, type EpubIdentity } from '@/lib/epubIdentity';
+import { computeEpubIdentity, extractEpubData, type EpubData } from '@/lib/epubIdentity';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,53 +69,6 @@ function getDb() {
   return dbPromise;
 }
 
-// ── Metadata extraction via epubjs ───────────────────────────────────────────
-
-async function extractEpubMetadata(
-  arrayBuffer: ArrayBuffer,
-): Promise<{ title: string; author: string; coverImage?: string }> {
-  const mod = await import('epubjs');
-  const createBook = mod.default as unknown as (data: ArrayBuffer) => {
-    loaded: { metadata: Promise<{ title: string; creator: string }> };
-    coverUrl: () => Promise<string | null>;
-    destroy: () => void;
-  };
-
-  const book = createBook(arrayBuffer);
-  try {
-    const metadata = await book.loaded.metadata;
-    let coverImage: string | undefined;
-
-    try {
-      const coverUrl = await book.coverUrl();
-      if (coverUrl) {
-        const res = await fetch(coverUrl);
-        const blob = await res.blob();
-        coverImage = await blobToBase64(blob);
-      }
-    } catch {
-      // Cover extraction is best-effort
-    }
-
-    return {
-      title: metadata.title || 'Untitled',
-      author: metadata.creator || 'Unknown author',
-      coverImage,
-    };
-  } finally {
-    try { book.destroy(); } catch { /* no rendition to tear down */ }
-  }
-}
-
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -127,11 +81,8 @@ export async function importBook(
 ): Promise<BookRecord> {
   const arrayBuffer = await file.arrayBuffer();
 
-  // Run metadata extraction and identity computation in parallel
-  const [meta, identity] = await Promise.all([
-    extractEpubMetadata(arrayBuffer),
-    computeEpubIdentity(arrayBuffer).catch((): EpubIdentity | null => null),
-  ]);
+  // Single jszip-based pass — metadata, identity hashes, and cover in one go
+  const data: EpubData | null = await extractEpubData(arrayBuffer).catch(() => null);
 
   const db = await getDb();
 
@@ -139,21 +90,24 @@ export async function importBook(
   const existingCount = await db.count(META_STORE);
   const coverColor = COVER_PALETTE[existingCount % COVER_PALETTE.length];
 
+  const title = data?.title ?? 'Untitled';
+  const author = data?.creator ?? 'Unknown author';
+
   const record: BookRecord = {
     id: file.name,
-    title: meta.title,
-    author: meta.author,
+    title,
+    author,
     filename: file.name,
     coverColor,
-    hasCover: !!meta.coverImage,
-    coverImage: meta.coverImage,
+    hasCover: !!data?.coverImage,
+    coverImage: data?.coverImage,
     importedAt: new Date().toISOString(),
     fileSize: file.size,
-    fileHash: identity?.fileHash,
-    contentHash: identity?.contentHash,
-    dcIdentifier: identity?.dcIdentifier,
-    language: identity?.language,
-    publisher: identity?.publisher,
+    fileHash: data?.fileHash,
+    contentHash: data?.contentHash,
+    dcIdentifier: data?.dcIdentifier,
+    language: data?.language,
+    publisher: data?.publisher,
   };
 
   const tx = db.transaction([META_STORE, FILES_STORE], 'readwrite');
@@ -168,14 +122,14 @@ export async function importBook(
     await apiRegisterBook({
       userId,
       filename: file.name,
-      title: meta.title,
-      author: meta.author,
+      title,
+      author,
       coverColor,
-      fileHash: identity?.fileHash,
-      contentHash: identity?.contentHash,
-      dcIdentifier: identity?.dcIdentifier,
-      language: identity?.language,
-      publisher: identity?.publisher,
+      fileHash: data?.fileHash,
+      contentHash: data?.contentHash,
+      dcIdentifier: data?.dcIdentifier,
+      language: data?.language,
+      publisher: data?.publisher,
     });
   }
 
@@ -275,6 +229,35 @@ export async function backfillBookIdentity(
 
   // Update backend
   await apiUpdateBookIdentity(backendBookId, identity);
+}
+
+/**
+ * Rename a book's display title. Updates the local IndexedDB record and, if a
+ * backend UUID is provided, the corresponding `book_progress` row. The local
+ * record id (filename) and identity hashes are untouched, so the file blob,
+ * reading progress and cross-device matching all remain intact.
+ */
+export async function renameBook(
+  id: string,
+  title: string,
+  backendId?: string,
+): Promise<BookRecord | undefined> {
+  const trimmed = title.trim();
+  if (!trimmed) return undefined;
+
+  const db = await getDb();
+  const record = await db.get(META_STORE, id) as BookRecord | undefined;
+  if (!record) return undefined;
+  if (record.title === trimmed) return record;
+
+  const updated: BookRecord = { ...record, title: trimmed };
+  await db.put(META_STORE, updated);
+
+  if (backendId) {
+    await apiUpdateBookTitle(backendId, trimmed).catch(() => { /* best-effort */ });
+  }
+
+  return updated;
 }
 
 /** Get all book metadata records (no file data). */

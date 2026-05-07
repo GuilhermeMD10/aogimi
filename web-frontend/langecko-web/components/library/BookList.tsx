@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { CloudOff, MoreHorizontal, Trash2 } from 'lucide-react';
+import { CloudOff, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Denomination } from '@/components/theme-decorations/stamp/Denomination';
 import { PerforationStrip } from '@/components/theme-decorations/stamp/PerforationStrip';
 
@@ -59,16 +59,28 @@ export function BookTableRow({
   onOpen,
   onLocate,
   onDelete,
+  onRename,
 }: {
   book: LibraryBook;
   onOpen: () => void;
   onLocate: () => void;
   onDelete: () => void;
+  onRename: (title: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(book.title);
+
+  const startEdit = () => { setDraft(book.title); setEditing(true); };
+  const commit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== book.title) onRename(trimmed);
+  };
+  const cancel = () => { setEditing(false); setDraft(book.title); };
 
   // Close menu on outside click or scroll
   useEffect(() => {
@@ -97,50 +109,75 @@ export function BookTableRow({
       }`}
       style={{ gridTemplateColumns: '32px 1fr 140px 36px' }}
     >
-      <button type="button" className="contents cursor-pointer" onClick={book.available ? onOpen : onLocate}>
-        <BookCoverSwatch book={book} size="md" />
-        <div className="min-w-0">
-          <div
-            className="truncate text-sm text-lgc-fg"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            {book.title}
+      {editing ? (
+        <div className="contents">
+          <BookCoverSwatch book={book} size="md" />
+          <div className="min-w-0">
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); commit(); }
+                else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+              }}
+              onBlur={commit}
+              className="w-full rounded-sm border border-lgc-border-strong bg-lgc-bg px-1.5 py-0.5 text-sm text-lgc-fg font-display outline-none focus:border-lgc-accent"
+            />
+            <div className="text-[11px] text-lgc-fg-muted">
+              {book.available ? book.author : (
+                <span className="flex items-center gap-1">
+                  <CloudOff size={10} /> File not on this device
+                </span>
+              )}
+            </div>
           </div>
-          <div className="text-[11px] text-lgc-fg-muted">
-            {book.available ? book.author : (
-              <span className="flex items-center gap-1">
-                <CloudOff size={10} /> File not on this device
-              </span>
+          <div />
+        </div>
+      ) : (
+        <button type="button" className="contents cursor-pointer" onClick={book.available ? onOpen : onLocate}>
+          <BookCoverSwatch book={book} size="md" />
+          <div className="min-w-0">
+            <div
+              className="truncate text-sm text-lgc-fg font-display"
+            >
+              {book.title}
+            </div>
+            <div className="text-[11px] text-lgc-fg-muted">
+              {book.available ? book.author : (
+                <span className="flex items-center gap-1">
+                  <CloudOff size={10} /> File not on this device
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {book.available ? (
+              <>
+                <div className="h-1 flex-1 rounded-full bg-lgc-bg-sunken">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${book.progress}%`,
+                      background:
+                        book.progress === 100
+                          ? 'var(--lgc-fg-muted)'
+                          : 'var(--lgc-accent)',
+                    }}
+                  />
+                </div>
+                <span
+                  className="min-w-7 text-right text-[10px] text-lgc-fg-muted font-mono"
+                >
+                  {book.progress}%
+                </span>
+              </>
+            ) : (
+              <span className="text-[11px] text-lgc-accent">Locate file</span>
             )}
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {book.available ? (
-            <>
-              <div className="h-1 flex-1 rounded-full bg-lgc-bg-sunken">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${book.progress}%`,
-                    background:
-                      book.progress === 100
-                        ? 'var(--lgc-fg-muted)'
-                        : 'var(--lgc-accent)',
-                  }}
-                />
-              </div>
-              <span
-                className="min-w-7 text-right text-[10px] text-lgc-fg-muted"
-                style={{ fontFamily: 'var(--font-mono)' }}
-              >
-                {book.progress}%
-              </span>
-            </>
-          ) : (
-            <span className="text-[11px] text-lgc-accent">Locate file</span>
-          )}
-        </div>
-      </button>
+        </button>
+      )}
       <div className="text-right">
         <button
           ref={btnRef}
@@ -162,6 +199,13 @@ export function BookTableRow({
             className="fixed z-50 w-44 overflow-hidden rounded-lg border border-lgc-border-strong bg-lgc-bg-elev shadow-lg"
             style={{ top: menuPos.top, left: menuPos.left }}
           >
+            <button
+              type="button"
+              onClick={() => { setMenuOpen(false); startEdit(); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-[12px] text-lgc-fg transition-colors hover:bg-lgc-bg-sunken"
+            >
+              <Pencil size={13} /> Rename
+            </button>
             <button
               type="button"
               onClick={() => { setMenuOpen(false); onDelete(); }}
@@ -194,13 +238,27 @@ export function BookStampCard({
   onOpen,
   onLocate,
   onDelete,
+  onRename,
 }: {
   book: LibraryBook;
   onOpen: () => void;
   onLocate: () => void;
   onDelete: () => void;
+  onRename: (title: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(book.title);
+
+  const startEdit = () => { setDraft(book.title); setEditing(true); };
+  const commit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== book.title) onRename(trimmed);
+  };
+  const cancel = () => { setEditing(false); setDraft(book.title); };
+
   const handleOpen = () => {
+    if (editing) return;
     if (book.available) onOpen();
     else onLocate();
   };
@@ -215,6 +273,7 @@ export function BookStampCard({
       tabIndex={0}
       onClick={handleOpen}
       onKeyDown={(e) => {
+        if (editing) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           handleOpen();
@@ -306,23 +365,52 @@ export function BookStampCard({
         }}
       >
         {/* Title */}
-        <div
-          style={{
-            fontFamily: 'var(--lgc-font-display)',
-            fontSize: 14,
-            fontWeight: 600,
-            letterSpacing: '0.02em',
-            textAlign: 'center',
-            color: 'var(--lgc-fg)',
-            lineHeight: 1.3,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
-          {book.title}
-        </div>
+        {editing ? (
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') { e.preventDefault(); commit(); }
+              else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+            }}
+            onBlur={commit}
+            style={{
+              fontFamily: 'var(--lgc-font-display)',
+              fontSize: 14,
+              fontWeight: 600,
+              letterSpacing: '0.02em',
+              textAlign: 'center',
+              color: 'var(--lgc-fg)',
+              lineHeight: 1.3,
+              width: '100%',
+              background: 'var(--lgc-bg)',
+              border: '1px solid var(--lgc-fg)',
+              padding: '2px 4px',
+              outline: 'none',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              fontFamily: 'var(--lgc-font-display)',
+              fontSize: 14,
+              fontWeight: 600,
+              letterSpacing: '0.02em',
+              textAlign: 'center',
+              color: 'var(--lgc-fg)',
+              lineHeight: 1.3,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {book.title}
+          </div>
+        )}
 
         {/* Author */}
         <div
@@ -363,6 +451,33 @@ export function BookStampCard({
           <span>{book.available ? `${book.progress}%` : 'Locate'}</span>
         </div>
       </div>
+
+      {/* Hover-reveal rename */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          startEdit();
+        }}
+        aria-label={`Rename ${book.title}`}
+        className="opacity-0 transition-opacity group-hover:opacity-100"
+        style={{
+          position: 'absolute',
+          bottom: 6,
+          left: 6,
+          width: 22,
+          height: 22,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--lgc-fg-muted)',
+          background: 'var(--lgc-bg)',
+          border: 'none',
+          cursor: 'pointer',
+        }}
+      >
+        <Pencil size={12} />
+      </button>
 
       {/* Hover-reveal delete */}
       <button

@@ -36,11 +36,21 @@
       "Read(//Library/PostgreSQL/18/bin/**)",
       "Read(//Library/PostgreSQL/**)",
       "Bash(grep -v '^$')",
-      "Bash(grep -n \"</div>$\" /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/components/views/cards/PendingCardOverlay.tsx)"
+      "Bash(grep -n \"</div>$\" /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/components/views/cards/PendingCardOverlay.tsx)",
+      "Bash(./node_modules/.bin/eslint components/MainWorkspace.tsx components/WorkspacePaneBar.tsx components/providers/WorkspaceTabsProvider.tsx)",
+      "Bash(grep -rln \"^async function\\\\|fetch\\(\\\\`\\\\${API}\" /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/components/ /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/ /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/themes/ --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(grep -rn \"NEXT_PUBLIC_API_URL\\\\|fetch\\(\\\\`\\\\${API}\\\\|callTranslateApi\\\\|queryDictionary\\\\|fetchWordDetails\" /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/components/ /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/ /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/themes/)",
+      "Bash(awk -F\"from \" '{print $2}')",
+      "Bash(grep -rB1 \"^\\\\s*style={{ fontFamily: 'var\" /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/components/ /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/ /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/themes/ --include=\"*.tsx\")",
+      "Bash(awk -F\"fontFamily:\" '{print $2}')",
+      "Bash(awk '/^export function SplitDemo/{found=1} found{print NR\": \"$0; if\\(/^}/ && depth==0\\){exit}} found && /\\\\{/{depth++} found && /\\\\}/{depth--}' /Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/components/home/HomeView/HomeDemos.tsx)",
+      "Bash(echo \"TSC EXIT: $?\")",
+      "Bash(git show *)"
     ],
     "additionalDirectories": [
       "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader",
-      "/Users/guilhermedias/solo-projects/jp-eco/mobile-frontend/langecko-mobile/app/decks"
+      "/Users/guilhermedias/solo-projects/jp-eco/mobile-frontend/langecko-mobile/app/decks",
+      "/tmp"
     ]
   }
 }

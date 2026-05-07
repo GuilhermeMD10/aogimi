@@ -52,6 +52,14 @@ module.exports = {
     return result.rows[0];
   },
 
+  updateBookTitle: async (id, title) => {
+    const result = await pool.query(
+      `UPDATE book_progress SET title = $2 WHERE id = $1 RETURNING *`,
+      [id, title]
+    );
+    return result.rows[0];
+  },
+
   updateBookIdentity: async (id, { fileHash, contentHash, dcIdentifier, language, publisher }) => {
     const result = await pool.query(
       `UPDATE book_progress

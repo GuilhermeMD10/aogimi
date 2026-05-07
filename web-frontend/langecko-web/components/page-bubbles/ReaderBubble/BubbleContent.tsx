@@ -3,190 +3,94 @@
 // All ReaderBubble logic that lives INSIDE the outer bubble shell.
 // Theme-agnostic — both default and stamp variants render this inside their own shell.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, Plus, Search, X } from 'lucide-react';
-import { useAuth } from '@/components/providers/AuthProvider';
+import { useAuthedUser } from '@/components/providers/useAuthedUser';
+import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
 import { preferredHeadword } from '@/components/views/WordDetailView';
 import * as decksApi from '@/lib/decksApi';
 import type { DeckRecord } from '@/lib/decksApi';
+import {
+  getWordDetails,
+  meanWordGrade,
+  type DetailsResponse,
+  type KanjiInfo,
+  type SearchResponse,
+  type WordResult,
+} from '@/lib/dictApi';
+import { InfoRow } from '@/components/ui/InfoRow';
+import { SectionHead } from '@/components/ui/SectionHead';
+import { MAX_MEANINGS_ON_CARD } from '@/lib/config/limits';
 
-const MAX_MEANINGS_ON_CARD = 3;
-
-function meanWordGrade(word: WordResult): number {
-  const grades = (word.char_grades ?? [])
-    .map((c) => c.grade)
-    .filter((g): g is number => g != null);
-  if (grades.length > 0) return grades.reduce((a, b) => a + b, 0) / grades.length;
-  return 0;
-}
-
-type WordMeaning = { meaning: string; pos: string | null; lang: string };
-
-type WordResult = {
-  id: number;
-  is_common: boolean;
-  grade: number | null;
-  char_grades: { char: string; grade: number | null }[];
-  kanji: string[];
-  readings: string[];
-  meanings: WordMeaning[];
-};
-
-type KanjiInfo = {
-  literal: string;
-  grade: number | null;
-  stroke_count: number | null;
-  radical: number | null;
-  meanings: string[];
-  on_readings: string[];
-  kun_readings: string[];
-};
-
-type NameResult = {
-  id: number;
-  kanji: string | null;
-  kana: string;
-  name_type: string[];
-  translations: string[];
-};
-
-type SearchResponse =
-  | { type: 'kanji'; kanji: KanjiInfo | null; words: WordResult[]; names: NameResult[] }
-  | { type: 'word'; words: WordResult[] }
-  | { type: 'kana'; words: WordResult[]; names: NameResult[]; kanjis: KanjiInfo[] }
-  | { type: 'meaning'; words: WordResult[] };
-
-type DetailsResponse = { word: WordResult; kanjis: KanjiInfo[] };
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
-
-async function queryDictionary(q: string, signal: AbortSignal): Promise<SearchResponse> {
-  const res = await fetch(`${API}/api/search?q=${encodeURIComponent(q)}`, {
-    headers: { Accept: 'application/json' },
-    cache: 'no-store',
-    signal,
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? 'Search failed');
-  }
-  return res.json() as Promise<SearchResponse>;
-}
-
-async function fetchWordDetails(id: number, signal: AbortSignal): Promise<DetailsResponse> {
-  const res = await fetch(`${API}/api/words/${id}/details`, {
-    headers: { Accept: 'application/json' },
-    cache: 'no-store',
-    signal,
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? 'Failed to load word');
-  }
-  return res.json() as Promise<DetailsResponse>;
-}
-
+// Local (bubble-only) UI flow. Dictionary state itself lives in the
+// DictionaryStateProvider so the workspace tab stays in sync.
 type Phase =
-  | { type: 'search' }
-  | { type: 'word-detail'; wordId: number }
-  | { type: 'select-deck'; word: string; back: string; wordId: number | null }
-  | { type: 'create-card'; word: string; back: string; deckId: string; deckName: string; wordId: number | null };
+  | { type: 'dict' }
+  | { type: 'select-deck'; word: string; back: string }
+  | { type: 'create-card'; word: string; back: string; deckId: string; deckName: string };
 
-export interface BubbleContentProps {
-  initialWord: string;
-  contextSentence?: string;
-  startAtAddCard?: boolean;
-  initialBack?: string;
-  onClose: () => void;
-}
+export type BubbleContentProps =
+  | { mode: 'dict'; onClose: () => void }
+  | {
+      mode: 'addCard';
+      word: string;
+      back: string;
+      contextSentence?: string;
+      onClose: () => void;
+    };
 
-export function BubbleContent({ initialWord, contextSentence, startAtAddCard, initialBack, onClose }: BubbleContentProps) {
+export function BubbleContent(props: BubbleContentProps) {
+  const dict = useDictionaryState();
   const [phase, setPhase] = useState<Phase>(
-    startAtAddCard
-      ? { type: 'select-deck', word: initialWord, back: initialBack ?? '', wordId: null }
-      : { type: 'search' },
+    props.mode === 'addCard'
+      ? { type: 'select-deck', word: props.word, back: props.back }
+      : { type: 'dict' },
   );
-  const [query, setQuery] = useState(initialWord);
-  const [searchResult, setSearchResult] = useState<SearchResponse | null>(null);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => () => { abortRef.current?.abort(); }, []);
-
-  const runSearch = useCallback(async (q: string) => {
-    const trimmed = q.trim();
-    if (!trimmed) return;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setSearchLoading(true);
-    setSearchError(null);
-    setSearchResult(null);
-    try {
-      const data = await queryDictionary(trimmed, controller.signal);
-      setSearchResult(data);
-      setQuery(trimmed);
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return;
-      setSearchError(err instanceof Error ? err.message : 'Search failed.');
-    } finally {
-      if (!controller.signal.aborted) setSearchLoading(false);
+  // In addCard mode, sync the provider with the word being carded so that the
+  // back-button on select-deck returns to a sensible dictionary view.
+  const initRef = useRef(false);
+  useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
+    if (props.mode === 'addCard') {
+      void dict.runSearch(props.word, props.contextSentence);
     }
-  }, []);
+  }, [props, dict]);
 
-  useEffect(() => { void runSearch(initialWord); }, [initialWord, runSearch]);
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPhase({ type: 'search' });
-    void runSearch(query);
-  };
-
-  if (phase.type === 'search') {
+  if (phase.type === 'dict') {
+    if (dict.selectedWordId !== null) {
+      return (
+        <WordDetailPhase
+          wordId={dict.selectedWordId}
+          query={dict.query}
+          onBack={() => dict.setSelectedWordId(null)}
+          onAddCard={(word, back) => setPhase({ type: 'select-deck', word, back })}
+          onKanjiSearch={(char) => { void dict.runSearch(char); }}
+          onClose={props.onClose}
+        />
+      );
+    }
     return (
       <SearchPhase
-        query={query}
-        setQuery={setQuery}
-        result={searchResult}
-        loading={searchLoading}
-        error={searchError}
-        onSubmit={handleSearchSubmit}
-        onWordClick={(id) => setPhase({ type: 'word-detail', wordId: id })}
-        onAddKanjiCard={(word, back) =>
-          setPhase({ type: 'select-deck', word, back, wordId: null })
-        }
-        onClose={onClose}
+        query={dict.query}
+        setQuery={dict.setQuery}
+        result={dict.result}
+        loading={dict.loading}
+        error={dict.error}
+        onSubmit={(e) => { e.preventDefault(); void dict.runSearch(dict.query); }}
+        onWordClick={(id) => dict.setSelectedWordId(id)}
+        onAddKanjiCard={(word, back) => setPhase({ type: 'select-deck', word, back })}
+        onClose={props.onClose}
       />
     );
   }
-  if (phase.type === 'word-detail') {
-    return (
-      <WordDetailPhase
-        wordId={phase.wordId}
-        query={query}
-        onBack={() => setPhase({ type: 'search' })}
-        onAddCard={(word, back) =>
-          setPhase({ type: 'select-deck', word, back, wordId: phase.wordId })
-        }
-        onKanjiSearch={(char) => {
-          setQuery(char);
-          setPhase({ type: 'search' });
-          void runSearch(char);
-        }}
-        onClose={onClose}
-      />
-    );
-  }
+
   if (phase.type === 'select-deck') {
     return (
       <SelectDeckPhase
         word={phase.word}
-        onBack={() =>
-          phase.wordId != null
-            ? setPhase({ type: 'word-detail', wordId: phase.wordId })
-            : setPhase({ type: 'search' })
-        }
+        onBack={() => setPhase({ type: 'dict' })}
         onSelectDeck={(id, name) =>
           setPhase({
             type: 'create-card',
@@ -194,13 +98,14 @@ export function BubbleContent({ initialWord, contextSentence, startAtAddCard, in
             back: phase.back,
             deckId: id,
             deckName: name,
-            wordId: phase.wordId,
           })
         }
-        onClose={onClose}
+        onClose={props.onClose}
       />
     );
   }
+
+  const contextSentence = props.mode === 'addCard' ? props.contextSentence : dict.lastContextSentence;
   return (
     <CreateCardPhase
       word={phase.word}
@@ -209,10 +114,10 @@ export function BubbleContent({ initialWord, contextSentence, startAtAddCard, in
       deckId={phase.deckId}
       deckName={phase.deckName}
       onBack={() =>
-        setPhase({ type: 'select-deck', word: phase.word, back: phase.back, wordId: phase.wordId })
+        setPhase({ type: 'select-deck', word: phase.word, back: phase.back })
       }
-      onCreated={onClose}
-      onClose={onClose}
+      onCreated={props.onClose}
+      onClose={props.onClose}
     />
   );
 }
@@ -262,8 +167,7 @@ function SearchPhase({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Kanji, kana, or English..."
-            className="flex-1 border-none bg-transparent text-[15px] text-lgc-fg outline-none placeholder:text-lgc-fg-subtle"
-            style={{ fontFamily: 'var(--font-display)' }}
+            className="flex-1 border-none bg-transparent text-[15px] text-lgc-fg outline-none placeholder:text-lgc-fg-subtle font-display"
             autoFocus
           />
         </form>
@@ -300,8 +204,8 @@ function SearchPhase({
                 Dictionary
               </div>
               <div
-                className="mt-1 text-[16px] font-medium tracking-tight text-lgc-fg"
-                style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+                className="mt-1 text-[16px] font-medium tracking-tight text-lgc-fg font-display"
+                style={{ letterSpacing: '-0.01em' }}
               >
                 {words.length} result{words.length !== 1 ? 's' : ''} for{' '}
                 <span className="text-lgc-accent">「{query}」</span>
@@ -360,7 +264,7 @@ function WordDetailPhase({
     const controller = new AbortController();
     abortRef.current = controller;
 
-    fetchWordDetails(wordId, controller.signal)
+    getWordDetails(wordId, controller.signal)
       .then((result) => {
         if (!controller.signal.aborted) {
           setData(result);
@@ -459,15 +363,14 @@ function WordDetailContent({
       <div className="mb-6 flex items-end gap-6">
         <div>
           <div
-            className="text-[48px] leading-none tracking-tight text-lgc-fg"
-            style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}
+            className="text-[48px] leading-none tracking-tight text-lgc-fg font-display"
+            style={{ letterSpacing: '-0.02em' }}
           >
             {headword}
           </div>
           {reading && (
             <div
-              className="mt-1 text-[18px] text-lgc-fg-muted"
-              style={{ fontFamily: 'var(--font-display)' }}
+              className="mt-1 text-[18px] text-lgc-fg-muted font-display"
             >
               {reading}
             </div>
@@ -498,8 +401,7 @@ function WordDetailContent({
               style={{ borderTop: i > 0 ? '1px solid var(--lgc-border)' : undefined }}
             >
               <div
-                className="pt-0.5 text-[13px] font-semibold text-lgc-accent"
-                style={{ fontFamily: 'var(--font-mono, Geist Mono, monospace)' }}
+                className="pt-0.5 text-[13px] font-semibold text-lgc-accent font-mono"
               >
                 {String(i + 1).padStart(2, '0')}
               </div>
@@ -528,15 +430,13 @@ function WordDetailContent({
                 className="lgc-card flex gap-3 p-3 text-left transition-colors hover:bg-lgc-bg-sunken/50"
               >
                 <div
-                  className="flex w-12 shrink-0 items-center justify-center text-[36px] leading-none text-lgc-fg"
-                  style={{ fontFamily: 'var(--font-display)' }}
+                  className="flex w-12 shrink-0 items-center justify-center text-[36px] leading-none text-lgc-fg font-display"
                 >
                   {k.literal}
                 </div>
                 <div className="flex-1 text-[12px] leading-relaxed">
                   <div
-                    className="mb-0.5 text-[13px] font-medium"
-                    style={{ fontFamily: 'var(--font-display)' }}
+                    className="mb-0.5 text-[13px] font-medium font-display"
                   >
                     {k.meanings.join(', ') || '—'}
                   </div>
@@ -563,7 +463,7 @@ function SelectDeckPhase({
   onSelectDeck: (deckId: string, deckName: string) => void;
   onClose: () => void;
 }) {
-  const { user } = useAuth();
+  const user = useAuthedUser();
   const [decks, setDecks] = useState<DeckRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [newDeckName, setNewDeckName] = useState('');
@@ -571,18 +471,17 @@ function SelectDeckPhase({
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
     decksApi
       .getUserDecks(user.id)
       .then(setDecks)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user.id]);
 
   const createDeck = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = newDeckName.trim();
-    if (!name || !user || creating) return;
+    if (!name || creating) return;
     setCreating(true);
     try {
       const deck = await decksApi.createDeck({ userId: user.id, name });
@@ -611,10 +510,7 @@ function SelectDeckPhase({
         >
           <ArrowLeft size={14} /> Back
         </button>
-        <span
-          className="text-[13px] font-medium text-lgc-fg"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
+        <span className="text-[13px] font-medium text-lgc-fg font-display">
           Select a deck
         </span>
         <div className="ml-auto">
@@ -753,10 +649,7 @@ function CreateCardPhase({
         >
           <ArrowLeft size={14} /> Decks
         </button>
-        <span
-          className="text-[13px] font-medium text-lgc-fg"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
+        <span className="text-[13px] font-medium text-lgc-fg font-display">
           New card
         </span>
         <span className="text-xs text-lgc-fg-muted">
@@ -779,10 +672,7 @@ function CreateCardPhase({
             <label className="text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
               Front
             </label>
-            <div
-              className="mt-1.5 rounded-md border border-lgc-border bg-lgc-bg-sunken px-4 py-3 text-lg text-lgc-fg"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
+            <div className="mt-1.5 rounded-md border border-lgc-border bg-lgc-bg-sunken px-4 py-3 text-lg text-lgc-fg font-display">
               {word}
             </div>
           </div>
@@ -825,7 +715,7 @@ function CreateCardPhase({
             <button
               type="submit"
               disabled={!back.trim() || submitting}
-              className="flex items-center gap-1.5 rounded-md bg-lgc-accent px-4 py-2 text-sm font-medium text-lgc-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-md bg-lgc-accent px-3 py-2 text-sm font-medium text-lgc-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               <Check size={14} /> {submitting ? 'Adding…' : 'Add card'}
             </button>
@@ -835,6 +725,8 @@ function CreateCardPhase({
     </>
   );
 }
+
+// ── Search-result row ───────────────────────────────────────────────────────
 
 function ResultRow({
   word,
@@ -864,17 +756,14 @@ function ResultRow({
         borderLeft: active ? '2px solid var(--lgc-accent)' : '2px solid transparent',
       }}
     >
-      <div
-        className="min-w-4.5 pt-1.5 text-[11px] text-lgc-fg-subtle"
-        style={{ fontFamily: 'var(--font-mono, Geist Mono, monospace)' }}
-      >
+      <div className="min-w-4.5 pt-1.5 text-[11px] text-lgc-fg-subtle font-mono">
         {String(index + 1).padStart(2, '0')}
       </div>
       <div className="min-w-20 shrink-0">
         <div className="flex items-baseline gap-2">
           <span
-            className="text-[22px] leading-none tracking-tight text-lgc-fg"
-            style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+            className="text-[22px] leading-none tracking-tight text-lgc-fg font-display"
+            style={{ letterSpacing: '-0.01em' }}
           >
             {headword}
           </span>
@@ -886,10 +775,7 @@ function ResultRow({
           )}
         </div>
         {reading && (
-          <div
-            className="mt-1 text-[13px] text-lgc-fg-muted"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
+          <div className="mt-1 text-[13px] text-lgc-fg-muted font-display">
             {reading}
           </div>
         )}
@@ -922,17 +808,11 @@ function ResultRow({
 function KanjiPanel({ kanji, onAddCard }: { kanji: KanjiInfo; onAddCard?: () => void }) {
   return (
     <div className="mx-4 mt-4 flex gap-4 rounded-lg border border-lgc-border bg-lgc-bg p-4">
-      <div
-        className="flex h-16 w-16 shrink-0 items-center justify-center text-[48px] leading-none text-lgc-fg"
-        style={{ fontFamily: 'var(--font-display)' }}
-      >
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center text-[48px] leading-none text-lgc-fg font-display">
         {kanji.literal}
       </div>
       <div className="flex-1 text-[12.5px] leading-relaxed">
-        <div
-          className="mb-1 text-[15px] font-medium"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
+        <div className="mb-1 text-[15px] font-medium font-display">
           {kanji.meanings.join(', ') || '—'}
         </div>
         <InfoRow label="On" value={kanji.on_readings.join('、') || '—'} jp />
@@ -949,41 +829,6 @@ function KanjiPanel({ kanji, onAddCard }: { kanji: KanjiInfo; onAddCard?: () => 
           </button>
         )}
       </div>
-    </div>
-  );
-}
-
-function SectionHead({ num, title }: { num: string; title: string }) {
-  return (
-    <div className="mb-3 flex items-baseline gap-2.5">
-      <span
-        className="text-[11px] font-semibold text-lgc-fg-subtle"
-        style={{ fontFamily: 'var(--font-mono, Geist Mono, monospace)' }}
-      >
-        {num}
-      </span>
-      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-lgc-accent">
-        {title}
-      </span>
-      <span className="h-px flex-1 bg-lgc-border" />
-    </div>
-  );
-}
-
-function InfoRow({ label, value, jp }: { label: string; value: string; jp?: boolean }) {
-  return (
-    <div className="flex gap-2.5">
-      <span className="w-16 text-[11px] font-semibold uppercase tracking-[0.06em] text-lgc-fg-muted">
-        {label}
-      </span>
-      <span
-        className="text-[13px] text-lgc-fg"
-        style={{
-          fontFamily: jp ? 'var(--font-display)' : 'var(--font-mono, Geist Mono, monospace)',
-        }}
-      >
-        {value}
-      </span>
     </div>
   );
 }

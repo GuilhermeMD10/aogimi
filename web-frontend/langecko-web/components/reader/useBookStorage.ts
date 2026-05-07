@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { getStoredBook, setStoredBook, type StoredBook } from '@/lib/storage/bookPrefs';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,16 +52,7 @@ export const FONT_STACKS: Record<ReaderPrefs['fontFamily'], string> = {
   'serif-jp': '"Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "MS PMincho", serif',
 };
 
-// ── Internal storage shape ───────────────────────────────────────────────────
-
-interface StoredBook {
-  lastCfi?: string;
-  lastPage?: number;
-  epubHighlights: EpubHighlight[];
-  epubBookmarks: EpubBookmark[];
-  pdfBookmarks: PdfBookmark[];
-  prefs: ReaderPrefs;
-}
+// ── Defaults & merge logic ───────────────────────────────────────────────────
 
 const DEFAULT_PREFS: ReaderPrefs = {
   fontSize: 100,
@@ -70,35 +62,18 @@ const DEFAULT_PREFS: ReaderPrefs = {
   fontFamily: 'system',
 };
 
-// ── localStorage helpers ─────────────────────────────────────────────────────
-
-function bookKey(filename: string) {
-  return `reader_book_${encodeURIComponent(filename)}`;
-}
-
 function loadBook(filename: string | null): StoredBook {
   if (!filename) return { epubHighlights: [], epubBookmarks: [], pdfBookmarks: [], prefs: { ...DEFAULT_PREFS } };
-  try {
-    const raw = localStorage.getItem(bookKey(filename));
-    if (!raw) return { epubHighlights: [], epubBookmarks: [], pdfBookmarks: [], prefs: { ...DEFAULT_PREFS } };
-    const p = JSON.parse(raw) as Partial<StoredBook>;
-    return {
-      lastCfi: p.lastCfi,
-      lastPage: p.lastPage,
-      epubHighlights: p.epubHighlights ?? [],
-      epubBookmarks:  p.epubBookmarks  ?? [],
-      pdfBookmarks:   p.pdfBookmarks   ?? [],
-      prefs: { ...DEFAULT_PREFS, ...(p.prefs ?? {}) },
-    };
-  } catch {
-    return { epubHighlights: [], epubBookmarks: [], pdfBookmarks: [], prefs: { ...DEFAULT_PREFS } };
-  }
-}
-
-function writeBook(filename: string, data: StoredBook) {
-  try {
-    localStorage.setItem(bookKey(filename), JSON.stringify(data));
-  } catch { /* quota exceeded — ignore */ }
+  const p = getStoredBook(filename);
+  if (!p) return { epubHighlights: [], epubBookmarks: [], pdfBookmarks: [], prefs: { ...DEFAULT_PREFS } };
+  return {
+    lastCfi: p.lastCfi,
+    lastPage: p.lastPage,
+    epubHighlights: p.epubHighlights ?? [],
+    epubBookmarks:  p.epubBookmarks  ?? [],
+    pdfBookmarks:   p.pdfBookmarks   ?? [],
+    prefs: { ...DEFAULT_PREFS, ...(p.prefs ?? {}) },
+  };
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -131,7 +106,7 @@ export function useBookStorage(filename: string | null) {
       if (!filename) return;
       setBookState(prev => {
         const next = fn(prev.book);
-        writeBook(filename, next);
+        setStoredBook(filename, next);
         return { trackedFilename: prev.trackedFilename, book: next };
       });
     },

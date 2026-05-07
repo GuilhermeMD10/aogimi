@@ -11,18 +11,19 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { type WorkspaceTabKey } from '@/lib/config/tab-config';
 import { useWorkspaceTabs } from '@/components/providers/WorkspaceTabsProvider';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
+import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
 import ReaderBubble from '@/components/page-bubbles/ReaderBubble';
+
+type ReaderBubbleState =
+  | { mode: 'dict' }
+  | { mode: 'addCard'; word: string; back: string; contextSentence?: string };
 
 export default function MainWorkspace() {
   const { openTabs } = useWorkspaceTabs();
+  const dict = useDictionaryState();
 
   const { pendingDictSearch, setPendingDictSearch, pendingCard, setPendingCard } = useReaderState();
-  const [readerBubble, setReaderBubble] = useState<{
-    word: string;
-    contextSentence?: string;
-    addCard?: boolean;
-    initialBack?: string;
-  } | null>(null);
+  const [readerBubble, setReaderBubble] = useState<ReaderBubbleState | null>(null);
 
   // ── Stable portal targets (prevents content remount on tab reorder) ──────
   const panelMountEls = useRef<Record<string, HTMLDivElement | null>>({});
@@ -44,31 +45,33 @@ export default function MainWorkspace() {
   // ── Tab content renderer ─────────────────────────────────────────────────
   const renderTabContent = useCallback(
     (tab: WorkspaceTabKey) => {
-      if (tab === 'dictionary') return <DictionaryView storageKey="modular_dictionary_state" />;
+      if (tab === 'dictionary') return <DictionaryView />;
       if (tab === 'cards') return <CardDeckView />;
       return <ReaderView />;
     },
     [],
   );
 
-  // Open reader bubble when reader queues a dictionary lookup
-  // If the dictionary tab is already open, let DictionaryView handle it instead
+  // Reader queued a dictionary lookup — push it through the shared provider so
+  // both the dict tab (if open) and the bubble (if not) display the same state.
   useEffect(() => {
     if (!pendingDictSearch) return;
-    if (openTabs.includes('dictionary')) return;
-    setReaderBubble({ word: pendingDictSearch.word, contextSentence: pendingDictSearch.contextSentence });
+    void dict.runSearch(pendingDictSearch.word, pendingDictSearch.contextSentence);
+    if (!openTabs.includes('dictionary')) {
+      setReaderBubble({ mode: 'dict' });
+    }
     setPendingDictSearch(null);
-  }, [pendingDictSearch, setPendingDictSearch, openTabs]);
+  }, [pendingDictSearch, setPendingDictSearch, openTabs, dict]);
 
   // Open reader bubble for card creation, or let CardDeckView handle it if cards tab is open
   useEffect(() => {
     if (!pendingCard) return;
     if (openTabs.includes('cards')) return;
     setReaderBubble({
+      mode: 'addCard',
       word: pendingCard.word,
+      back: pendingCard.back ?? '',
       contextSentence: pendingCard.contextSentence,
-      addCard: true,
-      initialBack: pendingCard.back,
     });
     setPendingCard(null);
   }, [pendingCard, setPendingCard, openTabs]);
@@ -108,16 +111,18 @@ export default function MainWorkspace() {
       })}
 
       {/* ── Reader dictionary bubble ───────────────────────────── */}
-      {readerBubble && (
+      {readerBubble && (readerBubble.mode === 'dict' ? (
+        <ReaderBubble mode="dict" onClose={() => setReaderBubble(null)} />
+      ) : (
         <ReaderBubble
-          key={`${readerBubble.word}-${readerBubble.addCard ? 'card' : 'dict'}`}
-          initialWord={readerBubble.word}
+          key={readerBubble.word}
+          mode="addCard"
+          word={readerBubble.word}
+          back={readerBubble.back}
           contextSentence={readerBubble.contextSentence}
-          startAtAddCard={readerBubble.addCard}
-          initialBack={readerBubble.initialBack}
           onClose={() => setReaderBubble(null)}
         />
-      )}
+      ))}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { ReaderStateProvider } from '@/components/providers/ReaderStateProvider';
 import { WorkspaceTabsProvider } from '@/components/providers/WorkspaceTabsProvider';
 import { BubbleProvider, useBubble } from '@/components/providers/BubbleProvider';
+import { DictionaryStateProvider } from '@/components/providers/DictionaryStateProvider';
 import WorkspaceNav from '@/components/WorkspaceNav';
 import ProfileBubble from '@/components/page-bubbles/ProfileBubble';
 
@@ -33,9 +34,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ReaderStateProvider>
       <WorkspaceTabsProvider>
-        <BubbleProvider>
-          <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
-        </BubbleProvider>
+        <DictionaryStateProvider>
+          <BubbleProvider>
+            <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
+          </BubbleProvider>
+        </DictionaryStateProvider>
       </WorkspaceTabsProvider>
     </ReaderStateProvider>
   );

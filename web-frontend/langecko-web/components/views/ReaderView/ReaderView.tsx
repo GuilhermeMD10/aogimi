@@ -18,22 +18,25 @@ import {
   syncLocalBooksToBackend,
   backfillBookIdentity,
   deleteBook as deleteLocalBook,
+  renameBook as renameLocalBook,
 } from '@/lib/bookStore';
-import { matchBooks, deleteBookRecord, getUserBooks, type BookProgressRecord } from '@/lib/booksApi';
+import { matchBooks, deleteBookRecord, getUserBooks, updateBookTitle as apiUpdateBookTitle, type BookProgressRecord } from '@/lib/booksApi';
 import { computeEpubIdentity } from '@/lib/epubIdentity';
-import { getDeviceId, getDeviceName } from '@/lib/deviceId';
+import { getDeviceId } from '@/lib/storage/device';
+import { getDeviceName } from '@/lib/util/deviceName';
 import {
   registerDevice,
   getDeviceBooks,
   markBookAvailable,
   type DeviceBookRecord,
 } from '@/lib/devicesApi';
-import { useAuth } from '@/components/providers/AuthProvider';
+import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
 import { BookTableRow, type LibraryBook } from '@/components/library/BookList';
 import RestoreLibrary from '@/components/library/RestoreLibrary';
 import FsAccessBanner from '@/components/library/FsAccessBanner';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
+import { getNeedsOnboarding } from '@/lib/storage/onboarding';
 
 const MAX_EPUB_SIZE = 50 * 1024 * 1024;
 
@@ -48,7 +51,7 @@ function validateEpub(file: File): string | null {
 }
 
 export default function ReaderView() {
-  const { user } = useAuth();
+  const user = useAuthedUser();
   const { setPendingDictSearch, setPendingCard, readerSession, setReaderSession, recordProgress, flushProgress,
     pendingBookOpen, setPendingBookOpen } =
     useReaderState();
@@ -74,11 +77,7 @@ export default function ReaderView() {
   }, [readerSession?.fileUrl]);
 
   useEffect(() => {
-    try {
-      if (localStorage.getItem('lgc_needs_onboarding') === 'true') {
-        setShowOnboarding(true);
-      }
-    } catch { /* ignore */ }
+    if (getNeedsOnboarding()) setShowOnboarding(true);
   }, []);
 
   useEffect(() => {
@@ -88,23 +87,6 @@ export default function ReaderView() {
       try {
         const localBooks = await getAllBooks();
         if (cancelled) return;
-
-        if (!user) {
-          const merged: LibraryBook[] = localBooks.map(b => ({
-            id: b.id,
-            title: b.title,
-            author: b.author,
-            filename: b.filename,
-            coverColor: b.coverColor,
-            hasCover: b.hasCover,
-            coverImage: b.coverImage,
-            progress: 0,
-            available: true,
-          }));
-          setBooks(merged);
-          setPageState('library');
-          return;
-        }
 
         const deviceId = getDeviceId();
         const deviceName = getDeviceName();
@@ -217,18 +199,16 @@ export default function ReaderView() {
       setImporting(true);
       setError(null);
       try {
-        const record = await importBook(file, user?.id);
+        const record = await importBook(file, user.id);
 
-        if (user) {
-          const deviceId = getDeviceId();
-          try {
-            const backendMap = await syncLocalBooksToBackend(user.id);
-            const remote = backendMap.get(record.filename);
-            if (remote) {
-              await markBookAvailable(deviceId, remote.id, user.id);
-            }
-          } catch { /* best-effort */ }
-        }
+        const deviceId = getDeviceId();
+        try {
+          const backendMap = await syncLocalBooksToBackend(user.id);
+          const remote = backendMap.get(record.filename);
+          if (remote) {
+            await markBookAvailable(deviceId, remote.id, user.id);
+          }
+        } catch { /* best-effort */ }
 
         const newBook: LibraryBook = {
           id: record.id,
@@ -274,7 +254,7 @@ export default function ReaderView() {
       }
 
       const targetBook = books.find(b => b.id === locatingBookId);
-      if (!targetBook || !user) {
+      if (!targetBook) {
         setLocatingBookId(null);
         return;
       }
@@ -357,6 +337,20 @@ export default function ReaderView() {
     [],
   );
 
+  const handleRenameBook = useCallback(
+    async (book: LibraryBook, title: string) => {
+      const trimmed = title.trim();
+      if (!trimmed || trimmed === book.title) return;
+      setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, title: trimmed } : b)));
+      if (book.available) {
+        await renameLocalBook(book.id, trimmed, book.backendId).catch(() => {});
+      } else if (book.backendId) {
+        await apiUpdateBookTitle(book.backendId, trimmed).catch(() => {});
+      }
+    },
+    [],
+  );
+
   const openBook = useCallback(
     async (bookId: string) => {
       const allBooks = await getAllBooks();
@@ -390,20 +384,18 @@ export default function ReaderView() {
         setReaderSession(session);
         setLoading(false);
 
-        if (user) {
-          try {
-            const remote = await getUserBooks(user.id);
-            const match = remote.find((b) => b.filename === book.filename);
-            if (match) {
-              setReaderSession((prev) =>
-                prev ? { ...prev, backendBookId: match.id, backendCfi: match.cfi_position } : prev,
-              );
-            } else {
-              const created = await ensureBackendBook(book, user.id);
-              setReaderSession((prev) => (prev ? { ...prev, backendBookId: created.id } : prev));
-            }
-          } catch { /* backend unavailable */ }
-        }
+        try {
+          const remote = await getUserBooks(user.id);
+          const match = remote.find((b) => b.filename === book.filename);
+          if (match) {
+            setReaderSession((prev) =>
+              prev ? { ...prev, backendBookId: match.id, backendCfi: match.cfi_position } : prev,
+            );
+          } else {
+            const created = await ensureBackendBook(book, user.id);
+            setReaderSession((prev) => (prev ? { ...prev, backendBookId: created.id } : prev));
+          }
+        } catch { /* backend unavailable */ }
       } catch {
         setError('Failed to load book');
         setLoading(false);
@@ -479,7 +471,7 @@ export default function ReaderView() {
     return (
       <RestoreLibrary
         remoteBooks={remoteBooks}
-        userId={user!.id}
+        userId={user.id}
         onComplete={handleRestoreComplete}
         onSkip={() => {
           const merged: LibraryBook[] = remoteBooks.map(r => ({
@@ -532,11 +524,8 @@ export default function ReaderView() {
           <div>
             <div className="lgc-section-label mb-1.5">Library</div>
             <h1
-              className="text-[34px] font-medium tracking-tight"
-              style={{
-                fontFamily: 'var(--font-display)',
-                letterSpacing: '-0.015em',
-              }}
+              className="text-[34px] font-medium tracking-tight font-display"
+              style={{ letterSpacing: '-0.015em', }}
             >
               Your books
             </h1>
@@ -612,6 +601,7 @@ export default function ReaderView() {
                 onOpen={() => openBook(book.id)}
                 onLocate={() => handleLocateClick(book.id)}
                 onDelete={() => setDeletingBook(book)}
+                onRename={(title) => handleRenameBook(book, title)}
               />
             ))}
           </div>
@@ -652,7 +642,7 @@ export default function ReaderView() {
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-lgc-border-strong bg-lgc-bg p-6 shadow-2xl">
             <div className="mb-1 flex items-center gap-2 text-red-500">
               <Trash2 size={16} />
-              <h2 className="text-[15px] font-medium" style={{ fontFamily: 'var(--font-display)' }}>
+              <h2 className="text-[15px] font-medium font-display">
                 Delete book
               </h2>
             </div>
@@ -682,7 +672,7 @@ export default function ReaderView() {
         </>
       )}
 
-      {showOnboarding && user && (
+      {showOnboarding && (
         <OnboardingExplainerModal
           userId={user.id}
           onDismiss={() => setShowOnboarding(false)}

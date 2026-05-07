@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { translateText } from '@/lib/translateApi';
 
 type Position = { x: number; y: number };
 
@@ -15,23 +16,6 @@ type Props = {
   onClose: () => void;
 };
 
-async function callTranslateApi(text: string): Promise<{ translatedText: string; detectedLanguage: string }> {
-  const res = await fetch('/api/translate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
-  });
-  const data = (await res.json()) as {
-    translatedText?: string;
-    detectedLanguage?: string;
-    error?: string;
-  };
-  if (!res.ok || !data.translatedText) {
-    throw new Error(data.error ?? 'Translation failed.');
-  }
-  return { translatedText: data.translatedText, detectedLanguage: data.detectedLanguage ?? '' };
-}
-
 export function DeepLTranslationPopup({ originalText, position, onClose }: Props) {
   const [state, setState] = useState<TranslationState>({ status: 'loading' });
   const popupRef = useRef<HTMLDivElement>(null);
@@ -40,7 +24,7 @@ export function DeepLTranslationPopup({ originalText, position, onClose }: Props
   useEffect(() => {
     let cancelled = false;
     setState({ status: 'loading' });
-    callTranslateApi(originalText)
+    translateText(originalText)
       .then(({ translatedText, detectedLanguage }) => {
         if (!cancelled) setState({ status: 'success', translatedText, detectedLanguage });
       })

@@ -3,6 +3,12 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { BookRecord } from '@/lib/bookStore';
 import { updateBookProgress, sendProgressBeacon, type ProgressPayload } from '@/lib/booksApi';
+import {
+  getReaderSharedState,
+  setReaderProgress,
+  setReaderSharedState,
+  type ReaderSharedState,
+} from '@/lib/storage/readerSession';
 
 export type ReaderMode = 'epub' | 'pdf';
 
@@ -63,16 +69,6 @@ type ReaderContextValue = {
 
 const ReaderContext = createContext<ReaderContextValue | null>(null);
 
-const STORAGE_KEY = 'reader_shared_state';
-
-type PersistedState = {
-  mode?: ReaderMode;
-  pdfPageNumber?: number;
-  pdfScale?: number;
-  lastEpubFilename?: string;
-  lastPdfFilename?: string;
-};
-
 export function ReaderStateProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ReaderMode>('epub');
   const [epubFileUrl,  setEpubFileUrlState]  = useState<string | null>(null);
@@ -103,18 +99,12 @@ export function ReaderStateProvider({ children }: { children: React.ReactNode })
     latestProgressRef.current = snapshot;
     const session = readerSessionRef.current;
     if (!session?.activeBook) return;
-    try {
-      localStorage.setItem(
-        `reader_progress_${session.activeBook.filename}`,
-        JSON.stringify({
-          progress: snapshot.progress,
-          cfi: snapshot.cfi,
-          spineIndex: snapshot.spineIndex,
-          totalSpineItems: snapshot.totalSpineItems,
-          updatedAt: Date.now(),
-        }),
-      );
-    } catch { /* quota */ }
+    setReaderProgress(session.activeBook.filename, {
+      progress: snapshot.progress,
+      cfi: snapshot.cfi,
+      spineIndex: snapshot.spineIndex,
+      totalSpineItems: snapshot.totalSpineItems,
+    });
   }, []);
 
   /** Flush latest progress to backend via fetch. */
@@ -171,31 +161,26 @@ export function ReaderStateProvider({ children }: { children: React.ReactNode })
 
   // ── Restore non-file state from localStorage ──────────────────────────
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const s = JSON.parse(raw) as PersistedState;
-      if (s.mode)          setMode(s.mode);
-      if (s.pdfPageNumber) setPdfPageNumber(s.pdfPageNumber);
-      if (s.pdfScale)      setPdfScale(s.pdfScale);
-      if (s.lastEpubFilename) setEpubFilenameState(s.lastEpubFilename);
-      if (s.lastPdfFilename)  setPdfFilenameState(s.lastPdfFilename);
-    } catch { /* ignore */ }
+    const s = getReaderSharedState();
+    if (!s) return;
+    if (s.mode)          setMode(s.mode);
+    if (s.pdfPageNumber) setPdfPageNumber(s.pdfPageNumber);
+    if (s.pdfScale)      setPdfScale(s.pdfScale);
+    if (s.lastEpubFilename) setEpubFilenameState(s.lastEpubFilename);
+    if (s.lastPdfFilename)  setPdfFilenameState(s.lastPdfFilename);
   }, []);
 
   // Persist non-file state
   useEffect(() => {
     if (!persistReadyRef.current) { persistReadyRef.current = true; return; }
-    try {
-      const s: PersistedState = {
-        mode,
-        pdfPageNumber,
-        pdfScale,
-        lastEpubFilename: epubFilename ?? undefined,
-        lastPdfFilename:  pdfFilename  ?? undefined,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-    } catch { /* ignore */ }
+    const s: ReaderSharedState = {
+      mode,
+      pdfPageNumber,
+      pdfScale,
+      lastEpubFilename: epubFilename ?? undefined,
+      lastPdfFilename:  pdfFilename  ?? undefined,
+    };
+    setReaderSharedState(s);
   }, [mode, pdfPageNumber, pdfScale, epubFilename, pdfFilename]);
 
   // Revoke blob URLs on unmount

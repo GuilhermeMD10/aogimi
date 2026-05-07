@@ -14,13 +14,17 @@ import {
   getTheme,
   type Theme,
   type ThemeColors,
+  type ThemeFonts,
   type ThemeName,
+  type ThemeShape,
 } from './tokens';
 
 type ThemeContextValue = {
   themeName: ThemeName;
   theme: Theme;
   colors: ThemeColors;
+  fonts: ThemeFonts;
+  shape: ThemeShape;
   setThemeName: (name: ThemeName) => void;
 };
 
@@ -49,7 +53,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const theme = getTheme(themeName);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ themeName, theme, colors: theme.colors, setThemeName }),
+    () => ({
+      themeName,
+      theme,
+      colors: theme.colors,
+      fonts: theme.fonts,
+      shape: theme.shape,
+      setThemeName,
+    }),
     [themeName, theme, setThemeName],
   );
 
@@ -66,6 +77,14 @@ export function useColors(): ThemeColors {
   return useTheme().colors;
 }
 
+export function useFonts(): ThemeFonts {
+  return useTheme().fonts;
+}
+
+export function useShape(): ThemeShape {
+  return useTheme().shape;
+}
+
 export function useThemedStyles<T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>>(
   factory: (colors: ThemeColors) => T,
 ): T {
@@ -73,4 +92,4 @@ export function useThemedStyles<T extends StyleSheet.NamedStyles<T> | StyleSheet
   return useMemo(() => StyleSheet.create(factory(colors)), [colors, factory]);
 }
 
-export type { ThemeColors, Theme, ThemeName } from './tokens';
+export type { ThemeColors, Theme, ThemeName, ThemeFonts, ThemeShape } from './tokens';

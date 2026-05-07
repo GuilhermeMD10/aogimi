@@ -5,7 +5,7 @@ import { BookOpen, CheckCircle2, CloudOff } from 'lucide-react';
 import { importBook } from '@/lib/bookStore';
 import { computeEpubIdentity } from '@/lib/epubIdentity';
 import { matchBooks } from '@/lib/booksApi';
-import { getDeviceId } from '@/lib/deviceId';
+import { getDeviceId } from '@/lib/storage/device';
 import { markBookAvailable } from '@/lib/devicesApi';
 import type { DeviceBookRecord } from '@/lib/devicesApi';
 import { BookCoverSwatch, type LibraryBook } from '@/components/library/BookList';
@@ -141,8 +141,7 @@ export default function RestoreLibrary({
 
         {/* Heading */}
         <h1
-          className="mb-2 text-2xl font-medium tracking-tight text-lgc-fg"
-          style={{ fontFamily: 'var(--font-display)' }}
+          className="mb-2 text-2xl font-medium tracking-tight text-lgc-fg font-display"
         >
           Welcome back
         </h1>

@@ -44,8 +44,7 @@ export default function AvatarPickerModal({ current, onSelect, onClose }: Avatar
               <div key={k.k} className="flex flex-col items-center gap-1">
                 <Kamon char={k.k} size={52} active={selected === i} onClick={() => setSelected(i)} />
                 <div
-                  className="text-center text-[9px] leading-tight text-lgc-fg-muted"
-                  style={{ fontFamily: 'var(--font-display)' }}
+                  className="text-center text-[9px] leading-tight text-lgc-fg-muted font-display"
                 >
                   {k.k}
                 </div>

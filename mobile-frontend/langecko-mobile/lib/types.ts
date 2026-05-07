@@ -8,6 +8,8 @@ export type WordResult = {
   id: number;
   is_common: boolean;
   grade: number | null;
+  /** JLPT level 1–5 (1 = N1 hardest, 5 = N5 easiest); null = not in JLPT lists. */
+  jlpt_level: number | null;
   char_grades: { char: string; grade: number | null }[];
   kanji: string[];
   readings: string[];
@@ -17,6 +19,8 @@ export type WordResult = {
 export type KanjiInfo = {
   literal: string;
   grade: number | null;
+  /** JLPT level 1–5 (1 = N1 hardest, 5 = N5 easiest); null = not in JLPT lists. */
+  jlpt_level: number | null;
   stroke_count: number | null;
   radical: number | null;
   meanings: string[];

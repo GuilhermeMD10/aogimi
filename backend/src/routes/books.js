@@ -70,6 +70,20 @@ async function handleProgressUpdate(req, res) {
 router.put("/:id/progress", handleProgressUpdate);
 router.post("/:id/progress", handleProgressUpdate);
 
+// PATCH /api/books/:id — update editable book metadata (currently: title)
+router.patch("/:id", async (req, res) => {
+  const { title } = req.body;
+  if (typeof title !== "string" || title.trim().length === 0) {
+    return res.status(400).json({ error: "title is required" });
+  }
+  try {
+    const book = await bookService.updateTitle(req.params.id, title.trim());
+    res.json(book);
+  } catch (err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+
 // PUT /api/books/:id/identity — update hash/metadata identity fields
 router.put("/:id/identity", async (req, res) => {
   const { fileHash, contentHash, dcIdentifier, language, publisher } = req.body;

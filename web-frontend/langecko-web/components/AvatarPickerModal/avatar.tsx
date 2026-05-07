@@ -55,12 +55,8 @@ export function Kamon({
         }}
       />
       <div
-        className="text-lgc-fg"
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: size * 0.5,
-          lineHeight: 1,
-        }}
+        className="text-lgc-fg font-display"
+        style={{ fontSize: size * 0.5, lineHeight: 1 }}
       >
         {char}
       </div>
