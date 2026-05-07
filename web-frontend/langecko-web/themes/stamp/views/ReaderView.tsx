@@ -18,10 +18,12 @@ import {
   syncLocalBooksToBackend,
   backfillBookIdentity,
   deleteBook as deleteLocalBook,
+  renameBook as renameLocalBook,
 } from '@/lib/bookStore';
-import { matchBooks, deleteBookRecord, getUserBooks, type BookProgressRecord } from '@/lib/booksApi';
+import { matchBooks, deleteBookRecord, getUserBooks, updateBookTitle as apiUpdateBookTitle, type BookProgressRecord } from '@/lib/booksApi';
 import { computeEpubIdentity } from '@/lib/epubIdentity';
-import { getDeviceId, getDeviceName } from '@/lib/deviceId';
+import { getDeviceId } from '@/lib/storage/device';
+import { getDeviceName } from '@/lib/util/deviceName';
 import {
   registerDevice,
   getDeviceBooks,
@@ -34,6 +36,7 @@ import { BookStampCard, type LibraryBook } from '@/components/library/BookList';
 import RestoreLibrary from '@/components/library/RestoreLibrary';
 import FsAccessBanner from '@/components/library/FsAccessBanner';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
+import { getNeedsOnboarding } from '@/lib/storage/onboarding';
 
 const MAX_EPUB_SIZE = 50 * 1024 * 1024;
 
@@ -74,11 +77,7 @@ export default function ReaderView() {
   }, [readerSession?.fileUrl]);
 
   useEffect(() => {
-    try {
-      if (localStorage.getItem('lgc_needs_onboarding') === 'true') {
-        setShowOnboarding(true);
-      }
-    } catch { /* ignore */ }
+    if (getNeedsOnboarding()) setShowOnboarding(true);
   }, []);
 
   useEffect(() => {
@@ -357,6 +356,20 @@ export default function ReaderView() {
     [],
   );
 
+  const handleRenameBook = useCallback(
+    async (book: LibraryBook, title: string) => {
+      const trimmed = title.trim();
+      if (!trimmed || trimmed === book.title) return;
+      setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, title: trimmed } : b)));
+      if (book.available) {
+        await renameLocalBook(book.id, trimmed, book.backendId).catch(() => {});
+      } else if (book.backendId) {
+        await apiUpdateBookTitle(book.backendId, trimmed).catch(() => {});
+      }
+    },
+    [],
+  );
+
   const openBook = useCallback(
     async (bookId: string) => {
       const allBooks = await getAllBooks();
@@ -532,11 +545,8 @@ export default function ReaderView() {
           <div>
             <div className="lgc-section-label mb-1.5">Library</div>
             <h1
-              className="text-[34px] font-medium tracking-tight"
-              style={{
-                fontFamily: 'var(--font-display)',
-                letterSpacing: '-0.015em',
-              }}
+              className="text-[34px] font-medium tracking-tight font-display"
+              style={{ letterSpacing: '-0.015em', }}
             >
               Your books
             </h1>
@@ -611,6 +621,7 @@ export default function ReaderView() {
                 onOpen={() => openBook(book.id)}
                 onLocate={() => handleLocateClick(book.id)}
                 onDelete={() => setDeletingBook(book)}
+                onRename={(title) => handleRenameBook(book, title)}
               />
             ))}
           </div>
@@ -658,7 +669,7 @@ export default function ReaderView() {
           >
             <div className="mb-1 flex items-center gap-2 text-red-500">
               <Trash2 size={16} />
-              <h2 className="text-[15px] font-medium" style={{ fontFamily: 'var(--font-display)' }}>
+              <h2 className="text-[15px] font-medium font-display">
                 Delete book
               </h2>
             </div>

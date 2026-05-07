@@ -1,22 +1,8 @@
-const STORAGE_KEY = 'lgc_device_id';
-
-/** Returns a stable device identifier, generating one on first call. */
-export function getDeviceId(): string {
-  if (typeof window === 'undefined') return 'ssr';
-  let id = localStorage.getItem(STORAGE_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(STORAGE_KEY, id);
-  }
-  return id;
-}
-
 /** Best-effort human-readable device name from the User-Agent. */
 export function getDeviceName(): string {
   if (typeof navigator === 'undefined') return 'Unknown device';
   const ua = navigator.userAgent;
 
-  // OS detection
   let os = 'Unknown';
   if (/Windows/.test(ua)) os = 'Windows';
   else if (/Macintosh|Mac OS X/.test(ua)) os = 'Mac';
@@ -26,7 +12,6 @@ export function getDeviceName(): string {
   else if (/iPhone/.test(ua)) os = 'iPhone';
   else if (/Android/.test(ua)) os = 'Android';
 
-  // Browser detection
   let browser = 'Browser';
   if (/Edg\//.test(ua)) browser = 'Edge';
   else if (/Chrome\//.test(ua)) browser = 'Chrome';

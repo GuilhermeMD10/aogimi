@@ -4,26 +4,13 @@ import { useState } from 'react';
 import { Plus, MoreHorizontal, Layers, Play } from 'lucide-react';
 import type { DeckSummary } from './types';
 import { DeckForm } from './DeckForm';
+import { deckVisuals } from '@/lib/config/deckVisuals';
 
 interface DeckListProps {
   decks: DeckSummary[];
   onOpenDeck: (deckId: string) => void;
   onCreateDeck: (name: string, description: string) => void;
   onDeleteDeck: (deckId: string) => void;
-}
-
-// Deterministic visual properties derived from deck name
-const COVER_COLORS = ['#6B5A45', '#2E5D4E', '#263B5C', '#8E3B36', '#4A4038', '#7A5330', '#3D5A80', '#5A3D6B'];
-const KAMON_CHARS = ['\u5FC3', '\u6587', '\u9280', '\u6F22', '\u656C', '\u53E4', '\u8A00', '\u5B66', '\u66F8', '\u9053'];
-
-function deckVisuals(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
-  const idx = Math.abs(hash);
-  return {
-    color: COVER_COLORS[idx % COVER_COLORS.length],
-    kamon: KAMON_CHARS[idx % KAMON_CHARS.length],
-  };
 }
 
 export function DeckList({
@@ -49,8 +36,8 @@ export function DeckList({
           <div>
             <div className="lgc-section-label mb-1.5">Flashcards</div>
             <h1
-              className="text-[24px] font-medium tracking-tight text-lgc-fg @sm:text-[28px] @lg:text-[34px]"
-              style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.015em' }}
+              className="text-[24px] font-medium tracking-tight text-lgc-fg @sm:text-[28px] @lg:text-[34px] font-display"
+              style={{ letterSpacing: '-0.015em' }}
             >
               Your decks
             </h1>
@@ -144,8 +131,7 @@ function DeckCard({
           }}
         />
         <div
-          className="absolute bottom-2 left-3 text-[28px] leading-none text-white/85 @sm:bottom-3 @sm:left-3.5 @sm:text-[36px] @lg:text-[44px]"
-          style={{ fontFamily: 'var(--font-display)' }}
+          className="absolute bottom-2 left-3 text-[28px] leading-none text-white/85 @sm:bottom-3 @sm:left-3.5 @sm:text-[36px] @lg:text-[44px] font-display"
         >
           {kamon}
         </div>
@@ -168,8 +154,7 @@ function DeckCard({
           className="text-left"
         >
           <div
-            className="mb-0.5 text-[15px] font-medium text-lgc-fg"
-            style={{ fontFamily: 'var(--font-display)' }}
+            className="mb-0.5 text-[15px] font-medium text-lgc-fg font-display"
           >
             {deck.name}
           </div>

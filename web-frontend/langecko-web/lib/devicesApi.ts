@@ -1,6 +1,5 @@
+import { API_URL } from './api';
 import type { BookProgressRecord } from '@/lib/booksApi';
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,7 +24,7 @@ export async function registerDevice(
   deviceId: string,
   name: string,
 ): Promise<DeviceRecord> {
-  const res = await fetch(`${API}/api/devices`, {
+  const res = await fetch(`${API_URL}/api/devices`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, deviceId, name }),
@@ -36,7 +35,7 @@ export async function registerDevice(
 
 /** List all devices for a user. */
 export async function getUserDevices(userId: number): Promise<DeviceRecord[]> {
-  const res = await fetch(`${API}/api/devices/user/${userId}`);
+  const res = await fetch(`${API_URL}/api/devices/user/${userId}`);
   if (!res.ok) throw new Error('Failed to fetch devices');
   return res.json();
 }
@@ -47,7 +46,7 @@ export async function renameDevice(
   userId: number,
   name: string,
 ): Promise<DeviceRecord> {
-  const res = await fetch(`${API}/api/devices/${deviceId}`, {
+  const res = await fetch(`${API_URL}/api/devices/${deviceId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, name }),
@@ -61,7 +60,7 @@ export async function removeDevice(
   deviceId: string,
   userId: number,
 ): Promise<void> {
-  const res = await fetch(`${API}/api/devices/${deviceId}?userId=${userId}`, {
+  const res = await fetch(`${API_URL}/api/devices/${deviceId}?userId=${userId}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to remove device');
@@ -73,7 +72,7 @@ export async function markBookAvailable(
   bookId: string,
   userId: number,
 ): Promise<void> {
-  const res = await fetch(`${API}/api/devices/${deviceId}/books/${bookId}/available`, {
+  const res = await fetch(`${API_URL}/api/devices/${deviceId}/books/${bookId}/available`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId }),
@@ -88,7 +87,7 @@ export async function removeBookAvailability(
   userId: number,
 ): Promise<void> {
   const res = await fetch(
-    `${API}/api/devices/${deviceId}/books/${bookId}/available?userId=${userId}`,
+    `${API_URL}/api/devices/${deviceId}/books/${bookId}/available?userId=${userId}`,
     { method: 'DELETE' },
   );
   if (!res.ok) throw new Error('Failed to remove book availability');
@@ -99,7 +98,7 @@ export async function getDeviceBooks(
   deviceId: string,
   userId: number,
 ): Promise<DeviceBookRecord[]> {
-  const res = await fetch(`${API}/api/devices/${deviceId}/books?userId=${userId}`);
+  const res = await fetch(`${API_URL}/api/devices/${deviceId}/books?userId=${userId}`);
   if (!res.ok) throw new Error('Failed to fetch device books');
   return res.json();
 }

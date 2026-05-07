@@ -73,6 +73,47 @@ html[data-theme="stamp"] {
   --lgc-section-label-tracking: 0.22em;
   --lgc-section-label-weight:   500;
 
+  /* ── Section head — vermillion mono num span with extra tracking ────── */
+  --lgc-section-num-color:    var(--lgc-accent);
+  --lgc-section-num-tracking: 0.2em;
+
+  /* ── Toolbar — flat paper bg, mono uppercase buttons ────────────────── */
+  --lgc-toolbar-bg:                    var(--lgc-bg-elev);
+  --lgc-toolbar-backdrop-filter:       none;
+  --lgc-toolbar-button-radius:         0;
+  --lgc-toolbar-button-tracking:       0.18em;
+  --lgc-toolbar-button-text-transform: uppercase;
+  --lgc-toolbar-button-font-family:    var(--lgc-font-mono);
+
+  /* ── Form atoms ─────────────────────────────────────────────────────── */
+  --lgc-input-radius: 0;
+  --lgc-kbd-radius:   0;
+
+  /* ── Generic atoms — crisp edges ─────────────────────────────────────── */
+  --lgc-icon-button-radius: 0;
+  --lgc-pill-radius:        0;
+  --lgc-divider-style:      dashed;
+
+  /* ── Action button — display serif on accent fill ───────────────────── */
+  --lgc-button-font-family: var(--lgc-font-display);
+
+  /* ── Dictionary rows — reading is vermillion-tinted ─────────────────── */
+  --lgc-row-reading-color:    var(--lgc-accent);
+  --lgc-row-reading-tracking: 0.04em;
+
+  /* ── Meaning numerals: huge serif digits, not mono ──────────────────── */
+  --lgc-meaning-num-font:        var(--lgc-font-display);
+  --lgc-meaning-num-size:        26px;
+  --lgc-meaning-num-weight:      700;
+  --lgc-meaning-num-line-height: 1;
+  --lgc-meaning-num-min-width:   36px;
+  --lgc-meaning-num-padding-top: 0;
+  --lgc-meaning-padding-bottom:  14px;
+
+  /* ── Kanji card title — vermillion + slightly larger ────────────────── */
+  --lgc-kanji-meanings-color: var(--lgc-accent);
+  --lgc-kanji-meanings-size:  16px;
+
   /* ── Fonts: Editorial Mincho pairing ────────────────────────────────── */
   --lgc-font-display: var(--font-shippori-mincho), 'Shippori Mincho', 'Cormorant Garamond', serif;
   --lgc-font-ui:      var(--font-cormorant), 'Cormorant Garamond', Georgia, serif;

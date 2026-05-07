@@ -107,8 +107,7 @@ function SelectDeckPhase({
   return (
     <>
       <h2
-        className="text-base font-medium text-lgc-fg"
-        style={{ fontFamily: 'var(--font-display)' }}
+        className="text-base font-medium text-lgc-fg font-display"
       >
         Add as flashcard
       </h2>
@@ -196,8 +195,7 @@ function CreateCardPhase({
   return (
     <>
       <h2
-        className="text-base font-medium text-lgc-fg"
-        style={{ fontFamily: 'var(--font-display)' }}
+        className="text-base font-medium text-lgc-fg font-display"
       >
         New card
       </h2>

@@ -104,8 +104,8 @@ export function DeckDetail({
 
             <div className="min-w-0 flex-1">
               <h1
-                className="text-[22px] font-medium tracking-tight text-lgc-fg @sm:text-[26px] @lg:text-[30px]"
-                style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.015em' }}
+                className="text-[22px] font-medium tracking-tight text-lgc-fg @sm:text-[26px] @lg:text-[30px] font-display"
+                style={{ letterSpacing: '-0.015em' }}
               >
                 {deck.name}
               </h1>
@@ -178,12 +178,9 @@ export function DeckDetail({
                 onChange={(e) => setFront(e.target.value)}
                 placeholder="Kanji / word"
                 autoFocus
-                className="w-full border-none bg-transparent text-[20px] text-lgc-fg outline-none placeholder:text-lgc-fg-subtle @sm:text-[24px] @lg:text-[30px]"
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  borderBottom: '1px dashed var(--lgc-border-strong)',
-                  paddingBottom: 4,
-                }}
+                className="w-full border-none bg-transparent text-[20px] text-lgc-fg outline-none placeholder:text-lgc-fg-subtle @sm:text-[24px] @lg:text-[30px] font-display"
+                style={{ borderBottom: '1px dashed var(--lgc-border-strong)',
+                  paddingBottom: 4, }}
               />
             </div>
 
@@ -300,8 +297,8 @@ function MiniCard({
       {/* Card content — centered JP text */}
       <div className="flex flex-1 flex-col items-center justify-center p-2 text-center @sm:p-3">
         <div
-          className="text-[20px] leading-none tracking-tight text-lgc-fg @sm:text-[24px] @lg:text-[28px]"
-          style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+          className="text-[20px] leading-none tracking-tight text-lgc-fg @sm:text-[24px] @lg:text-[28px] font-display"
+          style={{ letterSpacing: '-0.01em' }}
         >
           {front}
         </div>
