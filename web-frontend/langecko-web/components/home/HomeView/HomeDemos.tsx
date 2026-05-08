@@ -13,11 +13,6 @@ import {
   Settings,
   X,
 } from 'lucide-react';
-import {
-  WORKSPACE_TAB_META,
-  type WorkspaceTabKey,
-} from '@/lib/config/tab-config';
-
 export type DictPlaceholder = { head: string; reading: string; gloss: string; saved?: boolean };
 
 export const RECENT_LOOKUPS: DictPlaceholder[] = [

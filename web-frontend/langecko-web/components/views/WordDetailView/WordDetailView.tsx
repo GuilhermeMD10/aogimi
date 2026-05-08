@@ -69,11 +69,11 @@ export default function WordDetailView({
     if (onKanjiSearch) {
       onKanjiSearch(char);
     } else {
-      router.push(`/workspace?q=${encodeURIComponent(char)}`);
+      router.push(`/dictionary?q=${encodeURIComponent(char)}`);
     }
   };
 
-  const handleBack = onBack ?? (() => router.push('/workspace'));
+  const handleBack = onBack ?? (() => router.push('/dictionary'));
 
   return (
     <div className="@container relative flex min-h-full w-full flex-col">
