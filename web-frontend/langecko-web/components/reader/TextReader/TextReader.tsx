@@ -1,11 +1,13 @@
 'use client';
 
 import type Book from 'epubjs/types/book';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
   List,
+  Search,
   Type,
   Volume2,
   VolumeX,
@@ -40,6 +42,9 @@ export function TextReader({
   onProgressChange,
   onBack,
 }: TextReaderProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const showDictPaneShortcut = pathname !== '/workspace';
   const engine = useTextReaderEngine({ book, filename, initialCfi, rtl, onProgressChange });
   const {
     chapterLabel,
@@ -119,6 +124,9 @@ export function TextReader({
 
           <span className="mx-1 h-4 w-px bg-lgc-border" />
 
+          {showDictPaneShortcut && (
+            <button type="button" className={ICON_BTN} onClick={() => router.push('/workspace')} title="Open dictionary side-by-side"><Search size={14} /></button>
+          )}
           <button data-typo-toggle type="button" className={`${ICON_BTN} ${showTypo ? ICON_BTN_ON : ''}`} onClick={() => setShowTypo((v) => !v)} title="Typography & layout"><Type size={14} /></button>
           <button type="button" className={`${ICON_BTN} ${isSpeaking ? ICON_BTN_ON : ''}`} onClick={toggleTts} title="Read aloud (T)">
             {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}

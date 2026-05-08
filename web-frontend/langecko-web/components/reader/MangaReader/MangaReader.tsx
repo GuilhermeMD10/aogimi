@@ -1,6 +1,7 @@
 'use client';
 
 import type Book from 'epubjs/types/book';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -8,6 +9,7 @@ import {
   List,
   BookmarkPlus,
   Highlighter,
+  Search,
 } from 'lucide-react';
 import { ICON_BTN, ICON_BTN_ON } from '@/components/reader/readerConstants';
 import { ReaderProgressBar } from '@/components/reader/ReaderProgressBar';
@@ -44,6 +46,9 @@ export function MangaReader({
   onProgressChange,
   onBack,
 }: MangaReaderProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const showDictPaneShortcut = pathname !== '/workspace';
   const engine = useMangaReaderEngine({ book, filename, initialCfi, onProgressChange });
   const {
     currentPage,
@@ -112,6 +117,13 @@ export function MangaReader({
           <button type="button" className={`${ICON_BTN} ${panel === 'toc' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'toc' ? null : 'toc'))} title="Table of contents"><List size={14} /></button>
           <button type="button" className={`${ICON_BTN} ${panel === 'bookmarks' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'bookmarks' ? null : 'bookmarks'))} title="Bookmarks"><Highlighter size={14} /></button>
           <button type="button" className={ICON_BTN} onClick={addBookmark} title="Add bookmark (B)"><BookmarkPlus size={14} /></button>
+
+          {showDictPaneShortcut && (
+            <>
+              <span className="mx-1 h-4 w-px bg-lgc-border" />
+              <button type="button" className={ICON_BTN} onClick={() => router.push('/workspace')} title="Open dictionary side-by-side"><Search size={14} /></button>
+            </>
+          )}
 
           <span className="mx-1 h-4 w-px bg-lgc-border" />
 

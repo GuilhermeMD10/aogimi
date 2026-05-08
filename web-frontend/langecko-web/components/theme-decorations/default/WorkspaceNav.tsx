@@ -4,10 +4,9 @@ import * as React from 'react';
 import { Icon, type IconName } from '@/components/icons';
 import {
   BUBBLE_ITEMS,
-  WORKSPACE_ITEMS,
+  NAV_ITEMS,
   type WorkspaceNavVariantProps,
 } from '@/components/WorkspaceNav.types';
-import { WORKSPACE_TAB_META } from '@/lib/config/tab-config';
 
 // ── Per-item brand colors (default theme only) ──────────────────────────────
 
@@ -15,6 +14,7 @@ const ITEM_COLORS: Record<string, string> = {
   reader: '#D97757',
   dictionary: '#4B7AA3',
   cards: '#8FB08A',
+  workspace: '#7B6BAE',
   home: '#C78A4F',
   profile: '#B5A27C',
   settings: '#999999',
@@ -27,8 +27,7 @@ const ITEM_COLORS: Record<string, string> = {
 export function DefaultWorkspaceNav({
   activeBubble,
   onToggleBubble,
-  openTabs,
-  onTabClick,
+  onNavClick,
   onHomeClick,
   isHomeActive,
   pathname,
@@ -51,18 +50,17 @@ export function DefaultWorkspaceNav({
           pointerEvents: 'auto',
         }}
       >
-        {WORKSPACE_ITEMS.map((item) => {
-          const isActive = openTabs.includes(item.key) && pathname === '/workspace';
-          const meta = WORKSPACE_TAB_META[item.key];
+        {NAV_ITEMS.map((item) => {
+          const isActive = pathname === item.path;
           return (
             <DefaultNavItem
               key={item.key}
               icon={item.icon}
-              label={meta.label}
+              label={item.label}
               color={ITEM_COLORS[item.key]}
               active={isActive}
               activeDotOffset={-2}
-              onClick={() => onTabClick(item.key)}
+              onClick={() => onNavClick(item.path)}
             />
           );
         })}
@@ -71,9 +69,9 @@ export function DefaultWorkspaceNav({
           aria-hidden
           style={{
             width: 1,
-            height: 26,
+            alignSelf: 'stretch',
             background: 'var(--lgc-border)',
-            margin: '0 4px',
+            margin: '4px 4px',
             flexShrink: 0,
           }}
         />
@@ -126,9 +124,9 @@ function DefaultNavItem({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="group relative flex h-8 w-8 items-center justify-center cursor-pointer rounded-lg transition-colors hover:bg-lgc-bg-sunken"
+      className="group relative flex h-11 w-11 items-center justify-center cursor-pointer rounded-lg transition-colors hover:bg-lgc-bg-sunken"
     >
-      <Icon name={icon} size={16} style={{ color, flexShrink: 0 }} />
+      <Icon name={icon} size={20} style={{ color, flexShrink: 0 }} />
       {active && (
         <span
           aria-hidden
