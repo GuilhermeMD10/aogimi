@@ -4,10 +4,9 @@ import * as React from 'react';
 import { Icon, type IconName } from '@/components/icons';
 import {
   BUBBLE_ITEMS,
-  WORKSPACE_ITEMS,
+  NAV_ITEMS,
   type WorkspaceNavVariantProps,
 } from '@/components/WorkspaceNav.types';
-import { WORKSPACE_TAB_META } from '@/lib/config/tab-config';
 
 /**
  * Stamp variant — square paper pill, sumi border + 3px hard offset shadow,
@@ -16,8 +15,7 @@ import { WORKSPACE_TAB_META } from '@/lib/config/tab-config';
 export function StampWorkspaceNav({
   activeBubble,
   onToggleBubble,
-  openTabs,
-  onTabClick,
+  onNavClick,
   onHomeClick,
   isHomeActive,
   pathname,
@@ -38,16 +36,15 @@ export function StampWorkspaceNav({
           pointerEvents: 'auto',
         }}
       >
-        {WORKSPACE_ITEMS.map((item) => {
-          const isActive = openTabs.includes(item.key) && pathname === '/workspace';
-          const meta = WORKSPACE_TAB_META[item.key];
+        {NAV_ITEMS.map((item) => {
+          const isActive = pathname === item.path;
           return (
             <StampNavItem
               key={item.key}
               icon={item.icon}
-              label={meta.label}
+              label={item.label}
               active={isActive}
-              onClick={() => onTabClick(item.key)}
+              onClick={() => onNavClick(item.path)}
             />
           );
         })}

@@ -1,14 +1,16 @@
 import type { IconName } from '@/components/icons';
-import type { WorkspaceTabKey } from '@/lib/config/tab-config';
 
 // ── Items shared by every theme variant ─────────────────────────────────────
 
 export type BubbleKey = 'profile' | 'settings';
 
-export const WORKSPACE_ITEMS: { key: WorkspaceTabKey; icon: IconName }[] = [
-  { key: 'reader', icon: 'reader' },
-  { key: 'dictionary', icon: 'dictionary' },
-  { key: 'cards', icon: 'cards' },
+export type NavRouteKey = 'reader' | 'dictionary' | 'cards' | 'workspace';
+
+export const NAV_ITEMS: { key: NavRouteKey; icon: IconName; label: string; path: string }[] = [
+  { key: 'reader',     icon: 'reader',     label: 'Reader',     path: '/reader' },
+  { key: 'dictionary', icon: 'dictionary', label: 'Dictionary', path: '/dictionary' },
+  { key: 'cards',      icon: 'cards',      label: 'Decks',      path: '/decks' },
+  { key: 'workspace',  icon: 'workspace',  label: 'Workspace',  path: '/workspace' },
 ];
 
 export const BUBBLE_ITEMS: { key: BubbleKey; icon: IconName; label: string }[] = [
@@ -24,8 +26,7 @@ export const BUBBLE_ITEMS: { key: BubbleKey; icon: IconName; label: string }[] =
 export type WorkspaceNavVariantProps = {
   activeBubble: BubbleKey | null;
   onToggleBubble: (key: BubbleKey) => void;
-  openTabs: WorkspaceTabKey[];
-  onTabClick: (tab: WorkspaceTabKey) => void;
+  onNavClick: (path: string) => void;
   onHomeClick: () => void;
   isHomeActive: boolean;
   pathname: string;

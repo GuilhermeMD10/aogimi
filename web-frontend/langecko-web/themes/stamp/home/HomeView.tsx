@@ -5,12 +5,10 @@ import { useRouter } from 'next/navigation';
 import { BookOpen, Search, Layers, ChevronRight, User, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
-import { useWorkspaceTabs } from '@/components/providers/WorkspaceTabsProvider';
 import { useBubble } from '@/components/providers/BubbleProvider';
 import { StampMark } from '@/components/theme-decorations/stamp/StampMark';
 import { getDeviceBooks, type DeviceBookRecord } from '@/lib/devicesApi';
 import { getDeviceId } from '@/lib/storage/device';
-import type { WorkspaceTabKey } from '@/lib/config/tab-config';
 import type { BubbleKey } from '@/components/WorkspaceNav';
 import {
   CoverMini,
@@ -22,7 +20,7 @@ import {
 
 type Destination = {
   k: 'reader' | 'dict' | 'decks' | 'profile';
-  tab?: WorkspaceTabKey;
+  path?: string;
   bubble?: BubbleKey;
   icon: LucideIcon;
   label: string;
@@ -31,16 +29,15 @@ type Destination = {
 };
 
 const DESTINATIONS: Destination[] = [
-  { k: 'reader',  tab: 'reader',     icon: BookOpen, label: 'Reader',     dot: '#D97757', desc: 'Read with tap-to-look-up and inline context.' },
-  { k: 'dict',    tab: 'dictionary', icon: Search,   label: 'Dictionary', dot: '#4B7AA3', desc: 'Full JMdict entries, kanji breakdown, audio.'  },
-  { k: 'decks',   tab: 'cards',      icon: Layers,   label: 'Decks',      dot: '#8FB08A', desc: 'Flashcards built from what you read.'         },
-  { k: 'profile', bubble: 'profile', icon: User,     label: 'Profile',    dot: '#B5A27C', desc: 'Account, themes, and reading history.'        },
+  { k: 'reader',  path: '/reader',     icon: BookOpen, label: 'Reader',     dot: '#D97757', desc: 'Read with tap-to-look-up and inline context.' },
+  { k: 'dict',    path: '/dictionary', icon: Search,   label: 'Dictionary', dot: '#4B7AA3', desc: 'Full JMdict entries, kanji breakdown, audio.'  },
+  { k: 'decks',   path: '/decks',      icon: Layers,   label: 'Decks',      dot: '#8FB08A', desc: 'Flashcards built from what you read.'         },
+  { k: 'profile', bubble: 'profile',   icon: User,     label: 'Profile',    dot: '#B5A27C', desc: 'Account, themes, and reading history.'        },
 ];
 
 export default function HomeView() {
   const router = useRouter();
   const { user } = useAuth();
-  const { addTab, openTabs } = useWorkspaceTabs();
   const { setPendingBookOpen } = useReaderState();
   const { setActiveBubble } = useBubble();
 
@@ -68,21 +65,19 @@ export default function HomeView() {
         setActiveBubble(d.bubble);
         return;
       }
-      if (d.tab) {
-        if (!openTabs.includes(d.tab)) addTab(d.tab);
-        router.push('/workspace');
+      if (d.path) {
+        router.push(d.path);
       }
     },
-    [addTab, openTabs, router, setActiveBubble],
+    [router, setActiveBubble],
   );
 
   const resumeBook = useCallback(
     (book: DeviceBookRecord) => {
       if (book.available) setPendingBookOpen(book.filename);
-      if (!openTabs.includes('reader')) addTab('reader');
-      router.push('/workspace');
+      router.push('/reader');
     },
-    [addTab, openTabs, router, setPendingBookOpen],
+    [router, setPendingBookOpen],
   );
 
   const currentlyReading = recent[0];
@@ -277,10 +272,7 @@ export default function HomeView() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                if (!openTabs.includes('dictionary')) addTab('dictionary');
-                router.push('/workspace');
-              }}
+              onClick={() => router.push('/dictionary')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

@@ -195,10 +195,10 @@ export default function AuthenticatePage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Redirect to workspace when logged in
+  // Redirect to home when logged in
   useEffect(() => {
     if (!loading && user) {
-      router.replace('/workspace');
+      router.replace('/');
     }
   }, [user, loading, router]);
 
