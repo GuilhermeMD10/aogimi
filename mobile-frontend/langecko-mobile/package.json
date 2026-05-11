@@ -9,11 +9,13 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "gen-reader-libs": "node scripts/gen-reader-libs.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/lora": "^0.4.2",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "epubjs": "^0.3.93",
     "expo": "^55.0.14",
     "expo-blur": "~55.0.14",
     "expo-clipboard": "~55.0.13",

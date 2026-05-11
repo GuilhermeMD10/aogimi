@@ -4,13 +4,12 @@ import type { IconName } from '@/components/icons';
 
 export type BubbleKey = 'profile' | 'settings';
 
-export type NavRouteKey = 'reader' | 'dictionary' | 'cards' | 'workspace';
+export type NavRouteKey = 'reader' | 'dictionary' | 'cards';
 
 export const NAV_ITEMS: { key: NavRouteKey; icon: IconName; label: string; path: string }[] = [
   { key: 'reader',     icon: 'reader',     label: 'Reader',     path: '/reader' },
   { key: 'dictionary', icon: 'dictionary', label: 'Dictionary', path: '/dictionary' },
   { key: 'cards',      icon: 'cards',      label: 'Decks',      path: '/decks' },
-  { key: 'workspace',  icon: 'workspace',  label: 'Workspace',  path: '/workspace' },
 ];
 
 export const BUBBLE_ITEMS: { key: BubbleKey; icon: IconName; label: string }[] = [

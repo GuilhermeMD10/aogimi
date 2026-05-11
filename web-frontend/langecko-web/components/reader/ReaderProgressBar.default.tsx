@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { ReaderProgressBarProps } from '@/components/reader/ReaderProgressBar.types';
+import type { ReaderProgressBarProps } from './ReaderProgressBar.types';
 
 /**
  * Default theme reader progress bar — rounded pill with a vermillion fill on

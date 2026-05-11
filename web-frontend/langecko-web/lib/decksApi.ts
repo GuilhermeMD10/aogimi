@@ -1,30 +1,5 @@
 import { API_URL } from './api';
-
-// ── Types matching backend responses ─────────────────────────────────────────
-
-export interface DeckRecord {
-  id: string;
-  user_id: number;
-  name: string;
-  description: string;
-  created_at: string;
-  card_count: number;
-}
-
-export interface CardRecord {
-  id: string;
-  deck_id: string;
-  front: string;
-  reading: string;
-  back: string;
-  notes: string;
-  context_sentence: string;
-  state: 'new' | 'learning' | 'mastered';
-  reviewed_times: number;
-  created_at: string;
-}
-
-// ── Deck API ─────────────────────────────────────────────────────────────────
+import type { CardRecord, DeckRecord } from '@/lib/types';
 
 export async function createDeck(params: {
   userId: number;
@@ -70,8 +45,6 @@ export async function deleteDeck(id: string): Promise<void> {
   const res = await fetch(`${API_URL}/api/decks/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete deck');
 }
-
-// ── Card API ─────────────────────────────────────────────────────────────────
 
 export async function getDeckCards(deckId: string): Promise<CardRecord[]> {
   const res = await fetch(`${API_URL}/api/decks/${deckId}/cards`);

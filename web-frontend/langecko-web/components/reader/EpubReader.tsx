@@ -17,6 +17,11 @@ type Props = {
   onAddCard: (word: string, contextSentence?: string) => void;
   onProgressChange?: (progress: number, cfi: string) => void;
   onBack: () => void;
+  /** Whether the dictionary sidekick is currently docked. Reader toolbars use
+   * this to render the toggle in its active state. */
+  sidekickOpen?: boolean;
+  /** Toggle the sidekick visibility from the reader toolbar. */
+  onToggleSidekick?: () => void;
 };
 
 type ReaderType = 'text' | 'novel' | 'manga';
@@ -34,6 +39,8 @@ export function EpubReader({
   onAddCard,
   onProgressChange,
   onBack,
+  sidekickOpen,
+  onToggleSidekick,
 }: Props) {
   const [book, setBook] = useState<Book | null>(null);
   const [readerType, setReaderType] = useState<ReaderType | null>(null);
@@ -110,7 +117,11 @@ export function EpubReader({
 
   // ── Render the appropriate reader ───────────────────────────────────────
 
-  const shared = { book, filename, bookTitle, initialCfi, onLookup, onAddCard, onProgressChange, onBack };
+  const shared = {
+    book, filename, bookTitle, initialCfi,
+    onLookup, onAddCard, onProgressChange, onBack,
+    sidekickOpen, onToggleSidekick,
+  };
 
   switch (readerType) {
     case 'manga':

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Check, Monitor, Pencil, Trash2, X } from 'lucide-react';
 import { SectionCard } from '@/components/ui/SectionCard';
-import type { DeviceRecord } from '@/lib/devicesApi';
+import type { DeviceRecord } from '@/lib/types';
 
 export function DevicesSection({
   devices,

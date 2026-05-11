@@ -76,8 +76,8 @@ export function StudyView({ deck, onExit }: StudyViewProps) {
       <div
         className="flex items-center gap-2.5 border-b border-lgc-border px-4 py-2.5 @md:gap-4 @md:px-7 @md:py-3.5"
         style={{
-          background: 'color-mix(in oklab, var(--lgc-bg) 85%, transparent)',
-          backdropFilter: 'blur(10px)',
+          background: 'var(--lgc-toolbar-bg)',
+          backdropFilter: 'var(--lgc-toolbar-backdrop-filter)',
         }}
       >
         <button
@@ -140,7 +140,6 @@ export function StudyView({ deck, onExit }: StudyViewProps) {
               contextSentence={session.current.context_sentence}
               flipped={flipped}
               onFlip={flip}
-              cardShadow="0 20px 50px -20px rgba(0,0,0,0.2)"
             />
             <ActionButtons flipped={flipped} onFlip={flip} onAdvance={advance} />
           </>

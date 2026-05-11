@@ -1,57 +1,11 @@
 import { API_URL } from './api';
 import type { EpubIdentity } from '@/lib/epubIdentity';
-
-// ── Types matching backend book_progress table ──────────────────────────────
-
-export interface BookProgressRecord {
-  id: string; // UUID
-  user_id: number;
-  filename: string;
-  title: string;
-  author: string;
-  cover_color: string;
-  cfi_position: string | null;
-  spine_index: number;
-  total_spine_items: number | null;
-  progress: number;
-  file_hash: string | null;
-  content_hash: string | null;
-  dc_identifier: string | null;
-  language: string | null;
-  publisher: string | null;
-  started_at: string;
-  last_read_at: string;
-  created_at: string;
-}
-
-export interface ProgressPayload {
-  cfiPosition?: string;
-  progress?: number;
-  spineIndex?: number;
-  totalSpineItems?: number;
-}
-
-// ── Match types ─────────────────────────────────────────────────────────────
-
-export interface MatchCandidate {
-  file_hash: string;
-  content_hash: string;
-  metadata: {
-    title: string;
-    author: string;
-    dc_identifier: string | null;
-    filename: string;
-  };
-}
-
-export type MatchType = 'file_hash' | 'content' | 'metadata' | 'filename';
-
-export interface MatchResult {
-  match: BookProgressRecord;
-  match_type: MatchType;
-}
-
-// ── API calls ───────────────────────────────────────────────────────────────
+import type {
+  BookProgressRecord,
+  MatchCandidate,
+  MatchResult,
+  ProgressPayload,
+} from '@/lib/types';
 
 export async function registerBook(params: {
   userId: number;
@@ -127,8 +81,6 @@ export async function updateBookTitle(
   return res.json();
 }
 
-// ── Hash-based matching ─────────────────────────────────────────────────────
-
 export async function matchBooks(
   userId: number,
   books: MatchCandidate[],
@@ -141,8 +93,6 @@ export async function matchBooks(
   if (!res.ok) throw new Error('Failed to match books');
   return res.json();
 }
-
-// ── Identity backfill ───────────────────────────────────────────────────────
 
 export async function updateBookIdentity(
   id: string,

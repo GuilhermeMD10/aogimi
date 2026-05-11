@@ -1,26 +1,8 @@
-import { getJSON, setJSON } from './_helpers';
+import { setJSON } from './_helpers';
 
-// ── Global reader session state (mode + last filenames + pdf zoom) ──────────
-
-const SHARED_KEY = 'reader_shared_state';
-
-export type ReaderSharedState = {
-  mode?: 'epub' | 'pdf';
-  pdfPageNumber?: number;
-  pdfScale?: number;
-  lastEpubFilename?: string;
-  lastPdfFilename?: string;
-};
-
-export function getReaderSharedState(): ReaderSharedState | null {
-  return getJSON<ReaderSharedState>(SHARED_KEY);
-}
-
-export function setReaderSharedState(state: ReaderSharedState): void {
-  setJSON(SHARED_KEY, state);
-}
-
-// ── Per-book progress snapshots (transient — superseded by backend sync) ───
+// Per-book reading-progress snapshots. Written on every page turn (cheap,
+// local) and superseded by backend sync on tab close. Used as a recovery
+// hint when the network sync is delayed or fails.
 
 function progressKey(filename: string): string {
   return `reader_progress_${filename}`;

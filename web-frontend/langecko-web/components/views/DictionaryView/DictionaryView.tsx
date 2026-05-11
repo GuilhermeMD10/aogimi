@@ -2,18 +2,24 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import { Search, Plus, Volume2 } from 'lucide-react';
+import { Plus, Volume2 } from 'lucide-react';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
 import WordDetailView, { preferredHeadword } from '@/components/views/WordDetailView';
+import {
+  DictionaryHero,
+  HowItWorksColumn,
+  RecentColumn,
+  TipsRow,
+} from '@/components/views/DictionaryView/DictionaryQuiet';
 import { InfoRow } from '@/components/ui/InfoRow';
 import { JlptChip } from '@/components/ui/JlptChip';
 import { SectionHead } from '@/components/ui/SectionHead';
-import {
-  meanWordGrade,
-  type KanjiInfo,
-  type WordResult,
-} from '@/lib/dictApi';
+import type { KanjiInfo, WordResult } from '@/lib/types';
+
+// /dictionary surface. The hero (kicker + title + subhead + big focused
+// search) is always rendered at the top so the search bar stays put across
+// empty/results transitions; only the body below it swaps.
 
 export default function DictionaryView() {
   const { setPendingCard } = useReaderState();
@@ -24,7 +30,6 @@ export default function DictionaryView() {
     error,
     selectedWordId,
     lastContextSentence,
-    setQuery,
     setSelectedWordId,
     runSearch,
   } = useDictionaryState();
@@ -33,7 +38,7 @@ export default function DictionaryView() {
   const urlQuery = searchParams.get('q');
   const lastUrlQueryRef = useRef<string | null>(null);
 
-  // Deep-link entry: `/workspace?q=<term>` runs the search once.
+  // Deep-link entry: `/dictionary?q=<term>` runs the search once.
   useEffect(() => {
     if (!urlQuery) return;
     if (lastUrlQueryRef.current === urlQuery) return;
@@ -41,178 +46,149 @@ export default function DictionaryView() {
     void runSearch(urlQuery);
   }, [urlQuery, runSearch]);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    void runSearch(query);
-  };
-
-  const rawWords = result ? ('words' in result ? result.words : []) : [];
-  const words = [...rawWords].sort((a, b) => meanWordGrade(a) - meanWordGrade(b));
-  const names = result && 'names' in result ? result.names : [];
-  const kanjiInfo = result?.type === 'kanji' ? result.kanji : null;
-
+  // The word-detail view takes over the page (it has its own back nav).
   if (selectedWordId !== null) {
     return (
       <WordDetailView
         id={String(selectedWordId)}
         query={query}
         onBack={() => setSelectedWordId(null)}
-        onKanjiSearch={(char) => {
-          void runSearch(char);
-        }}
+        onKanjiSearch={(char) => { void runSearch(char); }}
         onAddCard={(word, back) => setPendingCard({ word, back, contextSentence: lastContextSentence })}
       />
     );
   }
 
+  // Backend ranks words by exact-match tier, single-kanji privilege, JLPT,
+  // grade, length, and SQL score — preserve that order, don't re-sort here.
+  const words = result && 'words' in result ? result.words : [];
+  const names = result && 'names' in result ? result.names : [];
+  const kanjiInfo = result?.type === 'kanji' ? result.kanji : null;
+
+  const hasResults = Boolean(error || loading || result);
+  const hasNoMatches = !loading && !error && result && words.length === 0 && names.length === 0 && !kanjiInfo;
+
   return (
-    <div className="@container flex min-h-full w-full flex-col">
-      <div
-        className="flex items-center gap-2.5 border-b border-lgc-border px-3 py-2.5 @md:px-5 @md:py-3"
-        style={{
-          background: 'var(--lgc-toolbar-bg)',
-          backdropFilter: 'var(--lgc-toolbar-backdrop-filter)',
-        }}
-      >
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-1 items-center gap-2 border border-lgc-border-strong bg-lgc-bg-elev px-3 py-2"
-          style={{ maxWidth: 540, borderRadius: 'var(--lgc-input-radius)' }}
-        >
-          <Search size={14} className="shrink-0 text-lgc-fg-subtle" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Kanji, kana, or English..."
-            className="flex-1 border-none bg-transparent text-[15px] text-lgc-fg outline-none placeholder:text-lgc-fg-subtle font-display"
-          />
-          <kbd
-            className="border border-lgc-border-strong px-1.5 py-0.5 text-[10px] text-lgc-fg-muted font-mono"
-            style={{ borderRadius: 'var(--lgc-kbd-radius)', }}
-          >
-            ⌘K
-          </kbd>
-        </form>
-        <div className="ml-auto flex gap-1">
-          <button
-            type="submit"
-            form=""
-            onClick={() => void runSearch(query)}
-            disabled={loading}
-            className="px-2.5 py-1.5 text-xs font-medium text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev disabled:opacity-50"
-            style={{
-              borderRadius: 'var(--lgc-toolbar-button-radius)',
-              fontFamily: 'var(--lgc-toolbar-button-font-family)',
-              letterSpacing: 'var(--lgc-toolbar-button-tracking)',
-              textTransform: 'var(--lgc-toolbar-button-text-transform)' as React.CSSProperties['textTransform'],
-            }}
-          >
-            {loading ? 'Searching…' : 'JA → EN'}
-          </button>
-        </div>
-      </div>
+    <div
+      className="@container lgc-scroll h-full overflow-auto"
+      style={{ background: 'var(--lgc-bg)' }}
+    >
+      <div style={{ maxWidth: 880, margin: '0 auto', padding: '64px 40px 160px' }}>
+        <DictionaryHero />
 
-      <div className="lgc-scroll flex-1 overflow-auto">
-        {error && <p className="px-5 py-3 text-sm text-lgc-error">{error}</p>}
+        {hasResults && (
+          <div style={{ marginTop: 32 }}>
+            {error && <p className="px-1 py-3 text-sm text-lgc-error">{error}</p>}
 
-        {kanjiInfo && (
-          <KanjiPanel
-            kanji={kanjiInfo}
-            onAddCard={() => {
-              const parts: string[] = [];
-              if (kanjiInfo.on_readings.length > 0) parts.push(kanjiInfo.on_readings.join('、'));
-              if (kanjiInfo.kun_readings.length > 0) parts.push(kanjiInfo.kun_readings.join('、'));
-              if (kanjiInfo.meanings.length > 0) parts.push(kanjiInfo.meanings.join(', '));
-              setPendingCard({ word: kanjiInfo.literal, back: parts.join('\n'), contextSentence: lastContextSentence });
-            }}
-          />
-        )}
-
-        {words.length > 0 && (
-          <>
-            <div className="px-3 pb-1.5 pt-4 @md:px-5 @md:pt-5">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-lgc-accent">
-                Dictionary
-              </div>
-              <div
-                className="mt-1 text-[16px] font-medium tracking-tight text-lgc-fg @sm:text-[18px] @lg:text-[22px] font-display"
-                style={{ letterSpacing: '-0.01em' }}
-              >
-                {words.length} result{words.length !== 1 ? 's' : ''} for{' '}
-                <span className="text-lgc-accent">「{query}」</span>
-              </div>
-            </div>
-            <div className="flex items-baseline justify-between px-3 pb-3 @md:px-5">
-              <span className="text-xs text-lgc-fg-muted">
-                Showing JMdict entries &middot; kanji, reading, and cross-reference matches
-              </span>
-              <span
-                className="text-[11px] text-lgc-fg-muted font-mono"
-              >
-                sort &middot; relevance &darr;
-              </span>
-            </div>
-
-            <div className="border-t border-lgc-border">
-              {words.slice(0, 15).map((word, i) => (
-                <ResultRow
-                  key={word.id}
-                  word={word}
-                  index={i}
-                  active={i === 0}
-                  query={query}
-                  onClick={() => setSelectedWordId(word.id)}
-                />
-              ))}
-            </div>
-
-            {words.length > 15 && (
-              <p className="px-5 py-3 text-xs text-lgc-fg-muted">
-                Showing first 15 of {words.length} results.
-              </p>
+            {kanjiInfo && (
+              <KanjiPanel
+                kanji={kanjiInfo}
+                onAddCard={() => {
+                  const parts: string[] = [];
+                  if (kanjiInfo.on_readings.length > 0) parts.push(kanjiInfo.on_readings.join('、'));
+                  if (kanjiInfo.kun_readings.length > 0) parts.push(kanjiInfo.kun_readings.join('、'));
+                  if (kanjiInfo.meanings.length > 0) parts.push(kanjiInfo.meanings.join(', '));
+                  setPendingCard({ word: kanjiInfo.literal, back: parts.join('\n'), contextSentence: lastContextSentence });
+                }}
+              />
             )}
-            <div className="py-5 text-center text-xs text-lgc-fg-subtle">End of results</div>
-          </>
-        )}
 
-        {names.length > 0 && (
-          <div className="px-3 pb-6 @md:px-5">
-            <SectionHead num="02" title="Names" />
-            <div
-              className="overflow-hidden border border-lgc-border"
-              style={{ borderRadius: 'var(--lgc-surface-radius)' }}
-            >
-              {names.slice(0, 10).map((name) => (
-                <div
-                  key={name.id}
-                  className="border-b border-lgc-border px-4 py-2.5 text-sm last:border-0"
-                >
-                  <span
-                    className="font-medium text-lgc-fg font-display"
+            {words.length > 0 && (
+              <>
+                <div className="px-1 pb-1.5 pt-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-lgc-accent">
+                    Dictionary
+                  </div>
+                  <div
+                    className="mt-1 text-[18px] font-medium tracking-tight text-lgc-fg @lg:text-[22px] font-display"
+                    style={{ letterSpacing: '-0.01em' }}
                   >
-                    {name.kanji ?? name.kana}
-                  </span>
-                  {name.kanji && (
-                    <span className="ml-2 text-xs text-lgc-fg-muted">{name.kana}</span>
-                  )}
-                  {name.name_type.length > 0 && (
-                    <span className="ml-2 text-xs italic text-lgc-fg-subtle">
-                      {name.name_type.join(', ')}
-                    </span>
-                  )}
-                  {name.translations.length > 0 && (
-                    <p className="text-lgc-fg-muted">{name.translations.join('; ')}</p>
-                  )}
+                    {words.length} result{words.length !== 1 ? 's' : ''} for{' '}
+                    <span className="text-lgc-accent">「{query}」</span>
+                  </div>
                 </div>
-              ))}
-            </div>
+                <div className="flex items-baseline justify-between px-1 pb-3">
+                  <span className="text-xs text-lgc-fg-muted">
+                    Showing JMdict entries &middot; kanji, reading, and cross-reference matches
+                  </span>
+                  <span className="text-[11px] text-lgc-fg-muted font-mono">
+                    sort &middot; relevance &darr;
+                  </span>
+                </div>
+
+                <div className="border-t border-lgc-border">
+                  {words.slice(0, 15).map((word, i) => (
+                    <ResultRow
+                      key={word.id}
+                      word={word}
+                      index={i}
+                      active={i === 0}
+                      query={query}
+                      onClick={() => setSelectedWordId(word.id)}
+                    />
+                  ))}
+                </div>
+
+                {words.length > 15 && (
+                  <p className="px-1 py-3 text-xs text-lgc-fg-muted">
+                    Showing first 15 of {words.length} results.
+                  </p>
+                )}
+                <div className="py-5 text-center text-xs text-lgc-fg-subtle">End of results</div>
+              </>
+            )}
+
+            {names.length > 0 && (
+              <div className="px-1 pb-6">
+                <SectionHead num="02" title="Names" />
+                <div
+                  className="overflow-hidden border border-lgc-border"
+                  style={{ borderRadius: 'var(--lgc-surface-radius)' }}
+                >
+                  {names.slice(0, 10).map((name) => (
+                    <div
+                      key={name.id}
+                      className="border-b border-lgc-border px-4 py-2.5 text-sm last:border-0"
+                    >
+                      <span className="font-medium text-lgc-fg font-display">
+                        {name.kanji ?? name.kana}
+                      </span>
+                      {name.kanji && (
+                        <span className="ml-2 text-xs text-lgc-fg-muted">{name.kana}</span>
+                      )}
+                      {name.name_type.length > 0 && (
+                        <span className="ml-2 text-xs italic text-lgc-fg-subtle">
+                          {name.name_type.join(', ')}
+                        </span>
+                      )}
+                      {name.translations.length > 0 && (
+                        <p className="text-lgc-fg-muted">{name.translations.join('; ')}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hasNoMatches && (
+              <p className="px-1 py-6 text-sm text-lgc-fg-muted">No results found.</p>
+            )}
           </div>
         )}
 
-        {!loading && !error && result && words.length === 0 && names.length === 0 && !kanjiInfo && (
-          <p className="px-5 py-6 text-sm text-lgc-fg-muted">No results found.</p>
-        )}
+        <TipsRow />
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 32,
+            marginTop: 56,
+          }}
+        >
+          <RecentColumn />
+          <HowItWorksColumn />
+        </div>
       </div>
     </div>
   );
@@ -240,7 +216,7 @@ function ResultRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full gap-2.5 border-b border-lgc-border px-3 py-3 text-left transition-colors hover:bg-lgc-bg-elev @md:gap-4 @md:px-5 @md:py-4"
+      className="flex w-full gap-3 border-b border-lgc-border px-2 py-3.5 text-left transition-colors hover:bg-lgc-bg-elev @md:gap-4 @md:px-3"
       style={{
         background: active ? 'var(--lgc-bg-elev)' : undefined,
         borderLeft: active ? '2px solid var(--lgc-accent)' : '2px solid transparent',
@@ -258,7 +234,7 @@ function ResultRow({
       <div className="min-w-0 shrink-0 text-left @sm:min-w-20 @lg:min-w-30">
         <div className="flex items-baseline gap-2">
           <span
-            className="text-[20px] leading-none tracking-tight text-lgc-fg @sm:text-[24px] @lg:text-[30px] font-display"
+            className="text-[20px] leading-none tracking-tight text-lgc-fg @sm:text-[24px] @lg:text-[28px] font-display"
             style={{ letterSpacing: '-0.01em' }}
           >
             {headword}
@@ -334,7 +310,7 @@ function KanjiPanel({
 }) {
   return (
     <div
-      className="mx-3 mt-4 flex flex-col gap-3 border border-lgc-border bg-lgc-bg-elev p-4 @sm:mx-5 @sm:mt-5 @sm:flex-row @sm:gap-4 @sm:p-5"
+      className="mt-2 flex flex-col gap-3 border border-lgc-border bg-lgc-bg-elev p-4 @sm:flex-row @sm:gap-4 @sm:p-5"
       style={{
         borderRadius: 'var(--lgc-surface-radius)',
         boxShadow: 'var(--lgc-surface-shadow)',

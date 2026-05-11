@@ -1,7 +1,6 @@
 'use client';
 
 import type Book from 'epubjs/types/book';
-import { useRouter, usePathname } from 'next/navigation';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -25,6 +24,8 @@ export type MangaReaderProps = {
   onAddCard: (word: string, contextSentence?: string) => void;
   onProgressChange?: (progress: number, cfi: string) => void;
   onBack: () => void;
+  sidekickOpen?: boolean;
+  onToggleSidekick?: () => void;
 };
 
 const VIEW_MODES: { key: ViewMode; label: string }[] = [
@@ -45,10 +46,9 @@ export function MangaReader({
   initialCfi,
   onProgressChange,
   onBack,
+  sidekickOpen = false,
+  onToggleSidekick,
 }: MangaReaderProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const showDictPaneShortcut = pathname !== '/workspace';
   const engine = useMangaReaderEngine({ book, filename, initialCfi, onProgressChange });
   const {
     currentPage,
@@ -86,7 +86,7 @@ export function MangaReader({
           onClick={onBack}
           className="flex shrink-0 items-center gap-1 px-1.5 py-1 text-[12px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg"
           title="Back to library"
-          style={{ borderRadius: 6 }}
+          style={{ borderRadius: 'var(--radius-md)' }}
         >
           <ArrowLeft size={12} />
           <span>Books</span>
@@ -118,10 +118,18 @@ export function MangaReader({
           <button type="button" className={`${ICON_BTN} ${panel === 'bookmarks' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'bookmarks' ? null : 'bookmarks'))} title="Bookmarks"><Highlighter size={14} /></button>
           <button type="button" className={ICON_BTN} onClick={addBookmark} title="Add bookmark (B)"><BookmarkPlus size={14} /></button>
 
-          {showDictPaneShortcut && (
+          {onToggleSidekick && (
             <>
               <span className="mx-1 h-4 w-px bg-lgc-border" />
-              <button type="button" className={ICON_BTN} onClick={() => router.push('/workspace')} title="Open dictionary side-by-side"><Search size={14} /></button>
+              <button
+                type="button"
+                className={`${ICON_BTN} ${sidekickOpen ? ICON_BTN_ON : ''}`}
+                onClick={onToggleSidekick}
+                title={sidekickOpen ? 'Hide dictionary' : 'Open dictionary'}
+                aria-pressed={sidekickOpen}
+              >
+                <Search size={14} />
+              </button>
             </>
           )}
 
