@@ -48,7 +48,7 @@ export default function ProfileBubble({ onClose }: ProfileBubbleProps) {
           transform: 'translateX(-50%)',
           background: 'var(--lgc-bg-elev)',
           border: '1px solid var(--lgc-border)',
-          borderRadius: 20,
+          borderRadius: 'var(--radius-3xl)',
           boxShadow: '0 32px 80px rgba(0,0,0,0.22)',
         }}
       >

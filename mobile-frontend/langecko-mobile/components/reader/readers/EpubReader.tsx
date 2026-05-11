@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { File } from 'expo-file-system';
 import { bookFilePath } from '@/lib/bookFiles';
@@ -95,6 +95,20 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
 ) {
   const webviewRef = useRef<WebView | null>(null);
   const [shellLoaded, setShellLoaded] = useState(false);
+  // Pixel viewport measured from the WebView's container. epub.js paginates
+  // against this, so we defer the `load` message until it's > 0 and re-post
+  // `setSize` whenever it changes (rotation, layout reflow).
+  const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null);
+  const loadedRef = useRef(false);
+
+  const onLayout = useCallback((e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    if (width <= 0 || height <= 0) return;
+    setViewport((prev) => {
+      if (prev && prev.width === width && prev.height === height) return prev;
+      return { width, height };
+    });
+  }, []);
 
   const post = useCallback((msg: EpubBridgeInbound) => {
     const wv = webviewRef.current;
@@ -122,7 +136,7 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
   );
 
   useEffect(() => {
-    if (!shellLoaded) return;
+    if (!shellLoaded || !viewport || loadedRef.current) return;
     let cancelled = false;
     (async () => {
       try {
@@ -130,12 +144,14 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
         if (!file.exists) throw new Error('Book file missing on device');
         const base64 = await file.base64();
         if (cancelled) return;
+        loadedRef.current = true;
         post({
           type: 'load',
           base64,
           cfi: startCfi ?? null,
           style: initialStyle,
           highlights: initialHighlights,
+          viewport,
         });
       } catch (err) {
         if (!cancelled) onError?.(err instanceof Error ? err.message : 'Failed to open EPUB');
@@ -145,7 +161,15 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shellLoaded, filename]);
+  }, [shellLoaded, viewport, filename]);
+
+  // After the initial load, container resizes (rotation, sheet open/close)
+  // reflow the rendition via setSize so text never paginates against stale
+  // dimensions.
+  useEffect(() => {
+    if (!loadedRef.current || !viewport) return;
+    post({ type: 'setSize', width: viewport.width, height: viewport.height });
+  }, [viewport, post]);
 
   const handleMessage = useCallback(
     (e: WebViewMessageEvent) => {
@@ -180,7 +204,7 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
   );
 
   return (
-    <View style={[styles.root, { backgroundColor: bgColor }]}>
+    <View style={[styles.root, { backgroundColor: bgColor }]} onLayout={onLayout}>
       <WebView
         ref={webviewRef}
         originWhitelist={['*']}

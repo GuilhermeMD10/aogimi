@@ -8,10 +8,8 @@ import { JlptChip } from '@/components/ui/JlptChip';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { ThemedDecoration } from '@/components/theme-decorations/ThemedDecoration';
 import { Postmark } from '@/components/theme-decorations/stamp/Postmark';
-import {
-  getWordDetails,
-  type DetailsResponse,
-} from '@/lib/dictApi';
+import { getWordDetails } from '@/lib/dictApi';
+import type { DetailsResponse } from '@/lib/types';
 import { MAX_MEANINGS_ON_CARD } from '@/lib/config/limits';
 
 // If the user's query matches one of the entry's kanji or reading forms exactly,

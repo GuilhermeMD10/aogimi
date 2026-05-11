@@ -2,29 +2,18 @@
 
 import { useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { createThemedComponent } from '@/components/theme-decorations/createThemedComponent';
-import { DefaultWorkspaceNav } from '@/components/theme-decorations/default/WorkspaceNav';
-import { StampWorkspaceNav } from '@/components/theme-decorations/stamp/WorkspaceNav';
-import type {
-  BubbleKey,
-  WorkspaceNavVariantProps,
-} from '@/components/WorkspaceNav.types';
+import { useThemedComponent } from '@/themes/useThemedComponent';
+import { DefaultWorkspaceNav } from './WorkspaceNav.default';
+import type { BubbleKey } from './WorkspaceNav.types';
 
-export type { BubbleKey } from '@/components/WorkspaceNav.types';
-
-// ── Theme dispatcher ────────────────────────────────────────────────────────
-
-const ThemedWorkspaceNav = createThemedComponent<WorkspaceNavVariantProps>(
-  DefaultWorkspaceNav,
-  {
-    stamp: StampWorkspaceNav,
-  },
-  'WorkspaceNav',
-);
+export type { BubbleKey } from './WorkspaceNav.types';
 
 // ── Top-level component ─────────────────────────────────────────────────────
 //
-// Each nav button is a route push. Profile/settings remain bubble overlays.
+// Outer container handles router/pathname state. The visual shell is
+// theme-dispatched — variants live at:
+//   default · `./WorkspaceNav.default.tsx`
+//   stamp   · `themes/stamp/components/WorkspaceNav.tsx`
 
 type WorkspaceNavProps = {
   activeBubble: BubbleKey | null;
@@ -38,8 +27,10 @@ export default function WorkspaceNav({ activeBubble, onToggleBubble }: Workspace
   const onNavClick = useCallback((path: string) => router.push(path), [router]);
   const onHomeClick = useCallback(() => router.push('/'), [router]);
 
+  const Resolved = useThemedComponent('WorkspaceNav', DefaultWorkspaceNav);
+
   return (
-    <ThemedWorkspaceNav
+    <Resolved
       activeBubble={activeBubble}
       onToggleBubble={onToggleBubble}
       onNavClick={onNavClick}

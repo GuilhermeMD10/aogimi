@@ -23,30 +23,6 @@ export function MangaReaderBody({ engine }: { engine: MangaReaderEngine }) {
 
   return (
     <div className="relative flex min-h-0 flex-1">
-      {panel === 'toc' && (
-        <div className="w-56 shrink-0 overflow-y-auto border-r border-lgc-border bg-lgc-bg-elev">
-          <TocPanel
-            items={toc}
-            onNavigate={(href) => { void renditionRef.current?.display(href); setPanel(null); }}
-            onClose={() => setPanel(null)}
-          />
-        </div>
-      )}
-
-      {panel === 'bookmarks' && (
-        <div className="w-56 shrink-0 overflow-y-auto border-r border-lgc-border bg-lgc-bg-elev">
-          <AnnotationsPanel
-            epubHighlights={[]}
-            epubBookmarks={epubBookmarks}
-            onJumpEpubHighlight={() => {}}
-            onDeleteEpubHighlight={() => {}}
-            onJumpEpubBookmark={(b) => { void renditionRef.current?.display(b.cfi); setPanel(null); }}
-            onDeleteEpubBookmark={removeEpubBookmark}
-            onClose={() => setPanel(null)}
-          />
-        </div>
-      )}
-
       <div className="relative min-w-0 flex-1 bg-lgc-bg">
         {(error || !ready) && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-lgc-bg">
@@ -67,6 +43,38 @@ export function MangaReaderBody({ engine }: { engine: MangaReaderEngine }) {
             }
           />
         </div>
+
+        {/* Floating TOC — top-left overlay, doesn't shift the viewport. */}
+        {panel === 'toc' && (
+          <div
+            className="absolute left-3 top-2 z-30 flex w-56 flex-col overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg-elev shadow-xl"
+            style={{ maxHeight: 'calc(100% - 16px)' }}
+          >
+            <TocPanel
+              items={toc}
+              onNavigate={(href) => { void renditionRef.current?.display(href); setPanel(null); }}
+              onClose={() => setPanel(null)}
+            />
+          </div>
+        )}
+
+        {/* Floating bookmarks — top-right overlay. */}
+        {panel === 'bookmarks' && (
+          <div
+            className="absolute right-3 top-2 z-30 flex w-72 flex-col overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg-elev shadow-xl"
+            style={{ maxHeight: 'calc(100% - 16px)' }}
+          >
+            <AnnotationsPanel
+              epubHighlights={[]}
+              epubBookmarks={epubBookmarks}
+              onJumpEpubHighlight={() => {}}
+              onDeleteEpubHighlight={() => {}}
+              onJumpEpubBookmark={(b) => { void renditionRef.current?.display(b.cfi); setPanel(null); }}
+              onDeleteEpubBookmark={removeEpubBookmark}
+              onClose={() => setPanel(null)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

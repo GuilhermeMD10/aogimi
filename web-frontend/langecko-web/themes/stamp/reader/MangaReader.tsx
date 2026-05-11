@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter, usePathname } from 'next/navigation';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -37,10 +36,9 @@ export function MangaReader({
   initialCfi,
   onProgressChange,
   onBack,
+  sidekickOpen = false,
+  onToggleSidekick,
 }: MangaReaderProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const showDictPaneShortcut = pathname !== '/workspace';
   const engine = useMangaReaderEngine({ book, filename, initialCfi, onProgressChange });
   const {
     currentPage,
@@ -116,10 +114,18 @@ export function MangaReader({
           <button type="button" className={`${ICON_BTN} ${panel === 'bookmarks' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'bookmarks' ? null : 'bookmarks'))} title="Bookmarks"><Highlighter size={14} /></button>
           <button type="button" className={ICON_BTN} onClick={addBookmark} title="Add bookmark (B)"><BookmarkPlus size={14} /></button>
 
-          {showDictPaneShortcut && (
+          {onToggleSidekick && (
             <>
               <span className="mx-1 h-4 w-px bg-lgc-border" />
-              <button type="button" className={ICON_BTN} onClick={() => router.push('/workspace')} title="Open dictionary side-by-side"><Search size={14} /></button>
+              <button
+                type="button"
+                className={`${ICON_BTN} ${sidekickOpen ? ICON_BTN_ON : ''}`}
+                onClick={onToggleSidekick}
+                title={sidekickOpen ? 'Hide dictionary' : 'Open dictionary'}
+                aria-pressed={sidekickOpen}
+              >
+                <Search size={14} />
+              </button>
             </>
           )}
 

@@ -1,13 +1,14 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { searchDictionary, type SearchResponse } from '@/lib/dictApi';
-import { getDictionaryState, setDictionaryState } from '@/lib/storage/dictionary';
+import { searchDictionary } from '@/lib/dictApi';
+import type { SearchResponse } from '@/lib/types';
+import { getDictionaryState, pushRecentSearch, setDictionaryState } from '@/lib/storage/dictionary';
 
 // Single source of truth for the dictionary surface — query, results, the
 // in-flight request lifecycle, and which word (if any) is being inspected.
-// Both the workspace Dictionary tab and the reader's lookup bubble read/write
-// this same state, so a search done in one shows up in the other.
+// Both the /dictionary page and the reader's lookup bubble read/write this
+// same state, so a search done in one shows up in the other.
 
 type DictionaryStateContextValue = {
   query: string;
@@ -21,6 +22,9 @@ type DictionaryStateContextValue = {
   setSelectedWordId: (id: number | null) => void;
   clearError: () => void;
   runSearch: (query: string, contextSentence?: string) => Promise<void>;
+  /** Clear query, result, error, and selectedWordId. Used by /dictionary's
+   * "back to empty desk" affordance. */
+  reset: () => void;
 };
 
 const DictionaryStateContext = createContext<DictionaryStateContextValue | null>(null);
@@ -79,6 +83,7 @@ export function DictionaryStateProvider({ children }: { children: React.ReactNod
       const data = await searchDictionary(q, controller.signal);
       if (controller.signal.aborted) return;
       setResult(data);
+      pushRecentSearch(q);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Search failed.');
@@ -89,12 +94,20 @@ export function DictionaryStateProvider({ children }: { children: React.ReactNod
 
   const clearError = useCallback(() => setError(null), []);
 
+  const reset = useCallback(() => {
+    abortRef.current?.abort();
+    setQuery('');
+    setResult(null);
+    setError(null);
+    setSelectedWordId(null);
+  }, []);
+
   const value = useMemo<DictionaryStateContextValue>(
     () => ({
       query, result, loading, error, selectedWordId, lastContextSentence,
-      setQuery, setSelectedWordId, clearError, runSearch,
+      setQuery, setSelectedWordId, clearError, runSearch, reset,
     }),
-    [query, result, loading, error, selectedWordId, lastContextSentence, runSearch, clearError],
+    [query, result, loading, error, selectedWordId, lastContextSentence, runSearch, clearError, reset],
   );
 
   return (

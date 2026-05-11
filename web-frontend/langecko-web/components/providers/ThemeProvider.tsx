@@ -1,11 +1,9 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { getStoredTheme, setStoredTheme } from '@/lib/storage/theme';
+import { createContext, useCallback, useContext, useState } from 'react';
+import { setStoredTheme } from '@/lib/storage/theme';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-export type AppTheme = 'default' | 'kanagawa' | 'sakura' | 'hanami' | 'stamp';
 
 /** Six palette swatches used by the theme picker preview cards. Kept here
  *  alongside `THEMES` so adding a theme means editing one record, not two. */
@@ -25,7 +23,13 @@ export type ThemeMeta = {
   swatch: ThemeSwatch;
 };
 
-export const THEMES: Record<AppTheme, ThemeMeta> = {
+/** Single source of truth for which themes exist + their picker metadata.
+ *  - `AppTheme` is derived from this record's keys.
+ *  - `lib/storage/theme.ts` validates against this record.
+ *  - `app/layout.tsx` builds its pre-hydration allow-list from this record.
+ *  - `themes/index.ts` registry must list one entry per key.
+ *  Adding a theme is a single record entry here. */
+export const THEMES = {
   default: {
     label: 'Default',
     description: 'Clean, neutral, minimal',
@@ -56,7 +60,17 @@ export const THEMES: Record<AppTheme, ThemeMeta> = {
     premium: true,
     swatch: { bg: '#EBE2D0', bgElev: '#F0E6D2', fg: '#1A1411', fgMuted: '#3B2F26', accent: '#C8362B', border: '#1A1411' },
   },
-};
+} as const satisfies Record<string, ThemeMeta>;
+
+export type AppTheme = keyof typeof THEMES;
+
+/** Runtime allow-list derived from THEMES — used by the storage validator and
+ *  the pre-hydration script in app/layout.tsx. */
+export const THEME_NAMES = Object.keys(THEMES) as AppTheme[];
+
+export function isAppTheme(value: unknown): value is AppTheme {
+  return typeof value === 'string' && (THEME_NAMES as string[]).includes(value);
+}
 
 type ThemeContextValue = {
   theme: AppTheme;
@@ -65,22 +79,23 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function applyTheme(theme: AppTheme) {
-  document.documentElement.setAttribute('data-theme', theme);
+const DEFAULT_THEME: AppTheme = 'default';
+
+/** Read the theme that the pre-hydration script (in app/layout.tsx) already
+ *  applied to <html data-theme="…">. Runs synchronously during the client's
+ *  initial render, so React state matches what's painted from frame zero. */
+function readInitialTheme(): AppTheme {
+  if (typeof document === 'undefined') return DEFAULT_THEME;
+  const attr = document.documentElement.getAttribute('data-theme');
+  return isAppTheme(attr) ? attr : DEFAULT_THEME;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<AppTheme>('default');
-
-  useEffect(() => {
-    const resolved = getStoredTheme() ?? 'default';
-    setThemeState(resolved);
-    applyTheme(resolved);
-  }, []);
+  const [theme, setThemeState] = useState<AppTheme>(readInitialTheme);
 
   const setTheme = useCallback((next: AppTheme) => {
     setThemeState(next);
-    applyTheme(next);
+    document.documentElement.setAttribute('data-theme', next);
     setStoredTheme(next);
   }, []);
 

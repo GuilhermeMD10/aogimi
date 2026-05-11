@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CardModel, DeckSummary } from '../types';
-import { btnBase, btnPrimary } from '../types';
 
 export type PendingCardFlow =
   | { phase: 'select-deck'; word: string; initialBack?: string; contextSentence?: string }
@@ -29,15 +28,29 @@ export function PendingCardOverlay({
   const [newDeckName, setNewDeckName] = useState('');
   const [showNewDeck, setShowNewDeck] = useState(false);
   const [pendingBack, setPendingBack] = useState('');
-  const [initializedBack, setInitializedBack] = useState(false);
 
-  if (flow?.phase === 'create-card' && flow.initialBack && !initializedBack) {
-    setPendingBack(flow.initialBack);
-    setInitializedBack(true);
-  }
-  if (!flow && initializedBack) {
-    setInitializedBack(false);
-  }
+  // Seed `pendingBack` *once* when we transition into the create-card phase
+  // with an initialBack, and clear it when the overlay closes. The ref tracks
+  // the previous phase so the user's edits aren't clobbered on every render
+  // (replaces an earlier render-body setState pattern). setState in effect is
+  // intentional — we're syncing local form state from an external prop
+  // transition; the ref-gated phase-edge check makes it one-shot per
+  // transition.
+  type Phase = NonNullable<PendingCardFlow>['phase'] | null;
+  const prevPhaseRef = useRef<Phase>(null);
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const phase: Phase = flow?.phase ?? null;
+    const prev = prevPhaseRef.current;
+    prevPhaseRef.current = phase;
+
+    if (phase === 'create-card' && prev !== 'create-card' && flow?.initialBack) {
+      setPendingBack(flow.initialBack);
+    } else if (phase === null && prev !== null) {
+      setPendingBack('');
+    }
+  }, [flow]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!flow) return null;
 
@@ -61,7 +74,7 @@ export function PendingCardOverlay({
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-xl border border-lgc-border bg-lgc-bg-elev p-6 shadow-xl">
+      <div className="lgc-card w-full max-w-sm p-6">
         {flow.phase === 'select-deck' ? (
           <SelectDeckPhase
             word={flow.word}
@@ -156,7 +169,7 @@ function SelectDeckPhase({
             className="flex-1 rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
             autoFocus
           />
-          <button type="submit" disabled={!newDeckName.trim()} className={btnPrimary}>
+          <button type="submit" disabled={!newDeckName.trim()} className="lgc-button">
             Create
           </button>
         </form>
@@ -164,7 +177,7 @@ function SelectDeckPhase({
         <button
           type="button"
           onClick={() => setShowNewDeck(true)}
-          className={`${btnBase} mt-3 w-full justify-center`}
+          className="lgc-button-secondary mt-3 w-full justify-center"
         >
           + New deck
         </button>
@@ -251,7 +264,7 @@ function CreateCardPhase({
           >
             Cancel
           </button>
-          <button type="submit" disabled={!pendingBack.trim()} className={btnPrimary}>
+          <button type="submit" disabled={!pendingBack.trim()} className="lgc-button">
             Add card
           </button>
         </div>

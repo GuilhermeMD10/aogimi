@@ -9,21 +9,20 @@ import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
 import { preferredHeadword } from '@/components/views/WordDetailView';
 import * as decksApi from '@/lib/decksApi';
-import type { DeckRecord } from '@/lib/decksApi';
-import {
-  getWordDetails,
-  meanWordGrade,
-  type DetailsResponse,
-  type KanjiInfo,
-  type SearchResponse,
-  type WordResult,
-} from '@/lib/dictApi';
+import { getWordDetails } from '@/lib/dictApi';
+import type {
+  DeckRecord,
+  DetailsResponse,
+  KanjiInfo,
+  SearchResponse,
+  WordResult,
+} from '@/lib/types';
 import { InfoRow } from '@/components/ui/InfoRow';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { MAX_MEANINGS_ON_CARD } from '@/lib/config/limits';
 
 // Local (bubble-only) UI flow. Dictionary state itself lives in the
-// DictionaryStateProvider so the workspace tab stays in sync.
+// DictionaryStateProvider so the /dictionary page stays in sync.
 type Phase =
   | { type: 'dict' }
   | { type: 'select-deck'; word: string; back: string }
@@ -143,8 +142,8 @@ function SearchPhase({
   onAddKanjiCard: (word: string, back: string) => void;
   onClose: () => void;
 }) {
-  const rawWords = result ? ('words' in result ? result.words : []) : [];
-  const words = [...rawWords].sort((a, b) => meanWordGrade(a) - meanWordGrade(b));
+  // Preserve the backend-supplied order — see services/searchService.js.
+  const words = result && 'words' in result ? result.words : [];
   const kanjiInfo = result?.type === 'kanji' ? result.kanji : null;
 
   return (

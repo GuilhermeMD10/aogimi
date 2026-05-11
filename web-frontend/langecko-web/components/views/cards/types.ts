@@ -36,10 +36,3 @@ export interface DeckPatch {
   name?: string;
   description?: string;
 }
-
-/** Class strings shared across the cards sub-components — kept together so
- *  restyling the "chrome" doesn't mean grepping across six files. */
-export const btnBase =
-  'rounded-md border border-lgc-border px-3 py-1.5 text-sm text-lgc-fg transition-colors hover:bg-lgc-accent-soft disabled:opacity-40';
-export const btnPrimary =
-  'rounded-md bg-lgc-accent px-4 py-2 text-sm font-medium text-lgc-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50';

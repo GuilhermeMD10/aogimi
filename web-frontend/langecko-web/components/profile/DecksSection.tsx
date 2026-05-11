@@ -3,7 +3,7 @@
 import { MoreHorizontal } from 'lucide-react';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { deckVisuals } from '@/lib/config/deckVisuals';
-import type { DeckRecord } from '@/lib/decksApi';
+import type { DeckRecord } from '@/lib/types';
 
 export function DecksSection({ decks }: { decks: DeckRecord[] }) {
   return (

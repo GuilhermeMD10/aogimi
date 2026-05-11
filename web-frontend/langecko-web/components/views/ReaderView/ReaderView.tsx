@@ -1,15 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  BookOpen,
-  SlidersHorizontal,
-  ArrowUpDown,
-  Plus,
-  Sparkles,
-  Trash2,
-} from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { EpubReader } from '@/components/reader/EpubReader';
+import { DictionarySidekick } from '@/components/views/DictionaryView/DictionarySidekick';
 import {
   getAllBooks,
   getBookFile,
@@ -20,7 +14,13 @@ import {
   deleteBook as deleteLocalBook,
   renameBook as renameLocalBook,
 } from '@/lib/bookStore';
-import { matchBooks, deleteBookRecord, getUserBooks, updateBookTitle as apiUpdateBookTitle, type BookProgressRecord } from '@/lib/booksApi';
+import {
+  matchBooks,
+  deleteBookRecord,
+  getUserBooks,
+  updateBookTitle as apiUpdateBookTitle,
+  updateBookProgress,
+} from '@/lib/booksApi';
 import { computeEpubIdentity } from '@/lib/epubIdentity';
 import { getDeviceId } from '@/lib/storage/device';
 import { getDeviceName } from '@/lib/util/deviceName';
@@ -28,11 +28,12 @@ import {
   registerDevice,
   getDeviceBooks,
   markBookAvailable,
-  type DeviceBookRecord,
 } from '@/lib/devicesApi';
+import type { BookProgressRecord, DeviceBookRecord } from '@/lib/types';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
-import { BookTableRow, type LibraryBook } from '@/components/library/BookList';
+import type { LibraryBook } from '@/components/library/BookList';
+import { LibraryDesk } from '@/components/library/LibraryDesk';
 import RestoreLibrary from '@/components/library/RestoreLibrary';
 import FsAccessBanner from '@/components/library/FsAccessBanner';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
@@ -52,9 +53,13 @@ function validateEpub(file: File): string | null {
 
 export default function ReaderView() {
   const user = useAuthedUser();
-  const { setPendingDictSearch, setPendingCard, readerSession, setReaderSession, recordProgress, flushProgress,
-    pendingBookOpen, setPendingBookOpen } =
-    useReaderState();
+  const {
+    setPendingDictSearch, setPendingCard,
+    readerSession, setReaderSession,
+    recordProgress, flushProgress,
+    pendingBookOpen, setPendingBookOpen,
+    sidekickOpen, toggleSidekick, setSidekickOpen,
+  } = useReaderState();
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [books, setBooks] = useState<LibraryBook[]>([]);
@@ -138,6 +143,7 @@ export default function ReaderView() {
               progress: remote.progress,
               available: true,
               backendId: remote.id,
+              lastReadAt: remote.last_read_at,
             };
           }
           return {
@@ -150,6 +156,7 @@ export default function ReaderView() {
             progress: remote.progress,
             available: remote.available,
             backendId: remote.id,
+            lastReadAt: remote.last_read_at,
           };
         });
 
@@ -165,6 +172,7 @@ export default function ReaderView() {
               coverImage: local.coverImage,
               progress: 0,
               available: true,
+              lastReadAt: null,
             });
           }
         }
@@ -337,6 +345,17 @@ export default function ReaderView() {
     [],
   );
 
+  const handleMarkFinished = useCallback(
+    async (book: LibraryBook) => {
+      if (book.progress === 100) return;
+      setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, progress: 100 } : b)));
+      if (book.backendId) {
+        await updateBookProgress(book.backendId, { progress: 100 }).catch(() => {});
+      }
+    },
+    [],
+  );
+
   const handleRenameBook = useCallback(
     async (book: LibraryBook, title: string) => {
       const trimmed = title.trim();
@@ -502,139 +521,73 @@ export default function ReaderView() {
 
   if (readerSession) {
     return (
-      <div className="flex h-full min-h-0 flex-col">
-        <EpubReader
-          fileUrl={readerSession.fileUrl}
-          filename={readerSession.activeBook.filename}
-          bookTitle={readerSession.activeBook.title}
-          initialCfi={readerSession.backendCfi ?? undefined}
-          onLookup={handleLookup}
-          onAddCard={handleAddCard}
-          onProgressChange={handleProgressChange}
-          onBack={goBack}
-        />
+      <div className="flex h-full min-h-0 flex-row">
+        <div className="flex h-full min-h-0 flex-1 flex-col">
+          <EpubReader
+            fileUrl={readerSession.fileUrl}
+            filename={readerSession.activeBook.filename}
+            bookTitle={readerSession.activeBook.title}
+            initialCfi={readerSession.backendCfi ?? undefined}
+            onLookup={handleLookup}
+            onAddCard={handleAddCard}
+            onProgressChange={handleProgressChange}
+            onBack={goBack}
+            sidekickOpen={sidekickOpen}
+            onToggleSidekick={toggleSidekick}
+          />
+        </div>
+        {sidekickOpen && (
+          <aside
+            aria-label="Dictionary"
+            style={{ width: '25%', minWidth: 320, maxWidth: 480, flexShrink: 0 }}
+          >
+            <DictionarySidekick onClose={() => setSidekickOpen(false)} />
+          </aside>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-auto" style={{ padding: '28px 36px' }}>
-      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-        <div className="mb-2 flex items-baseline justify-between">
-          <div>
-            <div className="lgc-section-label mb-1.5">Library</div>
-            <h1
-              className="text-[34px] font-medium tracking-tight font-display"
-              style={{ letterSpacing: '-0.015em', }}
-            >
-              Your books
-            </h1>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className="rounded-md px-3 py-1.5 text-[13px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev"
-            >
-              <span className="flex items-center gap-1.5">
-                <SlidersHorizontal size={13} /> Filter
-              </span>
-            </button>
-            <button
-              type="button"
-              className="rounded-md px-3 py-1.5 text-[13px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev"
-            >
-              <span className="flex items-center gap-1.5">
-                <ArrowUpDown size={13} /> Sort
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-              className="flex items-center gap-1.5 rounded-md border border-lgc-border-strong px-3 py-1.5 text-[13px] font-medium text-lgc-fg transition-colors hover:bg-lgc-bg-elev disabled:opacity-50"
-            >
-              <Plus size={13} />
-              {importing ? 'Importing...' : 'Import EPUB'}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".epub,application/epub+zip"
-              onChange={onFileChange}
-              className="hidden"
-            />
-            <input
-              ref={locateInputRef}
-              type="file"
-              accept=".epub,application/epub+zip"
-              onChange={onLocateFile}
-              className="hidden"
-            />
-          </div>
+    <div className="relative h-full overflow-hidden">
+      {error && (
+        <div className="mx-auto mt-4 max-w-295 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-[13px] text-red-700" style={{ width: 'calc(100% - 80px)' }}>
+          {error}
         </div>
+      )}
 
-        <div className="mb-6 text-[13px] text-lgc-fg-muted">
-          {books.length} {books.length === 1 ? 'book' : 'books'}
+      {pageState === 'loading' ? (
+        <div className="flex h-full items-center justify-center text-sm text-lgc-fg-muted">
+          Loading library…
         </div>
+      ) : (
+        <LibraryDesk
+          books={books}
+          importing={importing}
+          onOpen={(book) => (book.available ? openBook(book.id) : handleLocateClick(book.id))}
+          onImport={() => fileInputRef.current?.click()}
+          onRename={(book, title) => handleRenameBook(book, title)}
+          onMarkFinished={(book) => handleMarkFinished(book)}
+          onRemove={(book) => setDeletingBook(book)}
+          onLocate={(book) => handleLocateClick(book.id)}
+          footer={<FsAccessBanner />}
+        />
+      )}
 
-        {error && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        {books.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border border-lgc-border bg-lgc-bg-elev">
-            <div
-              className="grid border-b border-lgc-border px-3.5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-lgc-fg-muted"
-              style={{ gridTemplateColumns: '32px 1fr 140px 36px' }}
-            >
-              <span />
-              <span>Title</span>
-              <span>Progress</span>
-              <span />
-            </div>
-            {books.map((book) => (
-              <BookTableRow
-                key={book.id}
-                book={book}
-                onOpen={() => openBook(book.id)}
-                onLocate={() => handleLocateClick(book.id)}
-                onDelete={() => setDeletingBook(book)}
-                onRename={(title) => handleRenameBook(book, title)}
-              />
-            ))}
-          </div>
-        ) : pageState === 'loading' ? (
-          <div className="flex items-center justify-center py-20 text-sm text-lgc-fg-muted">
-            Loading library...
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-lgc-border-strong py-20">
-            <BookOpen size={32} className="mb-3 text-lgc-fg-subtle" />
-            <p className="mb-1 text-sm font-medium text-lgc-fg">No books yet</p>
-            <p className="mb-4 text-[13px] text-lgc-fg-muted">
-              Import an EPUB to start building your library.
-            </p>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 rounded-md bg-lgc-accent px-4 py-2 text-sm font-semibold text-lgc-accent-fg transition hover:opacity-90"
-            >
-              <Plus size={14} /> Import EPUB
-            </button>
-          </div>
-        )}
-
-        <div className="mt-4">
-          <FsAccessBanner />
-        </div>
-
-        <div className="mt-4 flex items-center gap-2.5 rounded-lg border border-dashed border-lgc-border-strong px-5 py-5 text-[12px] text-lgc-fg-subtle">
-          <Sparkles size={14} />
-          <span>Reading stats · coming later</span>
-        </div>
-      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".epub,application/epub+zip"
+        onChange={onFileChange}
+        className="hidden"
+      />
+      <input
+        ref={locateInputRef}
+        type="file"
+        accept=".epub,application/epub+zip"
+        onChange={onLocateFile}
+        className="hidden"
+      />
 
       {deletingBook && (
         <>

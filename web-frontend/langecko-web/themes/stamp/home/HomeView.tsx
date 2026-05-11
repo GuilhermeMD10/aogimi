@@ -7,7 +7,8 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import { useBubble } from '@/components/providers/BubbleProvider';
 import { StampMark } from '@/components/theme-decorations/stamp/StampMark';
-import { getDeviceBooks, type DeviceBookRecord } from '@/lib/devicesApi';
+import { getDeviceBooks } from '@/lib/devicesApi';
+import type { DeviceBookRecord } from '@/lib/types';
 import { getDeviceId } from '@/lib/storage/device';
 import type { BubbleKey } from '@/components/WorkspaceNav';
 import {

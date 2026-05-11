@@ -34,16 +34,26 @@
   --lgc-chip-font-weight:     500;
   --lgc-chip-text-transform:  none;
 
-  /* ── Action button (atomic action affordance) ───────────────────────── */
-  --lgc-button-bg:            var(--lgc-accent);
-  --lgc-button-fg:            var(--lgc-accent-fg);
-  --lgc-button-border-color:  transparent;
-  --lgc-button-border-width:  0;
-  --lgc-button-border-style:  solid;
-  --lgc-button-radius:        6px;
-  --lgc-button-shadow:        none;
+  /* ── Action button (primary — atomic action affordance) ────────────── */
+  --lgc-button-bg:             var(--lgc-accent);
+  --lgc-button-fg:             var(--lgc-accent-fg);
+  --lgc-button-border-color:   transparent;
+  --lgc-button-border-width:   0;
+  --lgc-button-border-style:   solid;
+  --lgc-button-radius:         6px;
+  --lgc-button-shadow:         none;
   --lgc-button-letter-spacing: 0;
   --lgc-button-text-transform: none;
+  --lgc-button-font-size:      14px;
+  --lgc-button-font-weight:    500;
+  --lgc-button-padding:        8px 16px;
+
+  /* ── Action button (secondary — bordered / ghost) ──────────────────── */
+  --lgc-button-secondary-bg:           transparent;
+  --lgc-button-secondary-fg:           var(--lgc-fg);
+  --lgc-button-secondary-border-color: var(--lgc-border);
+  --lgc-button-secondary-border-width: 1px;
+  --lgc-button-secondary-hover-bg:     var(--lgc-accent-soft);
 
   /* ── Pressable (the "press the stamp" interaction) ──────────────────── */
   --lgc-press-transform-hover:  none;

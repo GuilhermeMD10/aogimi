@@ -30,3 +30,43 @@ yarn-error.*
 # TypeScript
 *.tsbuildinfo
 expo-env.d.ts
+
+# ── Native build outputs (expo run:ios / expo run:android) ───────────────────
+# Everything below is regenerated every time you build for a real device or
+# simulator. None of it belongs in git. The per-folder ios/.gitignore and
+# android/.gitignore already cover most of this; the duplication here keeps
+# rules discoverable at the project root.
+
+# iOS — Xcode + CocoaPods
+ios/build/
+ios/DerivedData/
+ios/Pods/
+ios/**/xcuserdata/
+ios/**/*.xcuserstate
+ios/**/project.xcworkspace/
+ios/.xcode.env.local
+*.ipa
+*.xcarchive
+*.dSYM.zip
+
+# Android — Gradle + IntelliJ
+android/build/
+android/.gradle/
+android/app/build/
+android/.cxx/
+android/.kotlin/
+android/.idea/
+android/local.properties
+android/captures/
+android/**/*.iml
+*.hprof
+*.apk
+*.aab
+*.keystore
+
+# Expo build / EAS
+.expo-shared/
+eas-build-*
+.eas
+ios-build/
+android-build/

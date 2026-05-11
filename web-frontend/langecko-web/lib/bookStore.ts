@@ -4,8 +4,8 @@ import {
   getUserBooks,
   updateBookIdentity as apiUpdateBookIdentity,
   updateBookTitle as apiUpdateBookTitle,
-  type BookProgressRecord,
 } from '@/lib/booksApi';
+import type { BookProgressRecord } from '@/lib/types';
 import { computeEpubIdentity, extractEpubData, type EpubData } from '@/lib/epubIdentity';
 
 // ── Types ────────────────────────────────────────────────────────────────────

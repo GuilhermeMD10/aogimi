@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { ArrowLeft, Plus, Search, Grid3x3, List, Trash2, Check } from 'lucide-react';
 import type { Deck } from './types';
-import { btnPrimary } from './types';
 import { DeckForm } from './DeckForm';
 
 interface DeckDetailProps {
@@ -136,7 +135,7 @@ export function DeckDetail({
                 type="button"
                 onClick={onStudy}
                 disabled={!canStudy}
-                className={btnPrimary}
+                className="lgc-button"
               >
                 Study{canStudy ? ` (${deck.cards.length})` : ''}
               </button>

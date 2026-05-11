@@ -1,10 +1,7 @@
 // Calls the local Next.js route at /api/translate (which proxies DeepL with the
 // server-side API key). No API_URL prefix — this is a same-origin route.
 
-export interface TranslationResult {
-  translatedText: string;
-  detectedLanguage: string;
-}
+import type { TranslationResult } from '@/lib/types';
 
 export async function translateText(text: string): Promise<TranslationResult> {
   const res = await fetch('/api/translate', {

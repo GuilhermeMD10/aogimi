@@ -1,40 +1,50 @@
 LANGECO WEB FRONTEND — BACKEND CONNECTION INVENTORY
 =====================================================
-Generated: 2026-04-19
+Generated: 2026-05-10
 
 Base URL: NEXT_PUBLIC_API_URL (default: http://localhost:3000)
+HTTP helpers live in lib/api.ts (apiUrl, apiGet, apiSend, apiSendVoid).
+Both apiSend and apiSendVoid accept an optional AbortSignal.
+Domain types live in lib/types/{book,deck,dict,user,device,translate}.ts.
 
 
 ==============================================================================
 1. AUTHENTICATION
-   File: components/providers/AuthProvider.tsx
+   File: components/providers/AuthProvider.tsx, lib/userApi.ts
 ==============================================================================
 
 POST /api/user/info
   Trigger:   User login (manual)
   Request:   { username, password }
-  Response:  { id: number, username: string }
+  Response:  AuthUser  -- { id: number, username: string }
 
 POST /api/user/create
   Trigger:   User signup (manual)
   Request:   { username, password }
-  Response:  { id: number, username: string }
+  Response:  AuthUser
 
 
 ==============================================================================
-2. USER PROFILE
+2. USER PROFILE & ONBOARDING
    File: lib/userApi.ts
 ==============================================================================
 
 GET /api/user/{userId}
   Trigger:   Profile page mount (once)
-  Request:   -
-  Response:  { id, username, display_name, email, language, avatar_index, created_at }
+  Response:  UserProfile
 
 POST /api/user/update
-  Trigger:   Profile changes — avatar selection, display name edit (manual)
+  Trigger:   Profile changes — display name, language, avatar selection (manual)
   Request:   { username, password, updates: { display_name?, email?, language?, avatar_index? } }
   Response:  UserProfile
+
+PUT /api/user/onboarding
+  Trigger:   First-run explainer dismissal (once per user)
+  Request:   { userId, completed: true }
+  Response:  void
+
+UserProfile shape:
+  { id, username, display_name, email, language, avatar_index, created_at }
 
 
 ==============================================================================
@@ -43,38 +53,100 @@ POST /api/user/update
 ==============================================================================
 
 POST /api/books
-  Trigger:   Book import — when a new EPUB is added to the library (manual, once per book)
-  Request:   { userId, filename, title, author, coverColor, totalPages? }
-  Response:  UserBookRecord
+  Trigger:   New EPUB import (manual, once per book)
+  Request:   { userId, filename, title, author, coverColor,
+               fileHash?, contentHash?, dcIdentifier?, language?, publisher? }
+  Response:  BookProgressRecord
 
 GET /api/books/user/{userId}
-  Trigger:   Library page mount, reader page mount, profile page mount (once per page load)
-  Request:   -
-  Response:  UserBookRecord[]
+  Trigger:   Library mount, reader mount, profile mount (once per page load)
+  Response:  BookProgressRecord[]
 
 GET /api/books/{id}
-  Trigger:   Single book record fetch (on demand)
-  Request:   -
-  Response:  UserBookRecord
+  Trigger:   Single book fetch (on demand)
+  Response:  BookProgressRecord
 
 PUT /api/books/{id}/progress
-  Trigger:   Every page turn in the reader
-  Frequency: First fire is immediate, then debounced 2 seconds
-  Request:   { cfiPosition?, progress? }
-  Response:  UserBookRecord
+  Trigger:   Reader page turn / chapter change
+  Frequency: Debounced — first fire immediate, subsequent ~2s
+  Request:   ProgressPayload  -- { cfiPosition?, progress?, spineIndex?, totalSpineItems? }
+  Response:  BookProgressRecord
+
+PUT /api/books/{id}/progress  (sendBeacon path)
+  Trigger:   Page unload / tab close — fire-and-forget via sendProgressBeacon()
+  Notes:     Browser guarantees delivery even if the tab dies. No response read.
+
+PATCH /api/books/{id}
+  Trigger:   In-place book title rename (manual)
+  Request:   { title }
+  Response:  BookProgressRecord
 
 DELETE /api/books/{id}
   Trigger:   Book deletion (manual)
-  Request:   -
   Response:  void
 
-UserBookRecord shape:
-  { id (UUID), user_id, filename, title, author, cover_color, total_pages,
-    current_page, cfi_position, progress, started_at, last_read_at, created_at }
+POST /api/books/match
+  Trigger:   Library restore — given a list of local files, ask the backend
+             which match existing user books by file_hash → content_hash →
+             dc_identifier+title → filename (in priority order).
+  Request:   { userId, books: MatchCandidate[] }
+  Response:  (MatchResult | null)[]   parallel-indexed to the request
+
+PUT /api/books/{id}/identity
+  Trigger:   Backfill — when a local book gains a content/file hash that the
+             backend record doesn't have yet (manual or automatic on import).
+  Request:   EpubIdentity  -- { fileHash, contentHash, dcIdentifier, language, publisher }
+  Response:  BookProgressRecord
+
+BookProgressRecord shape:
+  { id (UUID), user_id, filename, title, author, cover_color,
+    cfi_position, spine_index, total_spine_items, progress,
+    file_hash, content_hash, dc_identifier, language, publisher,
+    started_at, last_read_at, created_at }
 
 
 ==============================================================================
-4. DECKS & FLASHCARDS
+4. DEVICES
+   File: lib/devicesApi.ts
+==============================================================================
+
+POST /api/devices
+  Trigger:   First load on a new device, plus heartbeat refresh (idempotent)
+  Request:   { userId, deviceId, name }
+  Response:  DeviceRecord
+
+GET /api/devices/user/{userId}
+  Trigger:   Profile devices section mount (once per page load)
+  Response:  DeviceRecord[]
+
+PUT /api/devices/{deviceId}
+  Trigger:   Device rename (manual)
+  Request:   { userId, name }
+  Response:  DeviceRecord
+
+DELETE /api/devices/{deviceId}?userId={userId}
+  Trigger:   Device removal (manual)
+  Response:  void
+
+POST /api/devices/{deviceId}/books/{bookId}/available
+  Trigger:   Book file confirmed local on this device
+  Request:   { userId }
+  Response:  void
+
+DELETE /api/devices/{deviceId}/books/{bookId}/available?userId={userId}
+  Trigger:   Book file removed from this device
+  Response:  void
+
+GET /api/devices/{deviceId}/books?userId={userId}
+  Trigger:   Library page mount on a registered device
+  Response:  DeviceBookRecord[]   -- BookProgressRecord + { available: boolean }
+
+DeviceRecord shape:
+  { device_id, user_id, name, last_seen_at, created_at, book_count }
+
+
+==============================================================================
+5. DECKS & FLASHCARDS
    File: lib/decksApi.ts
 ==============================================================================
 
@@ -85,12 +157,10 @@ POST /api/decks
 
 GET /api/decks/user/{userId}
   Trigger:   Cards page mount, profile page mount (once per page load)
-  Request:   -
   Response:  DeckRecord[]
 
 GET /api/decks/{id}
-  Trigger:   Deck detail load (manual, on deck selection)
-  Request:   -
+  Trigger:   Deck detail load (manual)
   Response:  DeckRecord
 
 PUT /api/decks/{id}
@@ -99,18 +169,15 @@ PUT /api/decks/{id}
   Response:  DeckRecord
 
 DELETE /api/decks/{id}
-  Trigger:   Deck deletion (manual)
-  Request:   -
   Response:  void
 
 GET /api/decks/{deckId}/cards
-  Trigger:   On deck selection in card view (once per selection)
-  Request:   -
+  Trigger:   Deck selection in card view (once per selection)
   Response:  CardRecord[]
 
 POST /api/decks/{deckId}/cards
-  Trigger:   Card creation from reader or card view (manual)
-  Request:   { front, back, reading?, notes? }
+  Trigger:   Card creation from reader, dictionary, or deck view (manual)
+  Request:   { front, back, reading?, notes?, contextSentence? }
   Response:  CardRecord
 
 PUT /api/decks/cards/{cardId}
@@ -119,106 +186,113 @@ PUT /api/decks/cards/{cardId}
   Response:  CardRecord
 
 DELETE /api/decks/cards/{cardId}
-  Trigger:   Card deletion (manual)
-  Request:   -
   Response:  void
 
 POST /api/decks/cards/{cardId}/review
   Trigger:   Card review completion (manual, once per review)
-  Request:   -
-  Response:  CardRecord
+  Response:  CardRecord  -- backend updates state + reviewed_times
 
 DeckRecord shape:
-  { id, user_id, book_id, name, description, created_at, card_count }
+  { id, user_id, name, description, created_at, card_count }
 
 CardRecord shape:
-  { id, deck_id, front, reading, back, notes,
+  { id, deck_id, front, reading, back, notes, context_sentence,
     state ('new'|'learning'|'mastered'), reviewed_times, created_at }
 
 
 ==============================================================================
-5. DICTIONARY & WORD SEARCH
-   Files: components/views/DictionaryView.tsx, components/views/WordDetailView.tsx
+6. DICTIONARY & WORD SEARCH
+   File: lib/dictApi.ts
 ==============================================================================
 
 GET /api/search?q={query}
-  Trigger:   User types in dictionary search, URL-based search, kanji lookup (manual)
-  Request:   Query param q
-  Response:  Varies by type:
-    - kanji search:   { type: 'kanji', kanji: KanjiInfo, words: WordResult[], names: NameResult[] }
-    - word search:    { type: 'word', words: WordResult[] }
-    - kana search:    { type: 'kana', words: WordResult[], names: NameResult[], kanjis: KanjiInfo[] }
-    - meaning search: { type: 'meaning', words: WordResult[] }
+  Trigger:   Dictionary input typing (debounced via DictionaryStateProvider),
+             URL-based search, kanji lookup from word detail.
+  Response:  SearchResponse
+    | { type: 'kanji',   kanji: KanjiInfo | null, words: WordResult[], names: NameResult[] }
+    | { type: 'word',    words: WordResult[] }
+    | { type: 'kana',    words: WordResult[], names: NameResult[], kanjis: KanjiInfo[] }
+    | { type: 'meaning', words: WordResult[] }
 
 GET /api/words/{id}/details
   Trigger:   Word selection from search results (manual)
-  Request:   -
-  Response:  { word: WordResult, kanjis: KanjiInfo[] }
+  Response:  DetailsResponse  -- { word: WordResult, kanjis: KanjiInfo[] }
 
 WordResult shape:
-  { id, is_common, kanji[], readings[], meanings[{meaning, pos, lang}], grade?, char_grades[] }
+  { id, is_common, jlpt_level (1..5 | null), grade, char_grades[],
+    kanji[], readings[], meanings[{meaning, pos, lang}] }
 
 KanjiInfo shape:
-  { literal, grade, stroke_count, radical, meanings[], on_readings[], kun_readings[] }
+  { literal, grade, jlpt_level (1..5 | null), stroke_count, radical,
+    meanings[], on_readings[], kun_readings[] }
 
 
 ==============================================================================
-6. INTERNAL NEXT.JS API ROUTES (server-side proxies)
+7. INTERNAL NEXT.JS API ROUTES (server-side proxies)
 ==============================================================================
 
-POST /api/translate  (app/api/translate/route.ts)
-  Trigger:   Text selection in reader via DeepL popup (manual)
-  Request:   { text: string }
+POST /api/translate                    (app/api/translate/route.ts)
+  Trigger:   Text selection in reader → DeepL popup (manual)
+  Request:   { text }
   Response:  { translatedText, detectedLanguage }
-  Proxies to: DeepL API (free tier: api-free.deepl.com/v2/translate)
+  Proxies:   DeepL free tier (api-free.deepl.com/v2/translate)
 
-POST /api/pdf-reader  (app/api/pdf-reader/route.ts)
+POST /api/pdf-reader                   (app/api/pdf-reader/route.ts)
   Trigger:   PDF file upload in reader (manual)
-  Request:   FormData with `file` field (max 50MB)
+  Request:   FormData with `file` (max 50 MB)
   Response:  { pages: number, text: string }
 
 
 ==============================================================================
-7. SYNC & PERSISTENCE PATTERNS
+8. SYNC & PERSISTENCE PATTERNS
 ==============================================================================
 
-Book progress sync (reader page):
-  - Local: immediate save to localStorage on every page turn
-  - Backend: first sync immediate, subsequent syncs debounced 2s
-  - Failures silently ignored (non-critical)
+Reading-progress sync:
+  - Local:    Immediate save to ReaderStateProvider state (in-memory).
+  - Backend:  First put immediate; subsequent puts debounced ~2s.
+  - On unload: sendBeacon(PUT /api/books/{id}/progress) — fire-and-forget.
+  - Failures silently swallowed (non-critical).
 
-Library sync (library page mount):
-  1. Load local books from IndexedDB
-  2. Register any missing books to backend via POST /api/books
-  3. Fetch all backend records via GET /api/books/user/{id}
-  4. Merge and display
+Library / device sync (library page mount):
+  1. Load local IndexedDB records.
+  2. Register the device (POST /api/devices) if absent.
+  3. Fetch backend books (GET /api/books/user/{id}).
+  4. Optionally fetch availability (GET /api/devices/{deviceId}/books).
+  5. matchBooks() reconciles unidentified local files with existing records.
+  6. Backfill identity (PUT /api/books/{id}/identity) for matched-but-stale rows.
 
 Profile page load:
-  - Fetches user info, books, and decks in parallel via Promise.allSettled()
-  - Each can fail independently without blocking the others
+  - Fetches user info, books, decks, devices in parallel via
+    Promise.allSettled(). Each can fail independently.
 
 Client-side storage:
-  - localStorage: auth_user, reader_progress_{filename}, lgc_avatar_index,
-                   dictionary_state, app-theme
-  - IndexedDB (langeco-books): metadata store, files store (EPUB/PDF blobs)
+  - localStorage:
+      auth-user                  current user
+      app-theme                  theme name (read by pre-hydration script)
+      reader_progress_<file>     per-book progress snapshot (one key per filename)
+      lgc_avatar_index           profile avatar choice
+      onboarding-state           first-run explainer dismissal
+      device-id                  per-browser device UUID
+      dictionary-state           recent searches + filter prefs
+  - IndexedDB (langeco-books):
+      metadata store             local book metadata
+      files store                EPUB/PDF blobs
 
 
 ==============================================================================
 SUMMARY
 ==============================================================================
 
-Total backend endpoints:   17
-  GET:     9
-  POST:    8
-  PUT:     3
-  DELETE:  3
+Total backend endpoints:   28
+  GET:     8   POST:   8   PUT:    7   PATCH:  1   DELETE: 4
 
-Internal API routes:       2  (translate proxy, pdf-reader)
-External APIs:             1  (DeepL translation)
+Internal API routes:        2  (translate proxy, pdf-reader)
+External APIs:              1  (DeepL translation)
 
-Frequency breakdown:
-  On page mount (automatic):  GET /api/books/user/{id}, GET /api/decks/user/{id},
-                               GET /api/user/{id}
-  Debounced (2s):             PUT /api/books/{id}/progress
-  On user action only:        Everything else (search, create, update, delete)
-  No polling or WebSockets.
+Frequency:
+  On page mount (auto):     GET /api/books/user, /api/decks/user, /api/user,
+                            /api/devices/user, /api/devices/{id}/books
+  Debounced (~2s):          PUT /api/books/{id}/progress
+  On unload (beacon):       PUT /api/books/{id}/progress
+  On user action only:      Everything else.
+  No polling, no WebSockets.

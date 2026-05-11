@@ -1,8 +1,9 @@
 'use client';
 
-// Theme-agnostic study-view sub-components shared between default and stamp variants.
-// StudyCard accepts an optional `cardShadow` so the default variant can layer
-// its drop shadow while stamp leaves the lgc-card class to render flat.
+// Theme-agnostic study-view sub-components.
+// StudyCard relies entirely on `lgc-card`'s `--lgc-surface-shadow` for its
+// elevation — themes that want a different shadow override the token, not
+// the prop.
 
 import { Check, RotateCcw, Volume2, X } from 'lucide-react';
 
@@ -12,14 +13,12 @@ export function StudyCard({
   contextSentence,
   flipped,
   onFlip,
-  cardShadow,
 }: {
   front: string;
   back: string;
   contextSentence?: string;
   flipped: boolean;
   onFlip: () => void;
-  cardShadow?: string;
 }) {
   return (
     <button
@@ -29,7 +28,6 @@ export function StudyCard({
       style={{
         minHeight: 'min(380px, 60vh)',
         padding: 'clamp(20px, 4vw, 36px) clamp(16px, 4vw, 32px)',
-        boxShadow: cardShadow,
       }}
     >
       <div

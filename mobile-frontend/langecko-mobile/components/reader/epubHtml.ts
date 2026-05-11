@@ -3,6 +3,13 @@
 // One WebView is shared by every reader type. After opening the EPUB we
 // detect its layout/direction from package metadata and post the resulting
 // bookType back to RN, which renders the matching overlay shell.
+//
+// jszip + epubjs are inlined from `epubLibs.ts` so the reader works without
+// network (cold launch with no connectivity used to leave the WebView stuck
+// on "Loading…" because the CDN scripts never resolved). Re-run
+// `npm run gen-reader-libs` after bumping either package version.
+
+import { EPUBJS_SOURCE, JSZIP_SOURCE } from './epubLibs';
 
 export type BookType = 'text' | 'novel' | 'manga';
 
@@ -32,9 +39,14 @@ export type EpubBridgeInbound =
       cfi?: string | null;
       style: ReaderThemeStyle;
       highlights: HighlightStyle[];
+      /** Pixel size of the WebView's parent container measured on the RN side.
+       *  Passed in explicitly so epub.js paginates against a deterministic
+       *  viewport instead of guessing via `width: 100%` at mount time. */
+      viewport: { width: number; height: number };
     }
   | { type: 'setStyle'; style: ReaderThemeStyle }
   | { type: 'setViewMode'; mode: ReaderViewMode }
+  | { type: 'setSize'; width: number; height: number }
   | { type: 'goToCfi'; cfi: string }
   | { type: 'goToSpine'; index: number }
   | { type: 'next' }
@@ -75,8 +87,8 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <script src="https://unpkg.com/jszip@3.7.1/dist/jszip.min.js"></script>
-  <script src="https://unpkg.com/epubjs@0.3.93/dist/epub.min.js"></script>
+  <script>${JSZIP_SOURCE}</script>
+  <script>${EPUBJS_SOURCE}</script>
   <style>
     html, body {
       margin: 0;
@@ -118,6 +130,17 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
       var viewMode = 'single';
       var currentHighlights = [];
       var startCfi = null;
+      // Pixel viewport supplied by RN via onLayout. epub.js paginates against
+      // this at renderTo time and resize() afterwards on rotation / split-pane.
+      var viewportW = 0;
+      var viewportH = 0;
+      // Navigation serialization. epub.js's next/prev/display are async; if a
+      // second tap fires while the first display() is still pending we get
+      // queued or dropped renders (the "page didn't load properly" symptom).
+      // Subsequent navigation requests are dropped while one is in flight --
+      // legitimate double-taps still work because the in-flight call clears
+      // navInFlight as soon as relocated fires.
+      var navInFlight = false;
 
       function post(payload) {
         if (window.ReactNativeWebView) {
@@ -152,9 +175,33 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
             bodyRule['-webkit-writing-mode'] = 'vertical-rl !important';
             bodyRule['text-orientation'] = 'mixed !important';
             bodyRule['-webkit-text-orientation'] = 'mixed !important';
+            // CRITICAL: JP novels declare page-progression-direction="rtl",
+            // which epubjs applies as direction: rtl on the iframe. Combined
+            // with vertical-rl writing-mode that reverses the inline axis to
+            // bottom-to-top, so sentence-final punctuation 。lands at the TOP
+            // of each column instead of the bottom. Forcing direction: ltr on
+            // body restores top-to-bottom flow within the column (columns
+            // still progress right-to-left via writing-mode).
+            bodyRule['direction'] = 'ltr !important';
+            bodyRule['unicode-bidi'] = 'isolate !important';
           } else {
             bodyRule['writing-mode'] = 'horizontal-tb !important';
             bodyRule['-webkit-writing-mode'] = 'horizontal-tb !important';
+          }
+          // For vertical mode we also pin writing-mode/direction on every
+          // text-bearing element so per-element publisher CSS can't override
+          // them; otherwise a single rule like p { writing-mode: horizontal-tb }
+          // in the book's CSS would un-rotate part of the page.
+          var elementRule = {
+            'color': style.fg + ' !important',
+            '-webkit-user-select': 'text !important',
+            'user-select': 'text !important',
+          };
+          if (style.vertical) {
+            elementRule['writing-mode'] = 'vertical-rl !important';
+            elementRule['-webkit-writing-mode'] = 'vertical-rl !important';
+            elementRule['direction'] = 'ltr !important';
+            elementRule['unicode-bidi'] = 'isolate !important';
           }
           rendition.themes.default({
             'html, body': {
@@ -162,11 +209,7 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
               'color': style.fg + ' !important',
             },
             'body': bodyRule,
-            'p, div, span, li, h1, h2, h3, h4, h5, h6, a': {
-              'color': style.fg + ' !important',
-              '-webkit-user-select': 'text !important',
-              'user-select': 'text !important',
-            },
+            'p, div, span, li, h1, h2, h3, h4, h5, h6, a, blockquote, td, th, figcaption': elementRule,
           });
         } catch (e) { /* themes not ready */ }
       }
@@ -257,19 +300,22 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
             var rtl = (direction === 'rtl');
             if (x < w * 0.28) {
               ev.preventDefault();
-              if (rendition) (rtl ? rendition.next() : rendition.prev());
+              nav(rtl ? 'next' : 'prev');
             } else if (x > w * 0.72) {
               ev.preventDefault();
-              if (rendition) (rtl ? rendition.prev() : rendition.next());
+              nav(rtl ? 'prev' : 'next');
             }
           }, true);
         } catch (e) {}
       }
 
       function buildRenditionOptions() {
+        // Use the explicit pixel viewport supplied by RN. Falls back to '100%'
+        // only if a setSize landed before viewportW/H were ever populated --
+        // shouldn't happen in practice but keeps the rendition usable.
         var opts = {
-          width: '100%',
-          height: '100%',
+          width: viewportW > 0 ? viewportW : '100%',
+          height: viewportH > 0 ? viewportH : '100%',
           allowScriptedContent: true,
         };
         if (bookType === 'manga') {
@@ -282,6 +328,34 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
           opts.manager = 'default';
         }
         return opts;
+      }
+
+      function applySize(w, h) {
+        viewportW = w;
+        viewportH = h;
+        if (!rendition) return;
+        try { rendition.resize(w, h); } catch (e) {}
+      }
+
+      // Single funnel for every navigation request (toolbar taps, in-iframe
+      // edge taps, deep-link goTo). Drops requests while one is in flight.
+      function nav(kind, target) {
+        if (!rendition || navInFlight) return;
+        var p;
+        try {
+          if (kind === 'next') p = rendition.next();
+          else if (kind === 'prev') p = rendition.prev();
+          else if (kind === 'display') p = rendition.display(target);
+          else return;
+        } catch (e) {
+          post({ type: 'error', message: 'nav: ' + e });
+          return;
+        }
+        navInFlight = true;
+        Promise.resolve(p).then(
+          function () { navInFlight = false; },
+          function () { navInFlight = false; }
+        );
       }
 
       function buildRendition(initialCfi) {
@@ -330,13 +404,17 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
         });
       }
 
-      function loadBook(base64, cfi, style, highlights) {
+      function loadBook(base64, cfi, style, highlights, viewport) {
         try {
           bookBuffer = base64ToArrayBuffer(base64);
           book = ePub(bookBuffer);
           startCfi = cfi || null;
           currentHighlights = (highlights || []).slice();
           currentStyle = style;
+          if (viewport && viewport.width > 0 && viewport.height > 0) {
+            viewportW = viewport.width;
+            viewportH = viewport.height;
+          }
 
           book.ready.then(function () {
             try {
@@ -375,41 +453,27 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
         }
       }
 
+      // Live view-mode change. Previously this tore down the rendition and
+      // re-created the book/rendition from scratch, which (a) lost the exact
+      // CFI position, (b) thrashed epubjs's internal queues, and (c) was the
+      // most likely source of "next page didn't load properly" bugs. epubjs
+      // exposes flow() and spread() as runtime setters -- changing them in
+      // place reflows the current page without dropping any state.
       function setViewMode(mode) {
         if (mode === viewMode) return;
         if (bookType !== 'manga') return;
         viewMode = mode;
-        // Capture current spine index so we can restore the same page after rebuild
-        var restoreIdx = 0;
+        if (!rendition) return;
         try {
-          var loc = rendition && rendition.currentLocation && rendition.currentLocation();
-          if (loc && loc.start && loc.start.cfi) {
-            var section = book.spine && book.spine.get(loc.start.cfi);
-            if (section && typeof section.index === 'number') restoreIdx = section.index;
+          if (mode === 'scroll') {
+            rendition.flow('scrolled');
+            rendition.spread('none');
+          } else {
+            rendition.flow('paginated');
+            rendition.spread(mode === 'double' ? 'auto' : 'none');
           }
-        } catch (e) {}
-
-        try {
-          if (rendition) {
-            try { rendition.q && rendition.q.clear && rendition.q.clear(); } catch (e) {}
-            try { rendition.destroy(); } catch (e) {}
-          }
-        } catch (e) {}
-        rendition = null;
-
-        try {
-          // Recreate the book object — destroying the rendition leaves epub.js's
-          // internal queues in a bad state otherwise.
-          book = ePub(bookBuffer);
-          book.ready.then(function () {
-            try {
-              spineTotal = (book.spine && book.spine.spineItems && book.spine.spineItems.length) || 0;
-            } catch (e) {}
-            var item = book.spine && book.spine.spineItems && book.spine.spineItems[restoreIdx];
-            buildRendition(item ? item.href : null);
-          });
-        } catch (err) {
-          post({ type: 'error', message: 'setViewMode: ' + err });
+        } catch (e) {
+          post({ type: 'error', message: 'setViewMode: ' + e });
         }
       }
 
@@ -435,19 +499,20 @@ export const EPUB_HTML = String.raw`<!DOCTYPE html>
         var items = book.spine && book.spine.spineItems;
         if (!items || index < 0 || index >= items.length) return;
         var item = items[index];
-        if (item && rendition) rendition.display(item.href);
+        if (item && rendition) nav('display', item.href);
       }
 
       function handleInbound(raw) {
         var msg;
         try { msg = JSON.parse(raw); } catch (e) { return; }
         if (!msg || !msg.type) return;
-        if (msg.type === 'load') return loadBook(msg.base64, msg.cfi, msg.style, msg.highlights);
+        if (msg.type === 'load') return loadBook(msg.base64, msg.cfi, msg.style, msg.highlights, msg.viewport);
         if (msg.type === 'setViewMode') return setViewMode(msg.mode);
+        if (msg.type === 'setSize') return applySize(msg.width, msg.height);
         if (!rendition) return;
-        if (msg.type === 'next') rendition.next();
-        else if (msg.type === 'prev') rendition.prev();
-        else if (msg.type === 'goToCfi') rendition.display(msg.cfi);
+        if (msg.type === 'next') nav('next');
+        else if (msg.type === 'prev') nav('prev');
+        else if (msg.type === 'goToCfi') nav('display', msg.cfi);
         else if (msg.type === 'goToSpine') goToSpine(msg.index);
         else if (msg.type === 'setStyle') applyStyle(msg.style);
         else if (msg.type === 'addHighlight') {

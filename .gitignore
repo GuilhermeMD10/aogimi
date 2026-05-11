@@ -3,3 +3,13 @@ helpers
 .next
 .env
 .env.local
+
+android
+ios
+build
+dist
+coverage
+*.log
+*.lock
+.DS_Store
+.vscode

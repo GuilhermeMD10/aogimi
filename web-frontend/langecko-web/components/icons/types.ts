@@ -17,7 +17,6 @@ export type IconName =
   | 'reader'
   | 'dictionary'
   | 'cards'
-  | 'workspace'
   | 'profile'
   | 'settings'
   | 'search'
