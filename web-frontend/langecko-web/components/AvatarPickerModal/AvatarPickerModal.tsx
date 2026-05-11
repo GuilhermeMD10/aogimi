@@ -16,7 +16,7 @@ export default function AvatarPickerModal({ current, onSelect, onClose }: Avatar
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-140 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg-elev shadow-2xl">
+      <div className="lgc-card fixed left-1/2 top-1/2 z-50 w-full max-w-140 -translate-x-1/2 -translate-y-1/2 overflow-hidden">
         <div className="flex items-center border-b border-lgc-border px-5 py-4">
           <div>
             <div className="lgc-section-label">Choose avatar</div>
@@ -56,17 +56,13 @@ export default function AvatarPickerModal({ current, onSelect, onClose }: Avatar
         </div>
 
         <div className="flex justify-end gap-2 border-t border-lgc-border px-5 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-lgc-border px-3 py-1.5 text-sm text-lgc-fg transition-colors hover:bg-lgc-bg-sunken"
-          >
+          <button type="button" onClick={onClose} className="lgc-button-secondary">
             Cancel
           </button>
           <button
             type="button"
             onClick={() => { onSelect(selected); onClose(); }}
-            className="flex items-center gap-1.5 rounded-md bg-lgc-accent px-4 py-1.5 text-sm font-medium text-lgc-accent-fg transition-opacity hover:opacity-90"
+            className="lgc-button"
           >
             <Check size={13} /> Save
           </button>

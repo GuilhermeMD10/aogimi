@@ -1,14 +1,46 @@
 # Langeco Web — Theme & Font Reference
 
-Source of truth: [app/globals.css](app/globals.css). Themes are exposed by setting a `data-theme="…"` attribute on `<html>` (see [app/layout.tsx](app/layout.tsx) for the default, and [components/providers/ThemeProvider.tsx](components/providers/ThemeProvider.tsx) for the runtime switcher).
+[components/providers/ThemeProvider.tsx](components/providers/ThemeProvider.tsx)'s `THEMES` record is the **single source of truth** for which themes exist. `AppTheme`, the registry keys in [themes/index.ts](themes/index.ts), the storage validator, and the pre-hydration script in [app/layout.tsx](app/layout.tsx) are all derived from it. Adding a theme is one record entry + one CSS file.
+
+Themes are exposed by setting a `data-theme="…"` attribute on `<html>`. A pre-hydration `<script>` in `app/layout.tsx` reads the persisted theme from localStorage and applies the attribute *before paint*, so there is no flash-of-default-theme on cold load.
 
 The token system is two layers:
-1. **Raw CSS variables** — `--lgc-bg`, `--lgc-fg`, … — defined per-theme inside `:root`/`html[data-theme="…"]` blocks.
+1. **Raw CSS variables** — `--lgc-bg`, `--lgc-fg`, … — defined per-theme inside `html[data-theme="…"]` blocks.
 2. **Tailwind tokens** — `@theme inline { --color-lgc-bg: var(--lgc-bg); … }` in `globals.css` exposes them as Tailwind classes (`bg-lgc-bg`, `text-lgc-fg-muted`, `border-lgc-border`, etc).
 
 Components use both forms: most surfaces use Tailwind classes (`className="bg-lgc-bg-elev text-lgc-fg"`); a few use raw CSS (`style={{ background: 'var(--lgc-bg)' }}`) — both resolve to the same source.
 
 shadcn primitives ([components/ui/](components/ui/)) inherit automatically because `--color-card`, `--color-primary`, `--color-border`, etc. in the same `@theme inline` block re-point at `--lgc-*`. You don't need to retheme shadcn separately.
+
+---
+
+## Dispatch decision rule
+
+When you need a component to look different under a theme, pick the *cheapest* option that works. Reach for the next level only when the current one can't express the variation.
+
+| Variation | Mechanism | Where it lives |
+|---|---|---|
+| Color, font, font-size/weight, border, shadow, radius, padding, letter-spacing, text-transform | **Shape token** | `styles/shape-defaults.css` for the default value, `styles/themes/<theme>.css` to override |
+| Surface (card, popover, modal frame), button, chip, section label | **Primitive class** that reads shape tokens | `styles/primitives.css` (`.lgc-card`, `.lgc-button`, `.lgc-button-secondary`, `.lgc-chip`, `.lgc-section-label`) |
+| Decorative atoms a single theme adds (HankoSeal, Postmark, Denomination, …) | **Theme-decoration component**, conditionally rendered with `<ThemedDecoration theme="…">` | `components/theme-decorations/<theme>/<X>.tsx` |
+| Whole layout / structural divergence (different page tree, different copy, different motion choreography) | **Registry slot** dispatched via `useThemedComponent` | `themes/<theme>/<…mirror of components path>/<X>.tsx`, registered in `themes/index.ts` |
+
+If you find yourself forking a screen via the registry to change a card border or a button shadow, **stop**. That's a shape token (or a primitive that reads one). The registry is for cases where the visual tree itself diverges — different sections, different layout, different motion choreography. If two registry variants of the same component differ by 1–5 lines, the right move is to pull those lines into a shape token, refactor the default to read the token, and delete the variant.
+
+Common shape-token axes:
+
+- Surface: `--lgc-surface-*` (bg, border-color, border-width, border-style, radius, shadow)
+- Primary button: `--lgc-button-*` (bg, fg, padding, font-family, font-size, font-weight, letter-spacing, text-transform, border-*, radius, shadow)
+- Secondary button: `--lgc-button-secondary-*` (bg, fg, border-color, border-width, hover-bg)
+- Chip: `--lgc-chip-*`
+- Toolbar: `--lgc-toolbar-*` (bg, backdrop-filter, button-radius, button-tracking, button-text-transform, button-font-family)
+- Pressable interaction: `--lgc-press-*` (transform-hover/active, shadow-hover/active)
+- Section label / numerals: `--lgc-section-label-*`, `--lgc-section-num-*`, `--lgc-meaning-num-*`
+- Dividers / readings: `--lgc-divider-style`, `--lgc-row-reading-*`, `--lgc-kanji-meanings-*`
+- Form atoms: `--lgc-input-radius`, `--lgc-kbd-radius`, `--lgc-icon-button-radius`, `--lgc-pill-radius`
+- Fonts: `--lgc-font-{display,ui,mono,jp,body}`
+
+Adding a new shape axis = (1) declare it in `shape-defaults.css`, (2) consume it in the primitive or component, (3) override per-theme in `styles/themes/<theme>.css` only when the visual identity demands it.
 
 ---
 
@@ -440,15 +472,8 @@ Drop these aliases or wire them in — they're harmless either way.
 
 ## Adding a new theme — checklist
 
-1. In [app/globals.css](app/globals.css), add a new block:
-   ```css
-   html[data-theme="<name>"] {
-     --lgc-bg:            #...;
-     --lgc-bg-elev:       #...;
-     /* ... every token defined in :root ... */
-   }
-   ```
-   Don't leave any token undefined — it'll fall through to `:root` (Default) and you'll get visual mismatches.
-2. Add `<name>` to the theme set used by [components/providers/ThemeProvider.tsx](components/providers/ThemeProvider.tsx) and [components/ui/ThemeSwitcher.tsx](components/ui/ThemeSwitcher.tsx).
-3. shadcn primitives auto-inherit because the `--color-*` aliases in `@theme inline` chain through `--lgc-*`.
-4. Verify by toggling to the new theme and walking through every screen — components shouldn't have hex literals, so a complete palette is enough.
+1. **Add a record entry** in `THEMES` ([components/providers/ThemeProvider.tsx](components/providers/ThemeProvider.tsx)) with the picker label, description, premium flag, and a swatch. `AppTheme`, the storage validator, the pre-hydration script's allow-list, the registry's keys, and `ThemeSwitcher` all derive from this record — TypeScript will fail the build if anything else is out of sync.
+2. **Drop a CSS file** at `styles/themes/<name>.css` with a single `html[data-theme="<name>"] { … }` block that declares every `--lgc-*` color token (and optionally any shape-token overrides). Import it in `app/globals.css` next to the existing themes. Tokens you don't override fall through to `shape-defaults.css`.
+3. **Register a stamp in `themes/index.ts`** with an empty `{}` if the theme is colors-only. Add registry entries only when a screen needs a *whole-tree* override that shape tokens can't express (see the dispatch rule above).
+4. **shadcn primitives** auto-inherit because the `--color-*` aliases in `@theme inline` chain through `--lgc-*`. No retheming needed.
+5. **Verify** by toggling to the new theme and walking every screen. Components don't carry hex literals, so a complete palette is enough.

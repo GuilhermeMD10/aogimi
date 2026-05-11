@@ -9,7 +9,7 @@ import {
 } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/components/providers/AuthProvider';
-import { ThemeProvider } from '@/components/providers/ThemeProvider';
+import { ThemeProvider, THEMES } from '@/components/providers/ThemeProvider';
 import { AppShell } from '@/components/AppShell';
 
 const inter = Inter({
@@ -54,6 +54,13 @@ export const metadata: Metadata = {
   description: 'Japanese reading and vocabulary app',
 };
 
+// Pre-hydration script: synchronously applies the persisted theme to <html>
+// before the browser paints, eliminating the flash-of-default-theme. The
+// allow-list is generated at build time from the THEMES registry so a new
+// theme automatically starts being valid here too.
+const VALID_THEMES = JSON.stringify(Object.keys(THEMES));
+const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('app-theme');var v=${VALID_THEMES};if(t&&v.indexOf(t)>-1)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -63,8 +70,12 @@ export default function RootLayout({
     <html
       lang="en"
       data-theme="default"
+      suppressHydrationWarning
       className={`${inter.variable} ${sourceSerif.variable} ${geistMono.variable} ${shipporiMincho.variable} ${cormorant.variable} ${dmMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="h-full">
         <ThemeProvider>
           <AuthProvider>

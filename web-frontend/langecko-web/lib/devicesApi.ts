@@ -1,22 +1,5 @@
 import { API_URL } from './api';
-import type { BookProgressRecord } from '@/lib/booksApi';
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-export interface DeviceRecord {
-  device_id: string;
-  user_id: number;
-  name: string;
-  last_seen_at: string;
-  created_at: string;
-  book_count: number;
-}
-
-export interface DeviceBookRecord extends BookProgressRecord {
-  available: boolean;
-}
-
-// ── API calls ───────────────────────────────────────────────────────────────
+import type { DeviceBookRecord, DeviceRecord } from '@/lib/types';
 
 /** Register or heartbeat a device. */
 export async function registerDevice(

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { btnBase, btnPrimary } from './types';
 
 interface DeckFormValues {
   name: string;
@@ -60,10 +59,10 @@ export function DeckForm({ submitLabel, initial, onSubmit, onCancel }: DeckFormP
       </div>
 
       <div className="flex items-center justify-end gap-2">
-        <button type="button" onClick={onCancel} className={btnBase}>
+        <button type="button" onClick={onCancel} className="lgc-button-secondary">
           Cancel
         </button>
-        <button type="submit" disabled={!canSubmit} className={btnPrimary}>
+        <button type="submit" disabled={!canSubmit} className="lgc-button">
           {submitLabel}
         </button>
       </div>

@@ -75,7 +75,7 @@ export function DeepLTranslationPopup({ originalText, position, onClose }: Props
         top: adjustedPos.y,
         zIndex: 10000,
       }}
-      className="w-72 rounded-lg border border-lgc-border-strong bg-lgc-bg shadow-lg"
+      className="lgc-card w-72"
     >
       <div className="flex items-center justify-between border-b border-lgc-border px-3 py-2">
         <span className="text-xs font-medium text-lgc-fg-muted">DeepL Translation</span>

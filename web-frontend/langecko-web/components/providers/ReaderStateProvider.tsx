@@ -2,17 +2,16 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { BookRecord } from '@/lib/bookStore';
-import { updateBookProgress, sendProgressBeacon, type ProgressPayload } from '@/lib/booksApi';
-import {
-  getReaderSharedState,
-  setReaderProgress,
-  setReaderSharedState,
-  type ReaderSharedState,
-} from '@/lib/storage/readerSession';
+import { updateBookProgress, sendProgressBeacon } from '@/lib/booksApi';
+import { setReaderProgress } from '@/lib/storage/readerSession';
 
-export type ReaderMode = 'epub' | 'pdf';
-
-// ── Reader session — active book state that survives tab reordering ─────────
+// Previously this provider also carried "survives tab-reorder" state for the
+// now-removed multi-tab workspace (reader `mode`, last-opened EPUB/PDF
+// filenames, PDF page + scale). All of that was per-tab UI state and went
+// away with the workspace. What's left is genuinely cross-cutting:
+//   - pending signals between routes (dict search, flashcard, book-open)
+//   - the dictionary sidekick toggle
+//   - progress-sync wiring that listens for app-level exit events.
 
 export type ReaderSession = {
   activeBook: BookRecord;
@@ -21,8 +20,6 @@ export type ReaderSession = {
   backendCfi: string | null;
 };
 
-// ── Progress sync ref — latest values tracked for flush ─────────────────────
-
 type ProgressSnapshot = {
   cfi: string;
   progress: number;
@@ -30,39 +27,29 @@ type ProgressSnapshot = {
   totalSpineItems: number;
 };
 
-// ── Context shape ───────────────────────────────────────────────────────────
-
 type ReaderContextValue = {
-  mode: ReaderMode;
-  setMode: React.Dispatch<React.SetStateAction<ReaderMode>>;
-
-  epubFileUrl: string | null;
-  epubFilename: string | null;
-  setEpubFile: (url: string | null, filename: string | null) => void;
-
-  pdfFileUrl: string | null;
-  pdfFilename: string | null;
-  setPdfFile: (url: string | null, filename: string | null) => void;
-
-  pdfPageNumber: number;
-  setPdfPageNumber: React.Dispatch<React.SetStateAction<number>>;
-  pdfScale: number;
-  setPdfScale: React.Dispatch<React.SetStateAction<number>>;
-
+  // Cross-route pending signals — set on one page, consumed on another.
   pendingDictSearch: { word: string; contextSentence?: string } | null;
   setPendingDictSearch: React.Dispatch<React.SetStateAction<{ word: string; contextSentence?: string } | null>>;
   pendingCard: { word: string; back?: string; contextSentence?: string } | null;
   setPendingCard: React.Dispatch<React.SetStateAction<{ word: string; back?: string; contextSentence?: string } | null>>;
-
   /** Filename of a book the reader should auto-open on next mount (e.g. from home shortcut). */
   pendingBookOpen: string | null;
   setPendingBookOpen: React.Dispatch<React.SetStateAction<string | null>>;
 
-  // Reader session — persists across tab reorder
+  // Active reader session.
   readerSession: ReaderSession | null;
   setReaderSession: React.Dispatch<React.SetStateAction<ReaderSession | null>>;
 
-  // Progress sync — call on every page turn (localStorage only), flush on exit
+  // Dictionary sidekick — docked on the right side of the reader page. AppShell
+  // reads `sidekickOpen` so dictionary lookups dispatched from the reader bubble
+  // route into the sidekick instead of opening the floating bubble when it's
+  // already visible.
+  sidekickOpen: boolean;
+  toggleSidekick: () => void;
+  setSidekickOpen: React.Dispatch<React.SetStateAction<boolean>>;
+
+  // Progress sync — call on every page turn (localStorage only), flush on exit.
   recordProgress: (snapshot: ProgressSnapshot) => void;
   flushProgress: () => void;
 };
@@ -70,23 +57,14 @@ type ReaderContextValue = {
 const ReaderContext = createContext<ReaderContextValue | null>(null);
 
 export function ReaderStateProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<ReaderMode>('epub');
-  const [epubFileUrl,  setEpubFileUrlState]  = useState<string | null>(null);
-  const [epubFilename, setEpubFilenameState] = useState<string | null>(null);
-  const [pdfFileUrl,   setPdfFileUrlState]   = useState<string | null>(null);
-  const [pdfFilename,  setPdfFilenameState]  = useState<string | null>(null);
-  const [pdfPageNumber, setPdfPageNumber] = useState(1);
-  const [pdfScale,      setPdfScale]      = useState(1);
   const [pendingDictSearch, setPendingDictSearch] = useState<{ word: string; contextSentence?: string } | null>(null);
-  const [pendingCard,   setPendingCard]   = useState<{ word: string; back?: string; contextSentence?: string } | null>(null);
+  const [pendingCard, setPendingCard] = useState<{ word: string; back?: string; contextSentence?: string } | null>(null);
   const [pendingBookOpen, setPendingBookOpen] = useState<string | null>(null);
 
-  // Reader session — survives tab reorder
   const [readerSession, setReaderSession] = useState<ReaderSession | null>(null);
 
-  const epubUrlRef = useRef<string | null>(null);
-  const pdfUrlRef  = useRef<string | null>(null);
-  const persistReadyRef = useRef(false);
+  const [sidekickOpen, setSidekickOpen] = useState(false);
+  const toggleSidekick = useCallback(() => setSidekickOpen((v) => !v), []);
 
   // ── Progress sync refs ────────────────────────────────────────────────
   const latestProgressRef = useRef<ProgressSnapshot | null>(null);
@@ -159,66 +137,14 @@ export function ReaderStateProvider({ children }: { children: React.ReactNode })
     };
   }, [flushProgress, beaconFlush]);
 
-  // ── Restore non-file state from localStorage ──────────────────────────
-  useEffect(() => {
-    const s = getReaderSharedState();
-    if (!s) return;
-    if (s.mode)          setMode(s.mode);
-    if (s.pdfPageNumber) setPdfPageNumber(s.pdfPageNumber);
-    if (s.pdfScale)      setPdfScale(s.pdfScale);
-    if (s.lastEpubFilename) setEpubFilenameState(s.lastEpubFilename);
-    if (s.lastPdfFilename)  setPdfFilenameState(s.lastPdfFilename);
-  }, []);
-
-  // Persist non-file state
-  useEffect(() => {
-    if (!persistReadyRef.current) { persistReadyRef.current = true; return; }
-    const s: ReaderSharedState = {
-      mode,
-      pdfPageNumber,
-      pdfScale,
-      lastEpubFilename: epubFilename ?? undefined,
-      lastPdfFilename:  pdfFilename  ?? undefined,
-    };
-    setReaderSharedState(s);
-  }, [mode, pdfPageNumber, pdfScale, epubFilename, pdfFilename]);
-
-  // Revoke blob URLs on unmount
-  useEffect(() => {
-    return () => {
-      if (epubUrlRef.current) URL.revokeObjectURL(epubUrlRef.current);
-      if (pdfUrlRef.current)  URL.revokeObjectURL(pdfUrlRef.current);
-    };
-  }, []);
-
-  const setEpubFile = (url: string | null, filename: string | null) => {
-    if (epubUrlRef.current && epubUrlRef.current !== url)
-      URL.revokeObjectURL(epubUrlRef.current);
-    epubUrlRef.current = url;
-    setEpubFileUrlState(url);
-    setEpubFilenameState(filename);
-  };
-
-  const setPdfFile = (url: string | null, filename: string | null) => {
-    if (pdfUrlRef.current && pdfUrlRef.current !== url)
-      URL.revokeObjectURL(pdfUrlRef.current);
-    pdfUrlRef.current = url;
-    setPdfFileUrlState(url);
-    setPdfFilenameState(filename);
-  };
-
   return (
     <ReaderContext.Provider
       value={{
-        mode, setMode,
-        epubFileUrl, epubFilename, setEpubFile,
-        pdfFileUrl,  pdfFilename,  setPdfFile,
-        pdfPageNumber, setPdfPageNumber,
-        pdfScale, setPdfScale,
         pendingDictSearch, setPendingDictSearch,
         pendingCard, setPendingCard,
         pendingBookOpen, setPendingBookOpen,
         readerSession, setReaderSession,
+        sidekickOpen, toggleSidekick, setSidekickOpen,
         recordProgress, flushProgress,
       }}
     >

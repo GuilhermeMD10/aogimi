@@ -1,12 +1,11 @@
-import type { AppTheme } from '@/components/providers/ThemeProvider';
+import { isAppTheme, type AppTheme } from '@/components/providers/ThemeProvider';
 import { getString, setString } from './_helpers';
 
 const KEY = 'app-theme';
-const VALID: AppTheme[] = ['default', 'kanagawa', 'sakura', 'hanami', 'stamp'];
 
 export function getStoredTheme(): AppTheme | null {
   const raw = getString(KEY);
-  return raw && (VALID as string[]).includes(raw) ? (raw as AppTheme) : null;
+  return isAppTheme(raw) ? raw : null;
 }
 
 export function setStoredTheme(theme: AppTheme): void {

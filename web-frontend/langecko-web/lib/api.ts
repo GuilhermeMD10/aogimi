@@ -41,6 +41,7 @@ export async function apiSend<T>(
   path: string,
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   body?: unknown,
+  signal?: AbortSignal,
 ): Promise<T> {
   const response = await fetch(apiUrl(path), {
     method,
@@ -49,6 +50,7 @@ export async function apiSend<T>(
       Accept: 'application/json',
     },
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal,
   });
   if (!response.ok) {
     throw new Error(await parseError(response));
@@ -61,11 +63,13 @@ export async function apiSendVoid(
   path: string,
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   body?: unknown,
+  signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch(apiUrl(path), {
     method,
     headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal,
   });
   if (!response.ok) {
     throw new Error(await parseError(response));

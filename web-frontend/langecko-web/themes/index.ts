@@ -1,11 +1,16 @@
 // Theme component registry.
 //
-// Each theme (`AppTheme` from `ThemeProvider`) contributes a partial map of
-// component overrides. The default theme's map is empty — the resolver inside
-// each component's `index.tsx` falls through to the default implementation
-// when its slot isn't present.
+// `AppTheme` is derived from `THEMES` (in `ThemeProvider`), so the registry's
+// keys are kept in sync with the source of truth at compile time — drop a
+// theme into `THEMES` and TypeScript forces you to add a registry entry here
+// (and vice versa).
 //
-// Adding a themed component:
+// Each theme contributes a partial map of *whole-screen* component overrides.
+// Smaller theme variations (border/shadow/radius/font/color shifts on a chip
+// or button) belong in shape tokens, not here — see `THEMES.md` for the
+// dispatch decision rule.
+//
+// Adding a themed screen:
 //   1. Place the variant under `themes/<theme>/<...mirror of components path>`.
 //   2. Add a slot to `ThemeComponentMap` typed against the default's prop shape.
 //   3. Register it under the relevant theme below.
@@ -15,55 +20,42 @@
 import type { ComponentType, ComponentProps, ForwardRefExoticComponent, RefAttributes } from 'react';
 import type { AppTheme } from '@/components/providers/ThemeProvider';
 
-import type { DeepLTranslationPopup as DefaultDeepL } from '@/components/DeepLTranslationPopup/DeepLTranslationPopup';
-import type DefaultWordDetail from '@/components/views/WordDetailView/WordDetailView';
-import type DefaultDictionaryView from '@/components/views/DictionaryView/DictionaryView';
 import type { TypographyPanel as DefaultTypographyPanel } from '@/components/reader/TypographyPanel/TypographyPanel';
 import type { TextContextMenu as DefaultTextContextMenu } from '@/components/reader/TextContextMenu/TextContextMenu';
 import type DefaultProfileBubble from '@/components/page-bubbles/ProfileBubble/ProfileBubble';
-import type { PendingCardOverlay as DefaultPendingCardOverlay } from '@/components/views/cards/PendingCardOverlay/PendingCardOverlay';
 import type { MangaReader as DefaultMangaReader } from '@/components/reader/MangaReader/MangaReader';
-import type { StudyView as DefaultStudyView } from '@/components/views/cards/StudyView/StudyView';
 import type { TextReader as DefaultTextReader } from '@/components/reader/TextReader/TextReader';
 import type DefaultReaderView from '@/components/views/ReaderView/ReaderView';
 import type DefaultOnboardingExplainer from '@/components/onboarding/OnboardingExplainer/OnboardingExplainer';
 import type DefaultHomeView from '@/components/home/HomeView/HomeView';
 import type DefaultReaderBubble from '@/components/page-bubbles/ReaderBubble/ReaderBubble';
-import type DefaultAvatarPickerModal from '@/components/AvatarPickerModal/AvatarPickerModal';
-import type DefaultOnboardingExplainerModal from '@/components/OnboardingExplainerModal/OnboardingExplainerModal';
+import type { DefaultReaderProgressBar } from '@/components/reader/ReaderProgressBar.default';
+import type { DefaultWorkspaceNav } from '@/components/WorkspaceNav.default';
 
-import { DeepLTranslationPopup as StampDeepL } from './stamp/components/DeepLTranslationPopup';
 import { TypographyPanel as StampTypographyPanel } from './stamp/reader/TypographyPanel';
 import { TextContextMenu as StampTextContextMenu } from './stamp/reader/TextContextMenu';
 import StampProfileBubble from './stamp/page-bubbles/ProfileBubble';
-import { PendingCardOverlay as StampPendingCardOverlay } from './stamp/views/cards/PendingCardOverlay';
 import { MangaReader as StampMangaReader } from './stamp/reader/MangaReader';
-import { StudyView as StampStudyView } from './stamp/views/cards/StudyView';
 import { TextReader as StampTextReader } from './stamp/reader/TextReader';
 import StampReaderView from './stamp/views/ReaderView';
 import StampOnboardingExplainer from './stamp/onboarding/OnboardingExplainer';
 import StampHomeView from './stamp/home/HomeView';
 import StampReaderBubble from './stamp/page-bubbles/ReaderBubble';
-import StampAvatarPickerModal from './stamp/components/AvatarPickerModal';
-import StampOnboardingExplainerModal from './stamp/components/OnboardingExplainerModal';
+import { StampReaderProgressBar } from './stamp/reader/ReaderProgressBar';
+import { StampWorkspaceNav } from './stamp/components/WorkspaceNav';
 
 export type ThemeComponentMap = Partial<{
-  DeepLTranslationPopup: ComponentType<ComponentProps<typeof DefaultDeepL>>;
-  WordDetailView: ComponentType<ComponentProps<typeof DefaultWordDetail>>;
-  DictionaryView: ComponentType<ComponentProps<typeof DefaultDictionaryView>>;
   TypographyPanel: ComponentType<ComponentProps<typeof DefaultTypographyPanel>>;
   TextContextMenu: ForwardRefExoticComponent<ComponentProps<typeof DefaultTextContextMenu> & RefAttributes<HTMLDivElement>>;
   ProfileBubble: ComponentType<ComponentProps<typeof DefaultProfileBubble>>;
-  PendingCardOverlay: ComponentType<ComponentProps<typeof DefaultPendingCardOverlay>>;
   MangaReader: ComponentType<ComponentProps<typeof DefaultMangaReader>>;
-  StudyView: ComponentType<ComponentProps<typeof DefaultStudyView>>;
   TextReader: ComponentType<ComponentProps<typeof DefaultTextReader>>;
   ReaderView: ComponentType<ComponentProps<typeof DefaultReaderView>>;
   OnboardingExplainer: ComponentType<ComponentProps<typeof DefaultOnboardingExplainer>>;
   HomeView: ComponentType<ComponentProps<typeof DefaultHomeView>>;
   ReaderBubble: ComponentType<ComponentProps<typeof DefaultReaderBubble>>;
-  AvatarPickerModal: ComponentType<ComponentProps<typeof DefaultAvatarPickerModal>>;
-  OnboardingExplainerModal: ComponentType<ComponentProps<typeof DefaultOnboardingExplainerModal>>;
+  ReaderProgressBar: ComponentType<ComponentProps<typeof DefaultReaderProgressBar>>;
+  WorkspaceNav: ComponentType<ComponentProps<typeof DefaultWorkspaceNav>>;
 }>;
 
 export const themeComponentRegistry: Record<AppTheme, ThemeComponentMap> = {
@@ -72,19 +64,16 @@ export const themeComponentRegistry: Record<AppTheme, ThemeComponentMap> = {
   sakura: {},
   hanami: {},
   stamp: {
-    DeepLTranslationPopup: StampDeepL,
     TypographyPanel: StampTypographyPanel,
     TextContextMenu: StampTextContextMenu,
     ProfileBubble: StampProfileBubble,
-    PendingCardOverlay: StampPendingCardOverlay,
     MangaReader: StampMangaReader,
-    StudyView: StampStudyView,
     TextReader: StampTextReader,
     ReaderView: StampReaderView,
     OnboardingExplainer: StampOnboardingExplainer,
     HomeView: StampHomeView,
     ReaderBubble: StampReaderBubble,
-    AvatarPickerModal: StampAvatarPickerModal,
-    OnboardingExplainerModal: StampOnboardingExplainerModal,
+    ReaderProgressBar: StampReaderProgressBar,
+    WorkspaceNav: StampWorkspaceNav,
   },
 };

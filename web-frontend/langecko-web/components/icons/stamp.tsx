@@ -75,14 +75,6 @@ const StampCards = makeStampIcon(
   'StampCards',
 );
 
-const StampWorkspace = makeStampIcon(
-  <>
-    <rect x="3" y="4" width="18" height="16" />
-    <path d="M12 4v16" />
-  </>,
-  'StampWorkspace',
-);
-
 const StampProfile = makeStampIcon(
   <>
     <circle cx="12" cy="8" r="4" />
@@ -184,7 +176,6 @@ export const stampIcons: Partial<Record<IconName, IconComponent>> = {
   reader: StampReader,
   dictionary: StampDictionary,
   cards: StampCards,
-  workspace: StampWorkspace,
   profile: StampProfile,
   settings: StampSettings,
   search: StampSearch,

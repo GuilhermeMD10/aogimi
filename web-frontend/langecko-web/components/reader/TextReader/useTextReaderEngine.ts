@@ -22,6 +22,7 @@ import {
   getSpineSection,
   getThemes,
 } from '@/lib/types/epubjs';
+import { useShortcut } from '@/components/providers/ShortcutsProvider';
 
 // ── Ruby / reading stripping ────────────────────────────────────────────────
 
@@ -419,29 +420,20 @@ export function useTextReaderEngine({
   );
 
   // ── Keyboard ──────────────────────────────────────────────────────────
-  const leftRef = useRef(onLeftBtn);
-  const rightRef = useRef(onRightBtn);
-  const ttsRef = useRef(toggleTts);
-  const bmRef = useRef(addBookmark);
-  leftRef.current = onLeftBtn;
-  rightRef.current = onRightBtn;
-  ttsRef.current = toggleTts;
-  bmRef.current = addBookmark;
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      switch (e.key) {
-        case 'ArrowRight': case 'ArrowDown': rightRef.current(); break;
-        case 'ArrowLeft': case 'ArrowUp': leftRef.current(); break;
-        case 'b': case 'B': bmRef.current(); break;
-        case 't': case 'T': ttsRef.current(); break;
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  // Bindings live in `lib/shortcuts/registry.ts`; the global keydown listener
+  // is mounted by ShortcutsProvider. `useShortcut` captures the handler in a
+  // ref so passing a new closure on every render doesn't re-bind.
+  useShortcut('reader:page-next', () => { onRightBtn(); });
+  useShortcut('reader:page-prev', () => { onLeftBtn(); });
+  useShortcut('reader:tts-toggle', () => { toggleTts(); });
+  useShortcut('reader:bookmark', () => { addBookmark(); });
+  useShortcut('reader:highlight-yellow', () => {
+    // No-op when there's no selection — the provider only fires this shortcut
+    // when the reader page is mounted, but the user can still press Alt+H
+    // without anything selected.
+    if (!selectedText || !selectedCfi) return false;
+    applyHighlight('yellow');
+  });
 
   // ── Close context menu on outside click / scroll ──────────────────────
   useEffect(() => {
