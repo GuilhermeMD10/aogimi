@@ -2,7 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useColors } from '@/theme/ThemeContext';
 import { fontSize, spacing } from '@/theme/tokens';
-import type { EpubTocItem } from './epubHtml';
+import type { EpubTocItem } from './foliateHtml';
 
 type Props = {
   visible: boolean;

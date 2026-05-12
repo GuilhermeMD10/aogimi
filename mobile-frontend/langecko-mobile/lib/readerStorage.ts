@@ -55,9 +55,11 @@ export const DEFAULT_PREFS: ReaderPrefs = {
   theme: 'light',
 };
 
+// Prefs (font, theme, line height, font family) used to live here per-book;
+// they're now global in readerPrefs.ts. This module only persists the
+// intrinsically per-book bits: last-read position, highlights, bookmarks.
 type StoredBook = {
   lastCfi?: string;
-  prefs: ReaderPrefs;
   highlights: EpubHighlight[];
   bookmarks: EpubBookmark[];
 };
@@ -70,7 +72,6 @@ function rid(): string {
 }
 
 const EMPTY: StoredBook = {
-  prefs: DEFAULT_PREFS,
   highlights: [],
   bookmarks: [],
 };
@@ -78,11 +79,9 @@ const EMPTY: StoredBook = {
 export type ReaderStorage = {
   hydrated: boolean;
   lastCfi?: string;
-  prefs: ReaderPrefs;
   highlights: EpubHighlight[];
   bookmarks: EpubBookmark[];
   saveLastCfi: (cfi: string) => void;
-  savePrefs: (patch: Partial<ReaderPrefs>) => void;
   addHighlight: (h: Omit<EpubHighlight, 'id' | 'createdAt'>) => EpubHighlight;
   removeHighlight: (id: string) => void;
   setHighlightColor: (id: string, color: HighlightColor) => void;
@@ -106,7 +105,6 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
       if (cancelled) return;
       setState({
         lastCfi: data?.lastCfi,
-        prefs: { ...DEFAULT_PREFS, ...(data?.prefs ?? {}) },
         highlights: data?.highlights ?? [],
         bookmarks: data?.bookmarks ?? [],
       });
@@ -130,12 +128,6 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
 
   const saveLastCfi = useCallback(
     (cfi: string) => update((p) => ({ ...p, lastCfi: cfi })),
-    [update],
-  );
-
-  const savePrefs = useCallback(
-    (patch: Partial<ReaderPrefs>) =>
-      update((p) => ({ ...p, prefs: { ...p.prefs, ...patch } })),
     [update],
   );
 
@@ -187,11 +179,9 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
   return {
     hydrated,
     lastCfi: state.lastCfi,
-    prefs: state.prefs,
     highlights: state.highlights,
     bookmarks: state.bookmarks,
     saveLastCfi,
-    savePrefs,
     addHighlight,
     removeHighlight,
     setHighlightColor,

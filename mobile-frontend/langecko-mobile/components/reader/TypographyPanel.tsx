@@ -162,6 +162,7 @@ export function TypographyPanel({ visible, prefs, onChange, onDismiss }: Props) 
             })}
           </View>
         </Section>
+
       </View>
     </BottomSheet>
   );

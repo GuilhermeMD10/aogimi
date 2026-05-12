@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { TocSheet } from '../TocSheet';
 import { AnnotationsSheet } from '../AnnotationsSheet';
-import type { EpubTocItem, ReaderViewMode } from '../epubHtml';
+import type { EpubTocItem, ReaderViewMode } from '../foliateHtml';
 import type { EpubBookmark } from '@/lib/readerStorage';
 
 type Sheet = 'toc' | 'annotations' | null;

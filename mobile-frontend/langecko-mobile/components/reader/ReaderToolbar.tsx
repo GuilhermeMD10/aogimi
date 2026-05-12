@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
+import type { ReaderDirection, ReaderLayout } from '@/lib/readerLayout';
 
 export type ToolbarAction =
   | 'prev'
@@ -7,56 +8,63 @@ export type ToolbarAction =
   | 'toc'
   | 'annotations'
   | 'bookmark'
-  | 'typography';
+  | 'typography'
+  | 'layout'
+  | 'direction';
 
 type Props = {
   active?: ToolbarAction | null;
+  layout?: ReaderLayout;
+  direction?: ReaderDirection;
   onAction: (action: ToolbarAction) => void;
 };
 
-const ITEMS: { key: ToolbarAction; label: string }[] = [
-  { key: 'prev', label: '‹' },
-  { key: 'next', label: '›' },
-  { key: 'toc', label: '☰' },
-  { key: 'annotations', label: '★' },
-  { key: 'bookmark', label: '+' },
-  { key: 'typography', label: 'Aa' },
-];
+// Labels are derived live from the current layout/direction so the user sees
+// what mode is active just by glancing at the toolbar. Symbols (not words) to
+// keep the pill compact.
+//   layout    : ≡  = continuous (one stream)
+//               ❒  = pages       (discrete)
+//   direction : ↕  = vertical
+//               ↔  = horizontal
 
-export function ReaderToolbar({ active, onAction }: Props) {
+const LAYOUT_GLYPH: Record<ReaderLayout, string> = {
+  continuous: '≡',
+  pages: '❒',
+};
+const DIRECTION_GLYPH: Record<ReaderDirection, string> = {
+  vertical: '↕',
+  horizontal: '↔',
+};
+
+export function ReaderToolbar({ active, layout, direction, onAction }: Props) {
   const c = useColors();
+
+  const items: { key: ToolbarAction; label: string }[] = [
+    { key: 'prev', label: '‹' },
+    { key: 'next', label: '›' },
+    { key: 'toc', label: '☰' },
+    { key: 'annotations', label: '★' },
+    { key: 'bookmark', label: '+' },
+    { key: 'typography', label: 'Aa' },
+    { key: 'layout', label: layout ? LAYOUT_GLYPH[layout] : '≡' },
+    { key: 'direction', label: direction ? DIRECTION_GLYPH[direction] : '↕' },
+  ];
+
   return (
     <View pointerEvents="box-none" style={styles.host}>
-      <View
-        style={[
-          styles.bar,
-          { backgroundColor: c.bgElev, borderColor: c.borderStrong },
-        ]}
-      >
-        {ITEMS.map((item, i) => {
+      <View style={[styles.bar, { backgroundColor: c.bgElev, borderColor: c.borderStrong }]}>
+        {items.map((item, i) => {
           const isActive = active === item.key;
           return (
             <View key={item.key} style={styles.cell}>
               <Pressable
                 onPress={() => onAction(item.key)}
-                style={[
-                  styles.btn,
-                  isActive && { backgroundColor: c.accentSoft },
-                ]}
+                style={[styles.btn, isActive && { backgroundColor: c.accentSoft }]}
                 hitSlop={6}
               >
-                <Text
-                  style={[
-                    styles.label,
-                    { color: isActive ? c.accent : c.fg },
-                  ]}
-                >
-                  {item.label}
-                </Text>
+                <Text style={[styles.label, { color: isActive ? c.accent : c.fg }]}>{item.label}</Text>
               </Pressable>
-              {i < ITEMS.length - 1 ? (
-                <View style={[styles.divider, { backgroundColor: c.border }]} />
-              ) : null}
+              {i < items.length - 1 ? <View style={[styles.divider, { backgroundColor: c.border }]} /> : null}
             </View>
           );
         })}
@@ -70,7 +78,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 34,
+    bottom: 50,
     alignItems: 'center',
   },
   bar: {

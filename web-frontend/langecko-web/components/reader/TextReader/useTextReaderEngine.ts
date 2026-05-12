@@ -158,14 +158,32 @@ export function useTextReaderEngine({
           bodyStyles['-webkit-writing-mode'] = 'vertical-rl !important';
           bodyStyles['text-orientation'] = 'mixed !important';
           bodyStyles['-webkit-text-orientation'] = 'mixed !important';
+          // JP novels declare page-progression-direction="rtl"; epubjs applies
+          // direction: rtl on the iframe. Combined with vertical-rl that
+          // reverses the inline axis to bottom-to-top, so terminal punctuation
+          // 。lands at the TOP of each column instead of the bottom. Force
+          // direction: ltr on body to restore top-to-bottom flow inside the
+          // column (columns still progress right-to-left via writing-mode).
+          bodyStyles['direction'] = 'ltr !important';
+          bodyStyles['unicode-bidi'] = 'isolate !important';
+        }
+        const universal: Record<string, string> = {
+          color: `${t.fg} !important`,
+          'user-select': 'text !important',
+          '-webkit-user-select': 'text !important',
+        };
+        if (rtl) {
+          // Pin writing-mode/direction at the element level too, so a
+          // publisher's `p { writing-mode: horizontal-tb }` can't un-rotate
+          // part of the page.
+          universal['writing-mode'] = 'vertical-rl !important';
+          universal['-webkit-writing-mode'] = 'vertical-rl !important';
+          universal['direction'] = 'ltr !important';
+          universal['unicode-bidi'] = 'isolate !important';
         }
         getThemes(r).default({
           body: bodyStyles,
-          '*': {
-            color: `${t.fg} !important`,
-            'user-select': 'text !important',
-            '-webkit-user-select': 'text !important',
-          },
+          '*': universal,
         });
       } catch { /* epubjs themes not ready yet */ }
     },
