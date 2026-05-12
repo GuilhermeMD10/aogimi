@@ -4,17 +4,19 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { File } from 'expo-file-system';
 import { bookFilePath } from '@/lib/bookFiles';
 import {
-  EPUB_HTML,
+  FOLIATE_HTML,
   type BookType,
-  type EpubBridgeInbound,
-  type EpubBridgeOutbound,
   type EpubTocItem,
+  type FoliateBridgeInbound,
+  type FoliateBridgeOutbound,
   type HighlightStyle,
   type ReaderThemeStyle,
   type ReaderViewMode,
-} from '../epubHtml';
+} from '../foliateHtml';
 
-export type EpubReaderHandle = {
+// foliate-js WebView wrapper. Sole reader path after the epubjs migration.
+
+export type FoliateReaderHandle = {
   setStyle: (style: ReaderThemeStyle) => void;
   setViewMode: (mode: ReaderViewMode) => void;
   goTo: (cfi: string) => void;
@@ -51,11 +53,7 @@ export type SelectionPayload = {
 };
 
 export type CustomMenuKey = 'dict' | 'card' | 'deepl' | 'highlight' | 'copy';
-
-export type CustomMenuEvent = {
-  key: CustomMenuKey;
-  selectedText: string;
-};
+export type CustomMenuEvent = { key: CustomMenuKey; selectedText: string };
 
 const MENU_ITEMS: { key: CustomMenuKey; label: string }[] = [
   { key: 'dict', label: 'Dictionary' },
@@ -78,7 +76,7 @@ type Props = {
   onError?: (message: string) => void;
 };
 
-export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReader(
+export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function FoliateReader(
   {
     filename,
     startCfi,
@@ -95,9 +93,6 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
 ) {
   const webviewRef = useRef<WebView | null>(null);
   const [shellLoaded, setShellLoaded] = useState(false);
-  // Pixel viewport measured from the WebView's container. epub.js paginates
-  // against this, so we defer the `load` message until it's > 0 and re-post
-  // `setSize` whenever it changes (rotation, layout reflow).
   const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null);
   const loadedRef = useRef(false);
 
@@ -110,7 +105,7 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
     });
   }, []);
 
-  const post = useCallback((msg: EpubBridgeInbound) => {
+  const post = useCallback((msg: FoliateBridgeInbound) => {
     const wv = webviewRef.current;
     if (!wv) return;
     const json = JSON.stringify(msg);
@@ -135,6 +130,9 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
     [post],
   );
 
+  // Wait for both the WebView shell and the first non-zero layout pass before
+  // sending the load message -- foliate paginates against the measured size,
+  // same reasoning as the epubjs path.
   useEffect(() => {
     if (!shellLoaded || !viewport || loadedRef.current) return;
     let cancelled = false;
@@ -153,8 +151,8 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
           highlights: initialHighlights,
           viewport,
         });
-      } catch (err) {
-        if (!cancelled) onError?.(err instanceof Error ? err.message : 'Failed to open EPUB');
+      } catch (e) {
+        if (!cancelled) onError?.(e instanceof Error ? e.message : 'Failed to open EPUB');
       }
     })();
     return () => {
@@ -163,9 +161,7 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shellLoaded, viewport, filename]);
 
-  // After the initial load, container resizes (rotation, sheet open/close)
-  // reflow the rendition via setSize so text never paginates against stale
-  // dimensions.
+  // Re-send setSize on subsequent layout changes (rotation, sheet open/close).
   useEffect(() => {
     if (!loadedRef.current || !viewport) return;
     post({ type: 'setSize', width: viewport.width, height: viewport.height });
@@ -173,7 +169,7 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
 
   const handleMessage = useCallback(
     (e: WebViewMessageEvent) => {
-      let msg: EpubBridgeOutbound;
+      let msg: FoliateBridgeOutbound;
       try {
         msg = JSON.parse(e.nativeEvent.data);
       } catch {
@@ -208,7 +204,7 @@ export const EpubReader = forwardRef<EpubReaderHandle, Props>(function EpubReade
       <WebView
         ref={webviewRef}
         originWhitelist={['*']}
-        source={{ html: EPUB_HTML }}
+        source={{ html: FOLIATE_HTML }}
         onLoadEnd={() => setShellLoaded(true)}
         onMessage={handleMessage}
         javaScriptEnabled

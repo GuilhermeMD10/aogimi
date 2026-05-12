@@ -3,8 +3,9 @@ import { ReaderToolbar, type ToolbarAction } from '../ReaderToolbar';
 import { TocSheet } from '../TocSheet';
 import { AnnotationsSheet } from '../AnnotationsSheet';
 import { TypographyPanel } from '../TypographyPanel';
-import type { EpubTocItem } from '../epubHtml';
+import type { EpubTocItem } from '../foliateHtml';
 import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '@/lib/readerStorage';
+import type { ReaderDirection, ReaderLayout } from '@/lib/readerLayout';
 
 type Sheet = 'toc' | 'annotations' | 'typography' | null;
 
@@ -16,6 +17,8 @@ export type TextReaderProps = {
   highlights: EpubHighlight[];
   bookmarks: EpubBookmark[];
   isBookmarked: boolean;
+  layout: ReaderLayout;
+  direction: ReaderDirection;
   onPrev: () => void;
   onNext: () => void;
   onJumpHref: (href: string) => void;
@@ -23,6 +26,8 @@ export type TextReaderProps = {
   onToggleBookmark: () => void;
   onDeleteBookmark: (id: string) => void;
   onDeleteHighlight: (id: string) => void;
+  onToggleLayout: () => void;
+  onToggleDirection: () => void;
 };
 
 /**
@@ -37,6 +42,8 @@ export function TextReader({
   highlights,
   bookmarks,
   isBookmarked,
+  layout,
+  direction,
   onPrev,
   onNext,
   onJumpHref,
@@ -44,6 +51,8 @@ export function TextReader({
   onToggleBookmark,
   onDeleteBookmark,
   onDeleteHighlight,
+  onToggleLayout,
+  onToggleDirection,
 }: TextReaderProps) {
   const [sheet, setSheet] = useState<Sheet>(null);
 
@@ -70,6 +79,12 @@ export function TextReader({
       case 'typography':
         setSheet((s) => (s === 'typography' ? null : 'typography'));
         return;
+      case 'layout':
+        onToggleLayout();
+        return;
+      case 'direction':
+        onToggleDirection();
+        return;
     }
   };
 
@@ -86,7 +101,12 @@ export function TextReader({
 
   return (
     <>
-      <ReaderToolbar active={active} onAction={handleAction} />
+      <ReaderToolbar
+        active={active}
+        layout={layout}
+        direction={direction}
+        onAction={handleAction}
+      />
 
       <TocSheet visible={sheet === 'toc'} toc={toc} onDismiss={() => setSheet(null)} onNavigate={onJumpHref} />
 
