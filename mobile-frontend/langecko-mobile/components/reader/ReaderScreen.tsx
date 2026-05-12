@@ -15,24 +15,26 @@ import {
   useReaderStorage,
   type HighlightColor,
 } from '@/lib/readerStorage';
+import { useReaderPrefs } from '@/lib/readerPrefs';
 import { DictDrawer } from '@/components/dictionary/DictDrawer';
 import { FlashcardDrawer, type FlashcardPrefill } from '@/components/flashcards/FlashcardDrawer';
 import { Button } from '@/components/ui/Button';
 import { ReaderTopBar } from './ReaderTopBar';
 import {
-  EpubReader,
+  FoliateReader,
   type CustomMenuEvent,
-  type EpubReaderHandle,
+  type FoliateReaderHandle,
   type ReadyPayload,
   type RelocatedPayload,
   type SelectionPayload,
-} from './readers/EpubReader';
+} from './readers/FoliateReader';
 import { TextReader } from './readers/TextReader';
 import { NovelReader } from './readers/NovelReader';
 import { MangaReader } from './readers/MangaReader';
 import { HighlightPicker } from './HighlightPicker';
 import { DeepLPopup } from './DeepLPopup';
-import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle, ReaderViewMode } from './epubHtml';
+import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle, ReaderViewMode } from './foliateHtml';
+import { useReaderLayoutPrefs, flowForCombo } from '@/lib/readerLayout';
 
 type Props = { bookId: string };
 
@@ -46,21 +48,23 @@ export function ReaderScreen({ bookId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [hasFile, setHasFile] = useState(false);
 
-  // ── Reader storage (prefs / highlights / bookmarks) ─────────────────
+  // ── Reader storage: per-book bits (highlights / bookmarks / last CFI) ──
   const storage = useReaderStorage(book?.filename ?? null);
   const {
-    hydrated,
-    prefs,
+    hydrated: storageHydrated,
     highlights,
     bookmarks,
     saveLastCfi,
-    savePrefs,
     addHighlight,
     removeHighlight,
     setHighlightColor,
     addBookmark,
     removeBookmark,
   } = storage;
+
+  // ── Reader prefs: app-level (font / theme / line height / fontFamily) ──
+  const { prefs, savePrefs, hydrated: prefsHydrated } = useReaderPrefs();
+  const hydrated = storageHydrated && prefsHydrated;
 
   // ── EPUB state (set after WebView ready) ────────────────────────────
   const [bookType, setBookType] = useState<BookType | null>(null);
@@ -82,7 +86,20 @@ export function ReaderScreen({ bookId }: Props) {
     y: number;
   } | null>(null);
 
-  const epubRef = useRef<EpubReaderHandle | null>(null);
+  const epubRef = useRef<FoliateReaderHandle | null>(null);
+  const { layout, direction, toggleLayout, toggleDirection } = useReaderLayoutPrefs();
+  const [readerReady, setReaderReady] = useState(false);
+
+  // Apply the layout/direction combo via setViewMode. Fires:
+  //   - after 'ready' (initial setup, once the renderer is fully alive --
+  //     setting flow during loadBook silently races foliate's renderer init)
+  //   - whenever the user toggles layout or direction in the toolbar
+  // Translates the user-facing combo to the renderer's viewMode vocab.
+  useEffect(() => {
+    if (!readerReady || !epubRef.current) return;
+    const flow = flowForCombo(layout, direction);
+    epubRef.current.setViewMode(flow === 'scrolled' ? 'scroll' : 'single');
+  }, [readerReady, layout, direction]);
   const latestLocationRef = useRef<{ cfi: string; progress: number } | null>(null);
 
   // ── Load the book record ────────────────────────────────────────────
@@ -127,6 +144,7 @@ export function ReaderScreen({ bookId }: Props) {
   const handleReady = useCallback((payload: ReadyPayload) => {
     setBookType(payload.bookType);
     setToc(payload.toc);
+    setReaderReady(true);
   }, []);
 
   const handleRelocated = useCallback(
@@ -349,6 +367,10 @@ export function ReaderScreen({ bookId }: Props) {
     highlights,
     bookmarks,
     isBookmarked,
+    layout,
+    direction,
+    onToggleLayout: toggleLayout,
+    onToggleDirection: toggleDirection,
     onPrev: () => epubRef.current?.prev(),
     onNext: () => epubRef.current?.next(),
     onJumpHref: (href: string) => epubRef.current?.goTo(href),
@@ -370,7 +392,7 @@ export function ReaderScreen({ bookId }: Props) {
 
       <View style={styles.body}>
         {ready ? (
-          <EpubReader
+          <FoliateReader
             ref={epubRef}
             filename={book.filename}
             startCfi={book.cfi_position}
