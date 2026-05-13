@@ -7,14 +7,25 @@ import { JlptChip } from '@/components/ui/JlptChip';
 type Props = {
   word: WordResult;
   query: string;
+  index: number;
+  /** First row gets an accent left-edge bar, mirroring the web "active" state. */
+  active?: boolean;
   onPress: () => void;
 };
 
-export function DictResultRow({ word, query, onPress }: Props) {
+/** Dense result row. Mirrors the web /dictionary row data depth: mono
+ *  `01/02` index on the left, headword + reading + `is_common` dot,
+ *  POS / JLPT / per-kanji-grade chip stack, and a numbered list of glosses
+ *  underneath. The active row gets a 2px accent edge on the left. */
+export function DictResultRow({ word, query, index, active, onPress }: Props) {
   const c = useColors();
-  const headword = word.kanji[0] ?? word.readings[0] ?? '';
-  const reading = word.readings[0] ?? '';
-  const gloss = word.meanings.find((m) => m.lang === 'eng' || m.lang === 'en')?.meaning ?? '';
+  const headword = preferredHeadword(word, query);
+  const reading = word.kanji.length > 0 ? word.readings[0] : null;
+  const glosses = word.meanings
+    .filter((m) => m.lang === 'eng' || m.lang === 'en')
+    .map((m) => m.meaning);
+  const pos = word.meanings[0]?.pos ?? null;
+  const charGrades = word.char_grades?.filter((cg) => cg.grade != null) ?? [];
 
   return (
     <Pressable
@@ -22,28 +33,97 @@ export function DictResultRow({ word, query, onPress }: Props) {
       style={({ pressed }) => [
         styles.row,
         {
-          backgroundColor: pressed ? c.bgSunken : c.bgElev,
-          borderColor: c.border,
+          backgroundColor: active ? c.bgElev : pressed ? c.bgSunken : 'transparent',
+          borderBottomColor: c.border,
+          borderLeftColor: active ? c.accent : 'transparent',
         },
       ]}
     >
-      <View style={styles.headRow}>
-        <Text style={[styles.headword, { color: c.fg }]} numberOfLines={1}>
-          {highlightMatch(headword, query, c.accent)}
-        </Text>
-        {reading && reading !== headword && (
-          <Text style={[styles.reading, { color: c.fgMuted }]} numberOfLines={1}>
-            {highlightMatch(reading, query, c.accent)}
+      <Text style={[styles.indexNum, { color: c.fgSubtle, fontFamily: fontFamily.ui }]}>
+        {String(index + 1).padStart(2, '0')}
+      </Text>
+
+      <View style={styles.headBlock}>
+        <View style={styles.headRow}>
+          <Text
+            style={[styles.headword, { color: c.fg, fontFamily: fontFamily.jp }]}
+            numberOfLines={1}
+          >
+            {highlightMatch(headword, query, c.fg)}
+          </Text>
+          {word.is_common && (
+            <View
+              style={[styles.commonDot, { backgroundColor: c.accent }]}
+              accessibilityLabel="Common word"
+            />
+          )}
+        </View>
+        {reading && (
+          <Text
+            style={[styles.reading, { color: c.fgMuted, fontFamily: fontFamily.jp }]}
+            numberOfLines={1}
+          >
+            {reading}
           </Text>
         )}
-        {word.jlpt_level != null && <JlptChip level={word.jlpt_level} compact />}
       </View>
-      {gloss && (
-        <Text style={[styles.gloss, { color: c.fgMuted }]} numberOfLines={2}>
-          {gloss}
-        </Text>
-      )}
+
+      <View style={styles.body}>
+        <View style={styles.chipsRow}>
+          {pos && (
+            <Chip text={pos} c={c} />
+          )}
+          {word.jlpt_level != null && <JlptChip level={word.jlpt_level} compact />}
+          {charGrades.length > 1 &&
+            charGrades.map(({ char, grade }) => (
+              <Chip key={char} text={`${char} G${grade}`} c={c} />
+            ))}
+        </View>
+        {glosses.length > 0 && (
+          <View style={styles.glossList}>
+            {glosses.slice(0, 4).map((g, gi) => (
+              <View key={gi} style={styles.glossRow}>
+                <Text style={[styles.glossNum, { color: c.fgSubtle, fontFamily: fontFamily.ui }]}>
+                  {gi + 1}.
+                </Text>
+                <Text
+                  style={[styles.glossText, { color: c.fg, fontFamily: fontFamily.reader }]}
+                  numberOfLines={2}
+                >
+                  {g}
+                </Text>
+              </View>
+            ))}
+            {glosses.length > 4 && (
+              <Text style={[styles.glossMore, { color: c.fgSubtle, fontFamily: fontFamily.ui }]}>
+                +{glosses.length - 4} more
+              </Text>
+            )}
+          </View>
+        )}
+      </View>
     </Pressable>
+  );
+}
+
+/** Surfaces an exact-match query form (kanji or reading) as the row's
+ *  headword instead of the dict's "primary" common kanji. Mirrors the web
+ *  helper of the same name. */
+export function preferredHeadword(
+  word: { kanji: string[]; readings: string[] },
+  query: string | undefined,
+): string {
+  const q = (query ?? '').trim();
+  if (q && word.kanji.includes(q)) return q;
+  if (q && word.readings.includes(q)) return q;
+  return word.kanji[0] ?? word.readings[0] ?? '—';
+}
+
+function Chip({ text, c }: { text: string; c: { fgMuted: string; border: string; bgElev: string } }) {
+  return (
+    <View style={[styles.chip, { borderColor: c.border, backgroundColor: c.bgElev }]}>
+      <Text style={[styles.chipText, { color: c.fgMuted, fontFamily: fontFamily.ui }]}>{text}</Text>
+    </View>
   );
 }
 
@@ -54,7 +134,7 @@ function highlightMatch(text: string, query: string, accent: string): React.Reac
   return (
     <>
       {text.slice(0, idx)}
-      <Text style={{ color: accent }}>{text.slice(idx, idx + query.length)}</Text>
+      <Text style={{ color: accent, fontWeight: '700' }}>{text.slice(idx, idx + query.length)}</Text>
       {text.slice(idx + query.length)}
     </>
   );
@@ -62,14 +142,88 @@ function highlightMatch(text: string, query: string, accent: string): React.Reac
 
 const styles = StyleSheet.create({
   row: {
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    gap: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderLeftWidth: 2,
   },
-  headRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.md, flexWrap: 'wrap' },
-  headword: { fontFamily: fontFamily.jp, fontSize: fontSize.xl, fontWeight: '500' },
-  reading: { fontFamily: fontFamily.jp, fontSize: fontSize.md },
-  gloss: { fontSize: fontSize.sm, marginTop: 4, lineHeight: 18 },
+  indexNum: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1,
+    fontVariant: ['tabular-nums'],
+    minWidth: 22,
+    paddingTop: 6,
+  },
+  headBlock: {
+    minWidth: 88,
+    maxWidth: 130,
+  },
+  headRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headword: {
+    fontSize: 26,
+    fontWeight: '500',
+    letterSpacing: -0.3,
+  },
+  commonDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+  },
+  reading: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  chip: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  chipText: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  glossList: {
+    gap: 3,
+  },
+  glossRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  glossNum: {
+    fontSize: 11,
+    fontVariant: ['tabular-nums'],
+    paddingTop: 2,
+    minWidth: 14,
+  },
+  glossText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    lineHeight: 19,
+  },
+  glossMore: {
+    fontSize: 10,
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
 });
