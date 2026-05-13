@@ -13,3 +13,11 @@ coverage
 *.lock
 .DS_Store
 .vscode
+n1.csv
+n2.csv
+n3.csv
+n4.csv
+n5.csv
+Podfile.lock
+.ds_store
+.expo

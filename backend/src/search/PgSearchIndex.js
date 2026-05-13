@@ -146,6 +146,23 @@ class PgSearchIndex extends SearchIndex {
 
   async hydrate(ids) {
     if (!ids.length) return [];
+    // Per-form priority scoring inside json_agg ORDER BY ensures kanji[0]
+    // and readings[0] are the canonical forms (e.g. 言う over 云う, even when
+    // both are stored against the same word_id). Weights match migration
+    // 008's word-level scoring so both paths agree on what "common" means.
+    const KANJI_SCORE = `
+      (CASE WHEN wk.priority LIKE '%ichi1%' THEN 50 ELSE 0 END
+     + CASE WHEN wk.priority LIKE '%news1%' THEN 40 ELSE 0 END
+     + CASE WHEN wk.priority LIKE '%gai1%'  THEN 30 ELSE 0 END
+     + CASE WHEN wk.priority LIKE '%spec1%' THEN 20 ELSE 0 END
+     + CASE
+         WHEN wk.priority ~ 'nf0[1-5]([^0-9]|$)'          THEN 20
+         WHEN wk.priority ~ 'nf(0[6-9]|1[0-2])([^0-9]|$)' THEN 10
+         WHEN wk.priority ~ 'nf(1[3-9]|2[0-4])([^0-9]|$)' THEN 5
+         ELSE 0
+       END)`;
+    const KANA_SCORE = KANJI_SCORE.replace(/wk\.priority/g, 'wr.priority');
+
     const { rows } = await pool.query(
       `
       SELECT w.id,
@@ -153,13 +170,23 @@ class PgSearchIndex extends SearchIndex {
              w.priority_score,
              w.jlpt_level,
              COALESCE(
-               (SELECT json_agg(DISTINCT wk.kanji)
-                FROM word_kanji wk WHERE wk.word_id = w.id),
+               (SELECT json_agg(k.kanji ORDER BY k.score DESC, k.kanji)
+                FROM (
+                  SELECT wk.kanji, MAX(${KANJI_SCORE}) AS score
+                  FROM word_kanji wk
+                  WHERE wk.word_id = w.id
+                  GROUP BY wk.kanji
+                ) k),
                '[]'::json
              ) AS kanji,
              COALESCE(
-               (SELECT json_agg(DISTINCT wr.kana)
-                FROM word_readings wr WHERE wr.word_id = w.id),
+               (SELECT json_agg(r.kana ORDER BY r.score DESC, r.kana)
+                FROM (
+                  SELECT wr.kana, MAX(${KANA_SCORE}) AS score
+                  FROM word_readings wr
+                  WHERE wr.word_id = w.id
+                  GROUP BY wr.kana
+                ) r),
                '[]'::json
              ) AS readings,
              COALESCE(

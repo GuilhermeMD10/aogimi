@@ -235,6 +235,12 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
   );
 });
 
+// The floating ReaderBottomDock (pill at rest) occupies ~y=22..60 from the
+// device bottom. Reserve a bit above that so the last line of text doesn't
+// slide under the pill. The WebView fills this View, so shrinking the View
+// shrinks foliate's pagination viewport accordingly.
+const DOCK_CLEARANCE = 72;
+
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, paddingBottom: DOCK_CLEARANCE },
 });
