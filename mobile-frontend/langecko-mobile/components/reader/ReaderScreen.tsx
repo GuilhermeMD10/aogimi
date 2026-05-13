@@ -87,7 +87,8 @@ export function ReaderScreen({ bookId }: Props) {
   } | null>(null);
 
   const epubRef = useRef<FoliateReaderHandle | null>(null);
-  const { layout, direction, toggleLayout, toggleDirection } = useReaderLayoutPrefs();
+  const { layout, direction, setLayout, setDirection, toggleLayout, toggleDirection } =
+    useReaderLayoutPrefs();
   const [readerReady, setReaderReady] = useState(false);
 
   // Apply the layout/direction combo via setViewMode. Fires:
@@ -361,6 +362,8 @@ export function ReaderScreen({ bookId }: Props) {
 
   // Common props for the text/novel overlays
   const sharedTextProps = {
+    title: book.title,
+    progress,
     toc,
     prefs,
     onChangePrefs: savePrefs,
@@ -371,6 +374,8 @@ export function ReaderScreen({ bookId }: Props) {
     direction,
     onToggleLayout: toggleLayout,
     onToggleDirection: toggleDirection,
+    onSetLayout: setLayout,
+    onSetDirection: setDirection,
     onPrev: () => epubRef.current?.prev(),
     onNext: () => epubRef.current?.next(),
     onJumpHref: (href: string) => epubRef.current?.goTo(href),
@@ -382,13 +387,7 @@ export function ReaderScreen({ bookId }: Props) {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
-      <ReaderTopBar
-        chapterLabel={chapterLabel}
-        progress={progress}
-        bookmarked={isBookmarked}
-        onBack={handleBack}
-        onToggleBookmark={toggleBookmark}
-      />
+      <ReaderTopBar onBack={handleBack} />
 
       <View style={styles.body}>
         {ready ? (

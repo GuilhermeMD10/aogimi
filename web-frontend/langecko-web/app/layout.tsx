@@ -52,6 +52,22 @@ const dmMono = DM_Mono({
 export const metadata: Metadata = {
   title: 'Langeco',
   description: 'Japanese reading and vocabulary app',
+  manifest: '/manifest.json',
+  icons: {
+    // Next auto-serves /app/icon.png, /app/apple-icon.png, /app/opengraph-image.png
+    // via its file-based convention. Sized PWA/favicon variants ship from /public.
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-48x48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    other: [
+      // Windows tile
+      { rel: 'msapplication-TileImage', url: '/mstile-150x150.png' },
+    ],
+  },
 };
 
 // Pre-hydration script: synchronously applies the persisted theme to <html>

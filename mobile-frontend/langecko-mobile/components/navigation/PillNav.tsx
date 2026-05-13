@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Feather from '@expo/vector-icons/Feather';
@@ -24,33 +24,22 @@ const FALLBACK_LABELS: Record<string, string> = {
   profile: 'You',
 };
 
-const ANIM_DURATION = 300;
+const ANIM_DURATION = 220;
+const ICON_BIG = 22;
+const ICON_SMALL = 16;
+const LABEL_HEIGHT = 14;
 
 // ── PillNav ──────────────────────────────────────────────────────────────────
 
+/** Bottom nav. Pill spans close to the device width and gives every tab
+ *  an equal slice. Inactive tabs show only the icon, centered. Active
+ *  tabs fill with `fg`, shrink the icon and lift it up so the label
+ *  appears underneath. Reverses on deselect. */
 export function PillNav({ state, descriptors, navigation }: BottomTabBarProps) {
   const { theme, colors } = useTheme();
   const insets = useSafeAreaInsets();
 
   const pillBg = theme.meta.isDark ? 'rgba(30,24,20,1)' : 'rgba(255,255,255,1)';
-
-  // `progress` is a shared 0→1 value that drives the current transition.
-  // `prevIndex` is the tab the user is leaving; only it and the new active
-  // tab animate. Everything else stays put — no in-between sweep.
-  const progress = useRef(new Animated.Value(1)).current;
-  const [prevIndex, setPrevIndex] = useState(state.index);
-
-  useLayoutEffect(() => {
-    if (prevIndex === state.index) return;
-    progress.setValue(0);
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: ANIM_DURATION,
-      useNativeDriver: false,
-    }).start(({ finished }) => {
-      if (finished) setPrevIndex(state.index);
-    });
-  }, [state.index, prevIndex, progress]);
 
   return (
     <View pointerEvents="box-none" style={[styles.host, { bottom: 6 + insets.bottom }]}>
@@ -68,21 +57,11 @@ export function PillNav({ state, descriptors, navigation }: BottomTabBarProps) {
                 ? labelOpt
                 : (descriptor?.options.title ?? FALLBACK_LABELS[route.name] ?? route.name);
 
-            // Only the entering tab animates 0→1, only the leaving tab
-            // animates 1→0, everything else is a static 0.
-            const proximity =
-              idx === state.index
-                ? progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1] })
-                : idx === prevIndex
-                  ? progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })
-                  : progress.interpolate({ inputRange: [0, 1], outputRange: [0, 0] });
-
             return (
               <PillTab
                 key={route.key}
                 label={label}
                 iconName={iconName}
-                proximity={proximity}
                 active={active}
                 colors={colors}
                 onPress={() => {
@@ -104,46 +83,49 @@ export function PillNav({ state, descriptors, navigation }: BottomTabBarProps) {
   );
 }
 
-// ── Tab button (every animated style derives from the shared `proximity`) ──
+// ── Tab button ──────────────────────────────────────────────────────────────
 
 function PillTab({
   label,
   iconName,
-  proximity,
   active,
   colors,
   onPress,
 }: {
   label: string;
   iconName: FeatherName;
-  proximity: Animated.AnimatedInterpolation<number>;
   active: boolean;
   colors: ThemeColors;
   onPress: () => void;
 }) {
-  const paddingLeft = proximity.interpolate({
+  // 0 = inactive, 1 = active. Drives icon scale, label height (which lets
+  // the icon naturally lift inside the centered flex column), label
+  // opacity, icon color crossfade, and tab background.
+  const progress = useRef(new Animated.Value(active ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: active ? 1 : 0,
+      duration: ANIM_DURATION,
+      useNativeDriver: false,
+    }).start();
+  }, [active, progress]);
+
+  const iconScale = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [10, 14],
+    outputRange: [1, ICON_SMALL / ICON_BIG],
   });
-  const paddingRight = proximity.interpolate({
+  const labelHeight = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [10, 16],
+    outputRange: [0, LABEL_HEIGHT],
   });
-  const labelMaxWidth = proximity.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 120],
-  });
-  const labelMargin = proximity.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 7],
-  });
-  const bgColor = proximity.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['rgba(0,0,0,0)', colors.fg],
-  });
-  const inactiveIconOpacity = proximity.interpolate({
+  const inactiveIconOpacity = progress.interpolate({
     inputRange: [0, 1],
     outputRange: [1, 0],
+  });
+  const bgColor = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(0,0,0,0)', colors.fg],
   });
 
   return (
@@ -153,40 +135,31 @@ function PillTab({
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
       hitSlop={4}
+      style={styles.btnPress}
     >
-      <Animated.View
-        style={[
-          styles.btn,
-          {
-            paddingLeft,
-            paddingRight,
-            backgroundColor: bgColor,
-          },
-        ]}
-      >
-        {/* Two icons crossfaded — Feather's color prop isn't animatable */}
-        <View style={styles.iconWrap}>
+      <Animated.View style={[styles.btn, { backgroundColor: bgColor }]}>
+        {/* The wrapper stays at ICON_BIG² so layout space is constant; the
+         *  visible icon shrinks via transform.scale, which is what drives
+         *  the "lift up + label appears below" effect inside the centered
+         *  flex column. Two stacked Feathers crossfade colors (Feather's
+         *  `color` prop isn't animatable). */}
+        <Animated.View style={[styles.iconWrap, { transform: [{ scale: iconScale }] }]}>
           <Animated.View style={[StyleSheet.absoluteFill, { opacity: inactiveIconOpacity }]}>
-            <Feather name={iconName} size={20} color={colors.fgMuted} />
+            <Feather name={iconName} size={ICON_BIG} color={colors.fgMuted} />
           </Animated.View>
-          <Animated.View style={[StyleSheet.absoluteFill, { opacity: proximity }]}>
-            <Feather name={iconName} size={20} color={colors.accentFg} />
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
+            <Feather name={iconName} size={ICON_BIG} color={colors.bg} />
           </Animated.View>
-        </View>
-        <Animated.Text
-          numberOfLines={1}
-          style={[
-            styles.label,
-            {
-              color: colors.accentFg,
-              opacity: proximity,
-              maxWidth: labelMaxWidth,
-              marginLeft: labelMargin,
-            },
-          ]}
-        >
-          {label}
-        </Animated.Text>
+        </Animated.View>
+
+        <Animated.View style={{ height: labelHeight, overflow: 'hidden' }}>
+          <Animated.Text
+            numberOfLines={1}
+            style={[styles.label, { color: colors.bg, opacity: progress }]}
+          >
+            {label}
+          </Animated.Text>
+        </Animated.View>
       </Animated.View>
     </Pressable>
   );
@@ -197,10 +170,11 @@ function PillTab({
 const styles = StyleSheet.create({
   host: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+    left: 12,
+    right: 12,
+    alignItems: 'stretch',
     zIndex: 40,
+    bottom: 20,
   },
   shadowWrap: {
     borderRadius: 999,
@@ -212,27 +186,33 @@ const styles = StyleSheet.create({
   },
   pill: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    alignItems: 'stretch',
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 6,
+    gap: 4,
+  },
+  btnPress: {
+    flex: 1,
   },
   btn: {
-    flexDirection: 'row',
+    flex: 1,
+    height: 52,
     alignItems: 'center',
-    paddingVertical: 10,
+    justifyContent: 'center',
     borderRadius: 999,
   },
   iconWrap: {
-    width: 20,
-    height: 20,
+    width: ICON_BIG,
+    height: ICON_BIG,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: -0.1,
+    height: LABEL_HEIGHT,
+    lineHeight: LABEL_HEIGHT,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.4,
     fontFamily: fontFamily.ui,
-    overflow: 'hidden',
+    textAlign: 'center',
   },
 });

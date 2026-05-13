@@ -106,5 +106,8 @@
     "currentlyReading": "Currently reading",
     "signOut": "Sign out",
     "changeAvatar": "Change avatar"
+  },
+  "settings": {
+    "title": "Settings"
   }
 }

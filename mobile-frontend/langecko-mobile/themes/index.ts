@@ -14,7 +14,7 @@ import type { ComponentType, ComponentProps } from 'react';
 import type { ThemeName } from '@/theme/tokens';
 
 import type { HomeScreen as DefaultHomeScreen } from '@/components/home/HomeScreen';
-import type { PillNav as DefaultPillNav } from '@/components/navigation/PillNav';
+import type { NotchedNavBar as DefaultBottomTabBar } from '@/components/navigation/NotchedNavBar';
 import type { DictionaryScreen as DefaultDictionaryScreen } from '@/components/dictionary/DictionaryScreen';
 import type { DictEntry as DefaultDictEntry } from '@/components/dictionary/DictEntry';
 
@@ -25,7 +25,7 @@ import { DictEntry as StampDictEntry } from './stamp/dictionary/DictEntry';
 
 export type ThemeComponentMap = Partial<{
   HomeScreen: ComponentType<ComponentProps<typeof DefaultHomeScreen>>;
-  BottomTabBar: ComponentType<ComponentProps<typeof DefaultPillNav>>;
+  BottomTabBar: ComponentType<ComponentProps<typeof DefaultBottomTabBar>>;
   DictionaryScreen: ComponentType<ComponentProps<typeof DefaultDictionaryScreen>>;
   DictEntry: ComponentType<ComponentProps<typeof DefaultDictEntry>>;
 }>;

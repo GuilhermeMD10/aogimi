@@ -1,52 +1,26 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
-import { fontSize, spacing } from '@/theme/tokens';
+
+// Minimal top-edge chrome for the reader page. The floating-pill dock at the
+// bottom carries the progress, chapter, and bookmark surfaces; the only
+// remaining responsibility up here is back-to-library navigation.
 
 type Props = {
-  chapterLabel: string;
-  progress: number; // 0-100
-  bookmarked?: boolean;
   onBack?: () => void;
-  onToggleBookmark?: () => void;
 };
 
-export function ReaderTopBar({
-  chapterLabel,
-  progress,
-  bookmarked,
-  onBack,
-  onToggleBookmark,
-}: Props) {
+export function ReaderTopBar({ onBack }: Props) {
   const c = useColors();
   return (
-    <View style={styles.row}>
-      <Pressable onPress={onBack} hitSlop={10} style={styles.iconBtn}>
-        <Text style={[styles.chevron, { color: c.fg }]}>‹</Text>
-      </Pressable>
-
-      <View style={styles.middle}>
-        <View style={[styles.track, { backgroundColor: c.bgSunken }]}>
-          <View
-            style={[
-              styles.fill,
-              { backgroundColor: c.fg, width: `${Math.max(0, Math.min(100, progress))}%` },
-            ]}
-          />
-        </View>
-        <View style={styles.labelRow}>
-          <Text style={[styles.labelText, { color: c.fgSubtle }]}>{chapterLabel}</Text>
-          <Text style={[styles.labelText, { color: c.fgSubtle }]}>{Math.round(progress)}%</Text>
-        </View>
-      </View>
-
+    <View pointerEvents="box-none" style={styles.row}>
       <Pressable
-        onPress={onToggleBookmark}
-        hitSlop={8}
-        style={[styles.iconBtn, { backgroundColor: c.bgElev }]}
+        onPress={onBack}
+        accessibilityRole="button"
+        accessibilityLabel="Back to library"
+        hitSlop={14}
+        style={[styles.iconBtn, { backgroundColor: c.bgElev, borderColor: c.border }]}
       >
-        <Text style={[styles.bookmark, { color: bookmarked ? c.accent : c.fg }]}>
-          {bookmarked ? '●' : '○'}
-        </Text>
+        <Text style={[styles.chevron, { color: c.fg }]}>‹</Text>
       </Pressable>
     </View>
   );
@@ -56,27 +30,22 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 14,
     paddingTop: 4,
-    paddingBottom: 10,
+    paddingBottom: 6,
   },
   iconBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  chevron: { fontSize: 28, lineHeight: 28, fontWeight: '300' },
-  bookmark: { fontSize: 14 },
-  middle: { flex: 1 },
-  track: { height: 2, borderRadius: 99, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 99 },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  labelText: { fontSize: fontSize.xs - 1, fontVariant: ['tabular-nums'] },
+  chevron: { fontSize: 22, lineHeight: 22, fontWeight: '300' },
 });

@@ -4,6 +4,7 @@ import {
   Dimensions,
   Easing,
   Modal,
+  PanResponder,
   Pressable,
   StyleSheet,
   View,
@@ -21,6 +22,11 @@ type Props = {
 };
 
 const SCREEN_H = Dimensions.get('window').height;
+
+// Swipe-to-dismiss tuning. Below the velocity threshold a drag only closes
+// when the user has pulled the sheet down past the distance threshold.
+const SWIPE_CLOSE_VELOCITY = 0.6;        // px/ms
+const SWIPE_CLOSE_DISTANCE_RATIO = 0.3;  // fraction of sheet height
 
 export function BottomSheet({
   visible,
@@ -68,6 +74,42 @@ export function BottomSheet({
     ]).start(() => onDismiss());
   };
 
+  // ── Swipe-down on the handle ─────────────────────────────────────────
+  // The handle wrapper claims downward drags; upward overdrag is ignored.
+  // Release past distance OR velocity threshold dismisses; otherwise the
+  // sheet springs back to rest.
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 4 && gs.dy > 0,
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy > 0) translateY.setValue(gs.dy);
+      },
+      onPanResponderRelease: (_, gs) => {
+        const shouldClose =
+          gs.vy > SWIPE_CLOSE_VELOCITY ||
+          gs.dy > sheetHeight * SWIPE_CLOSE_DISTANCE_RATIO;
+        if (shouldClose) {
+          handleDismiss();
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 0,
+            speed: 16,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 0,
+          speed: 16,
+        }).start();
+      },
+    }),
+  ).current;
+
   return (
     <Modal
       transparent
@@ -97,7 +139,7 @@ export function BottomSheet({
             contentStyle,
           ]}
         >
-          <View style={styles.handleWrap}>
+          <View style={styles.handleWrap} {...panResponder.panHandlers}>
             <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
           </View>
           <SafeAreaView style={styles.content} edges={['bottom']}>
