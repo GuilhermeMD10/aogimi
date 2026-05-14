@@ -13,7 +13,6 @@ import { Screen } from '@/components/ui/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
-import { useNavVisibility } from '@/lib/navVisibility';
 import type { SearchResponse, WordDetails, WordResult } from '@/lib/types';
 import { FlashcardDrawer, type FlashcardPrefill } from '@/components/flashcards/FlashcardDrawer';
 import { DictEntry } from './DictEntry';
@@ -22,8 +21,6 @@ import { DictEmpty } from './DictEmpty';
 import { useDictionarySearch } from './useDictionarySearch';
 import { useDictionaryNav } from './useDictionaryNav';
 import { getRecentSearches, pushRecentSearch, type RecentSearchItem } from '@/lib/storage/dictionary';
-
-const NAV_CLAIM = 'dictionary-detail';
 
 export function DictionaryScreen() {
   const c = useColors();
@@ -41,18 +38,7 @@ export function DictionaryScreen() {
     void getRecentSearches().then(setRecents);
   }, []);
 
-  // Hide the bottom tab bar while a detail (or its loading state) is on top.
-  const { claim, release } = useNavVisibility();
-  useEffect(() => {
-    const inDetail = current.kind === 'detail' || current.kind === 'detailLoading';
-    if (inDetail) {
-      claim(NAV_CLAIM);
-      return () => release(NAV_CLAIM);
-    }
-    return undefined;
-  }, [current.kind, claim, release]);
-
-  const addFlashcardFromDetails = useCallback((details: WordDetails) => {
+const addFlashcardFromDetails = useCallback((details: WordDetails) => {
     const w = details.word;
     setFlashcardPrefill({
       front: w.kanji[0] ?? w.readings[0] ?? '',

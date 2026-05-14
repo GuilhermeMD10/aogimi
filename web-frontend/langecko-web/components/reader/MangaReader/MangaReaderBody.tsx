@@ -10,7 +10,7 @@ import type { MangaReaderEngine } from './useMangaReaderEngine';
 export function MangaReaderBody({ engine }: { engine: MangaReaderEngine }) {
   const {
     wrapperRef,
-    renditionRef,
+    viewRef,
     ready,
     error,
     viewMode,
@@ -52,7 +52,7 @@ export function MangaReaderBody({ engine }: { engine: MangaReaderEngine }) {
           >
             <TocPanel
               items={toc}
-              onNavigate={(href) => { void renditionRef.current?.display(href); setPanel(null); }}
+              onNavigate={(href) => { void viewRef.current?.goTo(href); setPanel(null); }}
               onClose={() => setPanel(null)}
             />
           </div>
@@ -69,7 +69,7 @@ export function MangaReaderBody({ engine }: { engine: MangaReaderEngine }) {
               epubBookmarks={epubBookmarks}
               onJumpEpubHighlight={() => {}}
               onDeleteEpubHighlight={() => {}}
-              onJumpEpubBookmark={(b) => { void renditionRef.current?.display(b.cfi); setPanel(null); }}
+              onJumpEpubBookmark={(b) => { void viewRef.current?.goTo(b.cfi); setPanel(null); }}
               onDeleteEpubBookmark={removeEpubBookmark}
               onClose={() => setPanel(null)}
             />

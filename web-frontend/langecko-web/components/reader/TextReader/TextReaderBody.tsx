@@ -21,7 +21,7 @@ interface TextReaderBodyProps {
 export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyProps) {
   const {
     wrapperRef,
-    renditionRef,
+    viewRef,
     ctxMenuRef,
     typoPanelRef,
     ready,
@@ -71,7 +71,7 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
             >
               <TocPanel
                 items={toc}
-                onNavigate={(href) => { void renditionRef.current?.display(href); setPanel(null); }}
+                onNavigate={(href) => { void viewRef.current?.goTo(href); setPanel(null); }}
                 onClose={() => setPanel(null)}
               />
             </div>
@@ -86,9 +86,9 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
               <AnnotationsPanel
                 epubHighlights={epubHighlights}
                 epubBookmarks={epubBookmarks}
-                onJumpEpubHighlight={(h) => { void renditionRef.current?.display(h.cfi); setPanel(null); }}
+                onJumpEpubHighlight={(h) => { void viewRef.current?.goTo(h.cfi); setPanel(null); }}
                 onDeleteEpubHighlight={deleteHighlight}
-                onJumpEpubBookmark={(b) => { void renditionRef.current?.display(b.cfi); setPanel(null); }}
+                onJumpEpubBookmark={(b) => { void viewRef.current?.goTo(b.cfi); setPanel(null); }}
                 onDeleteEpubBookmark={removeEpubBookmark}
                 onClose={() => setPanel(null)}
               />

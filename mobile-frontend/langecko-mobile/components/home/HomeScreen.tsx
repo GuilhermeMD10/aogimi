@@ -17,7 +17,8 @@ import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { BookRecord } from '@/lib/types';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { bookFileExists, importEpub } from '@/lib/bookFiles';
-import { createBook } from '@/lib/api';
+import { createBook, markBookAvailable } from '@/lib/api';
+import { getDeviceId } from '@/lib/deviceId';
 import { useBooks } from './useBooks';
 import { ContinueReadingCard } from './ContinueReadingCard';
 import { BookGridItem } from './BookGridItem';
@@ -45,11 +46,19 @@ export function HomeScreen() {
     try {
       const imported = await importEpub();
       if (!imported) return;
-      await createBook(user.id, {
+      const created = await createBook(user.id, {
         filename: imported.filename,
         title: imported.title || imported.filename,
         author: imported.author,
       });
+      // Mark this device as a place where the book's file lives, so
+      // cross-device library listings know we have it locally.
+      try {
+        const deviceId = await getDeviceId();
+        await markBookAvailable(deviceId, created.id, user.id);
+      } catch {
+        /* non-fatal: re-syncs on next library refresh */
+      }
       await refresh();
     } catch (err) {
       Alert.alert('Import failed', err instanceof Error ? err.message : t('common.error'));

@@ -77,7 +77,7 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta id="viewport-meta" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <style>
     html, body {
       margin: 0;
@@ -89,7 +89,15 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
       font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
+    body.is-manga {
+      background: var(--manga-shell-bg, #1A1918);
+    }
     #view { position: absolute; inset: 0; display: block; }
+    /* Manga frame (5px gutter + rounded corners) is rendered by the RN
+       wrapper around the WebView, NOT here. Putting it inside the WebView
+       made it part of the document that native pinch-zoom scales, which
+       the user didn't want -- the frame should stay static while the page
+       art zooms underneath. See FoliateReader.tsx mangaShell/mangaFrame. */
     .status {
       position: absolute;
       top: 50%;
@@ -104,6 +112,18 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
   <div class="status" id="status">Loading…</div>
   <foliate-view id="view"></foliate-view>
 
+  <script>
+    // Force open shadow roots so we can inject CSS into foliate-view and
+    // foliate-fxl from the outer page. Both renderers use mode:"closed" by
+    // default. Must run BEFORE FOLIATE_SOURCE so class definitions pick up
+    // the patched method on first call.
+    (function () {
+      var orig = Element.prototype.attachShadow;
+      Element.prototype.attachShadow = function (opts) {
+        return orig.call(this, Object.assign({}, opts, { mode: 'open' }));
+      };
+    })();
+  </script>
   <script>${FOLIATE_SOURCE}</script>
 
   <script>
@@ -207,14 +227,23 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
         if (!detail) return;
         var cfi = detail.cfi || '';
         var frac = detail.fraction || 0;
-        var pct = Math.round(frac * 100);
         var spineIdx = (detail.index != null) ? detail.index : 0;
+        // For fixed-layout (manga) each spine item is one page, so we report
+        // page index + total directly off the spine. Progress for FXL comes
+        // from spine position too because detail.fraction stays 0 there.
+        // Reflowable text books keep the existing fraction-based progress.
+        var isFxl = bookType === 'manga';
+        var page = isFxl ? (spineIdx + 1) : 0;
+        var totalPages = isFxl ? spineTotal : 0;
+        var pct = isFxl
+          ? (spineTotal > 0 ? Math.round(((spineIdx + 1) / spineTotal) * 100) : 0)
+          : Math.round(frac * 100);
         post({
           type: 'relocated',
           cfi: cfi,
           progress: pct,
-          page: 0,        // page-within-spine; foliate reports differently. TODO.
-          totalPages: 0,  // book-wide; TODO compute via renderer
+          page: page,
+          totalPages: totalPages,
           spineIndex: spineIdx,
           spineTotal: spineTotal,
           chapterHref: '',
@@ -272,10 +301,60 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
         // iframe matches the theme (otherwise you see white during loads).
         document.documentElement.style.setProperty('--reader-bg', style.bg);
         document.documentElement.style.setProperty('--reader-fg', style.fg);
+        // For manga, the .is-manga body class wins via --manga-shell-bg;
+        // the shell color comes from style.bg too (RN sends a darker value
+        // for manga so the page art pops off the surround).
+        document.documentElement.style.setProperty('--manga-shell-bg', style.bg);
         document.body.style.background = style.bg;
         if (!view || !view.renderer || typeof view.renderer.setStyles !== 'function') return;
         try { view.renderer.setStyles(buildThemeCss(style)); } catch (e) { err('setStyle', e); }
       }
+
+      // Toggle pinch-zoom on the WebView itself. Disabled by default because
+      // text reflowable layouts must not scale (foliate paginates against the
+      // measured viewport, not the visual viewport). For manga (fixed-layout
+      // pages) we flip user-scalable on so the user can pinch to inspect art.
+      function setPinchZoom(enabled) {
+        var meta = document.getElementById('viewport-meta');
+        if (!meta) return;
+        meta.setAttribute(
+          'content',
+          enabled
+            ? 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=4, user-scalable=yes'
+            : 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
+        );
+      }
+
+      // Round the corners of the actual manga page (the iframe inside the
+      // foliate-fxl renderer) AND nudge the page slightly past fit-page so
+      // the outer rounded RN frame visibly cuts into the page art at the
+      // default zoom (instead of clipping shell color only). The scale is
+      // a CSS transform on the page wrapper, so foliate's own layout math
+      // (which reads the host's getBoundingClientRect) is untouched.
+      //
+      // Shadow access only works because attachShadow was monkey-patched
+      // to open mode at the top of <head>; foliate-fxl natively uses
+      // {mode:"closed"} and the iframe wrapper would be unreachable.
+      var mangaPageStyleEl = null;
+      var MANGA_OVERZOOM = 1.2;
+      function applyMangaPageStyle() {
+        if (!view || !view.renderer) return;
+        var root = view.renderer.shadowRoot;
+        if (!root) return;
+        if (mangaPageStyleEl && mangaPageStyleEl.parentNode === root) return;
+        mangaPageStyleEl = root.ownerDocument.createElement('style');
+        mangaPageStyleEl.setAttribute('data-manga-page', '');
+        mangaPageStyleEl.textContent =
+          'iframe[part="filter"] { border-radius: 8px !important; overflow: hidden !important; }' +
+          'div:has(> iframe[part="filter"]) {' +
+            'border-radius: 8px !important;' +
+            'overflow: hidden !important;' +
+            'transform: scale(' + MANGA_OVERZOOM + ') !important;' +
+            'transform-origin: center center !important;' +
+          '}';
+        root.appendChild(mangaPageStyleEl);
+      }
+
 
       function attachSelectionListener(doc, index) {
         if (!doc || loadedDocs.get(index) === doc) return;
@@ -348,17 +427,21 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
         try { view.deleteAnnotation({ value: cfi }); } catch (e) { err('removeHighlight', e); }
       }
 
-      // Manga view-mode toggle. Only meaningful for the paginator renderer
-      // (regular EPUBs); FXL/manga uses a separate renderer that doesn't
-      // expose flow/spread the same way. For FXL we no-op rather than
-      // misconfigure the renderer.
+      // Manga scroll mode is now rendered on the RN side (a ScrollView of
+      // Image components driven by jszip-extracted page files). The WebView
+      // only owns page-mode rendering -- the RN overlay covers it while
+      // scroll mode is active.
+
+      // View-mode toggle for the reflowable paginator only. Fixed-layout
+      // manga uses foliate-fxl, which doesn't expose flow/spread the same
+      // way -- we don't try to drive its layout from here.
       function setViewMode(mode) {
         if (!view || !view.renderer) return;
         if (viewModeApplied && mode === currentViewMode) return;
         viewModeApplied = true;
         currentViewMode = mode;
         var tag = view.renderer.tagName && view.renderer.tagName.toLowerCase();
-        if (tag !== 'foliate-paginator') return; // FXL has its own model
+        if (tag !== 'foliate-paginator') return;
         try {
           if (mode === 'scroll') {
             view.renderer.setAttribute('flow', 'scrolled');
@@ -432,6 +515,17 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
           var detected = detectBookType(book);
           bookType = detected.bookType;
           direction = detected.direction;
+          // Tag the shell so manga gets its own background surround and
+          // pinch-zoom (text/novel must stay non-scalable -- foliate
+          // paginates against the measured viewport, not the visual one).
+          if (bookType === 'manga') {
+            document.body.classList.add('is-manga');
+            setPinchZoom(true);
+            applyMangaPageStyle();
+          } else {
+            document.body.classList.remove('is-manga');
+            setPinchZoom(false);
+          }
           attachViewListeners();
           if (style) applyStyle(style);
           // Enable foliate's built-in smooth-scroll animation for programmatic

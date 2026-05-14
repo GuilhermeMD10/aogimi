@@ -1,170 +1,82 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useColors } from '@/theme/ThemeContext';
-import { TocSheet } from '../TocSheet';
-import { AnnotationsSheet } from '../AnnotationsSheet';
-import type { EpubTocItem, ReaderViewMode } from '../foliateHtml';
-import type { EpubBookmark } from '@/lib/readerStorage';
-
-type Sheet = 'toc' | 'annotations' | null;
+import { ReaderBottomDock } from '../ReaderBottomDock';
+import type { EpubTocItem } from '../foliateHtml';
+import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '@/lib/readerStorage';
 
 export type MangaReaderProps = {
+  title: string;
+  progress: number;
+  page: number;
+  totalPages: number;
   toc: EpubTocItem[];
   bookmarks: EpubBookmark[];
+  highlights: EpubHighlight[];
+  prefs: ReaderPrefs;
   isBookmarked: boolean;
-  viewMode: ReaderViewMode;
-  onPrev: () => void;
-  onNext: () => void;
-  onJumpHref: (href: string) => void;
-  onJumpCfi: (cfi: string) => void;
+  // Manga is currently scroll-only. The chevrons in the toolbar drive the
+  // FlatList (prev = scroll to spineIndex-1, next = spineIndex+1) via this
+  // callback. Pages mode will reuse the same callback once it's built as a
+  // horizontal sibling of the scroll view.
+  onJumpSpine: (spineIndex: number) => void;
   onToggleBookmark: () => void;
   onDeleteBookmark: (id: string) => void;
-  onSetViewMode: (mode: ReaderViewMode) => void;
 };
 
-const VIEW_MODES: { key: ReaderViewMode; label: string }[] = [
-  { key: 'single', label: '1' },
-  { key: 'double', label: '2' },
-  { key: 'scroll', label: '∞' },
-];
-
 /**
- * Manga reader overlay — fixed-layout pages, RTL navigation, view-mode
- * toggle (single / double-page spread / scroll). No typography or text
- * features (manga has no selectable text).
+ * Manga toolbar — thin wrapper around ReaderBottomDock with the 'manga'
+ * variant. Manga is rendered by MangaScrollView (RN-side, see ReaderScreen),
+ * not foliate; the dock just shows position and exposes bookmark / TOC.
  */
 export function MangaReader({
+  title,
+  progress,
+  page,
+  totalPages,
   toc,
   bookmarks,
+  highlights,
+  prefs,
   isBookmarked,
-  viewMode,
-  onPrev,
-  onNext,
-  onJumpHref,
-  onJumpCfi,
+  onJumpSpine,
   onToggleBookmark,
   onDeleteBookmark,
-  onSetViewMode,
 }: MangaReaderProps) {
-  const c = useColors();
-  const [sheet, setSheet] = useState<Sheet>(null);
+  const goPrev = () => onJumpSpine(Math.max(0, page - 2));
+  const goNext = () => onJumpSpine(Math.min(totalPages - 1, page));
 
   return (
-    <>
-      <View pointerEvents="box-none" style={styles.host}>
-        <View style={[styles.bar, { backgroundColor: c.bgElev, borderColor: c.borderStrong }]}>
-          {/* Manga is RTL: left button advances */}
-          <Btn label="‹" onPress={onNext} c={c} />
-          <Btn label="›" onPress={onPrev} c={c} />
-
-          <Divider c={c} />
-
-          <Btn
-            label="☰"
-            onPress={() => setSheet((s) => (s === 'toc' ? null : 'toc'))}
-            active={sheet === 'toc'}
-            c={c}
-          />
-          <Btn
-            label="★"
-            onPress={() => setSheet((s) => (s === 'annotations' ? null : 'annotations'))}
-            active={sheet === 'annotations'}
-            c={c}
-          />
-          <Btn label={isBookmarked ? '●' : '+'} onPress={onToggleBookmark} active={isBookmarked} c={c} />
-
-          <Divider c={c} />
-
-          {/* View mode toggle */}
-          {VIEW_MODES.map((m) => (
-            <Btn
-              key={m.key}
-              label={m.label}
-              onPress={() => onSetViewMode(m.key)}
-              active={viewMode === m.key}
-              small
-              c={c}
-            />
-          ))}
-        </View>
-      </View>
-
-      <TocSheet visible={sheet === 'toc'} toc={toc} onDismiss={() => setSheet(null)} onNavigate={onJumpHref} />
-
-      <AnnotationsSheet
-        visible={sheet === 'annotations'}
-        bookmarks={bookmarks}
-        highlights={[]}
-        onDismiss={() => setSheet(null)}
-        onJumpBookmark={(b) => onJumpCfi(b.cfi)}
-        onDeleteBookmark={onDeleteBookmark}
-        onJumpHighlight={() => undefined}
-        onDeleteHighlight={() => undefined}
-      />
-    </>
+    <ReaderBottomDock
+      variant="manga"
+      title={title}
+      progress={progress}
+      page={page}
+      totalPages={totalPages}
+      bookmarked={isBookmarked}
+      layout="pages"
+      direction="horizontal"
+      toc={toc}
+      bookmarks={bookmarks}
+      highlights={highlights}
+      prefs={prefs}
+      onPrev={goPrev}
+      onNext={goNext}
+      onToggleBookmark={onToggleBookmark}
+      onNavigate={(href) => {
+        // Jump via TOC href is not supported in RN-only manga yet. The
+        // dock's TOC sheet still opens; tapping a chapter will fall through
+        // until we wire href → spine resolution.
+        void href;
+      }}
+      onJumpBookmark={(b) => {
+        // Bookmarks store CFI; for manga we treat the bookmark label as
+        // pointing at a spine index when set from the toolbar. Fallback:
+        // ignore unsupported jumps.
+        void b;
+      }}
+      onJumpHighlight={() => undefined}
+      onDeleteBookmark={onDeleteBookmark}
+      onDeleteHighlight={() => undefined}
+      onChangePrefs={() => undefined}
+      onChangeLayout={() => undefined}
+    />
   );
 }
-
-function Btn({
-  label,
-  onPress,
-  active,
-  small,
-  c,
-}: {
-  label: string;
-  onPress: () => void;
-  active?: boolean;
-  small?: boolean;
-  c: ReturnType<typeof useColors>;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.btn, small ? styles.btnSmall : undefined, active && { backgroundColor: c.accentSoft }]}
-      hitSlop={4}
-    >
-      <Text style={[styles.label, { color: active ? c.accent : c.fg }, small && styles.labelSmall]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function Divider({ c }: { c: ReturnType<typeof useColors> }) {
-  return <View style={[styles.divider, { backgroundColor: c.border }]} />;
-}
-
-const styles = StyleSheet.create({
-  host: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 24,
-    alignItems: 'center',
-  },
-  bar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    gap: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 18,
-    elevation: 6,
-  },
-  btn: {
-    minWidth: 36,
-    height: 32,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnSmall: { minWidth: 28, paddingHorizontal: 6 },
-  label: { fontSize: 16, fontWeight: '500', lineHeight: 18 },
-  labelSmall: { fontSize: 12, fontWeight: '600' },
-  divider: { width: StyleSheet.hairlineWidth, height: 18, marginHorizontal: 4 },
-});

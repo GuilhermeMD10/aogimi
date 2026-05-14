@@ -96,6 +96,64 @@ export type BookProgressUpdate = Partial<{
   totalSpineItems: number;
 }>;
 
+// Hash + canonical identity fields used by /api/books/match and
+// /api/books/{id}/identity. fileHash is sha256 of the raw EPUB bytes;
+// contentHash is a stable hash of the EPUB content (independent of repack
+// noise); dcIdentifier is the EPUB's <dc:identifier> from content.opf.
+export type EpubIdentity = Partial<{
+  fileHash: string;
+  contentHash: string;
+  dcIdentifier: string;
+  language: string;
+  publisher: string;
+}>;
+
+// Sent to /api/books/match — one candidate per local book lacking a
+// backend record. The server tries fileHash first, then contentHash,
+// then dcIdentifier+title, finally filename.
+export type BookMatchCandidate = {
+  file_hash: string | null;
+  content_hash: string | null;
+  metadata: {
+    title: string;
+    author?: string;
+    dc_identifier?: string | null;
+    filename: string;
+  };
+};
+
+export type BookMatchResult = {
+  match: BookRecord | null;
+  match_type: 'file_hash' | 'content' | 'metadata' | 'filename' | 'none';
+};
+
+// ── Devices ─────────────────────────────────────────────────────────────────
+
+export type DeviceRecord = {
+  device_id: string;
+  user_id: number;
+  name: string;
+  last_seen: string;
+  created_at: string;
+};
+
+// A book as returned by GET /api/devices/{deviceId}/books — book metadata
+// plus an `available` flag indicating whether *this* device has the file
+// locally.
+export type DeviceBookRecord = BookRecord & {
+  available: boolean;
+};
+
+// ── Bookmarks (per-book, persisted on backend) ──────────────────────────────
+
+export type BookmarkRecord = {
+  id: string;
+  book_id: string;
+  cfi: string;
+  label: string;
+  created_at: string;
+};
+
 // ── Decks / cards ────────────────────────────────────────────────────────────
 
 export type DeckRecord = {
