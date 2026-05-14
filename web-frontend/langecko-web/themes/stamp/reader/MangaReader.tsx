@@ -30,7 +30,7 @@ const MODE_BTN_ON = 'bg-lgc-accent text-lgc-accent-fg';
 const MODE_BTN_OFF = 'bg-lgc-bg-sunken text-lgc-fg-muted hover:text-lgc-fg';
 
 export function MangaReader({
-  book,
+  blob,
   filename,
   bookTitle,
   initialCfi,
@@ -39,7 +39,7 @@ export function MangaReader({
   sidekickOpen = false,
   onToggleSidekick,
 }: MangaReaderProps) {
-  const engine = useMangaReaderEngine({ book, filename, initialCfi, onProgressChange });
+  const engine = useMangaReaderEngine({ blob, filename, initialCfi, onProgressChange });
   const {
     currentPage,
     currentPageRef,

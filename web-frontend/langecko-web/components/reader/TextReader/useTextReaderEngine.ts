@@ -1,10 +1,10 @@
 'use client';
 
 // All TextReader state, refs, effects, and handlers — theme-agnostic.
+// Engine is foliate-js: <foliate-view> custom element, view.open(blob),
+// view.goTo(cfi|href), relocate / load / draw-annotation events.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type Book from 'epubjs/types/book';
-import type Rendition from 'epubjs/types/rendition';
 import {
   FONT_STACKS,
   HIGHLIGHT_COLORS,
@@ -14,20 +14,20 @@ import {
 import type { NavItem } from '@/components/reader/TocPanel';
 import { THEMES } from '@/components/reader/readerConstants';
 import {
-  clearRenditionQueue,
-  getAnnotations,
-  getLocations,
-  getNavigationToc,
-  getSpineItems,
-  getSpineSection,
-  getThemes,
-} from '@/lib/types/epubjs';
+  createFoliateView,
+  flattenFoliateToc,
+  loadFoliate,
+  type FoliateRelocateDetail,
+  type FoliateLoadDetail,
+  type FoliateDrawAnnotationDetail,
+  type FoliateViewElement,
+} from '@/lib/foliate';
 import { useShortcut } from '@/components/providers/ShortcutsProvider';
 
 // ── Ruby / reading stripping ────────────────────────────────────────────────
 
 const PAREN_READING_RE =
-  /[（(][぀-ゟ゠-ヿ・ー]+[）)]/g;
+  /[(（][぀-ゟ゠-ヿ・ー]+[)）]/g;
 
 function stripParenReadings(text: string): string {
   return text.replace(PAREN_READING_RE, '');
@@ -73,10 +73,59 @@ export function extractSentenceFromSelection(sel: Selection): string | undefined
   return fullText.length <= 200 ? fullText : undefined;
 }
 
+// ── CSS builder for foliate's per-chapter style injection ───────────────────
+// Foliate's renderer.setStyles takes a CSS string and re-injects it into each
+// chapter iframe. The vertical-rl + direction:ltr trio matches the mobile
+// reader: package-progression-direction="rtl" cascades direction:rtl onto the
+// body, which combined with writing-mode: vertical-rl places terminal
+// punctuation at the column top instead of bottom. Forcing direction:ltr on
+// body restores top-to-bottom flow inside each column.
+
+interface BuildThemeArgs {
+  bg: string;
+  fg: string;
+  fontFamilyStack: string;
+  fontSizePct: number;
+  lineSpacing: number;
+  vertical: boolean;
+}
+
+function buildThemeCss({ bg, fg, fontFamilyStack, fontSizePct, lineSpacing, vertical }: BuildThemeArgs): string {
+  const common =
+    `html, body { background: ${bg} !important; color: ${fg} !important; }` +
+    `body {` +
+      `font-size: ${fontSizePct}% !important;` +
+      `line-height: ${lineSpacing} !important;` +
+      `font-family: ${fontFamilyStack} !important;` +
+    `}` +
+    `p, div, span, li, h1, h2, h3, h4, h5, h6, a, blockquote, td, th, figcaption {` +
+      `color: ${fg} !important;` +
+      `-webkit-user-select: text !important;` +
+      `user-select: text !important;` +
+    `}`;
+  if (!vertical) return common;
+  const verticalRules =
+    `body {` +
+      `writing-mode: vertical-rl !important;` +
+      `-webkit-writing-mode: vertical-rl !important;` +
+      `text-orientation: mixed !important;` +
+      `-webkit-text-orientation: mixed !important;` +
+      `direction: ltr !important;` +
+      `unicode-bidi: isolate !important;` +
+    `}` +
+    `p, div, span, li, h1, h2, h3, h4, h5, h6, a, blockquote, td, th, figcaption {` +
+      `writing-mode: vertical-rl !important;` +
+      `-webkit-writing-mode: vertical-rl !important;` +
+      `direction: ltr !important;` +
+      `unicode-bidi: isolate !important;` +
+    `}`;
+  return common + verticalRules;
+}
+
 export type Panel = 'toc' | 'annotations' | null;
 
 export interface UseTextReaderEngineParams {
-  book: Book;
+  blob: Blob;
   filename: string;
   initialCfi?: string;
   rtl?: boolean;
@@ -84,7 +133,7 @@ export interface UseTextReaderEngineParams {
 }
 
 export function useTextReaderEngine({
-  book,
+  blob,
   filename,
   initialCfi,
   rtl = false,
@@ -105,7 +154,7 @@ export function useTextReaderEngine({
   } = useBookStorage(filename);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const renditionRef = useRef<Rendition | null>(null);
+  const viewRef = useRef<FoliateViewElement | null>(null);
   const cfiRef = useRef('');
   const progressCbRef = useRef(onProgressChange);
   progressCbRef.current = onProgressChange;
@@ -118,7 +167,6 @@ export function useTextReaderEngine({
   const [percent, setPercent] = useState(0);
   const [chapterLabel, setChapterLabel] = useState('');
 
-  const locationsReady = useRef(false);
   const globalPageRef = useRef(0);
   const [globalPage, setGlobalPage] = useState(0);
   const [totalLocations, setTotalLocations] = useState(0);
@@ -140,241 +188,262 @@ export function useTextReaderEngine({
   const highlightsRef = useRef(epubHighlights);
   highlightsRef.current = epubHighlights;
 
-  // ── Apply prefs to rendition ──────────────────────────────────────────
-  const applyTheme = useCallback(
-    (r: Rendition) => {
-      try {
-        const t = THEMES[prefs.theme];
-        const font = FONT_STACKS[prefs.fontFamily];
-        const bodyStyles: Record<string, string> = {
-          background: `${t.bg} !important`,
-          color: `${t.fg} !important`,
-          'font-size': `${prefs.fontSize}% !important`,
-          'line-height': `${prefs.lineSpacing} !important`,
-          'font-family': `${font} !important`,
-        };
-        if (rtl) {
-          bodyStyles['writing-mode'] = 'vertical-rl !important';
-          bodyStyles['-webkit-writing-mode'] = 'vertical-rl !important';
-          bodyStyles['text-orientation'] = 'mixed !important';
-          bodyStyles['-webkit-text-orientation'] = 'mixed !important';
-          // JP novels declare page-progression-direction="rtl"; epubjs applies
-          // direction: rtl on the iframe. Combined with vertical-rl that
-          // reverses the inline axis to bottom-to-top, so terminal punctuation
-          // 。lands at the TOP of each column instead of the bottom. Force
-          // direction: ltr on body to restore top-to-bottom flow inside the
-          // column (columns still progress right-to-left via writing-mode).
-          bodyStyles['direction'] = 'ltr !important';
-          bodyStyles['unicode-bidi'] = 'isolate !important';
-        }
-        const universal: Record<string, string> = {
-          color: `${t.fg} !important`,
-          'user-select': 'text !important',
-          '-webkit-user-select': 'text !important',
-        };
-        if (rtl) {
-          // Pin writing-mode/direction at the element level too, so a
-          // publisher's `p { writing-mode: horizontal-tb }` can't un-rotate
-          // part of the page.
-          universal['writing-mode'] = 'vertical-rl !important';
-          universal['-webkit-writing-mode'] = 'vertical-rl !important';
-          universal['direction'] = 'ltr !important';
-          universal['unicode-bidi'] = 'isolate !important';
-        }
-        getThemes(r).default({
-          body: bodyStyles,
-          '*': universal,
-        });
-      } catch { /* epubjs themes not ready yet */ }
-    },
-    [prefs, rtl],
-  );
+  // Chapter docs reached so far — selectionchange handlers are attached on
+  // load and we don't want to double-bind if a chapter re-fires the event.
+  const docsRef = useRef<Map<number, Document>>(new Map());
+  const currentChapterIndexRef = useRef(0);
+
+  // Highlight metadata indexed by CFI so draw-annotation knows what color to
+  // paint. Mirrors mobile's highlightInfo Map.
+  const highlightInfoRef = useRef<Map<string, { id: string; color: HighlightColor }>>(new Map());
+
+  // ── Apply prefs to the renderer (style CSS) ───────────────────────────
+  const applyTheme = useCallback(() => {
+    const view = viewRef.current;
+    if (!view || !view.renderer || typeof view.renderer.setStyles !== 'function') return;
+    const t = THEMES[prefs.theme];
+    const font = FONT_STACKS[prefs.fontFamily];
+    try {
+      view.renderer.setStyles(
+        buildThemeCss({
+          bg: t.bg,
+          fg: t.fg,
+          fontFamilyStack: font,
+          fontSizePct: prefs.fontSize,
+          lineSpacing: prefs.lineSpacing,
+          vertical: rtl,
+        }),
+      );
+    } catch { /* renderer not ready yet */ }
+  }, [prefs, rtl]);
   const applyThemeRef = useRef(applyTheme);
   applyThemeRef.current = applyTheme;
 
-  // ── Init rendition ────────────────────────────────────────────────────
+  // ── Init view ────────────────────────────────────────────────────────
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
     let dead = false;
+    // Capture the Map reference once so cleanup operates on the same instance
+    // that this effect run populated, even if a future render swaps it.
+    const docs = docsRef.current;
 
     setReady(false);
     setError(null);
 
     const init = async () => {
       try {
-        const rendition = book.renderTo(el, {
-          width: '100%',
-          height: '100%',
-          flow: 'paginated',
-        });
-        renditionRef.current = rendition;
-        applyThemeRef.current(rendition);
+        await loadFoliate();
+        if (dead) return;
 
-        let locTotal = 0;
+        const view = createFoliateView();
+        view.style.cssText = 'display: block; position: absolute; inset: 0;';
+        el.appendChild(view);
+        viewRef.current = view;
 
-        const spineItems = getSpineItems(book);
-        const spineTotal = spineItems.length;
+        const file = new File([blob], 'book.epub', { type: 'application/epub+zip' });
+        await view.open(file);
+        if (dead) {
+          try { view.close(); } catch { /* teardown */ }
+          el.removeChild(view);
+          return;
+        }
+
+        const sections = view.book.sections ?? [];
+        const spineTotal = sections.length;
         if (spineTotal > 0) {
           setTotalLocations(spineTotal);
           setGlobalPage(1);
           globalPageRef.current = 1;
         }
 
-        const updateGlobalPage = (cfi: string | undefined, pct: number) => {
-          if (!cfi) return;
-          if (locationsReady.current) {
-            const locIdx = getLocations(book).locationFromCfi(cfi);
-            const pg = typeof locIdx === 'number' && locIdx >= 0 ? locIdx + 1 : 0;
+        // ── Listeners ───────────────────────────────────────────────────
+        view.addEventListener('relocate', (ev) => {
+          if (dead) return;
+          const detail = (ev as CustomEvent<FoliateRelocateDetail>).detail;
+          if (!detail) return;
+          const cfi = detail.cfi ?? '';
+          if (cfi) { cfiRef.current = cfi; saveLastCfi(cfi); }
+
+          const pct = Math.round((detail.fraction ?? 0) * 100);
+          setPercent(pct);
+
+          // Prefer foliate's location counter when available (it auto-computes
+          // page-equivalents from text size). Fall back to spine index.
+          const loc = detail.location;
+          if (loc && loc.total > 0) {
+            const pg = Math.max(1, Math.min(loc.total, (loc.current ?? 0) + 1));
             globalPageRef.current = pg;
             setGlobalPage(pg);
-            setTotalLocations(locTotal);
-          } else {
-            const section = getSpineSection(book, cfi);
-            if (section) {
-              const pg = section.index + 1;
-              globalPageRef.current = pg;
-              setGlobalPage(pg);
-            }
+            setTotalLocations(loc.total);
+          } else if (typeof detail.index === 'number') {
+            const pg = detail.index + 1;
+            globalPageRef.current = pg;
+            setGlobalPage(pg);
           }
-          progressCbRef.current?.(pct, cfi);
-        };
 
-        rendition.on('relocated', (loc: { start?: { cfi?: string; percentage?: number; href?: string } }) => {
+          if (cfi) progressCbRef.current?.(pct, cfi);
+
+          // tocItem is resolved by foliate from the current range, so we get
+          // a chapter label without scanning the TOC manually.
+          setChapterLabel(detail.tocItem?.label ?? '');
+        });
+
+        view.addEventListener('load', (ev) => {
           if (dead) return;
-          const cfi = loc?.start?.cfi;
-          if (cfi) {
-            cfiRef.current = cfi;
-            saveLastCfi(cfi);
+          const detail = (ev as CustomEvent<FoliateLoadDetail>).detail;
+          if (!detail || !detail.doc) return;
+          currentChapterIndexRef.current = detail.index;
+          attachChapterListeners(detail.doc, detail.index);
+        });
+
+        view.addEventListener('draw-annotation', (ev) => {
+          const detail = (ev as CustomEvent<FoliateDrawAnnotationDetail>).detail;
+          if (!detail) return;
+          const info = highlightInfoRef.current.get(detail.annotation.value);
+          const colorKey: HighlightColor = (info?.color ?? 'yellow');
+          const fill = HIGHLIGHT_COLORS[colorKey];
+          const Overlayer = window.__foliate?.Overlayer;
+          if (Overlayer && typeof Overlayer.highlight === 'function') {
+            try {
+              detail.draw(Overlayer.highlight, { color: fill });
+            } catch { /* drawing fail; non-fatal */ }
           }
-          const pct = Math.round((loc?.start?.percentage ?? 0) * 100);
-          setPercent(pct);
-          updateGlobalPage(cfi, pct);
+        });
 
+        // ── Renderer attributes (paginated flow, animated nav, margins) ─
+        const renderer = view.renderer;
+        const isPaginator = renderer?.tagName?.toLowerCase() === 'foliate-paginator';
+        if (isPaginator) {
           try {
-            const href = loc?.start?.href;
-            if (href && book.navigation) {
-              const tocItems = getNavigationToc(book);
-              const match = tocItems.find((t) => href.includes(t.href.split('#')[0]));
-              setChapterLabel(match?.label ?? '');
-            }
-          } catch { /* ignore */ }
-        });
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        rendition.on('selected', (cfiRange: string, contents: any) => {
-          if (dead) return;
-          try {
-            const sel: Selection | null = contents.window.getSelection();
-            const text = sel ? cleanSelectionText(sel) : '';
-            setSelectedText(text);
-            setSelectedCfi(text ? cfiRange : null);
-            setContextSentence(sel && text ? extractSentenceFromSelection(sel) : undefined);
-          } catch { /* ignore */ }
-        });
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        rendition.hooks.content.register((contents: any) => {
-          contents.document.addEventListener('contextmenu', (e: MouseEvent) => {
-            if (dead) return;
-            const sel: Selection | null = contents.window.getSelection();
-            const text = sel ? cleanSelectionText(sel) : '';
-            setSelectedText(text);
-            setContextSentence(sel && text ? extractSentenceFromSelection(sel) : undefined);
-            if (!text) { setSelectedCfi(null); return; }
-            e.preventDefault();
-            const iframe = el.querySelector('iframe');
-            const ir = iframe?.getBoundingClientRect() ?? { left: 0, top: 0 };
-            setCtxMenu({ x: ir.left + e.clientX + 8, y: ir.top + e.clientY + 8 });
-          });
-        });
-
-        await rendition.display(startCfi.current ?? undefined);
-        if (dead) return;
-        setReady(true);
-
-        const locationCfis = await getLocations(book).generate(1024);
-        if (dead) return;
-        locTotal = Array.isArray(locationCfis) ? locationCfis.length : 0;
-        locationsReady.current = true;
-
-        const currentCfi = cfiRef.current;
-        if (currentCfi) {
-          const idx = getLocations(book).locationFromCfi(currentCfi);
-          const pg = typeof idx === 'number' && idx >= 0 ? idx + 1 : 1;
-          globalPageRef.current = pg;
-          setGlobalPage(pg);
-          setTotalLocations(locTotal);
+            renderer.setAttribute('flow', 'paginated');
+            renderer.setAttribute('animated', '');
+            renderer.setAttribute('margin', rtl ? '16px' : '40px');
+            renderer.setAttribute('gap', rtl ? '3%' : '6%');
+            renderer.setAttribute('max-column-count', '1');
+          } catch { /* attribute set fail; non-fatal */ }
         }
+        applyThemeRef.current();
 
-        const annotations = getAnnotations(rendition);
+        // ── Restore CFI ─────────────────────────────────────────────────
+        if (startCfi.current) {
+          try { await view.goTo(startCfi.current); }
+          catch { /* invalid stored CFI — leave at book start */ }
+        }
+        if (dead) return;
+
+        // ── TOC ─────────────────────────────────────────────────────────
+        setToc(flattenFoliateToc(view.book.toc));
+
+        // ── Replay stored highlights ────────────────────────────────────
         for (const h of highlightsRef.current) {
-          try {
-            annotations?.add(
-              'highlight', h.cfi, { id: h.id }, undefined,
-              `hl-${h.color}`, { fill: HIGHLIGHT_COLORS[h.color], 'fill-opacity': '0.35' },
-            );
-          } catch { /* stale CFI */ }
+          highlightInfoRef.current.set(h.cfi, { id: h.id, color: h.color });
+          try { void view.addAnnotation({ value: h.cfi, color: h.color, id: h.id }); }
+          catch { /* stale CFI */ }
         }
 
-        await book.loaded.navigation;
-        if (!dead) setToc(getNavigationToc(book));
+        setReady(true);
       } catch (err) {
         if (!dead) setError(err instanceof Error ? err.message : String(err));
       }
+    };
+
+    // selectionchange on each loaded chapter iframe document.
+    const attachChapterListeners = (doc: Document, index: number) => {
+      if (docs.get(index) === doc) return;
+      docs.set(index, doc);
+
+      let raf = 0;
+      const onSelectionChange = () => {
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          try {
+            const sel = doc.defaultView?.getSelection();
+            if (!sel || sel.rangeCount === 0) {
+              setSelectedText('');
+              setSelectedCfi(null);
+              setContextSentence(undefined);
+              return;
+            }
+            const text = cleanSelectionText(sel);
+            if (!text) {
+              setSelectedText('');
+              setSelectedCfi(null);
+              setContextSentence(undefined);
+              return;
+            }
+            let cfi = '';
+            try { cfi = viewRef.current?.getCFI(index, sel.getRangeAt(0)) ?? ''; }
+            catch { /* keep blank */ }
+            setSelectedText(text);
+            setSelectedCfi(cfi || null);
+            setContextSentence(extractSentenceFromSelection(sel));
+          } catch { /* ignore */ }
+        });
+      };
+      doc.addEventListener('selectionchange', onSelectionChange);
+
+      doc.addEventListener('contextmenu', (e: MouseEvent) => {
+        if (dead) return;
+        const sel = doc.defaultView?.getSelection();
+        const text = sel ? cleanSelectionText(sel) : '';
+        if (!text) { setSelectedCfi(null); return; }
+        e.preventDefault();
+        try {
+          const range = sel?.getRangeAt(0);
+          const cfi = range ? (viewRef.current?.getCFI(index, range) ?? '') : '';
+          setSelectedText(text);
+          setSelectedCfi(cfi || null);
+          setContextSentence(sel ? extractSentenceFromSelection(sel) : undefined);
+        } catch { /* ignore */ }
+        // Translate iframe-relative coords to window coords. The chapter
+        // iframe sits inside foliate's shadow root, but we know its
+        // containing <foliate-view> is positioned absolutely over the
+        // wrapper — so wrapper-relative MouseEvent offsets work.
+        const iframeEl = doc.defaultView?.frameElement as HTMLIFrameElement | null;
+        const ir = iframeEl?.getBoundingClientRect() ?? { left: 0, top: 0 };
+        setCtxMenu({ x: ir.left + e.clientX + 8, y: ir.top + e.clientY + 8 });
+      });
     };
 
     void init();
 
     return () => {
       dead = true;
-      locationsReady.current = false;
-      if (renditionRef.current) {
-        clearRenditionQueue(renditionRef.current);
-        try { renditionRef.current.destroy(); } catch { /* epubjs internal teardown */ }
+      const view = viewRef.current;
+      viewRef.current = null;
+      docs.clear();
+      if (view) {
+        try { view.close(); } catch { /* foliate teardown */ }
+        try { view.remove(); } catch { /* already detached */ }
       }
-      renditionRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [book]);
+  }, [blob]);
 
   // Re-apply theme when prefs change
   useEffect(() => {
-    if (renditionRef.current) applyTheme(renditionRef.current);
+    if (viewRef.current) applyTheme();
   }, [applyTheme]);
 
-  // Reflow on container resize
-  useEffect(() => {
-    const el = wrapperRef.current;
-    if (!el) return;
-    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-    const ro = new ResizeObserver(() => {
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        renditionRef.current?.resize(el.clientWidth, el.clientHeight);
-      }, 150);
-    });
-    ro.observe(el);
-    return () => {
-      ro.disconnect();
-      if (resizeTimer) clearTimeout(resizeTimer);
-    };
-  }, []);
-
   // ── Navigation ────────────────────────────────────────────────────────
-  const prev = useCallback(() => void renditionRef.current?.prev(), []);
-  const next = useCallback(() => void renditionRef.current?.next(), []);
+  const prev = useCallback(() => void viewRef.current?.prev(), []);
+  const next = useCallback(() => void viewRef.current?.next(), []);
+  // In RTL (vertical-rl) flow, the page-progression direction means
+  // "left button = next page", same as the previous epubjs path.
   const onLeftBtn = rtl ? next : prev;
   const onRightBtn = rtl ? prev : next;
 
   const goToPage = useCallback(
     (pageNum: number) => {
-      if (!locationsReady.current) return;
-      const idx = Math.max(0, pageNum - 1);
-      const cfi = getLocations(book).cfiFromLocation(idx);
-      if (cfi && cfi !== -1) void renditionRef.current?.display(cfi);
+      // We don't have a page→CFI mapping (foliate's location counter is
+      // internal). Approximate by fraction: pageNum / totalLocations.
+      if (totalLocations <= 0) return;
+      const frac = Math.max(0, Math.min(1, (pageNum - 0.5) / totalLocations));
+      void viewRef.current?.goTo({ fraction: frac });
     },
-    [book],
+    [totalLocations],
   );
 
   // ── TTS ───────────────────────────────────────────────────────────────
@@ -384,8 +453,8 @@ export function useTextReaderEngine({
       setIsSpeaking(false);
       return;
     }
-    const iframe = wrapperRef.current?.querySelector('iframe');
-    const text = (iframe?.contentDocument?.body?.innerText ?? '').trim();
+    const doc = docsRef.current.get(currentChapterIndexRef.current);
+    const text = (doc?.body?.innerText ?? '').trim();
     if (!text) return;
     const utt = new SpeechSynthesisUtterance(text);
     utt.onend = () => setIsSpeaking(false);
@@ -404,24 +473,26 @@ export function useTextReaderEngine({
   // ── Highlights ────────────────────────────────────────────────────────
   const applyHighlight = useCallback(
     (color: HighlightColor) => {
-      if (!selectedText || !selectedCfi) return;
-      const ann = getAnnotations(renditionRef.current);
-      const styles = (c: HighlightColor) => ({ fill: HIGHLIGHT_COLORS[c], 'fill-opacity': '0.35' });
+      const view = viewRef.current;
+      if (!view || !selectedText || !selectedCfi) return;
 
       const existing = epubHighlights.find((h) => h.cfi === selectedCfi);
       if (existing) {
-        try { ann?.remove(existing.cfi, 'highlight'); } catch { /* ok */ }
+        try { view.deleteAnnotation({ value: existing.cfi }); } catch { /* ok */ }
+        highlightInfoRef.current.delete(existing.cfi);
         if (existing.color === color) {
           removeEpubHighlight(existing.id);
         } else {
           updateEpubHighlightColor(existing.id, color);
-          try { ann?.add('highlight', selectedCfi, { id: existing.id }, undefined, `hl-${color}`, styles(color)); } catch { /* ok */ }
+          highlightInfoRef.current.set(selectedCfi, { id: existing.id, color });
+          try { void view.addAnnotation({ value: selectedCfi, color, id: existing.id }); } catch { /* ok */ }
         }
         return;
       }
 
       const h = addEpubHighlight({ cfi: selectedCfi, text: selectedText, color, note: '' });
-      try { ann?.add('highlight', selectedCfi, { id: h.id }, undefined, `hl-${color}`, styles(color)); } catch { /* ok */ }
+      highlightInfoRef.current.set(selectedCfi, { id: h.id, color });
+      try { void view.addAnnotation({ value: selectedCfi, color, id: h.id }); } catch { /* ok */ }
     },
     [selectedText, selectedCfi, epubHighlights, addEpubHighlight, removeEpubHighlight, updateEpubHighlightColor],
   );
@@ -430,7 +501,8 @@ export function useTextReaderEngine({
     (id: string) => {
       const h = epubHighlights.find((x) => x.id === id);
       if (h) {
-        try { getAnnotations(renditionRef.current)?.remove(h.cfi, 'highlight'); } catch { /* ok */ }
+        try { viewRef.current?.deleteAnnotation({ value: h.cfi }); } catch { /* ok */ }
+        highlightInfoRef.current.delete(h.cfi);
       }
       removeEpubHighlight(id);
     },
@@ -446,9 +518,6 @@ export function useTextReaderEngine({
   useShortcut('reader:tts-toggle', () => { toggleTts(); });
   useShortcut('reader:bookmark', () => { addBookmark(); });
   useShortcut('reader:highlight-yellow', () => {
-    // No-op when there's no selection — the provider only fires this shortcut
-    // when the reader page is mounted, but the user can still press Alt+H
-    // without anything selected.
     if (!selectedText || !selectedCfi) return false;
     applyHighlight('yellow');
   });
@@ -461,17 +530,22 @@ export function useTextReaderEngine({
       if (ctxMenuRef.current?.contains(e.target as Node)) return;
       close();
     };
-    const iframe = wrapperRef.current?.querySelector('iframe');
-    const iDoc = iframe?.contentDocument;
     window.addEventListener('pointerdown', onDown);
     window.addEventListener('scroll', close, true);
-    iDoc?.addEventListener('pointerdown', close);
-    iDoc?.addEventListener('scroll', close, true);
+    // Also listen inside each loaded chapter doc — selection scrolls there
+    // shouldn't leave the menu floating.
+    const docs = Array.from(docsRef.current.values());
+    docs.forEach((d) => {
+      d.addEventListener('pointerdown', close);
+      d.addEventListener('scroll', close, true);
+    });
     return () => {
       window.removeEventListener('pointerdown', onDown);
       window.removeEventListener('scroll', close, true);
-      iDoc?.removeEventListener('pointerdown', close);
-      iDoc?.removeEventListener('scroll', close, true);
+      docs.forEach((d) => {
+        d.removeEventListener('pointerdown', close);
+        d.removeEventListener('scroll', close, true);
+      });
     };
   }, [ctxMenu]);
 
@@ -490,7 +564,7 @@ export function useTextReaderEngine({
   return {
     // refs
     wrapperRef,
-    renditionRef,
+    viewRef,
     ctxMenuRef,
     typoPanelRef,
     // state

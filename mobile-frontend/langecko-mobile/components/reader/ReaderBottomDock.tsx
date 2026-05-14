@@ -43,6 +43,13 @@ type Props = {
   layout: ReaderLayout;
   direction: ReaderDirection;
 
+  // Manga variant: hides the TYPE / SCROLL / HORIZ controls (irrelevant for
+  // fixed-layout pages) and swaps the page-row "X%" for "page N/total". The
+  // page/totalPages props are only read when variant === 'manga'.
+  variant?: 'default' | 'manga';
+  page?: number;
+  totalPages?: number;
+
   // Pane data
   toc: EpubTocItem[];
   bookmarks: EpubBookmark[];
@@ -246,6 +253,9 @@ export function ReaderBottomDock(props: Props) {
               bookmarked={props.bookmarked}
               layout={props.layout}
               direction={props.direction}
+              variant={props.variant ?? 'default'}
+              page={props.page}
+              totalPages={props.totalPages}
               onPrev={props.onPrev}
               onNext={props.onNext}
               onOpenToc={() => setMode('toc')}
@@ -344,6 +354,9 @@ function ToolbarContent({
   bookmarked,
   layout,
   direction,
+  variant,
+  page,
+  totalPages,
   onPrev,
   onNext,
   onOpenToc,
@@ -358,6 +371,9 @@ function ToolbarContent({
   bookmarked?: boolean;
   layout: ReaderLayout;
   direction: ReaderDirection;
+  variant: 'default' | 'manga';
+  page?: number;
+  totalPages?: number;
   onPrev: () => void;
   onNext: () => void;
   onOpenToc: () => void;
@@ -368,10 +384,16 @@ function ToolbarContent({
 }) {
   const flowNext: ReaderLayout = layout === 'continuous' ? 'pages' : 'continuous';
   const dirNext: ReaderDirection = direction === 'horizontal' ? 'vertical' : 'horizontal';
+  const isManga = variant === 'manga';
+  const meta =
+    isManga && totalPages && totalPages > 0
+      ? `${page ?? 1}/${totalPages}`
+      : `${Math.round(progress)}%`;
 
   return (
     <View style={styles.toolbar}>
-      {/* Page-nav row */}
+      {/* Page-nav row. Chevrons drive prev/next; tapping the title opens
+          the chapter list. */}
       <View style={[styles.pageRow, { borderBottomColor: c.border }]}>
         <NavCell colors={c} icon="chevron-left" onPress={onPrev} ariaLabel="Previous page" />
 
@@ -387,14 +409,14 @@ function ToolbarContent({
             style={[styles.pageMetaText, { color: c.fg, fontFamily: fontFamily.jp }]}
           >
             {title}
-            <Text style={{ color: c.fgMuted }}>{` · ${Math.round(progress)}%`}</Text>
+            <Text style={{ color: c.fgMuted }}>{` · ${meta}`}</Text>
           </Text>
         </Pressable>
 
         <NavCell colors={c} icon="chevron-right" onPress={onNext} ariaLabel="Next page" />
       </View>
 
-      {/* Action row · NOTES · MARK · TYPE · SCROLL · HORIZ */}
+      {/* Action row. Manga trims to NOTES + MARK (no font/layout toggles). */}
       <View style={styles.actionRow}>
         <ToolCol colors={c} icon="edit-3" label="NOTES" onPress={onOpenAnnotations} />
         <ToolCol
@@ -404,19 +426,23 @@ function ToolbarContent({
           active={!!bookmarked}
           onPress={onToggleBookmark}
         />
-        <ToolCol colors={c} icon="type" label="TYPE" onPress={onOpenSettings} />
-        <ToolCol
-          colors={c}
-          icon={layout === 'continuous' ? 'menu' : 'file-text'}
-          label={layout === 'continuous' ? 'SCROLL' : 'PAGES'}
-          onPress={() => onChangeLayout({ layout: flowNext })}
-        />
-        <ToolCol
-          colors={c}
-          icon={direction === 'horizontal' ? 'columns' : 'align-left'}
-          label={direction === 'horizontal' ? 'HORIZ' : 'VERT'}
-          onPress={() => onChangeLayout({ direction: dirNext })}
-        />
+        {!isManga && (
+          <>
+            <ToolCol colors={c} icon="type" label="TYPE" onPress={onOpenSettings} />
+            <ToolCol
+              colors={c}
+              icon={layout === 'continuous' ? 'menu' : 'file-text'}
+              label={layout === 'continuous' ? 'SCROLL' : 'PAGES'}
+              onPress={() => onChangeLayout({ layout: flowNext })}
+            />
+            <ToolCol
+              colors={c}
+              icon={direction === 'horizontal' ? 'columns' : 'align-left'}
+              label={direction === 'horizontal' ? 'HORIZ' : 'VERT'}
+              onPress={() => onChangeLayout({ direction: dirNext })}
+            />
+          </>
+        )}
       </View>
     </View>
   );

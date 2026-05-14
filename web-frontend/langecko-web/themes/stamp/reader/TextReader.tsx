@@ -19,7 +19,7 @@ import { TextReaderBody } from '@/components/reader/TextReader/TextReaderBody';
 import type { TextReaderProps } from '@/components/reader/TextReader/TextReader';
 
 export function TextReader({
-  book,
+  blob,
   filename,
   bookTitle,
   initialCfi,
@@ -31,7 +31,7 @@ export function TextReader({
   sidekickOpen = false,
   onToggleSidekick,
 }: TextReaderProps) {
-  const engine = useTextReaderEngine({ book, filename, initialCfi, rtl, onProgressChange });
+  const engine = useTextReaderEngine({ blob, filename, initialCfi, rtl, onProgressChange });
   const {
     chapterLabel,
     globalPage,

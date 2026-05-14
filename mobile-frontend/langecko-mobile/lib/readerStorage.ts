@@ -40,6 +40,15 @@ export const READER_THEMES: Record<ReaderTheme, { bg: string; fg: string }> = {
   sepia: { bg: '#F8F1E3', fg: '#3B2F2F' },
 };
 
+// Shell-around-the-page color used only for fixed-layout manga. Each is a
+// darker shade of the matching reader theme so the page art reads as the
+// content and the surround visually separates from the rest of the chrome.
+export const MANGA_SHELL_BG: Record<ReaderTheme, string> = {
+  light: '#9A9A9A',
+  dark: '#0A0A0A',
+  sepia: '#C0B49E',
+};
+
 export const READER_FONT_STACKS: Record<ReaderFont, string> = {
   'serif-jp':
     '"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif',

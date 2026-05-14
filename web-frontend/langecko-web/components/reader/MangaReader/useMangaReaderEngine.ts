@@ -2,31 +2,38 @@
 
 // All MangaReader state, refs, effects, and navigation handlers — theme-agnostic.
 // Consumed by both default and stamp variants; each variant owns only its top-bar JSX.
+//
+// Engine is foliate-js: <foliate-view> with the foliate-fxl renderer for
+// fixed-layout EPUBs. Page = spine item, navigated via view.prev/view.next.
+// `viewMode` (single/double/scroll) is currently a cosmetic wrapper layout
+// hint — foliate-fxl handles spreads automatically at the viewport level.
+// Scroll mode is not yet implemented for fixed-layout; mobile renders it
+// via a separate image-scroll view and web will follow the same pattern in
+// a future pass.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type Book from 'epubjs/types/book';
-import type Rendition from 'epubjs/types/rendition';
 import { useBookStorage } from '@/components/reader/useBookStorage';
 import type { NavItem } from '@/components/reader/TocPanel';
 import {
-  clearRenditionQueue,
-  getNavigationToc,
-  getSpineItems,
-  getSpineSection,
-} from '@/lib/types/epubjs';
+  createFoliateView,
+  flattenFoliateToc,
+  loadFoliate,
+  type FoliateRelocateDetail,
+  type FoliateViewElement,
+} from '@/lib/foliate';
 
 export type ViewMode = 'single' | 'double' | 'scroll';
 export type Panel = 'toc' | 'bookmarks' | null;
 
 export interface UseMangaReaderEngineParams {
-  book: Book;
+  blob: Blob;
   filename: string;
   initialCfi?: string;
   onProgressChange?: (progress: number, cfi: string) => void;
 }
 
 export function useMangaReaderEngine({
-  book,
+  blob,
   filename,
   initialCfi,
   onProgressChange,
@@ -35,19 +42,20 @@ export function useMangaReaderEngine({
     useBookStorage(filename);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const renditionRef = useRef<Rendition | null>(null);
+  const viewRef = useRef<FoliateViewElement | null>(null);
   const progressCbRef = useRef(onProgressChange);
   progressCbRef.current = onProgressChange;
 
   const startCfi = useRef(initialCfi ?? lastCfi ?? undefined);
   const restorePageRef = useRef<number | null>(null);
+  const cfiRef = useRef('');
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('single');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = useRef(0);
+  const spineTotalRef = useRef(0);
   const [total, setTotal] = useState(0);
   const currentPageRef = useRef(1);
 
@@ -55,7 +63,7 @@ export function useMangaReaderEngine({
   const [panel, setPanel] = useState<Panel>(null);
   const [showPageJump, setShowPageJump] = useState(false);
 
-  // ── Init / re-init rendition ────────────────────────────────────────────
+  // ── Init view ───────────────────────────────────────────────────────────
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
@@ -66,46 +74,59 @@ export function useMangaReaderEngine({
 
     const init = async () => {
       try {
-        const spineItems = getSpineItems(book);
-        totalPages.current = spineItems.length;
-        setTotal(spineItems.length);
+        await loadFoliate();
+        if (dead) return;
 
-        const rendition = book.renderTo(el, {
-          width: '100%',
-          height: '100%',
-          flow: viewMode === 'scroll' ? 'scrolled' : 'paginated',
-          spread: viewMode === 'double' ? 'auto' : 'none',
-        });
-        renditionRef.current = rendition;
+        const view = createFoliateView();
+        view.style.cssText = 'display: block; position: absolute; inset: 0;';
+        el.appendChild(view);
+        viewRef.current = view;
 
-        rendition.on('relocated', (loc: { start?: { cfi?: string } }) => {
+        const file = new File([blob], 'book.epub', { type: 'application/epub+zip' });
+        await view.open(file);
+        if (dead) {
+          try { view.close(); } catch { /* teardown */ }
+          el.removeChild(view);
+          return;
+        }
+
+        const sections = view.book.sections ?? [];
+        spineTotalRef.current = sections.length;
+        setTotal(sections.length);
+
+        view.addEventListener('relocate', (ev) => {
           if (dead) return;
-          const cfi = loc?.start?.cfi;
-          if (cfi) saveLastCfi(cfi);
+          const detail = (ev as CustomEvent<FoliateRelocateDetail>).detail;
+          if (!detail) return;
+          const cfi = detail.cfi ?? '';
+          if (cfi) { cfiRef.current = cfi; saveLastCfi(cfi); }
 
-          const section = cfi ? getSpineSection(book, cfi) : undefined;
-          const pg = section ? section.index + 1 : currentPageRef.current;
+          // For fixed-layout, each spine item is one page; foliate reports
+          // the active section index on relocate.
+          const idx = typeof detail.index === 'number' ? detail.index : currentPageRef.current - 1;
+          const pg = idx + 1;
           currentPageRef.current = pg;
           setCurrentPage(pg);
 
-          const pct = totalPages.current > 0
-            ? Math.round((pg / totalPages.current) * 100)
-            : 0;
+          const total = spineTotalRef.current;
+          const pct = total > 0 ? Math.round((pg / total) * 100) : 0;
           if (cfi) progressCbRef.current?.(pct, cfi);
         });
 
+        // ── Restore position ────────────────────────────────────────────
         const restorePage = restorePageRef.current;
         restorePageRef.current = null;
-        if (restorePage !== null && restorePage > 0 && restorePage <= spineItems.length) {
-          await rendition.display(spineItems[restorePage - 1].href);
-        } else {
-          await rendition.display(startCfi.current ?? undefined);
+        if (restorePage !== null && restorePage > 0 && restorePage <= sections.length) {
+          const href = sections[restorePage - 1]?.href;
+          if (href) { try { await view.goTo(href); } catch { /* fall through */ } }
+        } else if (startCfi.current) {
+          try { await view.goTo(startCfi.current); }
+          catch { /* invalid stored CFI — book starts at first page */ }
         }
         if (dead) return;
-        setReady(true);
 
-        await book.loaded.navigation;
-        if (!dead) setToc(getNavigationToc(book));
+        setToc(flattenFoliateToc(view.book.toc));
+        setReady(true);
       } catch (err) {
         if (!dead) setError(err instanceof Error ? err.message : String(err));
       }
@@ -115,41 +136,26 @@ export function useMangaReaderEngine({
 
     return () => {
       dead = true;
-      if (renditionRef.current) {
-        clearRenditionQueue(renditionRef.current);
-        try { renditionRef.current.destroy(); } catch { /* epubjs internal teardown */ }
+      const view = viewRef.current;
+      viewRef.current = null;
+      if (view) {
+        try { view.close(); } catch { /* foliate teardown */ }
+        try { view.remove(); } catch { /* already detached */ }
       }
-      renditionRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [book, viewMode]);
-
-  // ── Reflow on container resize ──────────────────────────────────────────
-  useEffect(() => {
-    const el = wrapperRef.current;
-    if (!el) return;
-    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-    const ro = new ResizeObserver(() => {
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        renditionRef.current?.resize(el.clientWidth, el.clientHeight);
-      }, 150);
-    });
-    ro.observe(el);
-    return () => {
-      ro.disconnect();
-      if (resizeTimer) clearTimeout(resizeTimer);
-    };
-  }, []);
+  }, [blob]);
 
   // ── Navigation ──────────────────────────────────────────────────────────
   const goToSpine = useCallback(
     (index: number) => {
-      if (index < 0 || index >= totalPages.current) return;
-      const item = getSpineItems(book)[index];
-      if (item) void renditionRef.current?.display(String(item.index));
+      const total = spineTotalRef.current;
+      if (index < 0 || index >= total) return;
+      const sections = viewRef.current?.book.sections ?? [];
+      const item = sections[index];
+      if (item?.href) void viewRef.current?.goTo(item.href);
     },
-    [book],
+    [],
   );
 
   const advancePage = useCallback(() => {
@@ -174,11 +180,10 @@ export function useMangaReaderEngine({
 
   const addBookmark = useCallback(() => {
     const pg = currentPageRef.current;
-    const item = getSpineItems(book)[pg - 1];
-    if (!item) return;
-    const cfi = item.cfiBase ?? `epubcfi(/6/${(pg - 1) * 2 + 2})`;
-    addEpubBookmark({ cfi, label: `Page ${pg}/${totalPages.current}` });
-  }, [book, addEpubBookmark]);
+    const total = spineTotalRef.current;
+    const cfi = cfiRef.current || `epubcfi(/6/${(pg - 1) * 2 + 2})`;
+    addEpubBookmark({ cfi, label: `Page ${pg}/${total}` });
+  }, [addEpubBookmark]);
 
   // ── Keyboard ────────────────────────────────────────────────────────────
   const advanceRef = useRef(advancePage);
@@ -205,7 +210,7 @@ export function useMangaReaderEngine({
   return {
     // refs
     wrapperRef,
-    renditionRef,
+    viewRef,
     currentPageRef,
     restorePageRef,
     // state
