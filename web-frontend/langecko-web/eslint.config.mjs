@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored third-party ES modules (foliate-js) served from /public.
+    "public/foliate-js/**",
   ]),
 ]);
 

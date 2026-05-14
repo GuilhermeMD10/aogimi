@@ -1,6 +1,5 @@
 'use client';
 
-import type Book from 'epubjs/types/book';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -16,7 +15,7 @@ import { useMangaReaderEngine, type ViewMode } from './useMangaReaderEngine';
 import { MangaReaderBody } from './MangaReaderBody';
 
 export type MangaReaderProps = {
-  book: Book;
+  blob: Blob;
   filename: string;
   bookTitle: string;
   initialCfi?: string;
@@ -40,7 +39,7 @@ const MODE_BTN_ON = 'bg-lgc-accent text-lgc-accent-fg';
 const MODE_BTN_OFF = 'bg-lgc-bg-sunken text-lgc-fg-muted hover:text-lgc-fg';
 
 export function MangaReader({
-  book,
+  blob,
   filename,
   bookTitle,
   initialCfi,
@@ -49,7 +48,7 @@ export function MangaReader({
   sidekickOpen = false,
   onToggleSidekick,
 }: MangaReaderProps) {
-  const engine = useMangaReaderEngine({ book, filename, initialCfi, onProgressChange });
+  const engine = useMangaReaderEngine({ blob, filename, initialCfi, onProgressChange });
   const {
     currentPage,
     currentPageRef,

@@ -1,6 +1,5 @@
 'use client';
 
-import type Book from 'epubjs/types/book';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -19,7 +18,7 @@ import { useTextReaderEngine } from './useTextReaderEngine';
 import { TextReaderBody } from './TextReaderBody';
 
 export type TextReaderProps = {
-  book: Book;
+  blob: Blob;
   filename: string;
   bookTitle: string;
   initialCfi?: string;
@@ -33,7 +32,7 @@ export type TextReaderProps = {
 };
 
 export function TextReader({
-  book,
+  blob,
   filename,
   bookTitle,
   initialCfi,
@@ -45,7 +44,7 @@ export function TextReader({
   sidekickOpen = false,
   onToggleSidekick,
 }: TextReaderProps) {
-  const engine = useTextReaderEngine({ book, filename, initialCfi, rtl, onProgressChange });
+  const engine = useTextReaderEngine({ blob, filename, initialCfi, rtl, onProgressChange });
   const {
     chapterLabel,
     globalPage,

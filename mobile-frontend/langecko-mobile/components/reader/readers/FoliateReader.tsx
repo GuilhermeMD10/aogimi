@@ -69,6 +69,10 @@ type Props = {
   initialStyle: ReaderThemeStyle;
   initialHighlights: HighlightStyle[];
   bgColor: string;
+  // True once we know the book is fixed-layout (manga). Wraps the WebView
+  // in a static rounded frame in RN — native pinch-zoom then only scales
+  // the page art inside, not the frame itself.
+  manga?: boolean;
   onReady?: (payload: ReadyPayload) => void;
   onRelocated?: (payload: RelocatedPayload) => void;
   onSelection?: (payload: SelectionPayload) => void;
@@ -83,6 +87,7 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
     initialStyle,
     initialHighlights,
     bgColor,
+    manga,
     onReady,
     onRelocated,
     onSelection,
@@ -200,47 +205,69 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
   );
 
   return (
-    <View style={[styles.root, { backgroundColor: bgColor }]} onLayout={onLayout}>
-      <WebView
-        ref={webviewRef}
-        originWhitelist={['*']}
-        source={{ html: FOLIATE_HTML }}
-        onLoadEnd={() => setShellLoaded(true)}
-        onMessage={handleMessage}
-        javaScriptEnabled
-        domStorageEnabled
-        allowFileAccess
-        allowFileAccessFromFileURLs
-        allowUniversalAccessFromFileURLs
-        setSupportMultipleWindows={false}
-        scrollEnabled={false}
-        menuItems={MENU_ITEMS}
-        onCustomMenuSelection={handleCustomMenu}
-        suppressMenuItems={[
-          'cut',
-          'paste',
-          'replace',
-          'bold',
-          'italic',
-          'underline',
-          'select',
-          'selectAll',
-          'translate',
-          'lookup',
-          'share',
-        ]}
-        style={{ backgroundColor: bgColor }}
-      />
+    <View style={[styles.outer, { backgroundColor: bgColor }]}>
+      <View
+        style={[styles.frame, manga ? styles.mangaFrame : null]}
+        onLayout={onLayout}
+      >
+        <WebView
+          ref={webviewRef}
+          originWhitelist={['*']}
+          source={{ html: FOLIATE_HTML }}
+          onLoadEnd={() => setShellLoaded(true)}
+          onMessage={handleMessage}
+          javaScriptEnabled
+          domStorageEnabled
+          allowFileAccess
+          allowFileAccessFromFileURLs
+          allowUniversalAccessFromFileURLs
+          setSupportMultipleWindows={false}
+          scrollEnabled={false}
+          menuItems={MENU_ITEMS}
+          onCustomMenuSelection={handleCustomMenu}
+          suppressMenuItems={[
+            'cut',
+            'paste',
+            'replace',
+            'bold',
+            'italic',
+            'underline',
+            'select',
+            'selectAll',
+            'translate',
+            'lookup',
+            'share',
+          ]}
+          style={{ backgroundColor: bgColor }}
+        />
+      </View>
     </View>
   );
 });
 
 // The floating ReaderBottomDock (pill at rest) occupies ~y=22..60 from the
 // device bottom. Reserve a bit above that so the last line of text doesn't
-// slide under the pill. The WebView fills this View, so shrinking the View
-// shrinks foliate's pagination viewport accordingly.
+// slide under the pill. The WebView fills the frame View, so shrinking the
+// frame shrinks foliate's pagination viewport accordingly.
 const DOCK_CLEARANCE = 72;
+const MANGA_GUTTER = 5;
+const MANGA_RADIUS = 50;
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingBottom: DOCK_CLEARANCE },
+  // Outer fills the area between the chevron top bar and the bottom dock.
+  // Its background is the bgColor passed in -- for manga that's the shell
+  // color, so the 5px gutter around the frame reads as the manga surround.
+  outer: { flex: 1 },
+  // Frame is what the WebView lives in. For text/novel it just reserves
+  // dock clearance at the bottom; for manga it also pulls in 5px on all
+  // sides + adds a rounded clip. The clip is RN-side, so native pinch-zoom
+  // inside the WebView only scales page art -- the frame stays static.
+  frame: { flex: 1, marginBottom: DOCK_CLEARANCE },
+  mangaFrame: {
+    marginTop: MANGA_GUTTER,
+    marginHorizontal: MANGA_GUTTER,
+    marginBottom: DOCK_CLEARANCE + MANGA_GUTTER,
+    borderRadius: MANGA_RADIUS,
+    overflow: 'hidden',
+  },
 });

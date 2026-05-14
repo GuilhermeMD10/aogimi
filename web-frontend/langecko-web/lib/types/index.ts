@@ -41,6 +41,3 @@ export type {
 export type {
   TranslationResult,
 } from './translate';
-
-// `lib/types/epubjs.ts` is module-augmentation only (no exports), kept
-// separate from this barrel.
