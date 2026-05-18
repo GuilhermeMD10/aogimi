@@ -53,7 +53,7 @@ export default function OnboardingExplainer({ userId, onDismiss }: OnboardingExp
           Your progress syncs. Your files stay yours.
         </h1>
         <p className="mb-8 text-center text-[13px] text-lgc-fg-muted">
-          Here’s how Langeco handles your books.
+          Here’s how Shirube handles your books.
         </p>
 
         <div className="mb-8 flex flex-col gap-4">

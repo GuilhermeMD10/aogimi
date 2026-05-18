@@ -60,7 +60,7 @@ export default function OnboardingExplainer({ userId, onDismiss }: OnboardingExp
           style={{ letterSpacing: '0.18em',
             textTransform: 'uppercase', }}
         >
-          How Langeco handles your books
+          How Shirube handles your books
         </p>
 
         <div className="mb-8 flex flex-col gap-4">

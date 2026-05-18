@@ -30,7 +30,7 @@ type ThemeContextValue = {
 
 const ThemeCtx = createContext<ThemeContextValue | null>(null);
 
-const STORAGE_KEY = 'langeco_theme_name';
+const STORAGE_KEY = 'shirube_theme_name';
 
 function isValidTheme(v: unknown): v is ThemeName {
   return typeof v === 'string' && (THEME_NAMES as string[]).includes(v);
