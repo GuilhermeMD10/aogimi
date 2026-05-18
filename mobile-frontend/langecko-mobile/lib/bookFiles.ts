@@ -63,6 +63,25 @@ export function deleteBookFile(filename: string): void {
 }
 
 /**
+ * All EPUB filenames currently stored in books/. Used by the
+ * library-reconcile diff to spot files orphaned by a remote delete.
+ */
+export function listLocalBookFilenames(): string[] {
+  try {
+    const list = booksDir().list();
+    const names: string[] = [];
+    for (const entry of list) {
+      if (!(entry instanceof File)) continue;
+      const base = entry.uri.split('/').pop();
+      if (base) names.push(base);
+    }
+    return names;
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Prompt the user to pick an EPUB and store it under the given target filename
  * (i.e. the filename already in an existing book record). Useful for
  * reconciling cross-device records that don't yet have the file locally.

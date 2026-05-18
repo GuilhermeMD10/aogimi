@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { fetchWordDetails } from '@/lib/api';
+import { peekWord } from '@/lib/dictCache';
 import type { WordDetails } from '@/lib/types';
 
 /**
@@ -72,6 +73,14 @@ export function useDictionaryNav(): DictNav {
   const openDetail = useCallback(
     async (id: number) => {
       setDetailError(null);
+      // Fast path: word already in the LRU cache from a previous lookup.
+      // Skip the 'detailLoading' frame entirely so the user sees no
+      // spinner when revisiting an entry.
+      const cached = peekWord(id);
+      if (cached) {
+        push({ kind: 'detail', details: cached });
+        return;
+      }
       push({ kind: 'detailLoading' });
       try {
         const details = await fetchWordDetails(id);

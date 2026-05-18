@@ -70,10 +70,7 @@ export function NotchedNavBar({ state, descriptors, navigation }: BottomTabBarPr
             const active = i === activeSlotIdx;
             const descriptor = descriptors[route.key];
             const labelOpt = descriptor?.options.tabBarLabel;
-            const label =
-              typeof labelOpt === 'string'
-                ? labelOpt
-                : (descriptor?.options.title ?? FALLBACK_LABELS[key]);
+            const label = typeof labelOpt === 'string' ? labelOpt : (descriptor?.options.title ?? FALLBACK_LABELS[key]);
 
             const onPress = () => {
               const event = navigation.emit({
@@ -135,8 +132,12 @@ function Slot({
             styles.iconWrap,
             active && {
               backgroundColor: paper,
-              borderColor: ink,
-              borderWidth: 1,
+              // No border — the active chip relies on its paper fill plus
+              // the multi-layer shadow for definition. With a square-look
+              // border the corners were not respecting borderRadius on
+              // some Android builds; dropping the border lets the
+              // 20px-radius round shape read cleanly everywhere.
+              borderRadius: 50,
               boxShadow:
                 '0px 4px 10px rgba(26,25,24,0.18), 0px 1px 2px rgba(26,25,24,0.10), inset 0px 1px 0px rgba(255,255,255,0.8)',
             },
@@ -185,13 +186,13 @@ const styles = StyleSheet.create({
   slotPlaceholder: { flex: 1 },
   col: { alignItems: 'center' },
   iconWrap: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    // Fully circular when the active border kicks in (width / 2). When
-    // inactive there's no visible border, so the radius doesn't read.
-    borderRadius: 16,
+    // Perfect circle (width / 2). Border + box-shadow on the active state
+    // both follow this radius, so the active slot reads as a round chip.
+    borderRadius: 20,
   },
   label: {
     fontFamily: fontFamily.ui,

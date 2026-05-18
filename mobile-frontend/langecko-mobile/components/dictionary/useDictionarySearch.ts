@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { queryDictionary } from '@/lib/api';
+import { peekSearch } from '@/lib/dictCache';
 import type { SearchResponse } from '@/lib/types';
 
 type SearchState =
@@ -15,6 +16,16 @@ export function useDictionarySearch(query: string, debounceMs = 250): SearchStat
     const trimmed = query.trim();
     if (!trimmed) {
       setState({ kind: 'idle' });
+      return;
+    }
+
+    // Fast path: if this query is already in the LRU cache, skip the
+    // debounce + network and surface results immediately. The user gets
+    // instant feedback when re-typing the same query or returning to a
+    // previously-viewed search.
+    const cached = peekSearch(trimmed);
+    if (cached) {
+      setState({ kind: 'results', response: cached, query: trimmed });
       return;
     }
 

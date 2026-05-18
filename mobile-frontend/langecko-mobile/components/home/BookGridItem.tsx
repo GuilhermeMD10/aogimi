@@ -8,10 +8,12 @@ export function BookGridItem({
   book,
   hasFile = true,
   onPress,
+  onMore,
 }: {
   book: BookRecord;
   hasFile?: boolean;
   onPress?: () => void;
+  onMore?: () => void;
 }) {
   const c = useColors();
   return (
@@ -42,9 +44,25 @@ export function BookGridItem({
       <Text style={[styles.title, { color: c.fg }]} numberOfLines={2}>
         {book.title}
       </Text>
-      <Text style={[styles.meta, { color: c.fgMuted }]} numberOfLines={1}>
-        {book.author ? `${book.author} · ` : ''}{book.progress}%
-      </Text>
+      <View style={styles.metaRow}>
+        <Text style={[styles.meta, { color: c.fgMuted }]} numberOfLines={1}>
+          {book.author ? `${book.author} · ` : ''}{book.progress}%
+        </Text>
+        {onMore && (
+          <Pressable
+            onPress={onMore}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={`More actions for ${book.title}`}
+            style={({ pressed }) => [
+              styles.moreBtn,
+              { borderColor: c.border, opacity: pressed ? 0.55 : 1 },
+            ]}
+          >
+            <Text style={[styles.moreGlyph, { color: c.fgMuted }]}>⋯</Text>
+          </Pressable>
+        )}
+      </View>
       {!hasFile && (
         <Text style={[styles.missing, { color: c.fgSubtle }]} numberOfLines={1}>
           Not on this device
@@ -84,9 +102,30 @@ const styles = StyleSheet.create({
     marginTop: 8,
     lineHeight: 18,
   },
-  meta: {
-    fontSize: fontSize.xs,
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 2,
+    gap: 6,
+  },
+  meta: {
+    flexShrink: 1,
+    fontSize: fontSize.xs,
+  },
+  moreBtn: {
+    width: 26,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreGlyph: {
+    fontSize: 14,
+    lineHeight: 14,
+    fontWeight: '600',
+    marginTop: -3,
   },
   missing: {
     fontSize: fontSize.xs - 1,

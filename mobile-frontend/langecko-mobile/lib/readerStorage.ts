@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadJSON, saveJSON } from './storage';
 
 export type HighlightColor = 'yellow' | 'green' | 'blue';
@@ -75,6 +76,45 @@ type StoredBook = {
 
 const KEY_PREFIX = 'reader_book_';
 const keyOf = (filename: string) => KEY_PREFIX + encodeURIComponent(filename);
+
+// ── Library-reconcile helpers ──────────────────────────────────────────────
+// These let lib/libraryReconcile.ts wipe local book state for books removed
+// either from this device (single-book delete) or on another device (login
+// reconcile diff). Kept in this module so the key/encoding format stays
+// owned in one place.
+
+/** Remove the reader_book_<filename> row for one book. */
+export async function clearBookStorage(filename: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(keyOf(filename));
+  } catch {
+    /* best-effort */
+  }
+}
+
+/**
+ * Returns every filename currently stored under the reader_book_ prefix.
+ * Decodes each key back to the original filename — same encoding the
+ * `keyOf` helper produces. Used by the reconcile diff to find orphaned
+ * entries whose owning book no longer exists on the server.
+ */
+export async function listStoredBookFilenames(): Promise<string[]> {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const out: string[] = [];
+    for (const k of keys) {
+      if (!k.startsWith(KEY_PREFIX)) continue;
+      try {
+        out.push(decodeURIComponent(k.slice(KEY_PREFIX.length)));
+      } catch {
+        /* malformed key — skip */
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
 
 function rid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);

@@ -12,10 +12,13 @@ export type MangaReaderProps = {
   highlights: EpubHighlight[];
   prefs: ReaderPrefs;
   isBookmarked: boolean;
-  // Manga is currently scroll-only. The chevrons in the toolbar drive the
-  // FlatList (prev = scroll to spineIndex-1, next = spineIndex+1) via this
-  // callback. Pages mode will reuse the same callback once it's built as a
-  // horizontal sibling of the scroll view.
+  // Active manga renderer. Toggling flips between MangaScrollView (vertical
+  // continuous stream) and MangaPagedView (horizontal swipe + per-page
+  // pinch zoom). Both share the same MangaSpineHandle / disk cache.
+  mode: 'scroll' | 'pages';
+  onToggleMode: () => void;
+  // Chevron callback used by both views — jumps to a spine index (the
+  // current view's ref handles the actual scroll/setIndex).
   onJumpSpine: (spineIndex: number) => void;
   onToggleBookmark: () => void;
   onDeleteBookmark: (id: string) => void;
@@ -36,6 +39,8 @@ export function MangaReader({
   highlights,
   prefs,
   isBookmarked,
+  mode,
+  onToggleMode,
   onJumpSpine,
   onToggleBookmark,
   onDeleteBookmark,
@@ -51,6 +56,8 @@ export function MangaReader({
       page={page}
       totalPages={totalPages}
       bookmarked={isBookmarked}
+      mangaMode={mode}
+      onToggleMangaMode={onToggleMode}
       layout="pages"
       direction="horizontal"
       toc={toc}
