@@ -29,6 +29,66 @@ function existingCoverUri(filename: string): string | null {
 
 const memCache = new Map<string, string | null>();
 
+// ── Library-reconcile helpers ──────────────────────────────────────────────
+// Covers are stored at `covers/<safeName(filename)>.<ext>`. The reconcile
+// flow either deletes one by filename or lists every safe-name on disk to
+// diff against the valid book set.
+
+/** Map a server-side filename to its safe-name key, exactly as written
+ * to disk. Exported so callers can build a "valid safe-names" set when
+ * reconciling without re-implementing the encoding. */
+export function coverSafeNameFor(filename: string): string {
+  return safeName(filename);
+}
+
+/** Remove every cover variant (any ext) belonging to this filename. */
+export function deleteCoverFor(filename: string): void {
+  const safe = safeName(filename);
+  for (const ext of COVER_EXTS) {
+    try {
+      const f = new File(coversDir(), `${safe}.${ext}`);
+      if (f.exists) f.delete();
+    } catch {
+      /* swallow — best effort */
+    }
+  }
+  memCache.delete(filename);
+}
+
+/** All cover file basenames on disk, with the extension stripped. Returns
+ * the safe-name keys, not original filenames (those are not recoverable
+ * from the safe-name encoding). Caller diffs against a known safe-name
+ * set built from the server's filename list. */
+export function listCoverSafeNames(): string[] {
+  try {
+    const list = coversDir().list();
+    const names: string[] = [];
+    for (const entry of list) {
+      if (!(entry instanceof File)) continue;
+      const base = entry.uri.split('/').pop() ?? '';
+      const dot = base.lastIndexOf('.');
+      if (dot <= 0) continue;
+      names.push(base.slice(0, dot));
+    }
+    return names;
+  } catch {
+    return [];
+  }
+}
+
+/** Convenience: delete a cover by its safe-name (use this when iterating
+ * `listCoverSafeNames()` results — the original filename isn't known). */
+export function deleteCoverBySafeName(safe: string): void {
+  for (const ext of COVER_EXTS) {
+    try {
+      const f = new File(coversDir(), `${safe}.${ext}`);
+      if (f.exists) f.delete();
+    } catch {
+      /* swallow */
+    }
+  }
+}
+
 // ── EPUB cover discovery ────────────────────────────────────────────────────
 
 function findRootfilePath(containerXml: string): string | null {

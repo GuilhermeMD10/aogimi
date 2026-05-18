@@ -109,7 +109,12 @@ export function LibraryDesk({
         <FilterChips filter={filter} setFilter={setFilter} counts={counts} />
 
         {hero && (
-          <ContinuePanel book={hero} onResume={() => onOpen(hero)} />
+          <ContinuePanel
+            book={hero}
+            onResume={() => onOpen(hero)}
+            onRename={(title) => onRename(hero, title)}
+            onRemove={() => onRemove(hero)}
+          />
         )}
 
         <div style={{ marginTop: hero ? 36 : 8, display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
@@ -327,7 +332,29 @@ function FilterChips({
 
 // ── Continue (hero) ─────────────────────────────────────────────────────────
 
-function ContinuePanel({ book, onResume }: { book: LibraryBook; onResume: () => void }) {
+function ContinuePanel({
+  book,
+  onResume,
+  onRename,
+  onRemove,
+}: {
+  book: LibraryBook;
+  onResume: () => void;
+  onRename: (title: string) => void;
+  onRemove: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(book.title);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const startEdit = () => { setDraft(book.title); setEditing(true); setMenuOpen(false); };
+  const commitEdit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== book.title) onRename(trimmed);
+  };
+  const cancelEdit = () => { setEditing(false); setDraft(book.title); };
+
   return (
     <div
       style={{
@@ -347,37 +374,85 @@ function ContinuePanel({ book, onResume }: { book: LibraryBook; onResume: () => 
       <div style={{ minWidth: 0 }}>
         <div
           style={{
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
+            justifyContent: 'space-between',
             gap: 8,
-            color: 'var(--lgc-accent)',
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
           }}
         >
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--lgc-accent)' }} />
-          <span>Continue reading{book.lastReadAt ? ` · ${formatRelative(book.lastReadAt)}` : ''}</span>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              color: 'var(--lgc-accent)',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+            }}
+          >
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--lgc-accent)' }} />
+            <span>Continue reading{book.lastReadAt ? ` · ${formatRelative(book.lastReadAt)}` : ''}</span>
+          </div>
+
+          <BookCardMenu
+            isOpen={menuOpen}
+            setOpen={setMenuOpen}
+            title={book.title}
+            finished={false}
+            onRename={startEdit}
+            onMarkFinished={() => { /* not offered on continue panel */ }}
+            onRemove={onRemove}
+            hideMarkFinished
+          />
         </div>
 
-        <div
-          className="font-display"
-          style={{
-            marginTop: 6,
-            fontSize: 30,
-            fontWeight: 500,
-            letterSpacing: '-0.018em',
-            color: 'var(--lgc-fg)',
-            lineHeight: 1.15,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-          title={book.title}
-        >
-          {book.title}
-        </div>
+        {editing ? (
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter')  { e.preventDefault(); commitEdit(); }
+              if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+            }}
+            onBlur={commitEdit}
+            className="font-display"
+            style={{
+              marginTop: 6,
+              width: '100%',
+              fontSize: 30,
+              fontWeight: 500,
+              letterSpacing: '-0.018em',
+              lineHeight: 1.15,
+              color: 'var(--lgc-fg)',
+              background: 'var(--lgc-bg)',
+              border: '1px solid var(--lgc-border-strong)',
+              borderRadius: 6,
+              padding: '2px 8px',
+              outline: 'none',
+            }}
+          />
+        ) : (
+          <div
+            className="font-display"
+            style={{
+              marginTop: 6,
+              fontSize: 30,
+              fontWeight: 500,
+              letterSpacing: '-0.018em',
+              color: 'var(--lgc-fg)',
+              lineHeight: 1.15,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={book.title}
+          >
+            {book.title}
+          </div>
+        )}
         <div style={{ marginTop: 4, fontSize: 13, color: 'var(--lgc-fg-muted)' }}>
           {book.author}
         </div>
@@ -583,6 +658,7 @@ function BookCardMenu({
   onRename,
   onMarkFinished,
   onRemove,
+  hideMarkFinished = false,
 }: {
   isOpen: boolean;
   setOpen: (v: boolean) => void;
@@ -591,6 +667,7 @@ function BookCardMenu({
   onRename: () => void;
   onMarkFinished: () => void;
   onRemove: () => void;
+  hideMarkFinished?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -642,7 +719,7 @@ function BookCardMenu({
           <MenuItem icon={<Pencil size={13} />} onClick={() => { setOpen(false); onRename(); }}>
             Edit title
           </MenuItem>
-          {!finished && (
+          {!finished && !hideMarkFinished && (
             <MenuItem icon={<CheckCircle2 size={13} />} onClick={() => { setOpen(false); onMarkFinished(); }}>
               Mark as finished
             </MenuItem>
