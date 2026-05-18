@@ -1,27 +1,27 @@
 {
   "expo": {
-    "name": "Langecko",
-    "slug": "langecko-mobile",
+    "name": "Shirube",
+    "slug": "shirube-mobile",
     "version": "0.1.0",
-    "scheme": "langecko",
+    "scheme": "shirube",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.langecko.mobile",
+      "bundleIdentifier": "com.shirube.mobile",
       "icon": "./assets/icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.langecko.mobile",
+      "package": "com.shirube.mobile",
       "icon": "./assets/icon.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#F8F9FA"
+        "backgroundColor": "#FFFEFB"
       }
     },
     "web": {

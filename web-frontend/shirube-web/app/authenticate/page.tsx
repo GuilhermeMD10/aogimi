@@ -54,7 +54,7 @@ function BrandPanel({ mode }: { mode: Mode }) {
         <div
           className="text-[22px] font-normal tracking-tight font-display"
         >
-          Langeco
+          Shirube
         </div>
       </div>
 
@@ -94,7 +94,7 @@ function BrandPanel({ mode }: { mode: Mode }) {
       <div
         className="relative z-10 flex justify-between text-[11px] opacity-55 font-mono"
       >
-        <span>&copy; 2026 Langeco</span>
+        <span>&copy; 2026 Shirube</span>
         <span>
           {mode === 'login' ? 'welcome back' : 'joining the library'}
         </span>
@@ -262,7 +262,7 @@ export default function AuthenticatePage() {
           <span
             className="text-[15px] font-medium font-display"
           >
-            Langeco
+            Shirube
           </span>
         </div>
 
@@ -275,7 +275,7 @@ export default function AuthenticatePage() {
             className="mb-1.5 text-[30px] font-medium tracking-tight font-display"
             style={{ letterSpacing: '-0.015em' }}
           >
-            {mode === 'login' ? 'Welcome back' : 'Join Langeco'}
+            {mode === 'login' ? 'Welcome back' : 'Join Shirube'}
           </h1>
           <div className="text-[13px] text-lgc-fg-muted">
             {mode === 'login'

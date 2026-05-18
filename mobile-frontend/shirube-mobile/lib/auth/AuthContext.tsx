@@ -32,7 +32,7 @@ type AuthContextValue = {
 
 const AuthCtx = createContext<AuthContextValue | null>(null);
 
-const CREDS_KEY = 'langeco_credentials';
+const CREDS_KEY = 'shirube_credentials';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);

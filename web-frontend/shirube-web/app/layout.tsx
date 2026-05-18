@@ -50,7 +50,7 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Langeco',
+  title: 'Shirube',
   description: 'Japanese reading and vocabulary app',
   manifest: '/manifest.json',
   icons: {

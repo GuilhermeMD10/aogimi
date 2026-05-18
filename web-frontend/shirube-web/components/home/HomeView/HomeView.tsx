@@ -354,7 +354,7 @@ function OpenerLiterary({
           fontFamily: 'var(--font-ui)',
         }}
       >
-        Langeco · 語境
+        Shirube · 導
       </div>
       <div
         style={{

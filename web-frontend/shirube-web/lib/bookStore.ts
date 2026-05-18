@@ -38,7 +38,7 @@ export interface BookRecord {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const DB_NAME = 'langeco-books';
+const DB_NAME = 'shirube-books';
 const DB_VERSION = 1;
 const META_STORE = 'metadata';
 const FILES_STORE = 'files';
