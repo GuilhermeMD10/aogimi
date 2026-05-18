@@ -10,12 +10,14 @@ import {
 import {
   ActivityIndicator,
   Dimensions,
-  Image,
   StyleSheet,
   Text,
   View,
   type ViewToken,
 } from 'react-native';
+// expo-image instead of RN's <Image>: better caching, smarter downsampling
+// at zoom, lower memory pressure on large manga pages.
+import { Image } from 'expo-image';
 // FlatList must come from gesture-handler (not react-native) so its inner
 // ScrollView is wrapped in NativeViewGestureHandler. Without this, Android's
 // native scroll claims touches before the parent GestureDetector can see
@@ -371,7 +373,7 @@ function PageItem({
   return (
     <View style={[styles.pageWrap, { width, height, marginBottom: GAP }]}>
       {uri ? (
-        <Image source={{ uri }} style={styles.image} resizeMode="contain" />
+        <Image source={uri} style={styles.image} contentFit="contain" cachePolicy="memory-disk" />
       ) : (
         <ActivityIndicator color="#FFFFFF" />
       )}

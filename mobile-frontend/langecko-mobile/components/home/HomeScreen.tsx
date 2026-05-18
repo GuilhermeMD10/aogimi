@@ -22,6 +22,7 @@ import { getDeviceId } from '@/lib/deviceId';
 import { useBooks } from './useBooks';
 import { ContinueReadingCard } from './ContinueReadingCard';
 import { BookGridItem } from './BookGridItem';
+import { BookActionsSheet } from './BookActionsSheet';
 
 export function HomeScreen() {
   const c = useColors();
@@ -30,6 +31,9 @@ export function HomeScreen() {
   const { user } = useAuth();
   const { books, loading, refreshing, error, refresh } = useBooks();
   const [importing, setImporting] = useState(false);
+  // Per-tile actions: the … button on a BookGridItem opens BookActionsSheet
+  // bound to whichever book is selected. Null means the sheet is closed.
+  const [actionBook, setActionBook] = useState<BookRecord | null>(null);
 
   const hero = useMemo<BookRecord | null>(() => {
     if (books.length === 0) return null;
@@ -127,6 +131,7 @@ export function HomeScreen() {
                       book={b}
                       hasFile={bookFileExists(b.filename)}
                       onPress={() => openBook(b.id)}
+                      onMore={() => setActionBook(b)}
                     />
                   </View>
                 ))}
@@ -141,6 +146,12 @@ export function HomeScreen() {
           )}
         </ScrollView>
       )}
+
+      <BookActionsSheet
+        book={actionBook}
+        onDismiss={() => setActionBook(null)}
+        onChanged={refresh}
+      />
     </Screen>
   );
 }

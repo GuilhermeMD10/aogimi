@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/Button';
 import { ReaderTopBar } from './ReaderTopBar';
 import { FloatingBackButton } from './FloatingBackButton';
 import { MangaScrollView, type MangaScrollViewHandle } from './MangaScrollView';
+import { MangaPagedView, type MangaPagedViewHandle } from './MangaPagedView';
 import { isMangaEpub, prepareMangaSpine, type MangaSpineHandle } from '@/lib/mangaPages';
 import {
   FoliateReader,
@@ -47,12 +48,16 @@ import { HighlightPicker } from './HighlightPicker';
 import { DeepLPopup } from './DeepLPopup';
 import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle } from './foliateHtml';
 import { useReaderLayoutPrefs, flowForCombo } from '@/lib/readerLayout';
+import { useHideAndroidNavBar } from '@/lib/useHideAndroidNavBar';
 
 type Props = { bookId: string };
 
 export function ReaderScreen({ bookId }: Props) {
   const c = useColors();
   const router = useRouter();
+  // Lower the Android system nav bar while reading any book; restored on
+  // unmount when the user backs out of the reader. iOS is a no-op.
+  useHideAndroidNavBar();
 
   // ── Book record ─────────────────────────────────────────────────────
   const [book, setBook] = useState<BookRecord | null>(null);
@@ -99,6 +104,15 @@ export function ReaderScreen({ bookId }: Props) {
   // for the toolbar's page-count and to persist scroll position.
   const currentSpineRef = useRef<number>(0);
   const mangaScrollViewRef = useRef<MangaScrollViewHandle | null>(null);
+  const mangaPagedViewRef = useRef<MangaPagedViewHandle | null>(null);
+  // Which manga renderer is active. 'scroll' = vertical continuous via
+  // MangaScrollView, 'pages' = horizontal swipe + per-page pinch via
+  // MangaPagedView (awesome-gallery). Both share the same spine handle
+  // and cache, so toggling is instant once a page is on disk.
+  const [mangaMode, setMangaMode] = useState<'scroll' | 'pages'>('scroll');
+  const toggleMangaMode = useCallback(() => {
+    setMangaMode((m) => (m === 'scroll' ? 'pages' : 'scroll'));
+  }, []);
 
   // ── Selection / menus ───────────────────────────────────────────────
   const [selection, setSelection] = useState<SelectionPayload | null>(null);
@@ -543,18 +557,31 @@ export function ReaderScreen({ bookId }: Props) {
 
       <View style={styles.body}>
         {/* Manga and reflowable text are two separate renderers, mutually
-            exclusive. Manga: RN-side MangaScrollView (no WebView mounted).
-            Reflowable: foliate-js inside FoliateReader's WebView. */}
+            exclusive. Manga: RN-side MangaScrollView or MangaPagedView (no
+            WebView mounted). Reflowable: foliate-js inside FoliateReader's
+            WebView. */}
         {isManga ? (
-          <MangaScrollView
-            ref={mangaScrollViewRef}
-            handle={mangaHandle}
-            loading={!mangaHandle && !mangaError}
-            error={mangaError}
-            shellBg={style.bg}
-            initialSpineIndex={currentSpineRef.current}
-            onSpineChange={handleMangaScrollSpineChange}
-          />
+          mangaMode === 'pages' ? (
+            <MangaPagedView
+              ref={mangaPagedViewRef}
+              handle={mangaHandle}
+              loading={!mangaHandle && !mangaError}
+              error={mangaError}
+              shellBg={style.bg}
+              initialSpineIndex={currentSpineRef.current}
+              onSpineChange={handleMangaScrollSpineChange}
+            />
+          ) : (
+            <MangaScrollView
+              ref={mangaScrollViewRef}
+              handle={mangaHandle}
+              loading={!mangaHandle && !mangaError}
+              error={mangaError}
+              shellBg={style.bg}
+              initialSpineIndex={currentSpineRef.current}
+              onSpineChange={handleMangaScrollSpineChange}
+            />
+          )
         ) : ready ? (
           <FoliateReader
             ref={epubRef}
@@ -563,7 +590,6 @@ export function ReaderScreen({ bookId }: Props) {
             initialStyle={style}
             initialHighlights={initialHighlights}
             bgColor={style.bg}
-            manga={false}
             onReady={handleReady}
             onRelocated={handleRelocated}
             onSelection={handleSelection}
@@ -599,7 +625,17 @@ export function ReaderScreen({ bookId }: Props) {
           highlights={highlights}
           prefs={prefs}
           isBookmarked={isBookmarked}
-          onJumpSpine={(idx) => mangaScrollViewRef.current?.scrollToSpine(idx, true)}
+          mode={mangaMode}
+          onToggleMode={toggleMangaMode}
+          // Chevrons route to whichever view is mounted. The other ref
+          // is null; both are safe to no-op on.
+          onJumpSpine={(idx) => {
+            if (mangaMode === 'pages') {
+              mangaPagedViewRef.current?.scrollToSpine(idx, true);
+            } else {
+              mangaScrollViewRef.current?.scrollToSpine(idx, true);
+            }
+          }}
           onToggleBookmark={toggleBookmark}
           onDeleteBookmark={removeBookmarkSynced}
         />

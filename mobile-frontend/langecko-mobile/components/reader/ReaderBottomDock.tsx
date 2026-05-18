@@ -49,6 +49,11 @@ type Props = {
   variant?: 'default' | 'manga';
   page?: number;
   totalPages?: number;
+  // Manga only: which renderer is active. The toolbar exposes a toggle
+  // between the vertical scroll view (continuous stream) and the paged
+  // view (horizontal swipe per page). Toggle is a no-op when undefined.
+  mangaMode?: 'scroll' | 'pages';
+  onToggleMangaMode?: () => void;
 
   // Pane data
   toc: EpubTocItem[];
@@ -256,6 +261,8 @@ export function ReaderBottomDock(props: Props) {
               variant={props.variant ?? 'default'}
               page={props.page}
               totalPages={props.totalPages}
+              mangaMode={props.mangaMode}
+              onToggleMangaMode={props.onToggleMangaMode}
               onPrev={props.onPrev}
               onNext={props.onNext}
               onOpenToc={() => setMode('toc')}
@@ -357,6 +364,8 @@ function ToolbarContent({
   variant,
   page,
   totalPages,
+  mangaMode,
+  onToggleMangaMode,
   onPrev,
   onNext,
   onOpenToc,
@@ -374,6 +383,8 @@ function ToolbarContent({
   variant: 'default' | 'manga';
   page?: number;
   totalPages?: number;
+  mangaMode?: 'scroll' | 'pages';
+  onToggleMangaMode?: () => void;
   onPrev: () => void;
   onNext: () => void;
   onOpenToc: () => void;
@@ -416,7 +427,9 @@ function ToolbarContent({
         <NavCell colors={c} icon="chevron-right" onPress={onNext} ariaLabel="Next page" />
       </View>
 
-      {/* Action row. Manga trims to NOTES + MARK (no font/layout toggles). */}
+      {/* Action row. Manga trims to NOTES + MARK + a mode toggle that swaps
+          between vertical scroll (continuous stream) and horizontal paged
+          (one-page-at-a-time pinch-zoom gallery). */}
       <View style={styles.actionRow}>
         <ToolCol colors={c} icon="edit-3" label="NOTES" onPress={onOpenAnnotations} />
         <ToolCol
@@ -426,6 +439,14 @@ function ToolbarContent({
           active={!!bookmarked}
           onPress={onToggleBookmark}
         />
+        {isManga && onToggleMangaMode && (
+          <ToolCol
+            colors={c}
+            icon={mangaMode === 'pages' ? 'menu' : 'file-text'}
+            label={mangaMode === 'pages' ? 'SCROLL' : 'PAGES'}
+            onPress={onToggleMangaMode}
+          />
+        )}
         {!isManga && (
           <>
             <ToolCol colors={c} icon="type" label="TYPE" onPress={onOpenSettings} />
