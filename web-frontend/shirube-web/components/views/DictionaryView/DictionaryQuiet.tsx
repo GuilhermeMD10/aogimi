@@ -316,7 +316,7 @@ export function HowItWorksColumn() {
           n="03"
           icon={<Bookmark size={16} />}
           title="One press → flashcard"
-          body={<>Save to a deck with <Kbd>S</Kbd>. Langeco picks the right deck based on the book — you can override with <Kbd>⇧S</Kbd>. Reviews show up in your daily queue.</>}
+          body={<>Save to a deck with <Kbd>S</Kbd>. Shirube picks the right deck based on the book — you can override with <Kbd>⇧S</Kbd>. Reviews show up in your daily queue.</>}
         />
       </div>
     </section>

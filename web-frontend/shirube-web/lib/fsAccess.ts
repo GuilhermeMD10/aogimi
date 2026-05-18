@@ -9,7 +9,7 @@ export function supportsDirectoryPicker(): boolean {
 
 // ── Directory handle persistence (IndexedDB) ─────────────────────────────────
 
-const FS_DB_NAME = 'langeco-fs';
+const FS_DB_NAME = 'shirube-fs';
 const FS_DB_VERSION = 1;
 const HANDLES_STORE = 'handles';
 const DIR_KEY = 'library-dir';
