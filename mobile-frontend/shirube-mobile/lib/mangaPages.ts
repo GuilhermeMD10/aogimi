@@ -56,6 +56,12 @@ let cachedHandle: MangaSpineHandle | null = null;
  * non-EPUB inputs gracefully fall through to the reflowable reader.
  */
 export async function isMangaEpub(filename: string): Promise<boolean> {
+  // Only EPUBs can be fixed-layout manga. Skip non-epub files up front —
+  // otherwise we'd read the whole file (e.g. a multi-MB PDF) into JS and
+  // hand it to JSZip, which blocks the JS thread for seconds trying to
+  // parse a non-zip blob before failing. That blockage froze the reader
+  // chrome (chevron, dock) on every PDF open.
+  if (!filename.toLowerCase().endsWith('.epub')) return false;
   try {
     const epubFile = new File(bookFilePath(filename));
     if (!epubFile.exists) return false;

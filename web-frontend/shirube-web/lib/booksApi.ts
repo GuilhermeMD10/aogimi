@@ -28,8 +28,8 @@ export async function registerBook(params: {
   return res.json();
 }
 
-export async function getUserBooks(userId: number): Promise<BookProgressRecord[]> {
-  const res = await fetch(`${API_URL}/api/books/user/${userId}`);
+export async function getUserBooks(userId: number, signal?: AbortSignal): Promise<BookProgressRecord[]> {
+  const res = await fetch(`${API_URL}/api/books/user/${userId}`, { signal });
   if (!res.ok) throw new Error('Failed to fetch books');
   return res.json();
 }
@@ -94,9 +94,22 @@ export async function matchBooks(
   return res.json();
 }
 
+/** Identity payload accepted by the backend's PUT /api/books/:id/identity.
+ *  Supports both EPUB-derived identity (full set) and PDF-derived identity
+ *  (file_hash + content_hash only). Null fields are sent through unchanged
+ *  so the backend's COALESCE-based update preserves existing values rather
+ *  than blanking them. */
+export type BookIdentityPayload = {
+  fileHash: string | null;
+  contentHash: string | null;
+  dcIdentifier?: string | null;
+  language?: string | null;
+  publisher?: string | null;
+};
+
 export async function updateBookIdentity(
   id: string,
-  identity: EpubIdentity,
+  identity: EpubIdentity | BookIdentityPayload,
 ): Promise<BookProgressRecord> {
   const res = await fetch(`${API_URL}/api/books/${id}/identity`, {
     method: 'PUT',

@@ -20,6 +20,8 @@ import type {
 import { InfoRow } from '@/components/ui/InfoRow';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { MAX_MEANINGS_ON_CARD } from '@/lib/config/limits';
+import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
+import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';
 
 // Local (bubble-only) UI flow. Dictionary state itself lives in the
 // DictionaryStateProvider so the /dictionary page stays in sync.
@@ -253,37 +255,16 @@ function WordDetailPhase({
   onKanjiSearch: (char: string) => void;
   onClose: () => void;
 }) {
-  const [data, setData] = useState<DetailsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    getWordDetails(wordId, controller.signal)
-      .then((result) => {
-        if (!controller.signal.aborted) {
-          setData(result);
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (controller.signal.aborted) return;
-        setError(err instanceof Error ? err.message : 'Failed to load word');
-        setLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [wordId]);
+  const { data, loading, error } = useFetchWithAbort<DetailsResponse>(
+    (signal) => getWordDetails(wordId, signal),
+    [wordId],
+  );
 
   const handleAddCard = () => {
     if (!data) return;
     const { word } = data;
     const headword = preferredHeadword(word, query);
-    const reading = word.readings[0];
+    const reading = word.readings[0]?.form;
     const engMeanings = word.meanings.filter((m) => m.lang === 'eng');
 
     const parts: string[] = [];
@@ -353,7 +334,8 @@ function WordDetailContent({
 }) {
   const { word, kanjis } = data;
   const headword = preferredHeadword(word, query);
-  const reading = word.readings[0];
+  const primaryReading = word.readings[0];
+  const reading = primaryReading?.form;
   const engMeanings = word.meanings.filter((m) => m.lang === 'eng');
   const pos = word.meanings[0]?.pos;
 
@@ -372,6 +354,15 @@ function WordDetailContent({
               className="mt-1 text-[18px] text-lgc-fg-muted font-display"
             >
               {reading}
+            </div>
+          )}
+          {primaryReading?.pitchAccents && (
+            <div className="mt-2">
+              <PitchAccentDiagram
+                reading={primaryReading.form}
+                pitchAccents={primaryReading.pitchAccents}
+                size="sm"
+              />
             </div>
           )}
           <div className="mt-2 flex flex-wrap gap-1">
@@ -463,25 +454,26 @@ function SelectDeckPhase({
   onClose: () => void;
 }) {
   const user = useAuthedUser();
+  const { data: fetchedDecks, loading } = useFetchWithAbort<DeckRecord[]>(
+    (signal) => decksApi.getUserDecks(user.id, signal),
+    [user.id],
+  );
   const [decks, setDecks] = useState<DeckRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [newDeckName, setNewDeckName] = useState('');
-  const [showNewDeck, setShowNewDeck] = useState(false);
-  const [creating, setCreating] = useState(false);
-
   useEffect(() => {
-    decksApi
-      .getUserDecks(user.id)
-      .then(setDecks)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [user.id]);
+    if (fetchedDecks) setDecks(fetchedDecks);
+  }, [fetchedDecks]);
+  // New-deck-form composite state. `null` = form closed; object = form open
+  // with current input + busy flag. Collapses showNewDeck + newDeckName + creating.
+  const [newDeckDraft, setNewDeckDraft] = useState<{ name: string; creating: boolean } | null>(null);
+  const showNewDeck = newDeckDraft !== null;
+  const newDeckName = newDeckDraft?.name ?? '';
+  const creating = newDeckDraft?.creating ?? false;
 
   const createDeck = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = newDeckName.trim();
     if (!name || creating) return;
-    setCreating(true);
+    setNewDeckDraft({ name, creating: true });
     try {
       const deck = await decksApi.createDeck({ userId: user.id, name });
       setDecks((prev) => [...prev, deck]);
@@ -489,7 +481,7 @@ function SelectDeckPhase({
     } catch {
       /* ignore */
     } finally {
-      setCreating(false);
+      setNewDeckDraft(null);
     }
   };
 
@@ -565,7 +557,7 @@ function SelectDeckPhase({
             <input
               type="text"
               value={newDeckName}
-              onChange={(e) => setNewDeckName(e.target.value)}
+              onChange={(e) => setNewDeckDraft((d) => ({ name: e.target.value, creating: d?.creating ?? false }))}
               placeholder="New deck name"
               className="flex-1 rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
               autoFocus
@@ -581,7 +573,7 @@ function SelectDeckPhase({
         ) : (
           <button
             type="button"
-            onClick={() => setShowNewDeck(true)}
+            onClick={() => setNewDeckDraft({ name: '', creating: false })}
             className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-md border border-lgc-border px-3 py-2.5 text-sm text-lgc-fg transition-colors hover:bg-lgc-accent-soft"
           >
             <Plus size={14} /> New deck
@@ -741,7 +733,7 @@ function ResultRow({
   onClick: () => void;
 }) {
   const headword = preferredHeadword(word, query);
-  const reading = word.kanji.length > 0 ? word.readings[0] : null;
+  const reading = word.kanji.length > 0 ? word.readings[0]?.form ?? null : null;
   const glosses = word.meanings.filter((m) => m.lang === 'eng').map((m) => m.meaning);
   const pos = word.meanings[0]?.pos;
 

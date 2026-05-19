@@ -1,7 +1,6 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Plus, Volume2, Star } from 'lucide-react';
 import { InfoRow } from '@/components/ui/InfoRow';
 import { JlptChip } from '@/components/ui/JlptChip';
@@ -11,14 +10,19 @@ import { Postmark } from '@/components/theme-decorations/stamp/Postmark';
 import { getWordDetails } from '@/lib/dictApi';
 import type { DetailsResponse } from '@/lib/types';
 import { MAX_MEANINGS_ON_CARD } from '@/lib/config/limits';
+import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
+import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';
 
 // If the user's query matches one of the entry's kanji or reading forms exactly,
 // surface that form instead of the dict's "primary" common kanji.
-export function preferredHeadword(word: { kanji: string[]; readings: string[] }, query: string | undefined): string {
+export function preferredHeadword(
+  word: { kanji: string[]; readings: { form: string }[] },
+  query: string | undefined,
+): string {
   const q = (query ?? '').trim();
   if (q && word.kanji.includes(q)) return q;
-  if (q && word.readings.includes(q)) return q;
-  return word.kanji[0] ?? word.readings[0] ?? '—';
+  if (q && word.readings.some((r) => r.form === q)) return q;
+  return word.kanji[0] ?? word.readings[0]?.form ?? '—';
 }
 
 export default function WordDetailView({
@@ -35,33 +39,10 @@ export default function WordDetailView({
   onAddCard?: (word: string, back: string) => void;
 }) {
   const router = useRouter();
-  const abortRef = useRef<AbortController | null>(null);
-
-  const [data, setData] = useState<DetailsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    abortRef.current?.abort();
-    abortRef.current = controller;
-
-    setLoading(true);
-    setError(null);
-    setData(null);
-
-    getWordDetails(id, controller.signal)
-      .then(setData)
-      .catch((err) => {
-        if (err instanceof Error && err.name === 'AbortError') return;
-        setError(err instanceof Error ? err.message : 'Failed to load word');
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [id]);
+  const { data, loading, error } = useFetchWithAbort<DetailsResponse>(
+    (signal) => getWordDetails(id, signal),
+    [id],
+  );
 
   const searchKanji = (char: string) => {
     if (onKanjiSearch) {
@@ -131,7 +112,8 @@ function WordBody({
 }) {
   const { word, kanjis } = data;
   const headword = preferredHeadword(word, query);
-  const reading = word.readings[0];
+  const primaryReading = word.readings[0];
+  const reading = primaryReading?.form;
   const engMeanings = word.meanings.filter((m) => m.lang === 'eng');
   const pos = word.meanings[0]?.pos;
 
@@ -165,9 +147,17 @@ function WordBody({
               {reading}
             </div>
           )}
+          {primaryReading?.pitchAccents && (
+            <div className="mt-2">
+              <PitchAccentDiagram
+                reading={primaryReading.form}
+                pitchAccents={primaryReading.pitchAccents}
+              />
+            </div>
+          )}
           {word.readings.length > 1 && (
             <div className="mt-0.5 text-[13px] text-lgc-fg-subtle font-mono">
-              {word.readings.join(' · ')}
+              {word.readings.map((r) => r.form).join(' · ')}
             </div>
           )}
           <div className="mt-2.5 flex flex-wrap gap-1">
@@ -287,7 +277,40 @@ function WordBody({
         </>
       )}
 
-      <div className="flex justify-end gap-1.5 text-[11px] text-lgc-fg-subtle">Source &middot; JMdict</div>
+      {data.sentences.length > 0 && (
+        <>
+          <SectionHead num={kanjis.length > 0 ? '03' : '02'} title="Examples" />
+          <div className="mb-8 flex flex-col gap-4">
+            {data.sentences.map((s) => (
+              <div key={s.id} className="lgc-card p-4">
+                {s.jaRuby ? (
+                  <div
+                    className="text-[17px] leading-relaxed text-lgc-fg font-display"
+                    // The HTML originates from our curated import of Kanjium's
+                    // sentences.txt — fixed format with only <ruby>/<rb>/<rp>/<rt>
+                    // tags. No user content reaches this branch.
+                    dangerouslySetInnerHTML={{ __html: s.jaRuby }}
+                  />
+                ) : (
+                  <div className="text-[17px] leading-relaxed text-lgc-fg font-display">
+                    {s.ja}
+                  </div>
+                )}
+                <div className="mt-1.5 text-[13px] text-lgc-fg-muted">{s.en}</div>
+                {s.gradeLabel && (
+                  <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-lgc-fg-subtle font-mono">
+                    {s.gradeLabel}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div className="flex justify-end gap-1.5 text-[11px] text-lgc-fg-subtle">
+        Source &middot; JMdict {data.sentences.length > 0 && '· Tatoeba (via Kanjium)'}
+      </div>
     </>
   );
 }

@@ -1,12 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors, useFonts, useShape } from '@/theme/ThemeContext';
-import type { KanjiInfo, WordResult } from '@/lib/types';
+import type { ExampleSentence, KanjiInfo, WordResult } from '@/lib/types';
 import { Postmark } from '@/components/theme-decorations/stamp';
 import { JlptChip } from '@/components/ui/JlptChip';
+import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';
+import { RubyText } from '@/components/ui/RubyText';
 
 type Props = {
   word: WordResult;
   kanjis?: KanjiInfo[];
+  sentences?: ExampleSentence[];
   compact?: boolean;
   /** When provided, each kanji card becomes pressable and fires this with
    *  the kanji's literal — the parent typically opens a fresh dictionary
@@ -27,14 +30,15 @@ type Props = {
  *  - Kanji breakdown: 2-up grid of sumi-bordered cards with char + on/kun
  *    readings + meanings
  */
-export function DictEntry({ word, kanjis = [], compact, onKanjiPress }: Props) {
+export function DictEntry({ word, kanjis = [], sentences = [], compact, onKanjiPress }: Props) {
   const c = useColors();
   const f = useFonts();
   const surface = useShape().surface;
 
-  const headword = word.kanji[0] ?? word.readings[0] ?? '';
-  const reading = word.readings[0] ?? '';
-  const altReadings = word.readings.slice(1);
+  const headword = word.kanji[0] ?? word.readings[0]?.form ?? '';
+  const primaryReading = word.readings[0];
+  const reading = primaryReading?.form ?? '';
+  const altReadings = word.readings.slice(1).map((r) => r.form);
   const englishMeanings = word.meanings
     .filter((m) => m.lang === 'eng' || m.lang === 'en')
     .slice(0, compact ? 3 : 8);
@@ -73,6 +77,14 @@ export function DictEntry({ word, kanjis = [], compact, onKanjiPress }: Props) {
             >
               {reading}
             </Text>
+          )}
+          {primaryReading?.pitchAccents && (
+            <View style={{ marginTop: 6 }}>
+              <PitchAccentDiagram
+                reading={primaryReading.form}
+                pitchAccents={primaryReading.pitchAccents}
+              />
+            </View>
           )}
           {altReadings.length > 0 && (
             <Text
@@ -185,9 +197,66 @@ export function DictEntry({ word, kanjis = [], compact, onKanjiPress }: Props) {
           </View>
         </View>
       )}
+
+      {/* Example sentences */}
+      {sentences.length > 0 && (
+        <View style={{ marginTop: 22, gap: 10 }}>
+          <SectionLabel>Examples</SectionLabel>
+          {sentences.map((s) => (
+            <View
+              key={s.id}
+              style={[
+                stampSentenceStyles.card,
+                { backgroundColor: c.bgElev, borderColor: c.fg },
+              ]}
+            >
+              <RubyText html={s.jaRuby} fallback={s.ja} color={c.fg} />
+              <Text
+                style={[
+                  stampSentenceStyles.en,
+                  { color: c.fgMuted, fontFamily: f.reader },
+                ]}
+              >
+                {s.en}
+              </Text>
+              {s.gradeLabel && (
+                <Text
+                  style={[
+                    stampSentenceStyles.grade,
+                    { color: c.fgSubtle, fontFamily: f.mono },
+                  ]}
+                >
+                  {s.gradeLabel}
+                </Text>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
+
+const stampSentenceStyles = StyleSheet.create({
+  card: {
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 14,
+    gap: 4,
+  },
+  en: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  grade: {
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Kanji tile — pressable when an `onPress` is provided. Press collapses the

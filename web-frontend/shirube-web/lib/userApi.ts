@@ -13,8 +13,8 @@ export function signupUser(username: string, password: string): Promise<AuthUser
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
-export async function getUserProfile(userId: number): Promise<UserProfile> {
-  const res = await fetch(`${API_URL}/api/user/${userId}`);
+export async function getUserProfile(userId: number, signal?: AbortSignal): Promise<UserProfile> {
+  const res = await fetch(`${API_URL}/api/user/${userId}`, { signal });
   if (!res.ok) throw new Error('Failed to fetch profile');
   return res.json();
 }

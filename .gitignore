@@ -21,3 +21,9 @@ n5.csv
 Podfile.lock
 .ds_store
 .expo
+
+.DS_Store
+.serena
+.claude
+.vscode
+docs

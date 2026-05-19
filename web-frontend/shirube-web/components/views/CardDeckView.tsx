@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import * as api from '@/lib/decksApi';
+import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import { DeckList } from './cards/DeckList';
 import { DeckDetail } from './cards/DeckDetail';
 import { StudyView } from './cards/StudyView';
@@ -20,45 +21,32 @@ type Screen =
 
 export default function CardDeckView() {
   const user = useAuthedUser();
-
-  const [deckSummaries, setDeckSummaries] = useState<DeckSummary[]>([]);
-  const [activeDeck, setActiveDeck] = useState<Deck | null>(null);
   const [screen, setScreen] = useState<Screen>({ type: 'decks' });
-  const [loading, setLoading] = useState(false);
-
   const [pendingCardFlow, setPendingCardFlow] = useState<PendingCardFlow>(null);
   const { pendingCard, setPendingCard } = useReaderState();
 
-  // ── Fetch deck list ─────────────────────────────────────────────────────────
-  const fetchDecks = useCallback(async () => {
-    try {
-      const records = await api.getUserDecks(user.id);
-      setDeckSummaries(
-        records.map((r) => ({
-          id: r.id,
-          name: r.name,
-          description: r.description,
-          card_count: r.card_count,
-        })),
-      );
-    } catch {
-      /* silently fail — user sees empty list */
-    }
-  }, [user]);
+  // ── Deck list ───────────────────────────────────────────────────────────────
+  const { data: deckRecords, refresh: refreshDecks } = useFetchWithAbort(
+    (signal) => api.getUserDecks(user.id, signal),
+    [user.id],
+  );
+  const deckSummaries: DeckSummary[] = (deckRecords ?? []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    description: r.description,
+    card_count: r.card_count,
+  }));
+  const fetchDecks = useCallback(() => refreshDecks(), [refreshDecks]);
 
-  useEffect(() => {
-    void fetchDecks();
-  }, [fetchDecks]);
-
-  // ── Fetch cards for a deck ──────────────────────────────────────────────────
-  const fetchDeckWithCards = useCallback(async (deckId: string) => {
-    setLoading(true);
-    try {
+  // ── Active deck + cards ─────────────────────────────────────────────────────
+  const activeDeckId = screen.type === 'decks' ? null : screen.deckId;
+  const { data: activeDeckData, loading } = useFetchWithAbort<Deck>(
+    async (signal) => {
       const [deckRecord, cards] = await Promise.all([
-        api.getDeck(deckId),
-        api.getDeckCards(deckId),
+        api.getDeck(activeDeckId!, signal),
+        api.getDeckCards(activeDeckId!, signal),
       ]);
-      const deck: Deck = {
+      return {
         id: deckRecord.id,
         name: deckRecord.name,
         description: deckRecord.description,
@@ -73,13 +61,16 @@ export default function CardDeckView() {
           reviewed_times: c.reviewed_times,
         })),
       };
-      setActiveDeck(deck);
-    } catch {
-      setActiveDeck(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [activeDeckId],
+    { enabled: !!activeDeckId },
+  );
+
+  // Local mutable mirror so handlers can do optimistic edits/deletes without a refetch.
+  const [activeDeck, setActiveDeck] = useState<Deck | null>(null);
+  useEffect(() => {
+    setActiveDeck(activeDeckData);
+  }, [activeDeckData]);
 
   // ── Reader → pending-card hand-off ──────────────────────────────────────────
   useEffect(() => {
@@ -159,17 +150,12 @@ export default function CardDeckView() {
   // ── Nav ────────────────────────────────────────────────────────────────────
   const goToList = useCallback(() => {
     setScreen({ type: 'decks' });
-    setActiveDeck(null);
     void fetchDecks();
   }, [fetchDecks]);
 
-  const goToDetail = useCallback(
-    (deckId: string) => {
-      setScreen({ type: 'deck', deckId });
-      void fetchDeckWithCards(deckId);
-    },
-    [fetchDeckWithCards],
-  );
+  const goToDetail = useCallback((deckId: string) => {
+    setScreen({ type: 'deck', deckId });
+  }, []);
 
   const startStudy = useCallback(() => {
     setScreen((prev) =>
@@ -182,9 +168,6 @@ export default function CardDeckView() {
       prev.type === 'study' ? { type: 'deck', deckId: prev.deckId } : prev,
     );
   }, []);
-
-  // Active deck helpers
-  const activeDeckId = screen.type === 'decks' ? null : screen.deckId;
 
   const editActiveDeck = useCallback(
     (patch: { name: string; description: string }) => {
@@ -235,9 +218,8 @@ export default function CardDeckView() {
       await fetchDecks();
       setPendingCardFlow(null);
       setScreen({ type: 'deck', deckId: flow.deckId });
-      void fetchDeckWithCards(flow.deckId);
     },
-    [pendingCardFlow, fetchDecks, fetchDeckWithCards],
+    [pendingCardFlow, fetchDecks],
   );
 
   // ── Render ─────────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import {
   ActivityIndicator,
   Pressable,
@@ -31,40 +32,31 @@ export function ProfileScreen() {
   const router = useRouter();
   const { user, credentials, signOut, setUser } = useAuth();
 
-  const [books, setBooks] = useState<BookRecord[]>([]);
-  const [decks, setDecks] = useState<DeckRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
-  const [savingAvatar, setSavingAvatar] = useState(false);
-  const [savingLevel, setSavingLevel] = useState(false);
+  const userId = user?.id;
+  const { data, loading } = useFetchWithAbort(
+    async (signal) => {
+      const [books, decks] = await Promise.all([
+        fetchUserBooks(userId!, signal),
+        fetchUserDecks(userId!, signal),
+      ]);
+      return { books, decks };
+    },
+    [userId],
+    { enabled: userId != null },
+  );
+  const books = data?.books ?? [];
+  const decks = data?.decks ?? [];
 
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const [b, d] = await Promise.all([fetchUserBooks(user.id), fetchUserDecks(user.id)]);
-        if (cancelled) return;
-        setBooks(b);
-        setDecks(d);
-      } catch {
-        /* non-critical */
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  // Single busy-field flag — only one profile mutation is ever in flight.
+  const [savingField, setSavingField] = useState<'avatar' | 'level' | null>(null);
+  const savingAvatar = savingField === 'avatar';
+  const savingLevel = savingField === 'level';
 
   const handleAvatarSelect = useCallback(
     async (idx: number) => {
       if (!user || !credentials) return;
-      setSavingAvatar(true);
+      setSavingField('avatar');
       try {
         const updated = await updateUserProfile(credentials.username, credentials.password, {
           avatar_index: idx,
@@ -73,7 +65,7 @@ export function ProfileScreen() {
       } catch {
         /* surface later if needed */
       } finally {
-        setSavingAvatar(false);
+        setSavingField(null);
       }
     },
     [user, credentials, setUser],
@@ -82,7 +74,7 @@ export function ProfileScreen() {
   const handleLevelSelect = useCallback(
     async (level: JlptLevel) => {
       if (!user || !credentials || savingLevel) return;
-      setSavingLevel(true);
+      setSavingField('level');
       try {
         const updated = await updateUserProfile(credentials.username, credentials.password, {
           language: level,
@@ -91,7 +83,7 @@ export function ProfileScreen() {
       } catch {
         /* ignore */
       } finally {
-        setSavingLevel(false);
+        setSavingField(null);
       }
     },
     [user, credentials, savingLevel, setUser],

@@ -65,7 +65,9 @@ export function DictEmpty({ query, setQuery, recents, onPickRecent, onSettings, 
           onPress={() => inputRef.current?.focus()}
           style={[
             styles.searchField,
-            { backgroundColor: c.bg, borderColor: c.border },
+            // Pure white surface + soft shadow gives the input bar a clear
+            // "raised" affordance against the page's bg-elev card.
+            { backgroundColor: '#FFFFFF', borderColor: c.border },
           ]}
         >
           <Feather name="search" size={16} color={c.fgSubtle} />
@@ -227,6 +229,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
     marginTop: spacing.lg,
+    // Subtle elevation — keeps the input bar above the card surface.
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,

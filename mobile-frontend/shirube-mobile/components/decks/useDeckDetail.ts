@@ -1,30 +1,26 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchDeck, fetchDeckCards } from '@/lib/api';
 import type { CardRecord, DeckRecord } from '@/lib/types';
+import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 
 export function useDeckDetail(deckId: string) {
-  const [deck, setDeck] = useState<DeckRecord | null>(null);
+  const { data, loading, error, refresh } = useFetchWithAbort<{ deck: DeckRecord; cards: CardRecord[] }>(
+    async (signal) => {
+      const [deck, cards] = await Promise.all([
+        fetchDeck(deckId, signal),
+        fetchDeckCards(deckId, signal),
+      ]);
+      return { deck, cards };
+    },
+    [deckId],
+  );
+
+  // Mirrors server cards but lets callers do optimistic edits/deletes
+  // without a refetch. Re-syncs whenever the underlying fetch settles.
   const [cards, setCards] = useState<CardRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [d, c] = await Promise.all([fetchDeck(deckId), fetchDeckCards(deckId)]);
-      setDeck(d);
-      setCards(c);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load deck');
-    } finally {
-      setLoading(false);
-    }
-  }, [deckId]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    if (data) setCards(data.cards);
+  }, [data]);
 
-  return { deck, cards, loading, error, refresh: load, setCards };
+  return { deck: data?.deck ?? null, cards, loading, error, refresh, setCards };
 }

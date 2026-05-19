@@ -75,14 +75,17 @@ export async function clearPersistedDirectory(): Promise<void> {
 
 // ── Directory scanning ───────────────────────────────────────────────────────
 
-/** Recursively walk a directory handle and collect all .epub files. */
-export async function scanForEpubs(
+/** Recursively walk a directory handle and collect all book files
+ *  (.epub + .pdf). */
+export async function scanForBooks(
   dirHandle: FileSystemDirectoryHandle,
 ): Promise<File[]> {
   const files: File[] = [];
   await walkDirectory(dirHandle, files);
   return files;
 }
+
+const BOOK_EXTS = ['.epub', '.pdf'];
 
 async function walkDirectory(
   dirHandle: FileSystemDirectoryHandle,
@@ -91,7 +94,8 @@ async function walkDirectory(
   for await (const entry of (dirHandle as any).values()) {
     if (entry.kind === 'file') {
       const fileHandle = entry as FileSystemFileHandle;
-      if (fileHandle.name.endsWith('.epub')) {
+      const name = fileHandle.name.toLowerCase();
+      if (BOOK_EXTS.some((ext) => name.endsWith(ext))) {
         try {
           const file = await fileHandle.getFile();
           results.push(file);

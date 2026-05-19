@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CloudOff, MoreHorizontal, Plus, Search, Pencil, CheckCircle2, Trash2, BookOpen, ArrowUpDown } from 'lucide-react';
 import type { LibraryBook } from '@/components/library/BookList';
+import { useBookRowEditing } from './useBookRowEditing';
 
 type Filter = 'all' | 'reading' | 'upnext' | 'finished';
 
@@ -219,7 +220,7 @@ function LibraryHeader({
           className="flex items-center gap-1.5 rounded-md border border-lgc-border-strong px-3 py-1.5 text-[13px] font-medium text-lgc-fg transition-colors hover:bg-lgc-bg-elev disabled:opacity-50"
         >
           <Plus size={13} />
-          {importing ? 'Importing…' : 'Import EPUB'}
+          {importing ? 'Importing…' : 'Import book'}
         </button>
       </div>
     </div>
@@ -343,17 +344,8 @@ function ContinuePanel({
   onRename: (title: string) => void;
   onRemove: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(book.title);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  const startEdit = () => { setDraft(book.title); setEditing(true); setMenuOpen(false); };
-  const commitEdit = () => {
-    setEditing(false);
-    const trimmed = draft.trim();
-    if (trimmed && trimmed !== book.title) onRename(trimmed);
-  };
-  const cancelEdit = () => { setEditing(false); setDraft(book.title); };
+  const { editing, draft, setDraft, menuOpen, setMenuOpen, startEdit, commitEdit, cancelEdit } =
+    useBookRowEditing(book, onRename);
 
   return (
     <div
@@ -526,20 +518,11 @@ function BookCard({
   onMarkFinished: () => void;
   onRemove: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(book.title);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { editing, draft, setDraft, menuOpen, setMenuOpen, startEdit, commitEdit, cancelEdit } =
+    useBookRowEditing(book, onRename);
 
   const finished = book.progress === 100;
   const muted = !book.available;
-
-  const startEdit = () => { setDraft(book.title); setEditing(true); setMenuOpen(false); };
-  const commitEdit = () => {
-    setEditing(false);
-    const trimmed = draft.trim();
-    if (trimmed && trimmed !== book.title) onRename(trimmed);
-  };
-  const cancelEdit = () => { setEditing(false); setDraft(book.title); };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -884,7 +867,7 @@ function EmptyLibrary({ onImport, importing }: { onImport: () => void; importing
         disabled={importing}
         className="mt-4 flex items-center gap-1.5 rounded-md bg-lgc-accent px-4 py-2 text-sm font-semibold text-lgc-accent-fg transition hover:opacity-90 disabled:opacity-50"
       >
-        <Plus size={14} /> {importing ? 'Importing…' : 'Import EPUB'}
+        <Plus size={14} /> {importing ? 'Importing…' : 'Import book'}
       </button>
     </div>
   );

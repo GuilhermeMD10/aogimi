@@ -164,7 +164,7 @@ function ReconcileView({
           return (
             <View
               key={b.id}
-              style={[styles.row, { backgroundColor: c.bgElev, borderColor: c.border }]}
+              style={[styles.row, { backgroundColor: '#FFFFFF', borderColor: c.border }]}
             >
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[styles.rowTitle, { color: c.fg }]} numberOfLines={1}>
@@ -232,10 +232,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: 12,
+    padding: 14,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: 8,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
   },
   rowTitle: { fontFamily: fontFamily.jp, fontSize: fontSize.md, fontWeight: '500' },
   rowSub: { fontSize: fontSize.xs + 1, marginTop: 2 },

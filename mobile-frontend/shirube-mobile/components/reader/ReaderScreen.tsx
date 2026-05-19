@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { File } from 'expo-file-system';
 import { useColors } from '@/theme/ThemeContext';
-import { fetchBook, updateBookProgress } from '@/lib/api';
+import { fetchBook, sendProgressBeacon } from '@/lib/api';
+import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import type { BookRecord, WordDetails } from '@/lib/types';
-import { bookFileExists, bookFilePath, importEpub } from '@/lib/bookFiles';
+import { bookFilePath, importEpub } from '@/lib/bookFiles';
+import { useBookFile } from '@/lib/useBookFile';
 import {
   createBookmark as apiCreateBookmark,
   deleteBookmark as apiDeleteBookmark,
@@ -26,13 +28,15 @@ import {
 } from '@/lib/readerStorage';
 import { useReaderPrefs } from '@/lib/readerPrefs';
 import { DictDrawer } from '@/components/dictionary/DictDrawer';
-import { FlashcardDrawer, type FlashcardPrefill } from '@/components/flashcards/FlashcardDrawer';
+import { FlashcardDrawer } from '@/components/flashcards/FlashcardDrawer';
 import { Button } from '@/components/ui/Button';
-import { ReaderTopBar } from './ReaderTopBar';
-import { FloatingBackButton } from './FloatingBackButton';
-import { MangaScrollView, type MangaScrollViewHandle } from './MangaScrollView';
-import { MangaPagedView, type MangaPagedViewHandle } from './MangaPagedView';
-import { isMangaEpub, prepareMangaSpine, type MangaSpineHandle } from '@/lib/mangaPages';
+import { ReaderTopBar } from './utils/ReaderTopBar';
+import { FloatingBackButton } from './utils/FloatingBackButton';
+import { MangaScrollView, type MangaScrollViewHandle } from './manga/MangaScrollView';
+import { MangaPagedView, type MangaPagedViewHandle } from './manga/MangaPagedView';
+import { useMangaSpine } from './manga/useMangaSpine';
+import { useReaderModals } from './utils/useReaderModals';
+import { PdfReaderShell } from './pdf/PdfReaderShell';
 import {
   FoliateReader,
   type CustomMenuEvent,
@@ -40,13 +44,13 @@ import {
   type ReadyPayload,
   type RelocatedPayload,
   type SelectionPayload,
-} from './readers/FoliateReader';
-import { TextReader } from './readers/TextReader';
-import { NovelReader } from './readers/NovelReader';
-import { MangaReader } from './readers/MangaReader';
-import { HighlightPicker } from './HighlightPicker';
-import { DeepLPopup } from './DeepLPopup';
-import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle } from './foliateHtml';
+} from './novel/FoliateReader';
+import { TextReader } from './novel/TextReader';
+import { NovelReader } from './novel/NovelReader';
+import { MangaReader } from './manga/MangaReader';
+import { HighlightPicker } from './utils/HighlightPicker';
+import { DeepLPopup } from './utils/DeepLPopup';
+import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle } from './utils/foliateHtml';
 import { useReaderLayoutPrefs, flowForCombo } from '@/lib/readerLayout';
 import { useHideAndroidNavBar } from '@/lib/useHideAndroidNavBar';
 
@@ -60,10 +64,14 @@ export function ReaderScreen({ bookId }: Props) {
   useHideAndroidNavBar();
 
   // ── Book record ─────────────────────────────────────────────────────
-  const [book, setBook] = useState<BookRecord | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [hasFile, setHasFile] = useState(false);
+  const { data: book, loading, error: fetchError } = useFetchWithAbort<BookRecord>(
+    (signal) => fetchBook(bookId, signal),
+    [bookId],
+  );
+  // Separate state for runtime EPUB/render errors surfaced by the WebView.
+  const [epubError, setEpubError] = useState<string | null>(null);
+  const error = fetchError ?? epubError;
+  const { hasFile, markAvailable: setHasFile } = useBookFile(book ?? null);
 
   // ── Reader storage: per-book bits (highlights / bookmarks / last CFI) ──
   const storage = useReaderStorage(book?.filename ?? null);
@@ -91,44 +99,57 @@ export function ReaderScreen({ bookId }: Props) {
   // vs 'novel' (vertical-rl JP).
   const [bookType, setBookType] = useState<BookType | null>(null);
   const [toc, setToc] = useState<EpubTocItem[]>([]);
-  const [chapterLabel, setChapterLabel] = useState('');
-  const [progress, setProgress] = useState(0);
-  const [currentCfi, setCurrentCfi] = useState<string>('');
-  const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  // Manga renderer state. No more dual-renderer overlay — when bookType is
-  // 'manga' the WebView path is skipped and only MangaScrollView renders.
-  const [mangaHandle, setMangaHandle] = useState<MangaSpineHandle | null>(null);
-  const [mangaError, setMangaError] = useState<string | null>(null);
+  // Foliate's `relocate` payload sets all five location fields atomically.
+  // Bundling them keeps each page-turn a single setState write.
+  const [location, setLocation] = useState({
+    cfi: '',
+    progress: 0,
+    page: 0,
+    totalPages: 0,
+    chapterLabel: '',
+  });
+  const { cfi: currentCfi, progress, page, totalPages, chapterLabel } = location;
+  // Manga prep (handle + error + isManga). The hook owns the detection
+  // and spine-prepare effect; the page derives bookType + totalPages + ready
+  // from the returned state.
+  const manga = useMangaSpine(book ?? null, hasFile);
+  const { handle: mangaHandle, error: mangaError } = manga;
   // Current spine index as reported by whichever reader is active. Used
   // for the toolbar's page-count and to persist scroll position.
   const currentSpineRef = useRef<number>(0);
   const mangaScrollViewRef = useRef<MangaScrollViewHandle | null>(null);
   const mangaPagedViewRef = useRef<MangaPagedViewHandle | null>(null);
-  // Which manga renderer is active. 'scroll' = vertical continuous via
-  // MangaScrollView, 'pages' = horizontal swipe + per-page pinch via
-  // MangaPagedView (awesome-gallery). Both share the same spine handle
-  // and cache, so toggling is instant once a page is on disk.
-  const [mangaMode, setMangaMode] = useState<'scroll' | 'pages'>('scroll');
-  const toggleMangaMode = useCallback(() => {
-    setMangaMode((m) => (m === 'scroll' ? 'pages' : 'scroll'));
-  }, []);
+  // Manga mode + page direction now live in useReaderLayoutPrefs so they
+  // persist across sessions. The toggle handlers below proxy to the hook so
+  // the local API stays unchanged for existing consumers.
 
   // ── Selection / menus ───────────────────────────────────────────────
   const [selection, setSelection] = useState<SelectionPayload | null>(null);
-  const [dictTerm, setDictTerm] = useState<string | null>(null);
-  const [flashcardPrefill, setFlashcardPrefill] = useState<FlashcardPrefill | null>(null);
-  const [deepLText, setDeepLText] = useState<string | null>(null);
-  const [highlightPicker, setHighlightPicker] = useState<{
-    cfi: string;
-    text: string;
-    x: number;
-    y: number;
-  } | null>(null);
+  const {
+    dictTerm,
+    setDictTerm,
+    flashcardPrefill,
+    setFlashcardPrefill,
+    deepLText,
+    setDeepLText,
+    highlightPicker,
+    setHighlightPicker,
+  } = useReaderModals();
 
   const epubRef = useRef<FoliateReaderHandle | null>(null);
-  const { layout, direction, setLayout, setDirection, toggleLayout, toggleDirection } =
-    useReaderLayoutPrefs();
+  const {
+    layout,
+    direction,
+    mangaMode,
+    mangaPageDir,
+    setLayout,
+    setDirection,
+    setMangaPageDir,
+    toggleLayout,
+    toggleDirection,
+    toggleMangaMode,
+    toggleMangaPageDir,
+  } = useReaderLayoutPrefs();
   const [readerReady, setReaderReady] = useState(false);
 
   // Apply the layout/direction combo via setViewMode. Fires:
@@ -144,27 +165,13 @@ export function ReaderScreen({ bookId }: Props) {
     const flow = flowForCombo(layout, direction);
     epubRef.current.setViewMode(flow === 'scrolled' ? 'scroll' : 'single');
   }, [readerReady, layout, direction, bookType]);
-  const latestLocationRef = useRef<{ cfi: string; progress: number } | null>(null);
-
-  // ── Load the book record ────────────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await fetchBook(bookId);
-        if (cancelled) return;
-        setBook(data);
-        setHasFile(bookFileExists(data.filename));
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load book');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [bookId]);
+  const latestLocationRef = useRef<{
+    cfi: string;
+    progress: number;
+    spineIndex: number;
+    totalSpineItems: number;
+  } | null>(null);
+  const lastSyncedRef = useRef<{ cfi: string; progress: number } | null>(null);
 
   // ── Style derivation (vertical=true for JP novels) ──────────────────
   // For manga we send the darker shell color as `bg` so the WebView surround
@@ -197,15 +204,22 @@ export function ReaderScreen({ bookId }: Props) {
 
   const handleRelocated = useCallback(
     (loc: RelocatedPayload) => {
-      setProgress(loc.progress);
-      setChapterLabel(loc.chapterLabel ?? '');
-      setCurrentCfi(loc.cfi);
-      setPage(loc.page);
-      setTotalPages(loc.totalPages);
+      setLocation({
+        cfi: loc.cfi,
+        progress: loc.progress,
+        page: loc.page,
+        totalPages: loc.totalPages,
+        chapterLabel: loc.chapterLabel ?? '',
+      });
       // For manga (FXL) the spineIndex is one-to-one with the visible page.
       // Track it so toggling into scroll mode lands at the same page.
       currentSpineRef.current = loc.spineIndex;
-      latestLocationRef.current = { cfi: loc.cfi, progress: loc.progress };
+      latestLocationRef.current = {
+        cfi: loc.cfi,
+        progress: loc.progress,
+        spineIndex: loc.spineIndex,
+        totalSpineItems: loc.spineTotal,
+      };
       saveLastCfi(loc.cfi);
     },
     [saveLastCfi],
@@ -216,7 +230,7 @@ export function ReaderScreen({ bookId }: Props) {
   }, []);
 
   const handleEpubError = useCallback((message: string) => {
-    setError(message);
+    setEpubError(message);
   }, []);
 
   // ── Custom menu (dict / card / deepl / highlight / copy) ────────────
@@ -297,12 +311,12 @@ export function ReaderScreen({ bookId }: Props) {
       // the user actually highlighted. Fall back to the entry default.
       const q = (dictTerm ?? '').trim();
       const front =
-        (q && (w.kanji.includes(q) || w.readings.includes(q))
+        (q && (w.kanji.includes(q) || w.readings.some((r) => r.form === q))
           ? q
-          : w.kanji[0] ?? w.readings[0]) ?? '';
+          : w.kanji[0] ?? w.readings[0]?.form) ?? '';
       setFlashcardPrefill({
         front,
-        reading: w.readings[0] ?? '',
+        reading: w.readings[0]?.form ?? '',
         back: w.meanings
           .filter((m) => m.lang === 'eng' || m.lang === 'en')
           .slice(0, 3)
@@ -411,60 +425,62 @@ export function ReaderScreen({ bookId }: Props) {
     [highlights, removeHighlight],
   );
 
-  // ── Manga detection + spine prepare ────────────────────────────────
-  // Sniff the EPUB up-front: if fixed-layout, set bookType='manga' and
-  // kick off the spine prepare. The RN renderer takes over from there;
-  // FoliateReader (the WebView) is never mounted for manga.
+  // ── Manga lifecycle wiring ──────────────────────────────────────────
+  // useMangaSpine owns detection + spine prep. Once it reports a manga
+  // book, set bookType so the WebView path is skipped; once the handle
+  // lands, seed totalPages and mark the reader as ready.
   useEffect(() => {
-    if (!book || !hasFile) return;
-    let cancelled = false;
-    (async () => {
-      const isManga = await isMangaEpub(book.filename);
-      if (cancelled) return;
-      if (!isManga) return;
-      setBookType('manga');
-      try {
-        const handle = await prepareMangaSpine(book.id, book.filename);
-        if (cancelled) return;
-        setMangaHandle(handle);
-        setTotalPages(handle.entries.length);
-        setReaderReady(true);
-      } catch (e) {
-        if (!cancelled) {
-          setMangaError(e instanceof Error ? e.message : 'Failed to prepare pages');
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [book, hasFile]);
+    if (manga.isManga) setBookType('manga');
+  }, [manga.isManga]);
+  useEffect(() => {
+    if (manga.handle) {
+      setLocation((l) => ({ ...l, totalPages: manga.handle!.entries.length }));
+      setReaderReady(true);
+    }
+  }, [manga.handle]);
 
   const handleMangaScrollSpineChange = useCallback(
     (spineIndex: number) => {
       currentSpineRef.current = spineIndex;
-      setPage(spineIndex + 1);
-      if (totalPages > 0) {
-        setProgress(Math.round(((spineIndex + 1) / totalPages) * 100));
-      }
+      setLocation((l) => ({
+        ...l,
+        page: spineIndex + 1,
+        progress: l.totalPages > 0 ? Math.round(((spineIndex + 1) / l.totalPages) * 100) : l.progress,
+      }));
     },
-    [totalPages],
+    [],
   );
 
-  // ── Back: persist progress to backend ───────────────────────────────
-  const handleBack = useCallback(async () => {
-    if (book && latestLocationRef.current) {
-      try {
-        await updateBookProgress(book.id, {
-          cfiPosition: latestLocationRef.current.cfi,
-          progress: latestLocationRef.current.progress,
-        });
-      } catch {
-        /* best-effort */
-      }
-    }
+  // ── Progress sync: fire-and-forget keepalive push to backend. Dedup
+  // against last-sent snapshot so background/foreground/back transitions
+  // don't replay the same write. Mirrors web ReaderStateProvider.
+  const flushProgress = useCallback(() => {
+    if (!book?.id) return;
+    const latest = latestLocationRef.current;
+    if (!latest) return;
+    const last = lastSyncedRef.current;
+    if (last && last.cfi === latest.cfi && last.progress === latest.progress) return;
+    lastSyncedRef.current = { cfi: latest.cfi, progress: latest.progress };
+    sendProgressBeacon(book.id, {
+      cfiPosition: latest.cfi,
+      progress: latest.progress,
+      spineIndex: latest.spineIndex,
+      totalSpineItems: latest.totalSpineItems,
+    });
+  }, [book?.id]);
+
+  // AppState background/inactive = "soft close" (mirrors web visibilitychange).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || state === 'inactive') flushProgress();
+    });
+    return () => sub.remove();
+  }, [flushProgress]);
+
+  const handleBack = useCallback(() => {
+    flushProgress();
     router.back();
-  }, [book, router]);
+  }, [flushProgress, router]);
 
   // ── Missing-file recovery ───────────────────────────────────────────
   const handleImportMissingFile = useCallback(async () => {
@@ -510,6 +526,43 @@ export function ReaderScreen({ bookId }: Props) {
             <Text style={[styles.back, { color: c.fgMuted }]}>‹ Back</Text>
           </Pressable>
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── PDF short-circuit ──────────────────────────────────────────────
+  // PDFs are read with the native renderer (react-native-pdf). No foliate,
+  // no selection, no highlights — just open + page progress.
+  if (book.filename.toLowerCase().endsWith('.pdf')) {
+    if (!hasFile) {
+      return (
+        <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
+          <ReaderTopBar onBack={handleBack} />
+          <View style={styles.missingWrap}>
+            <Text style={[styles.missingTitle, { color: c.fg }]}>File not on this device</Text>
+            <Text style={[styles.missingBody, { color: c.fgMuted }]}>
+              This book is on your account from another device. Import the PDF file here to start reading.
+            </Text>
+            <Button label="Import PDF" onPress={handleImportMissingFile} />
+          </View>
+        </SafeAreaView>
+      );
+    }
+    return (
+      <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
+        <PdfReaderShell
+          book={book}
+          initialCfi={book.cfi_position}
+          onBack={handleBack}
+          onPageChange={(snap) => {
+            latestLocationRef.current = {
+              cfi: snap.cfi,
+              progress: snap.progress,
+              spineIndex: snap.spineIndex,
+              totalSpineItems: snap.totalSpineItems,
+            };
+          }}
+        />
       </SafeAreaView>
     );
   }
@@ -570,6 +623,7 @@ export function ReaderScreen({ bookId }: Props) {
               shellBg={style.bg}
               initialSpineIndex={currentSpineRef.current}
               onSpineChange={handleMangaScrollSpineChange}
+              pageDir={mangaPageDir}
             />
           ) : (
             <MangaScrollView
@@ -627,6 +681,9 @@ export function ReaderScreen({ bookId }: Props) {
           isBookmarked={isBookmarked}
           mode={mangaMode}
           onToggleMode={toggleMangaMode}
+          pageDir={mangaPageDir}
+          onTogglePageDir={toggleMangaPageDir}
+          onSetPageDir={setMangaPageDir}
           // Chevrons route to whichever view is mounted. The other ref
           // is null; both are safe to no-op on.
           onJumpSpine={(idx) => {

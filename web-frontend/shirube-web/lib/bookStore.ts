@@ -7,6 +7,7 @@ import {
 } from '@/lib/booksApi';
 import type { BookProgressRecord } from '@/lib/types';
 import { computeEpubIdentity, extractEpubData, type EpubData } from '@/lib/epubIdentity';
+import { computePdfIdentity, extractPdfData } from '@/lib/pdfIdentity';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -80,9 +81,46 @@ export async function importBook(
   userId?: number,
 ): Promise<BookRecord> {
   const arrayBuffer = await file.arrayBuffer();
+  const isPdf = file.name.toLowerCase().endsWith('.pdf');
 
-  // Single jszip-based pass — metadata, identity hashes, and cover in one go
-  const data: EpubData | null = await extractEpubData(arrayBuffer).catch(() => null);
+  // Branch by file type. EPUB path uses the jszip OPF extractor; PDF path
+  // uses pdf.js for title + first-page cover. Both fall back gracefully.
+  let title = 'Untitled';
+  let author = 'Unknown author';
+  let coverImage: string | undefined;
+  let hasCover = false;
+  let fileHash: string | undefined;
+  let contentHash: string | undefined;
+  let dcIdentifier: string | undefined;
+  let language: string | undefined;
+  let publisher: string | undefined;
+
+  if (isPdf) {
+    const pdf = await extractPdfData(arrayBuffer).catch(() => null);
+    if (pdf?.title) title = pdf.title;
+    if (pdf?.coverImage) {
+      coverImage = pdf.coverImage;
+      hasCover = true;
+    }
+    if (pdf?.fileHash) fileHash = pdf.fileHash;
+    if (pdf?.contentHash) contentHash = pdf.contentHash;
+  } else {
+    // Single jszip-based pass — metadata, identity hashes, and cover in one go
+    const data: EpubData | null = await extractEpubData(arrayBuffer).catch(() => null);
+    if (data?.title) title = data.title;
+    if (data?.creator) author = data.creator;
+    if (data?.coverImage) {
+      coverImage = data.coverImage;
+      hasCover = true;
+    }
+    // EpubData fields are `string | null`; coerce nulls to undefined so the
+    // BookRecord (string | undefined) typing accepts them.
+    fileHash = data?.fileHash ?? undefined;
+    contentHash = data?.contentHash ?? undefined;
+    dcIdentifier = data?.dcIdentifier ?? undefined;
+    language = data?.language ?? undefined;
+    publisher = data?.publisher ?? undefined;
+  }
 
   const db = await getDb();
 
@@ -90,24 +128,21 @@ export async function importBook(
   const existingCount = await db.count(META_STORE);
   const coverColor = COVER_PALETTE[existingCount % COVER_PALETTE.length];
 
-  const title = data?.title ?? 'Untitled';
-  const author = data?.creator ?? 'Unknown author';
-
   const record: BookRecord = {
     id: file.name,
     title,
     author,
     filename: file.name,
     coverColor,
-    hasCover: !!data?.coverImage,
-    coverImage: data?.coverImage,
+    hasCover,
+    coverImage,
     importedAt: new Date().toISOString(),
     fileSize: file.size,
-    fileHash: data?.fileHash,
-    contentHash: data?.contentHash,
-    dcIdentifier: data?.dcIdentifier,
-    language: data?.language,
-    publisher: data?.publisher,
+    fileHash,
+    contentHash,
+    dcIdentifier,
+    language,
+    publisher,
   };
 
   const tx = db.transaction([META_STORE, FILES_STORE], 'readwrite');
@@ -125,11 +160,11 @@ export async function importBook(
       title,
       author,
       coverColor,
-      fileHash: data?.fileHash,
-      contentHash: data?.contentHash,
-      dcIdentifier: data?.dcIdentifier,
-      language: data?.language,
-      publisher: data?.publisher,
+      fileHash,
+      contentHash,
+      dcIdentifier,
+      language,
+      publisher,
     });
   }
 
@@ -213,22 +248,49 @@ export async function backfillBookIdentity(
   const arrayBuffer = await getBookFile(bookId);
   if (!arrayBuffer) return;
 
-  const identity = await computeEpubIdentity(arrayBuffer);
+  // Branch by file type. PDFs have file_hash + content_hash (PDF /ID);
+  // EPUBs additionally have dc_identifier / language / publisher from the OPF.
+  const isPdf = record.filename.toLowerCase().endsWith('.pdf');
+  let fileHash: string | null = null;
+  let contentHash: string | null = null;
+  let dcIdentifier: string | null = null;
+  let language: string | null = null;
+  let publisher: string | null = null;
+
+  if (isPdf) {
+    const id = await computePdfIdentity(arrayBuffer);
+    fileHash = id.fileHash;
+    contentHash = id.contentHash;
+  } else {
+    const id = await computeEpubIdentity(arrayBuffer);
+    fileHash = id.fileHash;
+    contentHash = id.contentHash;
+    dcIdentifier = id.dcIdentifier;
+    language = id.language;
+    publisher = id.publisher;
+  }
 
   // Update local IndexedDB record
   const db = await getDb();
   const updated: BookRecord = {
     ...record,
-    fileHash: identity.fileHash,
-    contentHash: identity.contentHash,
-    dcIdentifier: identity.dcIdentifier,
-    language: identity.language,
-    publisher: identity.publisher,
+    fileHash: fileHash ?? undefined,
+    contentHash: contentHash ?? undefined,
+    dcIdentifier: dcIdentifier ?? undefined,
+    language: language ?? undefined,
+    publisher: publisher ?? undefined,
   };
   await db.put(META_STORE, updated);
 
-  // Update backend
-  await apiUpdateBookIdentity(backendBookId, identity);
+  // Update backend. Null fields are preserved by the backend's COALESCE so
+  // existing rows don't get blanked when (e.g.) a PDF has no dc_identifier.
+  await apiUpdateBookIdentity(backendBookId, {
+    fileHash,
+    contentHash,
+    dcIdentifier,
+    language,
+    publisher,
+  });
 }
 
 /**

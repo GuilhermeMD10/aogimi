@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchDeck, fetchDeckCards, reviewCard } from '@/lib/api';
 import type { CardRecord, DeckRecord } from '@/lib/types';
+import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 
 export type StudySide = 'front' | 'back';
 
@@ -34,9 +35,16 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export function useStudySession(deckId: string): StudyState {
-  const [deck, setDeck] = useState<DeckRecord | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, loading, error, refresh } = useFetchWithAbort<{ deck: DeckRecord; cards: CardRecord[] }>(
+    async (signal) => {
+      const [deck, cards] = await Promise.all([
+        fetchDeck(deckId, signal),
+        fetchDeckCards(deckId, signal),
+      ]);
+      return { deck, cards: shuffle(cards) };
+    },
+    [deckId],
+  );
 
   const [queue, setQueue] = useState<CardRecord[]>([]);
   const [totalAtStart, setTotalAtStart] = useState(0);
@@ -45,29 +53,16 @@ export function useStudySession(deckId: string): StudyState {
   const [known, setKnown] = useState(0);
   const [toReview, setToReview] = useState(0);
 
-  const loadSession = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [d, cards] = await Promise.all([fetchDeck(deckId), fetchDeckCards(deckId)]);
-      const shuffled = shuffle(cards);
-      setDeck(d);
-      setQueue(shuffled);
-      setTotalAtStart(shuffled.length);
-      setSide('front');
-      setReviewed(0);
-      setKnown(0);
-      setToReview(0);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load session');
-    } finally {
-      setLoading(false);
-    }
-  }, [deckId]);
-
+  // Reset session state every time a fresh deck+cards payload arrives (mount or restart).
   useEffect(() => {
-    loadSession();
-  }, [loadSession]);
+    if (!data) return;
+    setQueue(data.cards);
+    setTotalAtStart(data.cards.length);
+    setSide('front');
+    setReviewed(0);
+    setKnown(0);
+    setToReview(0);
+  }, [data]);
 
   const reveal = useCallback(() => setSide('back'), []);
   const flip = useCallback(() => setSide((s) => (s === 'front' ? 'back' : 'front')), []);
@@ -96,14 +91,16 @@ export function useStudySession(deckId: string): StudyState {
     setSide('front');
   }, []);
 
-  const restart = useCallback(() => loadSession(), [loadSession]);
+  const restart = useCallback(() => {
+    void refresh();
+  }, [refresh]);
 
   const current = queue[0] ?? null;
   const finished = !loading && !error && totalAtStart > 0 && queue.length === 0;
 
   return useMemo(
     () => ({
-      deck,
+      deck: data?.deck ?? null,
       loading,
       error,
       queue,
@@ -120,6 +117,6 @@ export function useStudySession(deckId: string): StudyState {
       markUnknown,
       restart,
     }),
-    [deck, loading, error, queue, current, side, reviewed, known, toReview, totalAtStart, finished, reveal, flip, markKnown, markUnknown, restart],
+    [data?.deck, loading, error, queue, current, side, reviewed, known, toReview, totalAtStart, finished, reveal, flip, markKnown, markUnknown, restart],
   );
 }

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
+import { useFlashcardForm } from './useFlashcardForm';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -38,39 +40,35 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
   const t = useT();
   const { user } = useAuth();
 
-  const [decks, setDecks] = useState<DeckRecord[]>([]);
+  const userId = user?.id;
+  const decksQ = useFetchWithAbort<DeckRecord[]>(
+    (signal) => fetchUserDecks(userId!, signal),
+    [userId, visible, lockedDeckId],
+    { enabled: visible && userId != null && !lockedDeckId },
+  );
+  const decks = decksQ.data ?? [];
+
   const [deckId, setDeckId] = useState<string | null>(null);
-  const [front, setFront] = useState('');
-  const [reading, setReading] = useState('');
-  const [back, setBack] = useState('');
-  const [newDeckName, setNewDeckName] = useState('');
+  const form = useFlashcardForm();
+  const { front, setFront, reading, setReading, back, setBack, newDeckName, setNewDeckName, reset: resetForm } = form;
   const [creatingNewDeck, setCreatingNewDeck] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const resetAndClose = useCallback(() => {
-    setFront('');
-    setReading('');
-    setBack('');
-    setNewDeckName('');
+    resetForm();
     setCreatingNewDeck(false);
     setError(null);
     onDismiss();
-  }, [onDismiss]);
+  }, [onDismiss, resetForm]);
 
+  // React to a fresh deck fetch: pre-select the first deck (if none chosen)
+  // and toggle into "create new deck" mode if the list is empty.
   useEffect(() => {
-    if (!visible || !user || lockedDeckId) return;
-    (async () => {
-      try {
-        const list = await fetchUserDecks(user.id);
-        setDecks(list);
-        if (list.length > 0 && !deckId) setDeckId(list[0]!.id);
-        setCreatingNewDeck(list.length === 0);
-      } catch {
-        /* surface on save */
-      }
-    })();
-  }, [visible, user, deckId, lockedDeckId]);
+    if (!decksQ.data) return;
+    if (decksQ.data.length > 0 && !deckId) setDeckId(decksQ.data[0]!.id);
+    setCreatingNewDeck(decksQ.data.length === 0);
+  }, [decksQ.data, deckId]);
 
   useEffect(() => {
     if (!visible || !prefill) return;
@@ -78,7 +76,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
     setReading(prefill.reading);
     setBack(prefill.back);
     setError(null);
-  }, [visible, prefill]);
+  }, [visible, prefill, setFront, setReading, setBack]);
 
   const canSave =
     front.trim().length > 0 &&

@@ -26,6 +26,12 @@ export function BookCover({
   style,
   cornerRadius = radius.md,
 }: Props) {
+  // PDF live-rendering inside the grid (one <Pdf> per tile) was blocking iOS
+  // PDFKit's main thread when the user opened a PDF — the reader's <Pdf>
+  // had to queue behind the still-initializing cover views, which delayed
+  // tap dispatch on the chevron / dock. Until we have a real thumbnail
+  // extractor that writes an image once, PDFs fall back to glyph + gradient
+  // like any other coverless book.
   const coverUri = useEpubCover(filename);
   const glyph = coverGlyphFor(title);
   const darker = darken(coverColor, 0.55);

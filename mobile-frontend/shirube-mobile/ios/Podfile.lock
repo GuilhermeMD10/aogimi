@@ -193,7 +193,7 @@ PODS:
     - ExpoModulesCore
   - ExpoGlassEffect (55.0.10):
     - ExpoModulesCore
-  - ExpoImage (55.0.8):
+  - ExpoImage (55.0.10):
     - ExpoModulesCore
     - libavif/libdav1d
     - SDWebImage (~> 5.21.0)
@@ -206,7 +206,7 @@ PODS:
     - ExpoModulesCore
   - ExpoLinking (55.0.12):
     - ExpoModulesCore
-  - ExpoLogBox (55.0.10):
+  - ExpoLogBox (55.0.12):
     - React-Core
   - ExpoModulesCore (55.0.25):
     - ExpoModulesJSI
@@ -1663,6 +1663,50 @@ PODS:
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
+  - react-native-blob-util (0.19.11):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - react-native-pdf (7.0.4):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-safe-area-context (5.6.2):
     - hermes-engine
     - RCTRequired
@@ -2453,7 +2497,7 @@ DEPENDENCIES:
   - ExpoKeepAwake (from `../node_modules/expo-keep-awake/ios`)
   - ExpoLinearGradient (from `../node_modules/expo-linear-gradient/ios`)
   - ExpoLinking (from `../node_modules/expo-linking/ios`)
-  - "ExpoLogBox (from `../node_modules/@expo/log-box`)"
+  - "ExpoLogBox (from `../../../node_modules/@expo/log-box`)"
   - ExpoModulesCore (from `../node_modules/expo/node_modules/expo-modules-core`)
   - ExpoModulesJSI (from `../node_modules/expo/node_modules/expo-modules-core`)
   - ExpoRouter (from `../node_modules/expo-router/ios`)
@@ -2500,6 +2544,8 @@ DEPENDENCIES:
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
+  - react-native-blob-util (from `../node_modules/react-native-blob-util`)
+  - react-native-pdf (from `../node_modules/react-native-pdf`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - react-native-webview (from `../node_modules/react-native-webview`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
@@ -2596,7 +2642,7 @@ EXTERNAL SOURCES:
   ExpoLinking:
     :path: "../node_modules/expo-linking/ios"
   ExpoLogBox:
-    :path: "../node_modules/@expo/log-box"
+    :path: "../../../node_modules/@expo/log-box"
   ExpoModulesCore:
     :path: "../node_modules/expo/node_modules/expo-modules-core"
   ExpoModulesJSI:
@@ -2688,6 +2734,10 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   React-microtasksnativemodule:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
+  react-native-blob-util:
+    :path: "../node_modules/react-native-blob-util"
+  react-native-pdf:
+    :path: "../node_modules/react-native-pdf"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-webview:
@@ -2792,11 +2842,11 @@ SPEC CHECKSUMS:
   ExpoFileSystem: 0b73b097e67c83622640168f620defc65a1a6f70
   ExpoFont: a95606f106a6394df8edf6d0d87aab9020af5ad4
   ExpoGlassEffect: 72bcb9dc634262c59897ff7c53c16e2ff03990d0
-  ExpoImage: ef931bba1fd3e907c2262216d17eb21095c9ac2b
+  ExpoImage: 74d26278507b0b0d85b1e50562412172603f59eb
   ExpoKeepAwake: d0eb7a0719500d2a43fbf29b6f79e84d70c75ebf
   ExpoLinearGradient: c654e92d726a6d64c588a0988bb22bea331d5e79
   ExpoLinking: ae32b8d46c982a496a5af38747219b6bdac2988c
-  ExpoLogBox: a3de999775d423ac9cb85d24bd47628e5392761f
+  ExpoLogBox: a678d36477ab9544fe63e0b5328a0716539b6774
   ExpoModulesCore: 5e1ad569ce7cf8d35c0737585f34cc299fc3f0ca
   ExpoModulesJSI: 964334271fc77832736f66ee1785761cdc778dbe
   ExpoRouter: 42de21e959ea28e44c0edee85d8c785fc71548e7
@@ -2805,7 +2855,7 @@ SPEC CHECKSUMS:
   ExpoSystemUI: 709410d6e473378d568e5df28fe409cade0ba530
   EXUpdatesInterface: 39d05400a9226c438565dbaaa8447b5f0672ba45
   FBLazyVector: 061f518bbd81677ed8a8317e2ae60b8779495808
-  hermes-engine: 9b8f41f8ee9716f92e0f30785f4e0f775c887f86
+  hermes-engine: c919338f6ebe97b0d33d6563514a317644763a31
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
@@ -2817,7 +2867,7 @@ SPEC CHECKSUMS:
   React: 3e14066ac707b3e369d09e2e923d8bee7f8c33ff
   React-callinvoker: bd7959a24564feaf5e4c8c11789e64884da13482
   React-Core: f060f4e14e9301685ce63ea65fbe903bf3397e45
-  React-Core-prebuilt: 4a5f29f24ef66a75a1e21d677c7409c064b9e3a2
+  React-Core-prebuilt: 17851911d6c6a5e995c66fd96b718094cd39ac35
   React-CoreModules: 89a1a544297be88ca4cdff317423f9e0d0c192a4
   React-cxxreact: 81b1bfa305b1b759cc0fe18327644816216e5993
   React-debug: 234fddb309822e13b9b442ef1bdca8d2b8c3cbf2
@@ -2845,6 +2895,8 @@ SPEC CHECKSUMS:
   React-logger: d0632d799fbd3507cdd5406f72489a83ed5f9163
   React-Mapbuffer: 274cb203819492f7fb594bbb3a1f3f5061fa794d
   React-microtasksnativemodule: 563b4dcc8b8570814d6de4fc1196f48d2944acd4
+  react-native-blob-util: b1954daed25540fd6c3a1eba39f20738a91c9638
+  react-native-pdf: dac049a15aec41db452e372f85184d3f15741b12
   react-native-safe-area-context: 37e680fc4cace3c0030ee46e8987d24f5d3bdab2
   react-native-webview: 3e303e80cadb5f17118c8c1502aa398e9287e415
   React-NativeModulesApple: f3eb751b0ea23645a5283ed8c8bb8ebeeda32d15
@@ -2880,7 +2932,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 2b19d66e5ddfe8dc7afb6338a4626156cbf2bab1
   ReactCodegen: 43f0948182edee9407c7b977fb059455dfeb9361
   ReactCommon: c6e81cc1ae185fa84863f3ea1d58caac4be741d7
-  ReactNativeDependencies: a455fbf5a4e63a87469b96caa5b22ed6385c56ac
+  ReactNativeDependencies: 6e66ada663753e96beb4e4bcade264e595393a9c
   RNCAsyncStorage: 3a4f5e2777dae1688b781a487923a08569e27fe4
   RNGestureHandler: 0ea8153746a92b3744d4eaadade647debedf646e
   RNReanimated: 86e5991396f1aa514db90d6c79d4c3e37a37bb10
@@ -2893,6 +2945,6 @@ SPEC CHECKSUMS:
   SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
   Yoga: acd565934addf7423687593ec490bd4491b2a802
 
-PODFILE CHECKSUM: ed42939343609e1714dc51bf915e3d9a62e0b2c2
+PODFILE CHECKSUM: cef1922021ec291a414fe451cb001be4b0a1e692
 
 COCOAPODS: 1.16.2

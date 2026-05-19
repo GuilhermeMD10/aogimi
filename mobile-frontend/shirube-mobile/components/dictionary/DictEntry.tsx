@@ -1,13 +1,16 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
-import type { KanjiInfo, WordResult } from '@/lib/types';
+import type { ExampleSentence, KanjiInfo, WordResult } from '@/lib/types';
 import { JlptChip } from '@/components/ui/JlptChip';
+import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';
+import { RubyText } from '@/components/ui/RubyText';
 import { preferredHeadword } from './DictResultRow';
 
 type Props = {
   word: WordResult;
   kanjis?: KanjiInfo[];
+  sentences?: ExampleSentence[];
   compact?: boolean;
   /** Active dictionary query — when supplied and the user's query exactly
    *  matches one of the word's kanji or readings, that form is shown as the
@@ -25,11 +28,12 @@ type Props = {
  *  in a horizontal scroller below and surface Strokes / Grade / JLPT /
  *  Radical alongside on/kun readings. paddingBottom leaves room for the
  *  parent's FAB. */
-export function DictEntry({ word, kanjis = [], compact, query, onKanjiPress }: Props) {
+export function DictEntry({ word, kanjis = [], sentences = [], compact, query, onKanjiPress }: Props) {
   const c = useColors();
   const headword = preferredHeadword(word, query);
-  const reading = word.readings[0] ?? '';
-  const altReadings = word.readings.slice(1, 4);
+  const primaryReading = word.readings[0];
+  const reading = primaryReading?.form ?? '';
+  const altReadings = word.readings.slice(1, 4).map((r) => r.form);
   const englishMeanings = word.meanings
     .filter((m) => m.lang === 'eng' || m.lang === 'en')
     .slice(0, compact ? 3 : 12);
@@ -68,6 +72,14 @@ export function DictEntry({ word, kanjis = [], compact, query, onKanjiPress }: P
           >
             {reading}
           </Text>
+        )}
+        {primaryReading?.pitchAccents && (
+          <View style={{ marginTop: 6 }}>
+            <PitchAccentDiagram
+              reading={primaryReading.form}
+              pitchAccents={primaryReading.pitchAccents}
+            />
+          </View>
         )}
         {altReadings.length > 0 && (
           <Text
@@ -129,6 +141,34 @@ export function DictEntry({ word, kanjis = [], compact, query, onKanjiPress }: P
               />
             ))}
           </ScrollView>
+        </View>
+      )}
+
+      {sentences.length > 0 && (
+        <View style={styles.sentencesSection}>
+          <Text style={[styles.sectionLabel, { color: c.fgSubtle, fontFamily: fontFamily.ui }]}>
+            例 文 · EXAMPLES
+          </Text>
+          {sentences.map((s) => (
+            <View
+              key={s.id}
+              style={[styles.sentenceCard, { backgroundColor: '#FFFFFF', borderColor: c.border }]}
+            >
+              <RubyText html={s.jaRuby} fallback={s.ja} color={c.fg} />
+              <Text
+                style={[styles.sentenceEn, { color: c.fgMuted, fontFamily: fontFamily.reader }]}
+              >
+                {s.en}
+              </Text>
+              {s.gradeLabel && (
+                <Text
+                  style={[styles.sentenceGrade, { color: c.fgSubtle, fontFamily: fontFamily.ui }]}
+                >
+                  {s.gradeLabel}
+                </Text>
+              )}
+            </View>
+          ))}
         </View>
       )}
     </View>
@@ -354,6 +394,31 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   kanjiSection: {},
+  sentencesSection: {
+    gap: spacing.sm,
+  },
+  sentenceCard: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: spacing.md,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  sentenceEn: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  sentenceGrade: {
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
   kanjiHint: {
     fontSize: 12,
     marginBottom: spacing.sm,

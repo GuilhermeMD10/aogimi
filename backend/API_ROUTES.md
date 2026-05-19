@@ -20,7 +20,7 @@ CORS: `http://localhost:3001`, `http://localhost:3002` (configurable via CORS_OR
 | Method | Path | Body / Params | Response | DB Tables |
 |--------|------|---------------|----------|-----------|
 | GET | `/api/words/:id` | `id` (word ID) | Single word | words |
-| GET | `/api/words/:id/details` | `id` (word ID) | Word + kanji breakdown | words, kanji |
+| GET | `/api/words/:id/details` | `id` (word ID) | Word + kanji breakdown (readings as `{ form, pitchAccents }`) + up to 5 example sentences | words, kanji, example_sentences |
 | GET | `/api/words/:id/langs` | `id` (word ID) | All translations across languages | words |
 | GET | `/api/words/meaning?q=eat&lang=eng` | `q` (required), `lang` (optional) | Words by meaning | words |
 | GET | `/api/words/meaning/pos?q=study&pos=suru&lang=eng` | `q`, `pos` (required), `lang` (optional) | Words by meaning + POS | words |

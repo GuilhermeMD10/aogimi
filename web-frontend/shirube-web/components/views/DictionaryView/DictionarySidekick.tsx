@@ -435,7 +435,7 @@ function ResultsList({
       <div>
         {words.slice(0, 12).map((word) => {
           const headword = preferredHeadword(word, query);
-          const reading = word.kanji.length > 0 ? word.readings[0] : null;
+          const reading = word.kanji.length > 0 ? word.readings[0]?.form ?? null : null;
           const glosses = word.meanings.filter((m) => m.lang === 'eng').map((m) => m.meaning);
           return (
             <button

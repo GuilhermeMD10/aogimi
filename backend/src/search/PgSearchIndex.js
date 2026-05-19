@@ -180,9 +180,17 @@ class PgSearchIndex extends SearchIndex {
                '[]'::json
              ) AS kanji,
              COALESCE(
-               (SELECT json_agg(r.kana ORDER BY r.score DESC, r.kana)
+               (SELECT json_agg(
+                         json_build_object(
+                           'form',         r.kana,
+                           'pitchAccents', r.pitch_accents
+                         )
+                         ORDER BY r.score DESC, r.kana
+                       )
                 FROM (
-                  SELECT wr.kana, MAX(${KANA_SCORE}) AS score
+                  SELECT wr.kana,
+                         MAX(${KANA_SCORE}) AS score,
+                         MAX(wr.pitch_accents) AS pitch_accents
                   FROM word_readings wr
                   WHERE wr.word_id = w.id
                   GROUP BY wr.kana

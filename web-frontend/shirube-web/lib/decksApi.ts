@@ -16,14 +16,14 @@ export async function createDeck(params: {
   return res.json();
 }
 
-export async function getUserDecks(userId: number): Promise<DeckRecord[]> {
-  const res = await fetch(`${API_URL}/api/decks/user/${userId}`);
+export async function getUserDecks(userId: number, signal?: AbortSignal): Promise<DeckRecord[]> {
+  const res = await fetch(`${API_URL}/api/decks/user/${userId}`, { signal });
   if (!res.ok) throw new Error('Failed to fetch decks');
   return res.json();
 }
 
-export async function getDeck(id: string): Promise<DeckRecord> {
-  const res = await fetch(`${API_URL}/api/decks/${id}`);
+export async function getDeck(id: string, signal?: AbortSignal): Promise<DeckRecord> {
+  const res = await fetch(`${API_URL}/api/decks/${id}`, { signal });
   if (!res.ok) throw new Error('Deck not found');
   return res.json();
 }
@@ -46,8 +46,8 @@ export async function deleteDeck(id: string): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete deck');
 }
 
-export async function getDeckCards(deckId: string): Promise<CardRecord[]> {
-  const res = await fetch(`${API_URL}/api/decks/${deckId}/cards`);
+export async function getDeckCards(deckId: string, signal?: AbortSignal): Promise<CardRecord[]> {
+  const res = await fetch(`${API_URL}/api/decks/${deckId}/cards`, { signal });
   if (!res.ok) throw new Error('Failed to fetch cards');
   return res.json();
 }
