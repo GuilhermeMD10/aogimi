@@ -3,18 +3,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 /**
  * Request-lifecycle helpers.
  *
- * The dictionary, reader lookup, and word-detail screens all run the same
- * AbortController dance: start a fetch, abort the in-flight one when inputs
- * change, abort on unmount, ignore `AbortError`. These hooks centralize that
- * so each caller doesn't reinvent it — and can't forget the `AbortError`
- * guard (the fix for the old LookupPopup bug).
+ * Centralizes the AbortController dance every fetch screen used to hand-roll:
+ * start a fetch, abort the in-flight one when inputs change or on unmount,
+ * ignore `AbortError`. `loading` is the first-load spinner; `refreshing`
+ * tracks user-driven re-fetches that should keep prior data visible.
  */
 
 export type FetchState<T> = {
   data: T | null;
   loading: boolean;
+  refreshing: boolean;
   error: string | null;
 };
+
+export type FetchResult<T> = FetchState<T> & { refresh: () => Promise<void> };
 
 interface UseFetchWithAbortOptions {
   /**
@@ -24,53 +26,70 @@ interface UseFetchWithAbortOptions {
   enabled?: boolean;
 }
 
-/**
- * Dep-driven fetch with abort. The caller supplies a fresh closure each
- * render — `deps` decides when to re-run. Matches the shape of the
- * hand-rolled `useEffect(() => { ... abort ... }, [id])` pattern it replaces.
- */
 export function useFetchWithAbort<T>(
   fetcher: (signal: AbortSignal) => Promise<T>,
   deps: React.DependencyList,
   { enabled = true }: UseFetchWithAbortOptions = {},
-): FetchState<T> {
+): FetchResult<T> {
   const [state, setState] = useState<FetchState<T>>({
     data: null,
     loading: enabled,
+    refreshing: false,
     error: null,
   });
 
-  useEffect(() => {
-    if (!enabled) {
-      setState({ data: null, loading: false, error: null });
-      return;
-    }
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
+  const controllerRef = useRef<AbortController | null>(null);
+  const hasLoadedRef = useRef(false);
 
+  const run = useCallback((mode: 'load' | 'refresh'): Promise<void> => {
+    controllerRef.current?.abort();
     const controller = new AbortController();
-    setState({ data: null, loading: true, error: null });
+    controllerRef.current = controller;
 
-    fetcher(controller.signal)
+    setState((prev) =>
+      mode === 'refresh'
+        ? { ...prev, refreshing: true, error: null }
+        : { data: null, loading: true, refreshing: false, error: null },
+    );
+
+    return fetcherRef.current(controller.signal)
       .then((data) => {
         if (controller.signal.aborted) return;
-        setState({ data, loading: false, error: null });
+        hasLoadedRef.current = true;
+        setState({ data, loading: false, refreshing: false, error: null });
       })
       .catch((err) => {
         if (controller.signal.aborted) return;
         if (err instanceof Error && err.name === 'AbortError') return;
-        setState({
-          data: null,
+        setState((prev) => ({
+          data: mode === 'refresh' ? prev.data : null,
           loading: false,
+          refreshing: false,
           error: err instanceof Error ? err.message : 'Request failed',
-        });
+        }));
       });
+  }, []);
 
-    return () => controller.abort();
-    // `fetcher` is intentionally excluded: callers pass a fresh closure each
-    // render, and `deps` is the caller's contract for when to re-fetch.
+  useEffect(() => {
+    if (!enabled) {
+      controllerRef.current?.abort();
+      hasLoadedRef.current = false;
+      setState({ data: null, loading: false, refreshing: false, error: null });
+      return;
+    }
+    run('load');
+    return () => controllerRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, ...deps]);
 
-  return state;
+  const refresh = useCallback((): Promise<void> => {
+    if (!enabled) return Promise.resolve();
+    return run(hasLoadedRef.current ? 'refresh' : 'load');
+  }, [enabled, run]);
+
+  return { ...state, refresh };
 }
 
 /**

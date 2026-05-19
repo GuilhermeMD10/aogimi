@@ -34,10 +34,11 @@ export async function importEpub(): Promise<{
   filename: string;
   title: string;
   author: string;
+  contentHash: string | null;
   uri: string;
 } | null> {
   const result = await DocumentPicker.getDocumentAsync({
-    type: ['application/epub+zip', 'application/zip', '*/*'],
+    type: ['application/epub+zip', 'application/pdf', 'application/zip', '*/*'],
     copyToCacheDirectory: true,
     multiple: false,
   });
@@ -45,7 +46,11 @@ export async function importEpub(): Promise<{
   const asset = result.assets[0];
   if (!asset) return null;
 
-  const filename = asset.name || `book-${Date.now()}.epub`;
+  // Default-filename fallback: prefer the asset's mimeType to pick the
+  // correct extension. EPUB stays the default for the unknown case since
+  // it's been the only supported format historically.
+  const fallbackExt = asset.mimeType === 'application/pdf' ? 'pdf' : 'epub';
+  const filename = asset.name || `book-${Date.now()}.${fallbackExt}`;
   const dir = booksDir();
   const target = new File(dir, filename);
   if (target.exists) target.delete();
@@ -53,8 +58,26 @@ export async function importEpub(): Promise<{
   const source = new File(asset.uri);
   source.copy(target);
 
-  const { title, author } = metadataFromFilename(filename);
-  return { filename, title, author, uri: target.uri };
+  // PDFs: scrape /Title + /ID from the trailer so the imported record gets
+  // a real title and a fingerprint for cross-device matching. EPUBs fall
+  // through to the filename heuristic; richer metadata extraction lives in
+  // the web import path for now.
+  let title: string;
+  let author: string;
+  let contentHash: string | null = null;
+  if (filename.toLowerCase().endsWith('.pdf')) {
+    const { probePdfFile } = await import('./pdfIdentity');
+    const probe = await probePdfFile(filename);
+    title = probe.title ?? metadataFromFilename(filename).title;
+    author = '';
+    contentHash = probe.contentHash;
+  } else {
+    const meta = metadataFromFilename(filename);
+    title = meta.title;
+    author = meta.author;
+  }
+
+  return { filename, title, author, contentHash, uri: target.uri };
 }
 
 export function deleteBookFile(filename: string): void {
@@ -92,7 +115,7 @@ export async function importEpubForFilename(
   targetFilename: string,
 ): Promise<string | null> {
   const result = await DocumentPicker.getDocumentAsync({
-    type: ['application/epub+zip', 'application/zip', '*/*'],
+    type: ['application/epub+zip', 'application/pdf', 'application/zip', '*/*'],
     copyToCacheDirectory: true,
     multiple: false,
   });

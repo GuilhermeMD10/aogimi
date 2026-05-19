@@ -3,7 +3,7 @@ const pool = require("../db");
 const WORD_SELECT = `
   SELECT w.id AS word_id, w.is_common, w.jlpt_level,
          wk.kanji, wk.priority AS kanji_priority,
-         wr.kana,  wr.priority AS kana_priority,
+         wr.kana,  wr.priority AS kana_priority, wr.pitch_accents AS kana_pitch_accents,
          wm.meaning, wm.pos, wm.lang`;
 
 async function findByKanji(kanji, limit = 50) {

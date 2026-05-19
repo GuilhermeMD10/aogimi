@@ -34,6 +34,12 @@ export function HomeScreen() {
   // Per-tile actions: the … button on a BookGridItem opens BookActionsSheet
   // bound to whichever book is selected. Null means the sheet is closed.
   const [actionBook, setActionBook] = useState<BookRecord | null>(null);
+  // Library filter: hide books whose EPUB file isn't on this device. Useful
+  // when synced from another device but not yet imported locally.
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const visibleBooks = availableOnly
+    ? books.filter((b) => bookFileExists(b.filename))
+    : books;
 
   const hero = useMemo<BookRecord | null>(() => {
     if (books.length === 0) return null;
@@ -54,6 +60,10 @@ export function HomeScreen() {
         filename: imported.filename,
         title: imported.title || imported.filename,
         author: imported.author,
+        // PDFs surface a /ID fingerprint that survives metadata edits in
+        // the cloud — passing it lets `matchBooks` reconcile the same PDF
+        // on another device even after a title change.
+        contentHash: imported.contentHash,
       });
       // Mark this device as a place where the book's file lives, so
       // cross-device library listings know we have it locally.
@@ -123,9 +133,33 @@ export function HomeScreen() {
 
           {books.length > 0 && (
             <>
-              <Text style={[styles.section, { color: c.fgMuted }]}>Your books</Text>
+              <View style={styles.sectionRow}>
+                <Text style={[styles.section, { color: c.fgMuted }]}>Your books</Text>
+                <Pressable
+                  onPress={() => setAvailableOnly((v) => !v)}
+                  hitSlop={6}
+                  style={[
+                    styles.filterChip,
+                    {
+                      borderColor: availableOnly ? c.fg : c.border,
+                      backgroundColor: availableOnly ? c.bgElev : 'transparent',
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Toggle available-only filter"
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      { color: availableOnly ? c.fg : c.fgMuted },
+                    ]}
+                  >
+                    {availableOnly ? 'Available only ✓' : 'All books'}
+                  </Text>
+                </Pressable>
+              </View>
               <View style={styles.grid}>
-                {books.map((b) => (
+                {visibleBooks.map((b) => (
                   <View key={b.id} style={styles.gridItem}>
                     <BookGridItem
                       book={b}
@@ -135,6 +169,13 @@ export function HomeScreen() {
                     />
                   </View>
                 ))}
+                {visibleBooks.length === 0 && (
+                  <View style={styles.emptyWrap}>
+                    <Text style={[styles.empty, { color: c.fgMuted }]}>
+                      No books available on this device.
+                    </Text>
+                  </View>
+                )}
               </View>
             </>
           )}
@@ -186,12 +227,28 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     marginBottom: spacing.md,
   },
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  filterChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+  },
   section: {
     fontSize: fontSize.xs,
     fontWeight: '600',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
-    marginBottom: spacing.md,
     paddingHorizontal: spacing.xs,
   },
   grid: {

@@ -4,6 +4,14 @@ export type WordMeaning = {
   lang: string;
 };
 
+export type WordReading = {
+  form: string;
+  /** Raw Kanjium pitch positions, comma-separated for multi-pattern words
+   * (e.g. "0", "1", "2,3"). Null when no data — Kanjium doesn't span all of
+   * JMdict, so a notable fraction of readings have no pitch annotation. */
+  pitchAccents: string | null;
+};
+
 export type WordResult = {
   id: number;
   is_common: boolean;
@@ -12,7 +20,7 @@ export type WordResult = {
   jlpt_level: number | null;
   char_grades: { char: string; grade: number | null }[];
   kanji: string[];
-  readings: string[];
+  readings: WordReading[];
   meanings: WordMeaning[];
 };
 
@@ -42,9 +50,21 @@ export type SearchResponse =
   | { type: 'kana';    words: WordResult[]; names: NameResult[]; kanjis: KanjiInfo[] }
   | { type: 'meaning'; words: WordResult[] };
 
+export type ExampleSentence = {
+  id: number;
+  wordForm: string;
+  ja: string;
+  /** HTML with <ruby> markup; null when import had no ruby version. Mobile
+   *  parses this client-side into segments for native rendering. */
+  jaRuby: string | null;
+  en: string;
+  gradeLabel: string | null;
+};
+
 export type WordDetails = {
   word: WordResult;
   kanjis: KanjiInfo[];
+  sentences: ExampleSentence[];
 };
 
 // ── User ─────────────────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@ import { getUserDevices, removeDevice, renameDevice } from '@/lib/devicesApi';
 import type { BookProgressRecord, DeckRecord, DeviceRecord, UserProfile } from '@/lib/types';
 import { getDeviceId } from '@/lib/storage/device';
 import { setStoredAvatarIndex } from '@/lib/storage/avatar';
+import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
 import AvatarPickerModal from '@/components/AvatarPickerModal';
 import { HeroBanner } from '@/components/profile/HeroBanner';
@@ -29,11 +30,20 @@ export default function ProfilePage() {
   const { logout } = useAuth();
   const { theme, setTheme } = useTheme();
 
+  const profileQ = useFetchWithAbort<UserProfile>((s) => getUserProfile(user.id, s), [user.id]);
+  const booksQ = useFetchWithAbort<BookProgressRecord[]>((s) => getUserBooks(user.id, s), [user.id]);
+  const decksQ = useFetchWithAbort<DeckRecord[]>((s) => getUserDecks(user.id, s), [user.id]);
+  const devicesQ = useFetchWithAbort<DeviceRecord[]>((s) => getUserDevices(user.id, s), [user.id]);
+
+  // Local mirrors of server data so handlers can do optimistic updates.
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [books, setBooks] = useState<BookProgressRecord[]>([]);
-  const [decks, setDecks] = useState<DeckRecord[]>([]);
   const [devices, setDevices] = useState<DeviceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  useEffect(() => { if (profileQ.data) setProfile(profileQ.data); }, [profileQ.data]);
+  useEffect(() => { if (devicesQ.data) setDevices(devicesQ.data); }, [devicesQ.data]);
+  const books = booksQ.data ?? [];
+  const decks = decksQ.data ?? [];
+  const loading = profileQ.loading || booksQ.loading || decksQ.loading || devicesQ.loading;
+
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -45,27 +55,6 @@ export default function ProfilePage() {
   const joinDate = profile?.created_at
     ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     : null;
-
-  // ── Load data ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [profileData, booksData, decksData, devicesData] = await Promise.allSettled([
-          getUserProfile(user.id),
-          getUserBooks(user.id),
-          getUserDecks(user.id),
-          getUserDevices(user.id),
-        ]);
-        if (profileData.status === 'fulfilled') setProfile(profileData.value);
-        if (booksData.status === 'fulfilled') setBooks(booksData.value);
-        if (decksData.status === 'fulfilled') setDecks(decksData.value);
-        if (devicesData.status === 'fulfilled') setDevices(devicesData.value);
-      } finally {
-        setLoading(false);
-      }
-    };
-    void load();
-  }, [user]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleAvatarSelect = useCallback(

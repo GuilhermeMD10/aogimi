@@ -6,6 +6,14 @@ export type WordMeaning = {
   lang: string;
 };
 
+export type WordReading = {
+  form: string;
+  /** Raw Kanjium pitch positions, comma-separated for multi-pattern words
+   * (e.g. "0", "1", "2,3"). Null when no data — Kanjium doesn't span all of
+   * JMdict, so a notable fraction of readings have no pitch annotation. */
+  pitchAccents: string | null;
+};
+
 export interface WordResult {
   id: number;
   is_common: boolean;
@@ -14,7 +22,7 @@ export interface WordResult {
   grade: number | null;
   char_grades: { char: string; grade: number | null }[];
   kanji: string[];
-  readings: string[];
+  readings: WordReading[];
   meanings: WordMeaning[];
 }
 
@@ -44,7 +52,22 @@ export type SearchResponse =
   | { type: 'kana'; words: WordResult[]; names: NameResult[]; kanjis: KanjiInfo[] }
   | { type: 'meaning'; words: WordResult[] };
 
+export interface ExampleSentence {
+  id: number;
+  wordForm: string;
+  /** Plain Japanese sentence — no markup. */
+  ja: string;
+  /** Same sentence with `<ruby>` furigana HTML. Safe to dangerouslySetInnerHTML;
+   *  source is our own curated DB import. May be null when the import didn't
+   *  carry the ruby field. */
+  jaRuby: string | null;
+  en: string;
+  /** Difficulty hint, e.g. "6 (6th grade of primary school)". May be null. */
+  gradeLabel: string | null;
+}
+
 export interface DetailsResponse {
   word: WordResult;
   kanjis: KanjiInfo[];
+  sentences: ExampleSentence[];
 }

@@ -1,7 +1,7 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useRef } from 'react';
 import { Plus, Volume2 } from 'lucide-react';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
@@ -28,17 +28,18 @@ export default function DictionaryView() {
     result,
     loading,
     error,
-    selectedWordId,
     lastContextSentence,
-    setSelectedWordId,
     runSearch,
   } = useDictionaryState();
 
+  const router = useRouter();
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get('q');
+  const urlWord = searchParams.get('word');
   const lastUrlQueryRef = useRef<string | null>(null);
 
-  // Deep-link entry: `/dictionary?q=<term>` runs the search once.
+  // Deep-link entry: `/dictionary?q=<term>` runs the search once. Browser
+  // back / forward also triggers this when the `q` param changes.
   useEffect(() => {
     if (!urlQuery) return;
     if (lastUrlQueryRef.current === urlQuery) return;
@@ -46,14 +47,33 @@ export default function DictionaryView() {
     void runSearch(urlQuery);
   }, [urlQuery, runSearch]);
 
-  // The word-detail view takes over the page (it has its own back nav).
-  if (selectedWordId !== null) {
+  // Click handlers — route through the URL so browser back walks the stack.
+  const openWord = useCallback(
+    (id: number) => {
+      const params = new URLSearchParams(searchParams);
+      params.set('word', String(id));
+      router.push(`?${params.toString()}`);
+    },
+    [router, searchParams],
+  );
+
+  const searchKanji = useCallback(
+    (char: string) => {
+      const params = new URLSearchParams();
+      params.set('q', char);
+      router.push(`?${params.toString()}`);
+    },
+    [router],
+  );
+
+  // The word-detail view takes over the page when `?word=<id>` is in the URL.
+  if (urlWord !== null) {
     return (
       <WordDetailView
-        id={String(selectedWordId)}
+        id={urlWord}
         query={query}
-        onBack={() => setSelectedWordId(null)}
-        onKanjiSearch={(char) => { void runSearch(char); }}
+        onBack={() => router.back()}
+        onKanjiSearch={searchKanji}
         onAddCard={(word, back) => setPendingCard({ word, back, contextSentence: lastContextSentence })}
       />
     );
@@ -124,7 +144,7 @@ export default function DictionaryView() {
                       index={i}
                       active={i === 0}
                       query={query}
-                      onClick={() => setSelectedWordId(word.id)}
+                      onClick={() => openWord(word.id)}
                     />
                   ))}
                 </div>
@@ -208,7 +228,7 @@ function ResultRow({
   onClick: () => void;
 }) {
   const headword = preferredHeadword(word, query);
-  const reading = word.kanji.length > 0 ? word.readings[0] : null;
+  const reading = word.kanji.length > 0 ? word.readings[0]?.form ?? null : null;
   const glosses = word.meanings.filter((m) => m.lang === 'eng').map((m) => m.meaning);
   const pos = word.meanings[0]?.pos;
 

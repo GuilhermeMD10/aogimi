@@ -47,6 +47,8 @@ function assembleWords(rows) {
         grade: null,
         // Map<form, score> — dedup form and remember its best score.
         kanji: new Map(),
+        // Map<form, { score, pitchAccents }> — same dedup, but also carries
+        // pitch (which is reading-level, not row-level).
         readings: new Map(),
         meanings: [],
       });
@@ -60,8 +62,16 @@ function assembleWords(rows) {
     }
     if (row.kana) {
       const s = priorityScore(row.kana_priority);
-      if (!w.readings.has(row.kana) || w.readings.get(row.kana) < s) {
-        w.readings.set(row.kana, s);
+      const existing = w.readings.get(row.kana);
+      if (!existing || existing.score < s) {
+        w.readings.set(row.kana, {
+          score: s,
+          pitchAccents: row.kana_pitch_accents ?? existing?.pitchAccents ?? null,
+        });
+      } else if (existing.pitchAccents == null && row.kana_pitch_accents != null) {
+        // Same form, equal-or-lower score, but the higher-scored row didn't
+        // carry pitch — fill it in from this row.
+        existing.pitchAccents = row.kana_pitch_accents;
       }
     }
     if (
@@ -73,8 +83,8 @@ function assembleWords(rows) {
   }
   return Array.from(map.values()).map((w) => ({
     ...w,
-    kanji: sortByScore(w.kanji),
-    readings: sortByScore(w.readings),
+    kanji: sortKanji(w.kanji),
+    readings: sortReadings(w.readings),
   }));
 }
 
@@ -82,10 +92,16 @@ function assembleWords(rows) {
  *  order, which together with a stable `sort` keeps equal-score forms in
  *  their original JMdict order — exactly what we want when no priority tag
  *  distinguishes variants. */
-function sortByScore(map) {
+function sortKanji(map) {
   return Array.from(map.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([form]) => form);
+}
+
+function sortReadings(map) {
+  return Array.from(map.entries())
+    .sort((a, b) => b[1].score - a[1].score)
+    .map(([form, { pitchAccents }]) => ({ form, pitchAccents }));
 }
 
 module.exports = { assembleWords };

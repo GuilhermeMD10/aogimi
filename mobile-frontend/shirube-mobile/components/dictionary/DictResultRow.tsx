@@ -20,7 +20,7 @@ type Props = {
 export function DictResultRow({ word, query, index, active, onPress }: Props) {
   const c = useColors();
   const headword = preferredHeadword(word, query);
-  const reading = word.kanji.length > 0 ? word.readings[0] : null;
+  const reading = word.kanji.length > 0 ? word.readings[0]?.form ?? null : null;
   const glosses = word.meanings
     .filter((m) => m.lang === 'eng' || m.lang === 'en')
     .map((m) => m.meaning);
@@ -33,9 +33,12 @@ export function DictResultRow({ word, query, index, active, onPress }: Props) {
       style={({ pressed }) => [
         styles.row,
         {
-          backgroundColor: active ? c.bgElev : pressed ? c.bgSunken : 'transparent',
-          borderBottomColor: c.border,
-          borderLeftColor: active ? c.accent : 'transparent',
+          // Each row is its own white card with a soft shadow. The active
+          // row gets a tinted bg (`bgElev`) + the left accent edge for the
+          // existing keyboard-nav highlight.
+          backgroundColor: active ? c.bgElev : pressed ? c.bgSunken : '#FFFFFF',
+          borderColor: c.border,
+          borderLeftColor: active ? c.accent : c.border,
         },
       ]}
     >
@@ -110,13 +113,13 @@ export function DictResultRow({ word, query, index, active, onPress }: Props) {
  *  headword instead of the dict's "primary" common kanji. Mirrors the web
  *  helper of the same name. */
 export function preferredHeadword(
-  word: { kanji: string[]; readings: string[] },
+  word: { kanji: string[]; readings: { form: string }[] },
   query: string | undefined,
 ): string {
   const q = (query ?? '').trim();
   if (q && word.kanji.includes(q)) return q;
-  if (q && word.readings.includes(q)) return q;
-  return word.kanji[0] ?? word.readings[0] ?? '—';
+  if (q && word.readings.some((r) => r.form === q)) return q;
+  return word.kanji[0] ?? word.readings[0]?.form ?? '—';
 }
 
 function Chip({ text, c }: { text: string; c: { fgMuted: string; border: string; bgElev: string } }) {
@@ -147,8 +150,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 12,
     gap: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderWidth: StyleSheet.hairlineWidth,
     borderLeftWidth: 2,
+    borderRadius: 10,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   indexNum: {
     fontSize: 11,

@@ -88,7 +88,11 @@ export function DictDrawer({ visible, term, onDismiss, onAddFlashcard }: Props) 
         )}
 
         {state.kind === 'entry' && (
-          <DictEntry word={state.details.word} kanjis={state.details.kanjis} />
+          <DictEntry
+            word={state.details.word}
+            kanjis={state.details.kanjis}
+            sentences={state.details.sentences}
+          />
         )}
       </ScrollView>
 
