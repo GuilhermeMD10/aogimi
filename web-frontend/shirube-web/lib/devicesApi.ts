@@ -17,8 +17,8 @@ export async function registerDevice(
 }
 
 /** List all devices for a user. */
-export async function getUserDevices(userId: number): Promise<DeviceRecord[]> {
-  const res = await fetch(`${API_URL}/api/devices/user/${userId}`);
+export async function getUserDevices(userId: number, signal?: AbortSignal): Promise<DeviceRecord[]> {
+  const res = await fetch(`${API_URL}/api/devices/user/${userId}`, { signal });
   if (!res.ok) throw new Error('Failed to fetch devices');
   return res.json();
 }

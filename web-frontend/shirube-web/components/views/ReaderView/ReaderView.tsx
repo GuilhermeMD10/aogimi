@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { EpubReader } from '@/components/reader/EpubReader';
+import { PdfReader } from '@/components/reader/PdfReader';
 import { DictionarySidekick } from '@/components/views/DictionaryView/DictionarySidekick';
 import {
   getAllBooks,
@@ -10,7 +11,6 @@ import {
   importBook,
   ensureBackendBook,
   syncLocalBooksToBackend,
-  backfillBookIdentity,
   deleteBook as deleteLocalBook,
   renameBook as renameLocalBook,
 } from '@/lib/bookStore';
@@ -22,14 +22,9 @@ import {
   updateBookProgress,
 } from '@/lib/booksApi';
 import { computeEpubIdentity } from '@/lib/epubIdentity';
+import { computePdfIdentity } from '@/lib/pdfIdentity';
 import { getDeviceId } from '@/lib/storage/device';
-import { getDeviceName } from '@/lib/util/deviceName';
-import {
-  registerDevice,
-  getDeviceBooks,
-  markBookAvailable,
-} from '@/lib/devicesApi';
-import type { BookProgressRecord, DeviceBookRecord } from '@/lib/types';
+import { markBookAvailable } from '@/lib/devicesApi';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
 import type { LibraryBook } from '@/components/library/BookList';
@@ -38,16 +33,25 @@ import RestoreLibrary from '@/components/library/RestoreLibrary';
 import FsAccessBanner from '@/components/library/FsAccessBanner';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
 import { getNeedsOnboarding } from '@/lib/storage/onboarding';
+import { useLibraryModals } from './useLibraryModals';
+import { useSyncLibrary } from './useSyncLibrary';
 
+// Per-format size caps. EPUBs almost never exceed 20 MB even for long novels;
+// PDFs (especially page-scanned JP books) routinely run 100–250 MB and can
+// reach 500 MB for higher-res scans.
 const MAX_EPUB_SIZE = 50 * 1024 * 1024;
+const MAX_PDF_SIZE = 500 * 1024 * 1024;
 
-type PageState = 'loading' | 'restore' | 'library';
-
-function validateEpub(file: File): string | null {
-  if (file.type !== 'application/epub+zip' && !file.name.endsWith('.epub'))
-    return 'Invalid file type. Please upload an EPUB file.';
-  if (file.size > MAX_EPUB_SIZE)
-    return 'File too large. Maximum size is 50 MB.';
+function validateBookFile(file: File): string | null {
+  const name = file.name.toLowerCase();
+  const isEpub = file.type === 'application/epub+zip' || name.endsWith('.epub');
+  const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf');
+  if (!isEpub && !isPdf)
+    return 'Invalid file type. Please upload an EPUB or PDF file.';
+  if (isEpub && file.size > MAX_EPUB_SIZE)
+    return 'EPUB too large. Maximum size is 50 MB.';
+  if (isPdf && file.size > MAX_PDF_SIZE)
+    return 'PDF too large. Maximum size is 500 MB.';
   return null;
 }
 
@@ -61,16 +65,16 @@ export default function ReaderView() {
     sidekickOpen, toggleSidekick, setSidekickOpen,
   } = useReaderState();
 
-  const [pageState, setPageState] = useState<PageState>('loading');
-  const [books, setBooks] = useState<LibraryBook[]>([]);
-  const [remoteBooks, setRemoteBooks] = useState<DeviceBookRecord[]>([]);
+  const { pageState, setPageState, books, setBooks, remoteBooks, error, setError } =
+    useSyncLibrary(user);
   const [importing, setImporting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const locateInputRef = useRef<HTMLInputElement>(null);
-  const [locatingBookId, setLocatingBookId] = useState<string | null>(null);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [deletingBook, setDeletingBook] = useState<LibraryBook | null>(null);
+  const {
+    locatingBookId, setLocatingBookId,
+    showOnboarding, setShowOnboarding,
+    deletingBook, setDeletingBook,
+  } = useLibraryModals();
 
   const [loading, setLoading] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
@@ -85,120 +89,9 @@ export default function ReaderView() {
     if (getNeedsOnboarding()) setShowOnboarding(true);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const localBooks = await getAllBooks();
-        if (cancelled) return;
-
-        const deviceId = getDeviceId();
-        const deviceName = getDeviceName();
-        try {
-          await registerDevice(user.id, deviceId, deviceName);
-        } catch { /* best-effort */ }
-
-        let backendMap = new Map<string, BookProgressRecord>();
-        try {
-          backendMap = await syncLocalBooksToBackend(user.id);
-        } catch { /* backend unavailable */ }
-        if (cancelled) return;
-
-        const localFilenames = new Set(localBooks.map(b => b.filename));
-        for (const [filename, remote] of backendMap) {
-          if (localFilenames.has(filename)) {
-            markBookAvailable(deviceId, remote.id, user.id).catch(() => {});
-          }
-        }
-
-        let deviceBooks: DeviceBookRecord[] = [];
-        try {
-          deviceBooks = await getDeviceBooks(deviceId, user.id);
-        } catch {
-          deviceBooks = Array.from(backendMap.values()).map(r => ({
-            ...r,
-            available: localFilenames.has(r.filename),
-          }));
-        }
-        if (cancelled) return;
-        setRemoteBooks(deviceBooks);
-
-        if (localBooks.length === 0 && deviceBooks.length > 0) {
-          setPageState('restore');
-          return;
-        }
-
-        const merged: LibraryBook[] = deviceBooks.map(remote => {
-          const local = localBooks.find(b => b.filename === remote.filename);
-          if (local) {
-            return {
-              id: local.id,
-              title: local.title,
-              author: local.author,
-              filename: local.filename,
-              coverColor: local.coverColor,
-              hasCover: local.hasCover,
-              coverImage: local.coverImage,
-              progress: remote.progress,
-              available: true,
-              backendId: remote.id,
-              lastReadAt: remote.last_read_at,
-            };
-          }
-          return {
-            id: remote.id,
-            title: remote.title,
-            author: remote.author,
-            filename: remote.filename,
-            coverColor: remote.cover_color,
-            hasCover: false,
-            progress: remote.progress,
-            available: remote.available,
-            backendId: remote.id,
-            lastReadAt: remote.last_read_at,
-          };
-        });
-
-        for (const local of localBooks) {
-          if (!deviceBooks.find(r => r.filename === local.filename)) {
-            merged.push({
-              id: local.id,
-              title: local.title,
-              author: local.author,
-              filename: local.filename,
-              coverColor: local.coverColor,
-              hasCover: local.hasCover,
-              coverImage: local.coverImage,
-              progress: 0,
-              available: true,
-              lastReadAt: null,
-            });
-          }
-        }
-
-        setBooks(merged);
-        setPageState('library');
-
-        for (const local of localBooks.filter(b => !b.fileHash)) {
-          const remote = backendMap.get(local.filename);
-          if (remote && !remote.file_hash) {
-            backfillBookIdentity(local.id, remote.id).catch(() => {});
-          }
-        }
-      } catch {
-        if (!cancelled) setError('Failed to load library');
-        if (!cancelled) setPageState('library');
-      }
-    };
-    load();
-
-    return () => { cancelled = true; };
-  }, [user]);
-
   const handleImport = useCallback(
     async (file: File) => {
-      const validationError = validateEpub(file);
+      const validationError = validateBookFile(file);
       if (validationError) {
         setError(validationError);
         return;
@@ -230,8 +123,10 @@ export default function ReaderView() {
           available: true,
         };
         setBooks(prev => [...prev, newBook]);
-      } catch {
-        setError('Failed to import book');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setError(`Failed to import book: ${msg}`);
+        console.error('Import failed', err);
       } finally {
         setImporting(false);
       }
@@ -254,7 +149,7 @@ export default function ReaderView() {
       if (!file || !locatingBookId) return;
       e.target.value = '';
 
-      const validationError = validateEpub(file);
+      const validationError = validateBookFile(file);
       if (validationError) {
         setError(validationError);
         setLocatingBookId(null);
@@ -269,7 +164,13 @@ export default function ReaderView() {
 
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const identity = await computeEpubIdentity(arrayBuffer).catch(() => null);
+        // Branch identity probe by extension. PDFs use file_hash (SHA-256)
+        // and content_hash (PDF /ID first entry); EPUBs use file_hash +
+        // content_hash + dc_identifier from the OPF.
+        const isPdf = file.name.toLowerCase().endsWith('.pdf');
+        const identity = isPdf
+          ? await computePdfIdentity(arrayBuffer).catch(() => null)
+          : await computeEpubIdentity(arrayBuffer).catch(() => null);
 
         const candidates = [{
           file_hash: identity?.fileHash ?? '',
@@ -277,7 +178,9 @@ export default function ReaderView() {
           metadata: {
             title: '',
             author: '',
-            dc_identifier: identity?.dcIdentifier ?? null,
+            dc_identifier: !isPdf && identity && 'dcIdentifier' in identity && typeof identity.dcIdentifier === 'string'
+              ? identity.dcIdentifier
+              : null,
             filename: file.name,
           },
         }];
@@ -391,7 +294,10 @@ export default function ReaderView() {
           URL.revokeObjectURL(blobUrlRef.current);
         }
 
-        const url = URL.createObjectURL(new Blob([arrayBuffer], { type: 'application/epub+zip' }));
+        const mime = book.filename.toLowerCase().endsWith('.pdf')
+          ? 'application/pdf'
+          : 'application/epub+zip';
+        const url = URL.createObjectURL(new Blob([arrayBuffer], { type: mime }));
         blobUrlRef.current = url;
 
         const session: ReaderSession = {
@@ -520,21 +426,32 @@ export default function ReaderView() {
   }
 
   if (readerSession) {
+    const isPdf = readerSession.activeBook.filename.toLowerCase().endsWith('.pdf');
     return (
       <div className="flex h-full min-h-0 flex-row">
         <div className="flex h-full min-h-0 flex-1 flex-col">
-          <EpubReader
-            fileUrl={readerSession.fileUrl}
-            filename={readerSession.activeBook.filename}
-            bookTitle={readerSession.activeBook.title}
-            initialCfi={readerSession.backendCfi ?? undefined}
-            onLookup={handleLookup}
-            onAddCard={handleAddCard}
-            onProgressChange={handleProgressChange}
-            onBack={goBack}
-            sidekickOpen={sidekickOpen}
-            onToggleSidekick={toggleSidekick}
-          />
+          {isPdf ? (
+            <PdfReader
+              fileUrl={readerSession.fileUrl}
+              bookTitle={readerSession.activeBook.title}
+              initialCfi={readerSession.backendCfi ?? undefined}
+              onProgressChange={recordProgress}
+              onBack={goBack}
+            />
+          ) : (
+            <EpubReader
+              fileUrl={readerSession.fileUrl}
+              filename={readerSession.activeBook.filename}
+              bookTitle={readerSession.activeBook.title}
+              initialCfi={readerSession.backendCfi ?? undefined}
+              onLookup={handleLookup}
+              onAddCard={handleAddCard}
+              onProgressChange={handleProgressChange}
+              onBack={goBack}
+              sidekickOpen={sidekickOpen}
+              onToggleSidekick={toggleSidekick}
+            />
+          )}
         </div>
         {sidekickOpen && (
           <aside
@@ -577,14 +494,14 @@ export default function ReaderView() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".epub,application/epub+zip"
+        accept=".epub,.pdf,application/epub+zip,application/pdf"
         onChange={onFileChange}
         className="hidden"
       />
       <input
         ref={locateInputRef}
         type="file"
-        accept=".epub,application/epub+zip"
+        accept=".epub,.pdf,application/epub+zip,application/pdf"
         onChange={onLocateFile}
         className="hidden"
       />

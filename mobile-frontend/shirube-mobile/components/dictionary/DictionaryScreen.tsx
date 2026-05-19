@@ -21,6 +21,7 @@ import { DictEmpty } from './DictEmpty';
 import { useDictionarySearch } from './useDictionarySearch';
 import { useDictionaryNav } from './useDictionaryNav';
 import { getRecentSearches, pushRecentSearch, type RecentSearchItem } from '@/lib/storage/dictionary';
+import { useNavigation } from 'expo-router';
 
 export function DictionaryScreen() {
   const c = useColors();
@@ -28,6 +29,21 @@ export function DictionaryScreen() {
   const nav = useDictionaryNav();
   const { current, canGoBack, query, setQuery, openDetail, openKanjiSearch, back, detailError } =
     nav;
+
+  // Re-tapping the Dictionary tab while inside a detail / loading frame
+  // pops one step in the in-app stack instead of re-focusing the (already
+  // focused) tab. Mirrors the Android hardware-back behaviour.
+  const navigation = useNavigation();
+  useEffect(() => {
+    type TabPressEvent = { preventDefault: () => void };
+    const unsub = navigation.addListener('tabPress' as never, ((e: TabPressEvent) => {
+      if (canGoBack) {
+        e.preventDefault();
+        back();
+      }
+    }) as never);
+    return unsub;
+  }, [navigation, canGoBack, back]);
 
   const [flashcardPrefill, setFlashcardPrefill] = useState<FlashcardPrefill | null>(null);
   const [recents, setRecents] = useState<RecentSearchItem[]>([]);
@@ -41,8 +57,8 @@ export function DictionaryScreen() {
 const addFlashcardFromDetails = useCallback((details: WordDetails) => {
     const w = details.word;
     setFlashcardPrefill({
-      front: w.kanji[0] ?? w.readings[0] ?? '',
-      reading: w.readings[0] ?? '',
+      front: w.kanji[0] ?? w.readings[0]?.form ?? '',
+      reading: w.readings[0]?.form ?? '',
       back:
         w.meanings
           .filter((m) => m.lang === 'eng' || m.lang === 'en')
@@ -302,6 +318,7 @@ function DetailView({
         <DictEntry
           word={details.word}
           kanjis={details.kanjis}
+          sentences={details.sentences}
           query={query}
           onKanjiPress={onKanjiPress}
         />

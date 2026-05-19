@@ -142,6 +142,10 @@ function extOf(href: string): string {
 // ── Extractor ───────────────────────────────────────────────────────────────
 
 async function extractCover(filename: string): Promise<string | null> {
+  // Same JS-thread-blocking concern as isMangaEpub: reading a multi-MB
+  // non-zip file into JS and feeding it to JSZip can freeze the UI for
+  // seconds. Only EPUBs are valid inputs here.
+  if (!filename.toLowerCase().endsWith('.epub')) return null;
   const cached = existingCoverUri(filename);
   if (cached) return cached;
   if (!bookFileExists(filename)) return null;

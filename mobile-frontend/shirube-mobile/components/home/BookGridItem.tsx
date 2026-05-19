@@ -16,6 +16,7 @@ export function BookGridItem({
   onMore?: () => void;
 }) {
   const c = useColors();
+  const isPdf = book.filename.toLowerCase().endsWith('.pdf');
   return (
     <Pressable
       onPress={onPress}
@@ -40,6 +41,19 @@ export function BookGridItem({
             <Text style={[styles.badgeText, { color: c.fgMuted }]}>⬇</Text>
           </View>
         )}
+        {/* Small format chip in the bottom-left corner of the cover so
+            users can tell PDF from EPUB at a glance, especially for
+            cross-device records that show the swatch placeholder. */}
+        <View
+          style={[
+            styles.formatChip,
+            { backgroundColor: c.bgElev, borderColor: c.borderStrong },
+          ]}
+        >
+          <Text style={[styles.formatChipText, { color: c.fgMuted }]}>
+            {isPdf ? 'PDF' : 'EPUB'}
+          </Text>
+        </View>
       </View>
       <Text style={[styles.title, { color: c.fg }]} numberOfLines={2}>
         {book.title}
@@ -95,6 +109,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeText: { fontSize: 12, lineHeight: 14 },
+  formatChip: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  formatChipText: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
   title: {
     fontFamily: fontFamily.jp,
     fontSize: fontSize.sm + 1,

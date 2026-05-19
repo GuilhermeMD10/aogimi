@@ -103,11 +103,12 @@ These are populated from JMdict/KANJIDIC2/JMnedict imports. Not user-editable.
 |-------|---------|
 | words | JMdict word entries (id, jmdict_id, is_common, priority_score, jlpt_level) |
 | word_kanji | Kanji forms per word |
-| word_readings | Kana readings per word |
+| word_readings | Kana readings per word (incl. `pitch_accents` from Kanjium) |
 | word_meanings | Glosses per word (multilingual, FTS-indexed) |
 | word_forms | Deinflection table for irregular verbs |
 | kanji | KANJIDIC2 kanji data (literal, grade, jlpt_level, strokes, readings) |
 | names | JMnedict name entries |
+| example_sentences | Curated example sentences keyed by word form (Kanjium) |
 
 **JLPT levels (`words.jlpt_level`, `kanji.jlpt_level`):** smallint 1–5 (1 = N1
 hardest, 5 = N5 easiest), NULL when not in any of the JLPT N1..N5 lists.
@@ -116,3 +117,26 @@ Sourced from `backend/jlptwordslist/n{1..5}.csv`. Loaded via migrations 010
 per-character level + drop staging). Used as a ranking boost in search
 (`+50 + jlpt_level*5`) and surfaced to the frontend as a chip on word rows
 and per-kanji breakdowns.
+
+**Pitch accent (`word_readings.pitch_accents`):** TEXT, NULL when no data.
+Raw Kanjium position numbers, comma-separated when multiple patterns are
+accepted (e.g. `"0"`, `"1"`, `"2,3"`). Position 0 = heiban (flat); other
+positions are 1-indexed mora boundaries where the drop occurs. Sourced from
+the Kanjium project's `accents.txt` (~50k rows). Loaded via migration 013
+(adds the column) + `helpers/files/parse_pitch_accents.js` (imports the TSV
+into a temp table and updates via JOIN on `word_kanji.kanji + word_readings.kana`,
+with a kana-only fallback for entries that lack a kanji form). Coverage is
+partial — Kanjium doesn't span all of JMdict — so a notable fraction of
+readings stay NULL; UIs should hide pitch UI when unset.
+
+**Example sentences (`example_sentences`):** Curated Japanese sentences with
+English translations, ruby furigana markup, and a difficulty label. The
+curated headword lives in `word_form`, but lookups go through
+`contained_forms TEXT[]` (GIN-indexed) — the union of the curated key plus
+every `<rb>kanji</rb>` token the parser extracts from `ja_ruby`. This means
+a sentence keyed for "ご馳走" also surfaces when the user looks up "私"
+(because `<rb>私</rb>` is in the ruby) — every word the sentence mentions
+gets the sentence. Sourced from Kanjium's `sentences.txt` (~13k rows).
+Loaded via migration 014 (table) + 015 (contained_forms column + index) +
+`helpers/files/parse_example_sentences.js`. Surfaced on
+`GET /api/words/:id/details` as up to 5 sentences per word, ordered by id.

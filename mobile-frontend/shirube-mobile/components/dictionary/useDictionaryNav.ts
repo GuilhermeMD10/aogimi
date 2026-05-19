@@ -1,4 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { BackHandler } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { fetchWordDetails } from '@/lib/api';
 import { peekWord } from '@/lib/dictCache';
 import type { WordDetails } from '@/lib/types';
@@ -117,9 +119,32 @@ export function useDictionaryNav(): DictNav {
     pop();
   }, [pop]);
 
+  // Wire Android's hardware back button to the in-app frame stack while the
+  // dictionary tab is focused. iOS doesn't fire this, so no parallel handling
+  // is needed there (and the tab navigator has no swipe-back gesture).
+  const canGoBack = history.length > 1;
+  const backStateRef = useRef<{ canGoBack: boolean; back: () => void }>({
+    canGoBack,
+    back,
+  });
+  backStateRef.current = { canGoBack, back };
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        const state = backStateRef.current;
+        if (state.canGoBack) {
+          state.back();
+          return true;
+        }
+        return false;
+      });
+      return () => sub.remove();
+    }, []),
+  );
+
   return {
     current,
-    canGoBack: history.length > 1,
+    canGoBack,
     query,
     detailError,
     setQuery,

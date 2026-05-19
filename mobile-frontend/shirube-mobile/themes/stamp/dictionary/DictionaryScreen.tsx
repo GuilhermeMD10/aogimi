@@ -18,6 +18,7 @@ import type { SearchResponse, WordDetails, WordResult } from '@/lib/types';
 import { FlashcardDrawer, type FlashcardPrefill } from '@/components/flashcards/FlashcardDrawer';
 import { useDictionarySearch } from '@/components/dictionary/useDictionarySearch';
 import { useDictionaryNav } from '@/components/dictionary/useDictionaryNav';
+import { useNavigation } from 'expo-router';
 import { DictEntry } from './DictEntry';
 import { StampMark } from '@/components/theme-decorations/stamp';
 import { JlptChip } from '@/components/ui/JlptChip';
@@ -44,14 +45,26 @@ export function DictionaryScreen() {
   const { current, canGoBack, query, setQuery, openDetail, openKanjiSearch, back, detailError } =
     nav;
 
+  const navigation = useNavigation();
+  useEffect(() => {
+    type TabPressEvent = { preventDefault: () => void };
+    const unsub = navigation.addListener('tabPress' as never, ((e: TabPressEvent) => {
+      if (canGoBack) {
+        e.preventDefault();
+        back();
+      }
+    }) as never);
+    return unsub;
+  }, [navigation, canGoBack, back]);
+
   const [flashcardPrefill, setFlashcardPrefill] = useState<FlashcardPrefill | null>(null);
   const searchState = useDictionarySearch(query);
 
 const addFlashcardFromDetails = useCallback((details: WordDetails) => {
     const w = details.word;
     setFlashcardPrefill({
-      front: w.kanji[0] ?? w.readings[0] ?? '',
-      reading: w.readings[0] ?? '',
+      front: w.kanji[0] ?? w.readings[0]?.form ?? '',
+      reading: w.readings[0]?.form ?? '',
       back:
         w.meanings
           .filter((m) => m.lang === 'eng' || m.lang === 'en')
@@ -443,8 +456,8 @@ function ResultRow({
 }) {
   const c = useColors();
   const f = useFonts();
-  const headword = word.kanji[0] ?? word.readings[0] ?? '';
-  const reading = word.readings[0] ?? '';
+  const headword = word.kanji[0] ?? word.readings[0]?.form ?? '';
+  const reading = word.readings[0]?.form ?? '';
   const gloss = word.meanings.find((m) => m.lang === 'eng' || m.lang === 'en')?.meaning ?? '';
 
   return (
@@ -593,6 +606,7 @@ function DetailView({
         <DictEntry
           word={details.word}
           kanjis={details.kanjis}
+          sentences={details.sentences}
           onKanjiPress={onKanjiPress}
         />
       </ScrollView>

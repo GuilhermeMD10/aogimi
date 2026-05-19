@@ -1,8 +1,11 @@
 const kanjiRepo = require('../repositories/kanjiRepository');
 const nameRepo  = require('../repositories/nameRepository');
+const pool      = require('../db');
 const { index } = require('../search');
 const { deinflect } = require('../search/deinflector');
 const { romajiToKana } = require('../search/romajiToKana');
+
+const SENTENCE_LIMIT = 5;
 
 /**
  * Unified search endpoint logic.
@@ -369,7 +372,35 @@ async function getDetails(id) {
         stroke_count: null, radical: null, meanings: [], on_readings: [], kun_readings: [] };
     });
 
-  return { word: publicWord, kanjis };
+  // Example sentences that *contain* any of the word's forms — not just
+  // sentences Kanjium curated for that headword. `contained_forms` is the
+  // union of the curated key plus every <rb>kanji</rb> token extracted from
+  // the sentence's ruby markup at import time (GIN-indexed for fast overlap).
+  const forms = [
+    ...word.kanji,
+    ...word.readings.map((r) => r.form),
+  ].filter(Boolean);
+  let sentences = [];
+  if (forms.length > 0) {
+    const { rows: sRows } = await pool.query(
+      `SELECT id, word_form, ja_plain, ja_ruby, en, grade_label
+         FROM example_sentences
+        WHERE contained_forms && $1::text[]
+        ORDER BY id
+        LIMIT $2`,
+      [forms, SENTENCE_LIMIT],
+    );
+    sentences = sRows.map((r) => ({
+      id: r.id,
+      wordForm: r.word_form,
+      ja: r.ja_plain,
+      jaRuby: r.ja_ruby,
+      en: r.en,
+      gradeLabel: r.grade_label,
+    }));
+  }
+
+  return { word: publicWord, kanjis, sentences };
 }
 
 module.exports = { search, getDetails };

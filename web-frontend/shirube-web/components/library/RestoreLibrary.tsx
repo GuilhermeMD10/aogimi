@@ -4,17 +4,23 @@ import { useCallback, useRef, useState } from 'react';
 import { BookOpen, CheckCircle2, CloudOff } from 'lucide-react';
 import { importBook } from '@/lib/bookStore';
 import { computeEpubIdentity } from '@/lib/epubIdentity';
+import { computePdfIdentity } from '@/lib/pdfIdentity';
 import { matchBooks } from '@/lib/booksApi';
 import { getDeviceId } from '@/lib/storage/device';
 import { markBookAvailable } from '@/lib/devicesApi';
 import type { DeviceBookRecord } from '@/lib/types';
 import { BookCoverSwatch, type LibraryBook } from '@/components/library/BookList';
 
-function validateEpub(file: File): string | null {
-  if (file.type !== 'application/epub+zip' && !file.name.endsWith('.epub'))
-    return 'Invalid file type. Please upload an EPUB file.';
-  if (file.size > 50 * 1024 * 1024)
-    return 'File too large. Maximum size is 50 MB.';
+function validateBookFile(file: File): string | null {
+  const name = file.name.toLowerCase();
+  const isEpub = file.type === 'application/epub+zip' || name.endsWith('.epub');
+  const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf');
+  if (!isEpub && !isPdf)
+    return 'Invalid file type. Please upload an EPUB or PDF file.';
+  if (isEpub && file.size > 50 * 1024 * 1024)
+    return 'EPUB too large. Maximum size is 50 MB.';
+  if (isPdf && file.size > 500 * 1024 * 1024)
+    return 'PDF too large. Maximum size is 500 MB.';
   return null;
 }
 
@@ -62,7 +68,7 @@ export default function RestoreLibrary({
       if (!file || !locatingBookId) return;
       e.target.value = '';
 
-      const validationError = validateEpub(file);
+      const validationError = validateBookFile(file);
       if (validationError) {
         setError(validationError);
         setLocatingBookId(null);
@@ -77,7 +83,10 @@ export default function RestoreLibrary({
 
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const identity = await computeEpubIdentity(arrayBuffer).catch(() => null);
+        const isPdf = file.name.toLowerCase().endsWith('.pdf');
+        const identity = isPdf
+          ? await computePdfIdentity(arrayBuffer).catch(() => null)
+          : await computeEpubIdentity(arrayBuffer).catch(() => null);
 
         const candidates = [{
           file_hash: identity?.fileHash ?? '',
@@ -85,7 +94,9 @@ export default function RestoreLibrary({
           metadata: {
             title: '',
             author: '',
-            dc_identifier: identity?.dcIdentifier ?? null,
+            dc_identifier: !isPdf && identity && 'dcIdentifier' in identity && typeof identity.dcIdentifier === 'string'
+              ? identity.dcIdentifier
+              : null,
             filename: file.name,
           },
         }];
@@ -150,7 +161,7 @@ export default function RestoreLibrary({
           {remoteBooks.length === 1 ? 'book' : 'books'} synced.
         </p>
         <p className="mb-6 text-[13px] text-lgc-fg-subtle">
-          Point us to your EPUB files and we&apos;ll match them to your library.
+          Point us to your EPUB or PDF files and we&apos;ll match them to your library.
         </p>
 
         {/* Error */}
@@ -220,7 +231,7 @@ export default function RestoreLibrary({
         <input
           ref={locateInputRef}
           type="file"
-          accept=".epub,application/epub+zip"
+          accept=".epub,.pdf,application/epub+zip,application/pdf"
           onChange={onLocateFile}
           className="hidden"
         />
