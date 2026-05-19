@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
@@ -17,7 +17,12 @@ import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { BookRecord } from '@/lib/types';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { bookFileExists, importEpub } from '@/lib/bookFiles';
-import { createBook, markBookAvailable } from '@/lib/api';
+import {
+  createBook,
+  markBookAvailable,
+  matchBooks,
+  updateBookIdentity,
+} from '@/lib/api';
 import { getDeviceId } from '@/lib/deviceId';
 import { useBooks } from './useBooks';
 import { ContinueReadingCard } from './ContinueReadingCard';
@@ -30,6 +35,16 @@ export function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { books, loading, refreshing, error, refresh } = useBooks();
+  // Refresh the books list whenever the tab regains focus — e.g. after
+  // the user backs out of the reader. Pairs with the optimistic local
+  // progress patch the reader writes on back-press: that patch keeps the
+  // tile instant; this fetch reconciles with server truth (and pulls in
+  // progress made on other devices).
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) void refresh();
+    }, [user?.id, refresh]),
+  );
   const [importing, setImporting] = useState(false);
   // Per-tile actions: the … button on a BookGridItem opens BookActionsSheet
   // bound to whichever book is selected. Null means the sheet is closed.
@@ -56,22 +71,68 @@ export function HomeScreen() {
     try {
       const imported = await importEpub();
       if (!imported) return;
-      const created = await createBook(user.id, {
-        filename: imported.filename,
-        title: imported.title || imported.filename,
-        author: imported.author,
-        // PDFs surface a /ID fingerprint that survives metadata edits in
-        // the cloud — passing it lets `matchBooks` reconcile the same PDF
-        // on another device even after a title change.
-        contentHash: imported.contentHash,
-      });
+      const deviceId = await getDeviceId().catch(() => null);
+
+      // Cross-device reconcile: ask the backend whether this exact content
+      // already exists on the account before creating a new row. Priority
+      // inside the matcher: file_hash → content_hash → dc_identifier →
+      // title+author → filename. Skipping this step is what made the same
+      // book imported on two devices show as two records.
+      let bookId: string | null = null;
+      const candidate = {
+        file_hash: imported.fileHash,
+        content_hash: imported.contentHash,
+        metadata: {
+          title: imported.title || imported.filename,
+          author: imported.author,
+          dc_identifier: imported.dcIdentifier,
+          filename: imported.filename,
+        },
+      };
+      try {
+        const [result] = await matchBooks(user.id, [candidate]);
+        if (result?.match && result.match_type !== 'none') {
+          bookId = result.match.id;
+          // Backfill any identity fields the existing row was missing so the
+          // next match attempt on either device hits a higher-priority key.
+          // updateBookIdentity uses COALESCE on the backend so we won't
+          // clobber non-null values.
+          if (imported.fileHash || imported.contentHash || imported.dcIdentifier || imported.language || imported.publisher) {
+            void updateBookIdentity(bookId, {
+              fileHash: imported.fileHash ?? undefined,
+              contentHash: imported.contentHash ?? undefined,
+              dcIdentifier: imported.dcIdentifier ?? undefined,
+              language: imported.language ?? undefined,
+              publisher: imported.publisher ?? undefined,
+            }).catch(() => undefined);
+          }
+        }
+      } catch {
+        /* matcher unreachable — fall through to create */
+      }
+
+      if (!bookId) {
+        const created = await createBook(user.id, {
+          filename: imported.filename,
+          title: imported.title || imported.filename,
+          author: imported.author,
+          fileHash: imported.fileHash,
+          contentHash: imported.contentHash,
+          dcIdentifier: imported.dcIdentifier,
+          language: imported.language,
+          publisher: imported.publisher,
+        });
+        bookId = created.id;
+      }
+
       // Mark this device as a place where the book's file lives, so
       // cross-device library listings know we have it locally.
-      try {
-        const deviceId = await getDeviceId();
-        await markBookAvailable(deviceId, created.id, user.id);
-      } catch {
-        /* non-fatal: re-syncs on next library refresh */
+      if (deviceId) {
+        try {
+          await markBookAvailable(deviceId, bookId, user.id);
+        } catch {
+          /* non-fatal: re-syncs on next library refresh */
+        }
       }
       await refresh();
     } catch (err) {

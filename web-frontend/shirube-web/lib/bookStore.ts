@@ -54,6 +54,32 @@ const COVER_PALETTE = [
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
+/**
+ * Delete the entire shirube-books IndexedDB database and drop the cached
+ * connection. Used by the account-switch wipe so books from the previous
+ * user don't leak into the new account's library. Best-effort; failures
+ * resolve quietly so a `blocked` state (another tab holding a handle) does
+ * not break sign-in.
+ */
+export async function wipeBookDatabase(): Promise<void> {
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      db.close();
+    } catch {
+      /* already closed */
+    }
+    dbPromise = null;
+  }
+  if (typeof indexedDB === 'undefined') return;
+  await new Promise<void>((resolve) => {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => resolve();
+    req.onblocked = () => resolve();
+  });
+}
+
 function getDb() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {

@@ -55,6 +55,20 @@ export function deleteCoverFor(filename: string): void {
   memCache.delete(filename);
 }
 
+/**
+ * Drop the entire covers directory + in-memory URI cache. Used by the
+ * account-switch wipe — every cover on disk belongs to the previous user.
+ */
+export function wipeAllCovers(): void {
+  try {
+    const dir = coversDir();
+    if (dir.exists) dir.delete();
+  } catch {
+    /* best-effort */
+  }
+  memCache.clear();
+}
+
 /** All cover file basenames on disk, with the extension stripped. Returns
  * the safe-name keys, not original filenames (those are not recoverable
  * from the safe-name encoding). Caller diffs against a known safe-name

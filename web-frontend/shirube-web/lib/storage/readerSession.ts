@@ -1,4 +1,4 @@
-import { setJSON } from './_helpers';
+import { remove, setJSON } from './_helpers';
 
 // Per-book reading-progress snapshots. Written on every page turn (cheap,
 // local) and superseded by backend sync on tab close. Used as a recovery
@@ -21,4 +21,10 @@ export function setReaderProgress(
   snapshot: Omit<ReaderProgressSnapshot, 'updatedAt'>,
 ): void {
   setJSON(progressKey(filename), { ...snapshot, updatedAt: Date.now() });
+}
+
+/** Drop the reader_progress_<filename> snapshot — call on book delete so a
+ *  later re-import doesn't start from a stale recovery hint. */
+export function clearReaderProgress(filename: string): void {
+  remove(progressKey(filename));
 }
