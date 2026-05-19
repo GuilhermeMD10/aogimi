@@ -11,16 +11,15 @@ import {
   importBook,
   ensureBackendBook,
   syncLocalBooksToBackend,
-  deleteBook as deleteLocalBook,
   renameBook as renameLocalBook,
 } from '@/lib/bookStore';
 import {
   matchBooks,
-  deleteBookRecord,
   getUserBooks,
   updateBookTitle as apiUpdateBookTitle,
   updateBookProgress,
 } from '@/lib/booksApi';
+import { deleteBookEverywhere } from '@/lib/books/deleteBook';
 import { computeEpubIdentity } from '@/lib/epubIdentity';
 import { computePdfIdentity } from '@/lib/pdfIdentity';
 import { getDeviceId } from '@/lib/storage/device';
@@ -233,12 +232,7 @@ export default function ReaderView() {
     async (book: LibraryBook) => {
       setError(null);
       try {
-        if (book.backendId) {
-          await deleteBookRecord(book.backendId).catch(() => {});
-        }
-        if (book.available) {
-          await deleteLocalBook(book.id).catch(() => {});
-        }
+        await deleteBookEverywhere(book);
         setBooks(prev => prev.filter(b => b.id !== book.id));
         setDeletingBook(null);
       } catch {
@@ -398,21 +392,12 @@ export default function ReaderView() {
         remoteBooks={remoteBooks}
         userId={user.id}
         onComplete={handleRestoreComplete}
-        onSkip={() => {
-          const merged: LibraryBook[] = remoteBooks.map(r => ({
-            id: r.id,
-            title: r.title,
-            author: r.author,
-            filename: r.filename,
-            coverColor: r.cover_color,
-            hasCover: false,
-            progress: r.progress,
-            available: false,
-            backendId: r.id,
-          }));
-          setBooks(merged);
-          setPageState('library');
-        }}
+        // Skip mirrors complete: both land on the library with the
+        // current state. The previous inline mapping rebuilt the list
+        // from the stale `remoteBooks` snapshot taken at restore-screen
+        // mount, so any books the user just imported during the restore
+        // session were flagged available:false again.
+        onSkip={handleRestoreComplete}
       />
     );
   }

@@ -12,11 +12,14 @@
 // further forward; we accept the miss and fall back to filename.
 
 import { File } from 'expo-file-system';
+import { sha256 } from 'js-sha256';
 import { bookFilePath } from './bookFiles';
 
 export type PdfProbe = {
   /** Title from /Info /Title, decoded. Null when absent or unparseable. */
   title: string | null;
+  /** SHA-256 of the raw PDF bytes. Same field name the backend matcher uses. */
+  fileHash: string | null;
   /** First entry of the PDF /ID array (lowercase hex). Survives most
    *  metadata edits and resaves — equivalent to EPUB's dc_identifier. */
   contentHash: string | null;
@@ -33,23 +36,24 @@ const TAIL_BYTES = 128 * 1024;
 export async function probePdfFile(filename: string): Promise<PdfProbe> {
   try {
     const file = new File(bookFilePath(filename));
-    if (!file.exists) return { title: null, contentHash: null };
+    if (!file.exists) return { title: null, fileHash: null, contentHash: null };
 
-    // Read the trailing chunk as a Uint8Array. `bytes()` returns the whole
-    // file; for our use case that's typically fine, but a smarter API
-    // would read only the tail. Expo-file-system 55 doesn't expose a
-    // partial-byte read in stable API.
+    // Read the whole file once: sha256 of the bytes is the `fileHash`,
+    // and the trailing chunk is what carries the trailer /Info + /ID we
+    // scrape for title and contentHash.
     const buf = await file.bytes();
+    const fileHash = sha256(buf);
     const start = Math.max(0, buf.length - TAIL_BYTES);
     const tail = buf.subarray(start);
     const tailStr = bytesToLatin1(tail);
 
     return {
       title: extractTitle(tailStr),
+      fileHash,
       contentHash: extractId(tailStr),
     };
   } catch {
-    return { title: null, contentHash: null };
+    return { title: null, fileHash: null, contentHash: null };
   }
 }
 
