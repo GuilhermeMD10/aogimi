@@ -14,6 +14,9 @@ import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import { deleteBook, updateBookTitle } from '@/lib/api';
 import { deleteBookFile } from '@/lib/bookFiles';
 import { evictBookCache } from '@/lib/mangaPages';
+import { deleteCoverFor } from '@/lib/epubCover';
+import { clearBookStorage } from '@/lib/readerStorage';
+import { clearLocalProgress } from '@/lib/booksLocalCache';
 import type { BookRecord } from '@/lib/types';
 
 type Props = {
@@ -83,18 +86,21 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
             setBusy(true);
             try {
               await deleteBook(book.id);
-              try {
-                deleteBookFile(book.filename);
-              } catch {
-                /* local cleanup is best-effort */
-              }
-              // Reclaim manga page cache (if any) for this book — if it
-              // wasn't a manga, this is a cheap no-op.
-              try {
-                await evictBookCache(book.id);
-              } catch {
-                /* best-effort */
-              }
+              // Local cleanup, all best-effort. Every chunk is independent —
+              // a failure in one shouldn't stop the others.
+              //
+              //   1. The .epub / .pdf file itself
+              //   2. Extracted EPUB cover (documents/covers/) + memCache
+              //   3. Manga page cache (cache/manga-pages/<bookId>) + LRU
+              //      index entry + session handle
+              //   4. AsyncStorage reader.book.<filename> (lastCfi,
+              //      highlights, bookmarks)
+              //   5. Optimistic progress patch from the back-press cache
+              try { deleteBookFile(book.filename); } catch { /* */ }
+              try { deleteCoverFor(book.filename); } catch { /* */ }
+              try { await evictBookCache(book.id); } catch { /* */ }
+              try { await clearBookStorage(book.filename); } catch { /* */ }
+              clearLocalProgress(book.id);
               onChanged();
               onDismiss();
             } catch (err) {

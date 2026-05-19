@@ -22,21 +22,36 @@ export function hasBookFile(book: BookRecord): boolean {
   return bookFileExists(book.filename);
 }
 
+export type ImportedBook = {
+  filename: string;
+  title: string;
+  author: string;
+  /** SHA-256 of raw file bytes. Used as the primary cross-device match key. */
+  fileHash: string | null;
+  /** Format-specific stable fingerprint: EPUB spine-text hash, or PDF /ID. */
+  contentHash: string | null;
+  /** EPUB only: <dc:identifier> from content.opf. */
+  dcIdentifier: string | null;
+  /** EPUB only: <dc:language>. */
+  language: string | null;
+  /** EPUB only: <dc:publisher>. */
+  publisher: string | null;
+  uri: string;
+};
+
 /**
- * Prompt the user to pick an EPUB, copy it into the app's documents dir, and
- * return the stored filename + suggested metadata.
+ * Prompt the user to pick an EPUB/PDF, copy it into the app's documents dir,
+ * and return the stored filename + suggested metadata + identity hashes.
  *
  * The filename returned is the original file name from the picker. If a file
  * with the same name already exists locally, it is overwritten — the unique
  * constraint on (user_id, filename) in book_progress keeps the backend clean.
+ *
+ * Identity hashes are populated best-effort: a failed probe returns nulls.
+ * Callers (HomeScreen) feed them into POST /api/books/match to detect when
+ * the same content is already on another device.
  */
-export async function importEpub(): Promise<{
-  filename: string;
-  title: string;
-  author: string;
-  contentHash: string | null;
-  uri: string;
-} | null> {
+export async function importEpub(): Promise<ImportedBook | null> {
   const result = await DocumentPicker.getDocumentAsync({
     type: ['application/epub+zip', 'application/pdf', 'application/zip', '*/*'],
     copyToCacheDirectory: true,
@@ -58,31 +73,70 @@ export async function importEpub(): Promise<{
   const source = new File(asset.uri);
   source.copy(target);
 
-  // PDFs: scrape /Title + /ID from the trailer so the imported record gets
-  // a real title and a fingerprint for cross-device matching. EPUBs fall
-  // through to the filename heuristic; richer metadata extraction lives in
-  // the web import path for now.
   let title: string;
   let author: string;
+  let fileHash: string | null = null;
   let contentHash: string | null = null;
+  let dcIdentifier: string | null = null;
+  let language: string | null = null;
+  let publisher: string | null = null;
+
   if (filename.toLowerCase().endsWith('.pdf')) {
+    // PDFs: sha256 of bytes + /Title + /ID from the trailer.
     const { probePdfFile } = await import('./pdfIdentity');
     const probe = await probePdfFile(filename);
     title = probe.title ?? metadataFromFilename(filename).title;
     author = '';
+    fileHash = probe.fileHash;
     contentHash = probe.contentHash;
+  } else if (filename.toLowerCase().endsWith('.epub')) {
+    // EPUBs: sha256 of bytes + spine-text hash + OPF metadata.
+    const { probeEpubFile } = await import('./epubIdentity');
+    const probe = await probeEpubFile(filename);
+    const fallback = metadataFromFilename(filename);
+    title = probe?.title ?? fallback.title;
+    author = probe?.creator ?? fallback.author;
+    fileHash = probe?.fileHash ?? null;
+    contentHash = probe?.contentHash ?? null;
+    dcIdentifier = probe?.dcIdentifier ?? null;
+    language = probe?.language ?? null;
+    publisher = probe?.publisher ?? null;
   } else {
     const meta = metadataFromFilename(filename);
     title = meta.title;
     author = meta.author;
   }
 
-  return { filename, title, author, contentHash, uri: target.uri };
+  return {
+    filename,
+    title,
+    author,
+    fileHash,
+    contentHash,
+    dcIdentifier,
+    language,
+    publisher,
+    uri: target.uri,
+  };
 }
 
 export function deleteBookFile(filename: string): void {
   const file = new File(booksDir(), filename);
   if (file.exists) file.delete();
+}
+
+/**
+ * Wipe every imported book file from this device. Used by the account-
+ * switch reset so a new account doesn't inherit the previous user's
+ * library blobs.
+ */
+export function wipeAllBookFiles(): void {
+  try {
+    const dir = booksDir();
+    if (dir.exists) dir.delete();
+  } catch {
+    /* best-effort */
+  }
 }
 
 /**

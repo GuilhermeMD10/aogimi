@@ -53,6 +53,7 @@ import { DeepLPopup } from './utils/DeepLPopup';
 import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle } from './utils/foliateHtml';
 import { useReaderLayoutPrefs, flowForCombo } from '@/lib/readerLayout';
 import { useHideAndroidNavBar } from '@/lib/useHideAndroidNavBar';
+import { setLocalProgress } from '@/lib/booksLocalCache';
 
 type Props = { bookId: string };
 
@@ -479,8 +480,19 @@ export function ReaderScreen({ bookId }: Props) {
 
   const handleBack = useCallback(() => {
     flushProgress();
+    // Optimistic local update so the library tile reflects this session
+    // immediately on back. The useFocusEffect refresh in HomeScreen will
+    // reconcile with server truth right after.
+    const latest = latestLocationRef.current;
+    if (book?.id && latest) {
+      setLocalProgress(book.id, {
+        progress: latest.progress,
+        cfi: latest.cfi,
+        lastReadAt: new Date().toISOString(),
+      });
+    }
     router.back();
-  }, [flushProgress, router]);
+  }, [flushProgress, router, book?.id]);
 
   // ── Missing-file recovery ───────────────────────────────────────────
   const handleImportMissingFile = useCallback(async () => {

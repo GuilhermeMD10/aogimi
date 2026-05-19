@@ -113,6 +113,7 @@ export function LibraryDesk({
           <ContinuePanel
             book={hero}
             onResume={() => onOpen(hero)}
+            onLocate={() => onLocate(hero)}
             onRename={(title) => onRename(hero, title)}
             onRemove={() => onRemove(hero)}
           />
@@ -336,11 +337,13 @@ function FilterChips({
 function ContinuePanel({
   book,
   onResume,
+  onLocate,
   onRename,
   onRemove,
 }: {
   book: LibraryBook;
   onResume: () => void;
+  onLocate: () => void;
   onRename: (title: string) => void;
   onRemove: () => void;
 }) {
@@ -377,15 +380,29 @@ function ContinuePanel({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
-              color: 'var(--lgc-accent)',
+              // Muted tone when the file isn't on this device, so the
+              // hero card visibly drops out of its "primary action"
+              // accent colour without losing legibility.
+              color: book.available ? 'var(--lgc-accent)' : 'var(--lgc-fg-muted)',
               fontSize: 11,
               fontWeight: 700,
               letterSpacing: '0.18em',
               textTransform: 'uppercase',
             }}
           >
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--lgc-accent)' }} />
-            <span>Continue reading{book.lastReadAt ? ` · ${formatRelative(book.lastReadAt)}` : ''}</span>
+            <span
+              style={{
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                background: book.available ? 'var(--lgc-accent)' : 'var(--lgc-fg-muted)',
+              }}
+            />
+            <span>
+              {book.available
+                ? `Continue reading${book.lastReadAt ? ` · ${formatRelative(book.lastReadAt)}` : ''}`
+                : `Not on this device${book.lastReadAt ? ` · last read ${formatRelative(book.lastReadAt)}` : ''}`}
+            </span>
           </div>
 
           <BookCardMenu
@@ -479,25 +496,27 @@ function ContinuePanel({
 
       <button
         type="button"
-        onClick={onResume}
-        disabled={!book.available}
-        title={book.available ? 'Resume reading' : 'File not on this device'}
+        // Available: pick up where the user left off. Not available: trigger
+        // the same file-locate flow the grid uses, so the user can import
+        // the book they were last reading on another device without
+        // hunting it down in the grid.
+        onClick={book.available ? onResume : onLocate}
+        title={book.available ? 'Resume reading' : 'Locate this file on your device'}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
           gap: 8,
           padding: '10px 18px',
           borderRadius: 10,
-          background: 'var(--lgc-accent)',
-          color: 'var(--lgc-accent-fg)',
-          border: 'none',
+          background: book.available ? 'var(--lgc-accent)' : 'transparent',
+          color: book.available ? 'var(--lgc-accent-fg)' : 'var(--lgc-fg)',
+          border: book.available ? 'none' : '1px solid var(--lgc-border-strong)',
           fontSize: 13,
           fontWeight: 600,
-          cursor: book.available ? 'pointer' : 'not-allowed',
-          opacity: book.available ? 1 : 0.5,
+          cursor: 'pointer',
         }}
       >
-        <BookOpen size={14} /> Resume
+        <BookOpen size={14} /> {book.available ? 'Resume' : 'Locate file'}
       </button>
     </div>
   );

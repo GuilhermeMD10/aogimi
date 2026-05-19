@@ -212,6 +212,21 @@ export function releaseCachedMangaHandle(): void {
 }
 
 /**
+ * Drop the entire manga-pages cache directory + LRU index + the in-memory
+ * session handle. Used by the account-switch wipe so cached page art from
+ * the previous user's library doesn't sit on disk under the new account.
+ */
+export function wipeMangaCache(): void {
+  try {
+    const root = cacheRoot();
+    if (root.exists) root.delete();
+  } catch {
+    /* best-effort */
+  }
+  cachedHandle = null;
+}
+
+/**
  * Open a manga EPUB for reading. Fast path: if the persisted manifest is
  * present AND every page file it references already lives in cache, we
  * skip loading the EPUB binary entirely — the on-disk cache is enough.
