@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
@@ -12,6 +13,7 @@ import {
 import { setNeedsOnboarding } from '@/lib/storage/onboarding';
 import { loginUser, signupUser } from '@/lib/userApi';
 import { wipeUserData } from '@/lib/auth/wipeUserData';
+import { setSessionInvalidatedHandler } from '@/lib/api';
 
 type AuthContextValue = {
   user: User | null;
@@ -30,6 +32,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setUser(getStoredAuthUser());
     setLoading(false);
+  }, []);
+
+  // Register the session-invalidation handler with the API layer. Fires
+  // when any wrapped request returns 401 USER_NOT_FOUND — meaning the
+  // signed-in user no longer exists on the backend (e.g. wiped DB while
+  // the browser tab kept its local session). Wipe local data and drop
+  // the auth_user record so the rest of the app sees a logged-out state.
+  useEffect(() => {
+    setSessionInvalidatedHandler(() => {
+      void wipeUserData();
+      setUser(null);
+      clearStoredAuthUser();
+    });
+    return () => setSessionInvalidatedHandler(null);
   }, []);
 
   const persist = (u: User | null) => {

@@ -1,17 +1,18 @@
 const { Router } = require("express");
 const bookService = require("../services/bookService");
 const bookmarkService = require("../services/bookmarkService");
+const { ensureUserExists } = require("../middleware/verifyUser");
 
 const router = Router();
 
 // POST /api/books — register a new book for a user
 router.post("/", async (req, res) => {
-  const { userId, filename, title, author, coverColor, fileHash, contentHash, dcIdentifier, language, publisher } = req.body;
+  const { userId, filename, title, author, coverColor, fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher } = req.body;
   if (!userId || !filename || !title) {
     return res.status(400).json({ error: "userId, filename, and title are required" });
   }
   try {
-    const book = await bookService.createBook(userId, { filename, title, author, coverColor, fileHash, contentHash, dcIdentifier, language, publisher });
+    const book = await bookService.createBook(userId, { filename, title, author, coverColor, fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher });
     res.json(book);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -25,6 +26,7 @@ router.post("/match", async (req, res) => {
   if (!userId || !Array.isArray(books)) {
     return res.status(400).json({ error: "userId and books array are required" });
   }
+  if (!(await ensureUserExists(res, userId))) return;
   try {
     const results = await bookService.matchBooks(userId, books);
     res.json(results);
@@ -35,6 +37,7 @@ router.post("/match", async (req, res) => {
 
 // GET /api/books/user/:userId — list all books for a user
 router.get("/user/:userId", async (req, res) => {
+  if (!(await ensureUserExists(res, req.params.userId))) return;
   try {
     const books = await bookService.getUserBooks(parseInt(req.params.userId, 10));
     res.json(books);
@@ -86,10 +89,10 @@ router.patch("/:id", async (req, res) => {
 
 // PUT /api/books/:id/identity — update hash/metadata identity fields
 router.put("/:id/identity", async (req, res) => {
-  const { fileHash, contentHash, dcIdentifier, language, publisher } = req.body;
+  const { fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher } = req.body;
   try {
     const book = await bookService.updateIdentity(req.params.id, {
-      fileHash, contentHash, dcIdentifier, language, publisher,
+      fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher,
     });
     res.json(book);
   } catch (err) {

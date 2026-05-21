@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { EpubReader } from '@/components/reader/EpubReader';
 import { PdfReader } from '@/components/reader/PdfReader';
@@ -8,75 +8,75 @@ import { DictionarySidekick } from '@/components/views/DictionaryView/Dictionary
 import {
   getAllBooks,
   getBookFile,
-  importBook,
   ensureBackendBook,
-  syncLocalBooksToBackend,
   renameBook as renameLocalBook,
 } from '@/lib/bookStore';
 import {
-  matchBooks,
   getUserBooks,
   updateBookTitle as apiUpdateBookTitle,
   updateBookProgress,
 } from '@/lib/booksApi';
 import { deleteBookEverywhere } from '@/lib/books/deleteBook';
-import { computeEpubIdentity } from '@/lib/epubIdentity';
-import { computePdfIdentity } from '@/lib/pdfIdentity';
+import {
+  locateAndAttachFile,
+  validateBookFile,
+} from '@/lib/books/locateAndAttachFile';
+import { importBookWithMatch } from '@/lib/books/importBookWithMatch';
 import { getDeviceId } from '@/lib/storage/device';
-import { markBookAvailable } from '@/lib/devicesApi';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
+import { useReaderActions } from '@/components/providers/useReaderActions';
+import { useProgressSync } from './useProgressSync';
 import type { LibraryBook } from '@/components/library/BookList';
 import { LibraryDesk } from '@/components/library/LibraryDesk';
 import RestoreLibrary from '@/components/library/RestoreLibrary';
 import FsAccessBanner from '@/components/library/FsAccessBanner';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
 import { getNeedsOnboarding } from '@/lib/storage/onboarding';
-import { useLibraryModals } from './useLibraryModals';
 import { useSyncLibrary } from './useSyncLibrary';
-
-// Per-format size caps. EPUBs almost never exceed 20 MB even for long novels;
-// PDFs (especially page-scanned JP books) routinely run 100–250 MB and can
-// reach 500 MB for higher-res scans.
-const MAX_EPUB_SIZE = 50 * 1024 * 1024;
-const MAX_PDF_SIZE = 500 * 1024 * 1024;
-
-function validateBookFile(file: File): string | null {
-  const name = file.name.toLowerCase();
-  const isEpub = file.type === 'application/epub+zip' || name.endsWith('.epub');
-  const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf');
-  if (!isEpub && !isPdf)
-    return 'Invalid file type. Please upload an EPUB or PDF file.';
-  if (isEpub && file.size > MAX_EPUB_SIZE)
-    return 'EPUB too large. Maximum size is 50 MB.';
-  if (isPdf && file.size > MAX_PDF_SIZE)
-    return 'PDF too large. Maximum size is 500 MB.';
-  return null;
-}
 
 export default function ReaderView() {
   const user = useAuthedUser();
   const {
-    setPendingDictSearch, setPendingCard,
     readerSession, setReaderSession,
-    recordProgress, flushProgress,
     pendingBookOpen, setPendingBookOpen,
     sidekickOpen, toggleSidekick, setSidekickOpen,
   } = useReaderState();
+  const { requestDictLookup, requestAddCard } = useReaderActions();
+  const { recordProgress, flushProgress } = useProgressSync(readerSession);
 
   const { pageState, setPageState, books, setBooks, remoteBooks, error, setError } =
     useSyncLibrary(user);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const locateInputRef = useRef<HTMLInputElement>(null);
-  const {
-    locatingBookId, setLocatingBookId,
-    showOnboarding, setShowOnboarding,
-    deletingBook, setDeletingBook,
-  } = useLibraryModals();
+  const [locatingBookId, setLocatingBookId] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [deletingBook, setDeletingBook] = useState<LibraryBook | null>(null);
 
   const [loading, setLoading] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
+  // Live progress override for the book currently (or most recently) open
+  // in the reader. The reader updates this on every page turn; the library
+  // tile merges it over the server-returned progress so the % is correct
+  // the moment we render the library view. Sticky for the session — next
+  // mount of the page (or login change) clears it via useSyncLibrary
+  // re-running, which is good enough; same trade-off mobile picked.
+  const [activeProgress, setActiveProgress] =
+    useState<{ filename: string; progress: number } | null>(null);
+
+  // Library tile reads from this. Memoised so the array identity is stable
+  // across re-renders when neither input changed — keeps LibraryDesk from
+  // re-keying tiles every time something unrelated (e.g. importing toggle)
+  // re-renders the parent.
+  const displayBooks = useMemo(() => {
+    if (!activeProgress) return books;
+    return books.map((b) =>
+      b.filename === activeProgress.filename
+        ? { ...b, progress: activeProgress.progress }
+        : b,
+    );
+  }, [books, activeProgress]);
 
   useEffect(() => {
     if (readerSession?.fileUrl) {
@@ -99,17 +99,12 @@ export default function ReaderView() {
       setImporting(true);
       setError(null);
       try {
-        const record = await importBook(file, user.id);
-
-        const deviceId = getDeviceId();
-        try {
-          const backendMap = await syncLocalBooksToBackend(user.id);
-          const remote = backendMap.get(record.filename);
-          if (remote) {
-            await markBookAvailable(deviceId, remote.id, user.id);
-          }
-        } catch { /* best-effort */ }
-
+        const result = await importBookWithMatch(file, user.id);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        const { record } = result;
         const newBook: LibraryBook = {
           id: record.id,
           title: record.title,
@@ -121,16 +116,22 @@ export default function ReaderView() {
           progress: 0,
           available: true,
         };
-        setBooks(prev => [...prev, newBook]);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setError(`Failed to import book: ${msg}`);
-        console.error('Import failed', err);
+        // Replace existing tile (when we attached to a known register) or
+        // append (when this is a brand-new entry).
+        setBooks(prev => {
+          const idx = prev.findIndex(b => b.filename === newBook.filename);
+          if (idx >= 0) {
+            const next = prev.slice();
+            next[idx] = { ...prev[idx], ...newBook };
+            return next;
+          }
+          return [...prev, newBook];
+        });
       } finally {
         setImporting(false);
       }
     },
-    [user],
+    [user, setBooks, setError],
   );
 
   const onFileChange = useCallback(
@@ -148,79 +149,44 @@ export default function ReaderView() {
       if (!file || !locatingBookId) return;
       e.target.value = '';
 
-      const validationError = validateBookFile(file);
-      if (validationError) {
-        setError(validationError);
-        setLocatingBookId(null);
-        return;
-      }
-
       const targetBook = books.find(b => b.id === locatingBookId);
-      if (!targetBook) {
+      if (!targetBook?.backendId) {
         setLocatingBookId(null);
         return;
       }
 
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        // Branch identity probe by extension. PDFs use file_hash (SHA-256)
-        // and content_hash (PDF /ID first entry); EPUBs use file_hash +
-        // content_hash + dc_identifier from the OPF.
-        const isPdf = file.name.toLowerCase().endsWith('.pdf');
-        const identity = isPdf
-          ? await computePdfIdentity(arrayBuffer).catch(() => null)
-          : await computeEpubIdentity(arrayBuffer).catch(() => null);
+      const result = await locateAndAttachFile({
+        file,
+        userId: user.id,
+        deviceId: getDeviceId(),
+        target: {
+          backendId: targetBook.backendId,
+          title: targetBook.title,
+          filename: targetBook.filename,
+        },
+      });
+      setLocatingBookId(null);
 
-        const candidates = [{
-          file_hash: identity?.fileHash ?? '',
-          content_hash: identity?.contentHash ?? '',
-          metadata: {
-            title: '',
-            author: '',
-            dc_identifier: !isPdf && identity && 'dcIdentifier' in identity && typeof identity.dcIdentifier === 'string'
-              ? identity.dcIdentifier
-              : null,
-            filename: file.name,
-          },
-        }];
-
-        const results = await matchBooks(user.id, candidates);
-        const match = results[0];
-
-        const matchedBackendId = match?.match?.id;
-        if (!match || matchedBackendId !== targetBook.backendId) {
-          setError(
-            `This file doesn’t match "${targetBook.title}". ` +
-            (match ? `It matched a different book ("${match.match.title}").` : 'No matching book found.'),
-          );
-          setLocatingBookId(null);
-          return;
-        }
-
-        const record = await importBook(file, user.id);
-        const deviceId = getDeviceId();
-        markBookAvailable(deviceId, targetBook.backendId!, user.id).catch(() => {});
-
-        setBooks(prev =>
-          prev.map(b =>
-            b.id === locatingBookId
-              ? {
-                  ...b,
-                  id: record.id,
-                  hasCover: record.hasCover,
-                  coverImage: record.coverImage,
-                  available: true,
-                }
-              : b,
-          ),
-        );
-      } catch {
-        setError('Failed to verify located file');
-      } finally {
-        setLocatingBookId(null);
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+
+      setBooks(prev =>
+        prev.map(b =>
+          b.id === locatingBookId
+            ? {
+                ...b,
+                id: result.record.id,
+                hasCover: result.record.hasCover,
+                coverImage: result.record.coverImage,
+                available: true,
+              }
+            : b,
+        ),
+      );
     },
-    [locatingBookId, user, books],
+    [locatingBookId, user, books, setBooks, setError],
   );
 
   const handleLocateClick = useCallback((bookId: string) => {
@@ -362,23 +328,25 @@ export default function ReaderView() {
         });
       })
       .catch(() => {});
-  }, [flushProgress, setReaderSession]);
+  }, [flushProgress, setReaderSession, setBooks, setError]);
 
   const handleProgressChange = useCallback(
     (progress: number, cfi: string) => {
+      const filename = readerSession?.activeBook.filename;
+      if (filename) setActiveProgress({ filename, progress });
       recordProgress({ progress, cfi, spineIndex: 0, totalSpineItems: 0 });
     },
-    [recordProgress],
+    [recordProgress, readerSession?.activeBook.filename],
   );
 
   const handleLookup = useCallback(
-    (word: string, contextSentence?: string) => { setPendingDictSearch({ word, contextSentence }); },
-    [setPendingDictSearch],
+    (word: string, contextSentence?: string) => { requestDictLookup(word, contextSentence); },
+    [requestDictLookup],
   );
 
   const handleAddCard = useCallback(
-    (word: string, contextSentence?: string) => { setPendingCard({ word, contextSentence }); },
-    [setPendingCard],
+    (word: string, contextSentence?: string) => { requestAddCard(word, undefined, contextSentence); },
+    [requestAddCard],
   );
 
   const handleRestoreComplete = useCallback(() => {
@@ -464,7 +432,7 @@ export default function ReaderView() {
         </div>
       ) : (
         <LibraryDesk
-          books={books}
+          books={displayBooks}
           importing={importing}
           onOpen={(book) => (book.available ? openBook(book.id) : handleLocateClick(book.id))}
           onImport={() => fileInputRef.current?.click()}

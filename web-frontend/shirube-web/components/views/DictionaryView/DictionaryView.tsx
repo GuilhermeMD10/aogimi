@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef } from 'react';
 import { Plus, Volume2 } from 'lucide-react';
-import { useReaderState } from '@/components/providers/ReaderStateProvider';
+import { useReaderActions } from '@/components/providers/useReaderActions';
 import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
 import WordDetailView, { preferredHeadword } from '@/components/views/WordDetailView';
 import {
@@ -22,7 +22,7 @@ import type { KanjiInfo, WordResult } from '@/lib/types';
 // empty/results transitions; only the body below it swaps.
 
 export default function DictionaryView() {
-  const { setPendingCard } = useReaderState();
+  const { requestAddCard } = useReaderActions();
   const {
     query,
     result,
@@ -74,7 +74,7 @@ export default function DictionaryView() {
         query={query}
         onBack={() => router.back()}
         onKanjiSearch={searchKanji}
-        onAddCard={(word, back) => setPendingCard({ word, back, contextSentence: lastContextSentence })}
+        onAddCard={(word, back) => requestAddCard(word, back, lastContextSentence)}
       />
     );
   }
@@ -108,7 +108,7 @@ export default function DictionaryView() {
                   if (kanjiInfo.on_readings.length > 0) parts.push(kanjiInfo.on_readings.join('、'));
                   if (kanjiInfo.kun_readings.length > 0) parts.push(kanjiInfo.kun_readings.join('、'));
                   if (kanjiInfo.meanings.length > 0) parts.push(kanjiInfo.meanings.join(', '));
-                  setPendingCard({ word: kanjiInfo.literal, back: parts.join('\n'), contextSentence: lastContextSentence });
+                  requestAddCard(kanjiInfo.literal, parts.join('\n'), lastContextSentence);
                 }}
               />
             )}

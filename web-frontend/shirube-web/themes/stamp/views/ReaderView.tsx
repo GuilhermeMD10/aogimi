@@ -10,15 +10,16 @@ import {
   getBookFile,
   importBook,
   ensureBackendBook,
-  syncLocalBooksToBackend,
   deleteBook as deleteLocalBook,
   renameBook as renameLocalBook,
 } from '@/lib/bookStore';
-import { matchBooks, deleteBookRecord, getUserBooks, updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/lib/booksApi';
-import { computeEpubIdentity } from '@/lib/epubIdentity';
-import { computePdfIdentity } from '@/lib/pdfIdentity';
+import { deleteBookRecord, getUserBooks, updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/lib/booksApi';
 import { getDeviceId } from '@/lib/storage/device';
-import { markBookAvailable } from '@/lib/devicesApi';
+import {
+  locateAndAttachFile,
+  validateBookFile,
+} from '@/lib/books/locateAndAttachFile';
+import { importBookWithMatch } from '@/lib/books/importBookWithMatch';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
 import type { LibraryBook } from '@/components/library/BookList';
@@ -27,45 +28,28 @@ import RestoreLibrary from '@/components/library/RestoreLibrary';
 import FsAccessBanner from '@/components/library/FsAccessBanner';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
 import { getNeedsOnboarding } from '@/lib/storage/onboarding';
-import { useLibraryModals } from '@/components/views/ReaderView/useLibraryModals';
 import { useSyncLibrary } from '@/components/views/ReaderView/useSyncLibrary';
-
-const MAX_EPUB_SIZE = 50 * 1024 * 1024;
-const MAX_PDF_SIZE = 500 * 1024 * 1024;
-
-function validateBookFile(file: File): string | null {
-  const name = file.name.toLowerCase();
-  const isEpub = file.type === 'application/epub+zip' || name.endsWith('.epub');
-  const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf');
-  if (!isEpub && !isPdf)
-    return 'Invalid file type. Please upload an EPUB or PDF file.';
-  if (isEpub && file.size > MAX_EPUB_SIZE)
-    return 'EPUB too large. Maximum size is 50 MB.';
-  if (isPdf && file.size > MAX_PDF_SIZE)
-    return 'PDF too large. Maximum size is 500 MB.';
-  return null;
-}
+import { useProgressSync } from '@/components/views/ReaderView/useProgressSync';
+import { useReaderActions } from '@/components/providers/useReaderActions';
 
 export default function ReaderView() {
   const { user } = useAuth();
   const {
-    setPendingDictSearch, setPendingCard,
     readerSession, setReaderSession,
-    recordProgress, flushProgress,
     pendingBookOpen, setPendingBookOpen,
     sidekickOpen, toggleSidekick, setSidekickOpen,
   } = useReaderState();
+  const { requestDictLookup, requestAddCard } = useReaderActions();
+  const { recordProgress, flushProgress } = useProgressSync(readerSession);
 
   const { pageState, setPageState, books, setBooks, remoteBooks, error, setError } =
     useSyncLibrary(user ?? null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const locateInputRef = useRef<HTMLInputElement>(null);
-  const {
-    locatingBookId, setLocatingBookId,
-    showOnboarding, setShowOnboarding,
-    deletingBook, setDeletingBook,
-  } = useLibraryModals();
+  const [locatingBookId, setLocatingBookId] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [deletingBook, setDeletingBook] = useState<LibraryBook | null>(null);
 
   const [loading, setLoading] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
@@ -91,17 +75,19 @@ export default function ReaderView() {
       setImporting(true);
       setError(null);
       try {
-        const record = await importBook(file, user?.id);
-
+        // Stamp variant runs both authed (backend reconcile + identity
+        // match) and unauthed (local-only IDB) paths. The matcher needs a
+        // userId so the unauthed branch falls back to a plain importBook.
+        let record;
         if (user) {
-          const deviceId = getDeviceId();
-          try {
-            const backendMap = await syncLocalBooksToBackend(user.id);
-            const remote = backendMap.get(record.filename);
-            if (remote) {
-              await markBookAvailable(deviceId, remote.id, user.id);
-            }
-          } catch { /* best-effort */ }
+          const result = await importBookWithMatch(file, user.id);
+          if (!result.ok) {
+            setError(result.error);
+            return;
+          }
+          record = result.record;
+        } else {
+          record = await importBook(file);
         }
 
         const newBook: LibraryBook = {
@@ -115,16 +101,20 @@ export default function ReaderView() {
           progress: 0,
           available: true,
         };
-        setBooks(prev => [...prev, newBook]);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setError(`Failed to import book: ${msg}`);
-        console.error('Import failed', err);
+        setBooks(prev => {
+          const idx = prev.findIndex(b => b.filename === newBook.filename);
+          if (idx >= 0) {
+            const next = prev.slice();
+            next[idx] = { ...prev[idx], ...newBook };
+            return next;
+          }
+          return [...prev, newBook];
+        });
       } finally {
         setImporting(false);
       }
     },
-    [user],
+    [user, setBooks, setError],
   );
 
   const onFileChange = useCallback(
@@ -142,76 +132,44 @@ export default function ReaderView() {
       if (!file || !locatingBookId) return;
       e.target.value = '';
 
-      const validationError = validateBookFile(file);
-      if (validationError) {
-        setError(validationError);
-        setLocatingBookId(null);
-        return;
-      }
-
       const targetBook = books.find(b => b.id === locatingBookId);
-      if (!targetBook || !user) {
+      if (!targetBook?.backendId || !user) {
         setLocatingBookId(null);
         return;
       }
 
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const isPdf = file.name.toLowerCase().endsWith('.pdf');
-        const identity = isPdf
-          ? await computePdfIdentity(arrayBuffer).catch(() => null)
-          : await computeEpubIdentity(arrayBuffer).catch(() => null);
+      const result = await locateAndAttachFile({
+        file,
+        userId: user.id,
+        deviceId: getDeviceId(),
+        target: {
+          backendId: targetBook.backendId,
+          title: targetBook.title,
+          filename: targetBook.filename,
+        },
+      });
+      setLocatingBookId(null);
 
-        const candidates = [{
-          file_hash: identity?.fileHash ?? '',
-          content_hash: identity?.contentHash ?? '',
-          metadata: {
-            title: '',
-            author: '',
-            dc_identifier: !isPdf && identity && 'dcIdentifier' in identity && typeof identity.dcIdentifier === 'string'
-              ? identity.dcIdentifier
-              : null,
-            filename: file.name,
-          },
-        }];
-
-        const results = await matchBooks(user.id, candidates);
-        const match = results[0];
-
-        const matchedBackendId = match?.match?.id;
-        if (!match || matchedBackendId !== targetBook.backendId) {
-          setError(
-            `This file doesn’t match "${targetBook.title}". ` +
-            (match ? `It matched a different book ("${match.match.title}").` : 'No matching book found.'),
-          );
-          setLocatingBookId(null);
-          return;
-        }
-
-        const record = await importBook(file, user.id);
-        const deviceId = getDeviceId();
-        markBookAvailable(deviceId, targetBook.backendId!, user.id).catch(() => {});
-
-        setBooks(prev =>
-          prev.map(b =>
-            b.id === locatingBookId
-              ? {
-                  ...b,
-                  id: record.id,
-                  hasCover: record.hasCover,
-                  coverImage: record.coverImage,
-                  available: true,
-                }
-              : b,
-          ),
-        );
-      } catch {
-        setError('Failed to verify located file');
-      } finally {
-        setLocatingBookId(null);
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+
+      setBooks(prev =>
+        prev.map(b =>
+          b.id === locatingBookId
+            ? {
+                ...b,
+                id: result.record.id,
+                hasCover: result.record.hasCover,
+                coverImage: result.record.coverImage,
+                available: true,
+              }
+            : b,
+        ),
+      );
     },
-    [locatingBookId, user, books],
+    [locatingBookId, user, books, setBooks, setError],
   );
 
   const handleLocateClick = useCallback((bookId: string) => {
@@ -370,13 +328,13 @@ export default function ReaderView() {
   );
 
   const handleLookup = useCallback(
-    (word: string, contextSentence?: string) => { setPendingDictSearch({ word, contextSentence }); },
-    [setPendingDictSearch],
+    (word: string, contextSentence?: string) => { requestDictLookup(word, contextSentence); },
+    [requestDictLookup],
   );
 
   const handleAddCard = useCallback(
-    (word: string, contextSentence?: string) => { setPendingCard({ word, contextSentence }); },
-    [setPendingCard],
+    (word: string, contextSentence?: string) => { requestAddCard(word, undefined, contextSentence); },
+    [requestAddCard],
   );
 
   const handleRestoreComplete = useCallback(() => {

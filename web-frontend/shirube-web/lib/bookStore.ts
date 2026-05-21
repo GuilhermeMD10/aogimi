@@ -8,6 +8,7 @@ import {
 import type { BookProgressRecord } from '@/lib/types';
 import { computeEpubIdentity, extractEpubData, type EpubData } from '@/lib/epubIdentity';
 import { computePdfIdentity, extractPdfData } from '@/lib/pdfIdentity';
+import { wipeBookLocalState } from '@/lib/auth/wipeBookLocalState';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,10 +26,37 @@ export interface BookRecord {
   coverImage?: string;
   importedAt: string;
   fileSize: number;
-  /** SHA-256 of full EPUB bytes */
+  /** SHA-256 of full file bytes (both formats) */
   fileHash?: string;
-  /** SHA-256 of concatenated spine text */
+  /** EPUB: SHA-256 of concatenated spine text. PDF: unused after phase 1
+   *  (reserved for the text-content-hash use case in a later phase). */
   contentHash?: string;
+  /** PDF /ID[0] — stable across modifications. EPUB-side unused. */
+  pdfIdOriginal?: string | null;
+  /** PDF /ID[1] — changes on each save. EPUB-side unused. */
+  pdfIdCurrent?: string | null;
+  /** PDF page count. EPUB-side unused. */
+  pageCount?: number | null;
+  /** PDF: true when the document has an extractable text layer. */
+  hasTextLayer?: boolean | null;
+  /** PDF /Info /Producer. Diagnostic only. */
+  producer?: string | null;
+  /** xmpMM:DocumentID — changes on save-as. Forensics only. */
+  xmpDocumentId?: string | null;
+  /** xmpMM:OriginalDocumentID — stable across re-saves of the same source. */
+  xmpOriginalId?: string | null;
+  /** PDF: per-page SHA-256 of normalized text. */
+  pageHashes?: string[] | null;
+  /** PDF: character count of normalized full text. */
+  textLength?: number | null;
+  /** PDF: DOI scraped from front-matter. */
+  detectedDoi?: string | null;
+  /** PDF: ISBN-10/13 scraped + checksum-validated. */
+  detectedIsbn?: string | null;
+  /** PDF: per-sampled-page dHash array. Visual match layer input. */
+  pagePhashes?: string[] | null;
+  /** Version of the algorithm that produced this record's fingerprints. */
+  fingerprintVersion?: number;
   /** OPF dc:identifier (often ISBN) */
   dcIdentifier?: string | null;
   /** OPF dc:language */
@@ -117,6 +145,19 @@ export async function importBook(
   let hasCover = false;
   let fileHash: string | undefined;
   let contentHash: string | undefined;
+  let pdfIdOriginal: string | null | undefined;
+  let pdfIdCurrent: string | null | undefined;
+  let pageCount: number | null | undefined;
+  let hasTextLayer: boolean | null | undefined;
+  let producer: string | null | undefined;
+  let xmpDocumentId: string | null | undefined;
+  let xmpOriginalId: string | null | undefined;
+  let pageHashes: string[] | null | undefined;
+  let textLength: number | null | undefined;
+  let detectedDoi: string | null | undefined;
+  let detectedIsbn: string | null | undefined;
+  let pagePhashes: string[] | null | undefined;
+  let fingerprintVersion: number | undefined;
   let dcIdentifier: string | undefined;
   let language: string | undefined;
   let publisher: string | undefined;
@@ -130,6 +171,19 @@ export async function importBook(
     }
     if (pdf?.fileHash) fileHash = pdf.fileHash;
     if (pdf?.contentHash) contentHash = pdf.contentHash;
+    pdfIdOriginal = pdf?.pdfIdOriginal ?? null;
+    pdfIdCurrent = pdf?.pdfIdCurrent ?? null;
+    pageCount = pdf?.pageCount ?? null;
+    hasTextLayer = pdf?.hasTextLayer ?? null;
+    producer = pdf?.producer ?? null;
+    xmpDocumentId = pdf?.xmpDocumentId ?? null;
+    xmpOriginalId = pdf?.xmpOriginalId ?? null;
+    pageHashes = pdf?.pageHashes ?? null;
+    textLength = pdf?.textLength ?? null;
+    detectedDoi = pdf?.detectedDoi ?? null;
+    detectedIsbn = pdf?.detectedIsbn ?? null;
+    pagePhashes = pdf?.pagePhashes ?? null;
+    if (pdf?.fingerprintVersion != null) fingerprintVersion = pdf.fingerprintVersion;
   } else {
     // Single jszip-based pass — metadata, identity hashes, and cover in one go
     const data: EpubData | null = await extractEpubData(arrayBuffer).catch(() => null);
@@ -146,13 +200,35 @@ export async function importBook(
     dcIdentifier = data?.dcIdentifier ?? undefined;
     language = data?.language ?? undefined;
     publisher = data?.publisher ?? undefined;
+    if (data?.fingerprintVersion != null) fingerprintVersion = data.fingerprintVersion;
   }
 
   const db = await getDb();
 
-  // Assign a cover color from the palette based on current book count
+  // Defensive re-import guard: if an existing record under this filename
+  // has a different file_hash, the new bytes are NOT the same book — drop
+  // the per-filename local state (highlights, bookmarks, lastCfi,
+  // reader_progress) so it doesn't silently attach to the new content.
+  // The only "same file" guarantee we accept is matching file_hash;
+  // anything weaker (content/metadata strong-match the matcher uses for
+  // backend attachment) is still treated as "different file" here
+  // because reader state lives at byte-offset granularity (CFI ranges,
+  // PDF page positions) and won't map cleanly across re-saves.
+  const existingRecord = (await db.get(META_STORE, file.name)) as BookRecord | undefined;
+  const sameBytes = Boolean(
+    existingRecord?.fileHash && fileHash && existingRecord.fileHash === fileHash,
+  );
+  if (existingRecord && !sameBytes) {
+    wipeBookLocalState(file.name);
+  }
+
+  // Assign a cover color from the palette based on current book count.
+  // Preserve the existing color on a same-bytes re-import so the user's
+  // library doesn't shuffle colors when nothing meaningful changed.
   const existingCount = await db.count(META_STORE);
-  const coverColor = COVER_PALETTE[existingCount % COVER_PALETTE.length];
+  const coverColor = sameBytes && existingRecord?.coverColor
+    ? existingRecord.coverColor
+    : COVER_PALETTE[existingCount % COVER_PALETTE.length];
 
   const record: BookRecord = {
     id: file.name,
@@ -166,6 +242,19 @@ export async function importBook(
     fileSize: file.size,
     fileHash,
     contentHash,
+    pdfIdOriginal,
+    pdfIdCurrent,
+    pageCount,
+    hasTextLayer,
+    producer,
+    xmpDocumentId,
+    xmpOriginalId,
+    pageHashes,
+    textLength,
+    detectedDoi,
+    detectedIsbn,
+    pagePhashes,
+    fingerprintVersion,
     dcIdentifier,
     language,
     publisher,
@@ -188,6 +277,19 @@ export async function importBook(
       coverColor,
       fileHash,
       contentHash,
+      pdfIdOriginal,
+      pdfIdCurrent,
+      pageCount,
+      hasTextLayer,
+      producer,
+      xmpDocumentId,
+      xmpOriginalId,
+      pageHashes,
+      textLength,
+      detectedDoi,
+      detectedIsbn,
+      pagePhashes,
+      fingerprintVersion,
       dcIdentifier,
       language,
       publisher,
@@ -205,6 +307,11 @@ export async function ensureBackendBook(
   book: BookRecord,
   userId: number,
 ): Promise<BookProgressRecord> {
+  // Phase 1 migration aid: pre-phase-1 PDF IDB rows stored /ID[0] in
+  // `contentHash`. Route it to `pdfIdOriginal` on the way to the backend so
+  // older IDB rows backfill the new column without forcing a re-import.
+  const isPdf = book.filename.toLowerCase().endsWith('.pdf');
+  const legacyPdfId = isPdf && !book.pdfIdOriginal ? book.contentHash : undefined;
   return apiRegisterBook({
     userId,
     filename: book.filename,
@@ -212,7 +319,29 @@ export async function ensureBackendBook(
     author: book.author,
     coverColor: book.coverColor,
     fileHash: book.fileHash,
-    contentHash: book.contentHash,
+    // PDF contentHash *was* the legacy /ID home pre-mig-016. Post-phase-3
+    // it's the text SHA. Discriminate: if the stored value looks like a
+    // text-SHA (PDF + 64-char hex AND we have pdfIdOriginal already, i.e.
+    // this isn't a legacy migration), send it. Otherwise treat the field
+    // as legacy and skip for PDFs.
+    contentHash: isPdf
+      ? (book.pdfIdOriginal && book.contentHash && book.contentHash.length === 64
+          ? book.contentHash
+          : undefined)
+      : book.contentHash,
+    pdfIdOriginal: book.pdfIdOriginal ?? legacyPdfId,
+    pdfIdCurrent: book.pdfIdCurrent,
+    pageCount: book.pageCount,
+    hasTextLayer: book.hasTextLayer,
+    producer: book.producer,
+    xmpDocumentId: book.xmpDocumentId,
+    xmpOriginalId: book.xmpOriginalId,
+    pageHashes: book.pageHashes,
+    textLength: book.textLength,
+    detectedDoi: book.detectedDoi,
+    detectedIsbn: book.detectedIsbn,
+    pagePhashes: book.pagePhashes,
+    fingerprintVersion: book.fingerprintVersion,
     dcIdentifier: book.dcIdentifier,
     language: book.language,
     publisher: book.publisher,
@@ -238,6 +367,11 @@ export async function syncLocalBooksToBackend(
   // Register any local books not yet in the backend
   for (const local of localBooks) {
     if (remoteMap.has(local.filename)) continue;
+    // Phase 1 migration aid: pre-phase-1 PDF IDB rows stored /ID[0] in
+    // `contentHash`. Route it to `pdfIdOriginal` so older rows backfill
+    // the new column on first sync.
+    const isPdf = local.filename.toLowerCase().endsWith('.pdf');
+    const legacyPdfId = isPdf && !local.pdfIdOriginal ? local.contentHash : undefined;
     try {
       const registered = await apiRegisterBook({
         userId,
@@ -246,7 +380,25 @@ export async function syncLocalBooksToBackend(
         author: local.author,
         coverColor: local.coverColor,
         fileHash: local.fileHash,
-        contentHash: local.contentHash,
+        // See ensureBackendBook for the contentHash discriminator rationale.
+        contentHash: isPdf
+          ? (local.pdfIdOriginal && local.contentHash && local.contentHash.length === 64
+              ? local.contentHash
+              : undefined)
+          : local.contentHash,
+        pdfIdOriginal: local.pdfIdOriginal ?? legacyPdfId,
+        pdfIdCurrent: local.pdfIdCurrent,
+        pageCount: local.pageCount,
+        hasTextLayer: local.hasTextLayer,
+        producer: local.producer,
+        xmpDocumentId: local.xmpDocumentId,
+        xmpOriginalId: local.xmpOriginalId,
+        pageHashes: local.pageHashes,
+        textLength: local.textLength,
+        detectedDoi: local.detectedDoi,
+        detectedIsbn: local.detectedIsbn,
+        pagePhashes: local.pagePhashes,
+        fingerprintVersion: local.fingerprintVersion,
         dcIdentifier: local.dcIdentifier,
         language: local.language,
         publisher: local.publisher,
@@ -274,11 +426,25 @@ export async function backfillBookIdentity(
   const arrayBuffer = await getBookFile(bookId);
   if (!arrayBuffer) return;
 
-  // Branch by file type. PDFs have file_hash + content_hash (PDF /ID);
-  // EPUBs additionally have dc_identifier / language / publisher from the OPF.
+  // Branch by file type. PDFs populate file_hash + pdf_id_original/current
+  // + page_count/has_text_layer/producer/xmp_* + text-derived fields;
+  // EPUBs populate file_hash + content_hash + dc_identifier/language/publisher.
   const isPdf = record.filename.toLowerCase().endsWith('.pdf');
   let fileHash: string | null = null;
   let contentHash: string | null = null;
+  let pdfIdOriginal: string | null = null;
+  let pdfIdCurrent: string | null = null;
+  let pageCount: number | null = null;
+  let hasTextLayer: boolean | null = null;
+  let producer: string | null = null;
+  let xmpDocumentId: string | null = null;
+  let xmpOriginalId: string | null = null;
+  let pageHashes: string[] | null = null;
+  let textLength: number | null = null;
+  let detectedDoi: string | null = null;
+  let detectedIsbn: string | null = null;
+  let pagePhashes: string[] | null = null;
+  let fingerprintVersion: number | null = null;
   let dcIdentifier: string | null = null;
   let language: string | null = null;
   let publisher: string | null = null;
@@ -287,6 +453,19 @@ export async function backfillBookIdentity(
     const id = await computePdfIdentity(arrayBuffer);
     fileHash = id.fileHash;
     contentHash = id.contentHash;
+    pdfIdOriginal = id.pdfIdOriginal;
+    pdfIdCurrent = id.pdfIdCurrent;
+    pageCount = id.pageCount;
+    hasTextLayer = id.hasTextLayer;
+    producer = id.producer;
+    xmpDocumentId = id.xmpDocumentId;
+    xmpOriginalId = id.xmpOriginalId;
+    pageHashes = id.pageHashes;
+    textLength = id.textLength;
+    detectedDoi = id.detectedDoi;
+    detectedIsbn = id.detectedIsbn;
+    pagePhashes = id.pagePhashes;
+    fingerprintVersion = id.fingerprintVersion;
   } else {
     const id = await computeEpubIdentity(arrayBuffer);
     fileHash = id.fileHash;
@@ -294,6 +473,7 @@ export async function backfillBookIdentity(
     dcIdentifier = id.dcIdentifier;
     language = id.language;
     publisher = id.publisher;
+    fingerprintVersion = id.fingerprintVersion;
   }
 
   // Update local IndexedDB record
@@ -302,6 +482,19 @@ export async function backfillBookIdentity(
     ...record,
     fileHash: fileHash ?? undefined,
     contentHash: contentHash ?? undefined,
+    pdfIdOriginal: pdfIdOriginal ?? undefined,
+    pdfIdCurrent: pdfIdCurrent ?? undefined,
+    pageCount: pageCount ?? undefined,
+    hasTextLayer: hasTextLayer ?? undefined,
+    producer: producer ?? undefined,
+    xmpDocumentId: xmpDocumentId ?? undefined,
+    xmpOriginalId: xmpOriginalId ?? undefined,
+    pageHashes: pageHashes ?? undefined,
+    textLength: textLength ?? undefined,
+    detectedDoi: detectedDoi ?? undefined,
+    detectedIsbn: detectedIsbn ?? undefined,
+    pagePhashes: pagePhashes ?? undefined,
+    fingerprintVersion: fingerprintVersion ?? undefined,
     dcIdentifier: dcIdentifier ?? undefined,
     language: language ?? undefined,
     publisher: publisher ?? undefined,
@@ -313,6 +506,19 @@ export async function backfillBookIdentity(
   await apiUpdateBookIdentity(backendBookId, {
     fileHash,
     contentHash,
+    pdfIdOriginal,
+    pdfIdCurrent,
+    pageCount,
+    hasTextLayer,
+    producer,
+    xmpDocumentId,
+    xmpOriginalId,
+    pageHashes,
+    textLength,
+    detectedDoi,
+    detectedIsbn,
+    pagePhashes,
+    fingerprintVersion,
     dcIdentifier,
     language,
     publisher,

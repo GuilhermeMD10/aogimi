@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { File } from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
@@ -7,8 +8,9 @@ import { BrandGlyph } from '@/components/ui/BrandGlyph';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { fetchUserBooks, fetchUserDecks } from '@/lib/api';
-import { bookFileExists, importEpubForFilename } from '@/lib/bookFiles';
+import { fetchUserBooks, fetchUserDecks, matchBooks } from '@/lib/api';
+import { bookFileExists, bookFilePath, deleteBookFile } from '@/lib/bookPaths';
+import { ExtensionMismatchError, importEpub } from '@/lib/bookFiles';
 import type { BookRecord } from '@/lib/types';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 
@@ -55,10 +57,76 @@ export default function OnboardingScreen() {
   const finish = useCallback(() => router.replace('/(tabs)/reader'), [router]);
 
   const handleFind = useCallback(async (book: BookRecord) => {
-    const uri = await importEpubForFilename(book.filename);
-    if (!uri) return;
-    setResolved((prev) => new Set(prev).add(book.id));
-  }, []);
+    if (!user) return;
+    let imported;
+    try {
+      imported = await importEpub({ expectedFilename: book.filename });
+    } catch (err) {
+      if (err instanceof ExtensionMismatchError) {
+        Alert.alert(
+          'Wrong file type',
+          `"${book.title}" is a .${err.expected} file, but you picked a .${err.picked} file. Pick a matching one.`,
+        );
+        return;
+      }
+      throw err;
+    }
+    if (!imported) return;
+
+    // Identity-verify the picked file against the targeted book before we
+    // attach it under book.filename. Without this, picking the wrong file
+    // here silently rewrites a known book's slot with someone else's content.
+    let matchedId: string | null = null;
+    let matchedOther: { title: string } | null = null;
+    try {
+      const [result] = await matchBooks(user.id, [
+        {
+          file_hash: imported.fileHash,
+          content_hash: imported.contentHash,
+          pdf_id_original: imported.pdfIdOriginal,
+          xmp_original_id: imported.xmpOriginalId,
+          detected_doi: imported.detectedDoi,
+          detected_isbn: imported.detectedIsbn,
+          page_count: imported.pageCount,
+          page_phashes: imported.pagePhashes,
+          metadata: {
+            title: imported.title || imported.filename,
+            author: imported.author,
+            dc_identifier: imported.dcIdentifier,
+            filename: imported.filename,
+          },
+        },
+      ]);
+      if (result?.match && result.match_type !== 'none') {
+        matchedId = result.match.id;
+        if (matchedId !== book.id) matchedOther = { title: result.match.title };
+      }
+    } catch {
+      /* matcher unreachable — treat as no match, reject below */
+    }
+
+    if (matchedId !== book.id) {
+      deleteBookFile(imported.filename);
+      Alert.alert(
+        "Doesn't match",
+        matchedOther
+          ? `This file is already in your library as "${matchedOther.title}".`
+          : `This file doesn't match "${book.title}". The book stays unimported.`,
+      );
+      return;
+    }
+
+    try {
+      if (imported.filename !== book.filename) {
+        const local = new File(bookFilePath(imported.filename));
+        local.copy(new File(bookFilePath(book.filename)));
+        local.delete();
+      }
+      setResolved((prev) => new Set(prev).add(book.id));
+    } catch {
+      /* fs error — leave unresolved so the user can retry */
+    }
+  }, [user]);
 
   return (
     <Screen padded>

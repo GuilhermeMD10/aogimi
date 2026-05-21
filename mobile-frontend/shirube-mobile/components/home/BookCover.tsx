@@ -1,7 +1,7 @@
 import { Image, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { coverGlyphFor } from '@/lib/coverGlyph';
-import { useEpubCover } from '@/lib/epubCover';
+import { useBookCover } from '@/lib/epubCover';
 import { fontFamily, radius } from '@/theme/tokens';
 
 type Props = {
@@ -26,13 +26,10 @@ export function BookCover({
   style,
   cornerRadius = radius.md,
 }: Props) {
-  // PDF live-rendering inside the grid (one <Pdf> per tile) was blocking iOS
-  // PDFKit's main thread when the user opened a PDF — the reader's <Pdf>
-  // had to queue behind the still-initializing cover views, which delayed
-  // tap dispatch on the chevron / dock. Until we have a real thumbnail
-  // extractor that writes an image once, PDFs fall back to glyph + gradient
-  // like any other coverless book.
-  const coverUri = useEpubCover(filename);
+  // EPUB: read the embedded cover out of the OPF. PDF: render page 1 to a
+  // JPEG via react-native-pdf-thumbnail. Both write once into covers/ and
+  // cache the URI; the grid loads the static image (no `<Pdf>` per tile).
+  const coverUri = useBookCover(filename);
   const glyph = coverGlyphFor(title);
   const darker = darken(coverColor, 0.55);
 

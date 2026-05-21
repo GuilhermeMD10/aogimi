@@ -1,6 +1,7 @@
 const { Router } = require("express");
 const deckService = require("../services/deckService");
 const cardService = require("../services/cardService");
+const { ensureUserExists } = require("../middleware/verifyUser");
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.post("/", async (req, res) => {
 
 // GET /api/decks/user/:userId — list decks for a user
 router.get("/user/:userId", async (req, res) => {
+  if (!(await ensureUserExists(res, req.params.userId))) return;
   try {
     const decks = await deckService.getUserDecks(parseInt(req.params.userId, 10));
     res.json(decks);
