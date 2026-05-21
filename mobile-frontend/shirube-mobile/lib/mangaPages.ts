@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import JSZip from 'jszip';
-import { bookFilePath } from './bookFiles';
+import { bookFilePath } from './bookPaths';
 
 export type MangaSpineEntry = {
   spineIndex: number;

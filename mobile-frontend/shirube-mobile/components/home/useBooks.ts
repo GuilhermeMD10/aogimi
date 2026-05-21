@@ -11,12 +11,13 @@ export type BooksState = {
   refreshing: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+  silentRefresh: () => Promise<void>;
 };
 
 export function useBooks(): BooksState {
   const { user } = useAuth();
   const userId = user?.id;
-  const { data, loading, refreshing, error, refresh } = useFetchWithAbort<BookRecord[]>(
+  const { data, loading, refreshing, error, refresh, silentRefresh } = useFetchWithAbort<BookRecord[]>(
     (signal) => fetchUserBooks(userId!, signal),
     [userId],
     { enabled: userId != null },
@@ -31,5 +32,5 @@ export function useBooks(): BooksState {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, version],
   );
-  return { books, loading, refreshing, error, refresh };
+  return { books, loading, refreshing, error, refresh, silentRefresh };
 }

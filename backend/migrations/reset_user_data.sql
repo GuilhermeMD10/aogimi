@@ -45,7 +45,20 @@ CREATE TABLE book_progress (
   total_spine_items smallint,
   progress          smallint     NOT NULL DEFAULT 0,
   file_hash         text,
-  content_hash      text,
+  content_hash      text,                   -- EPUB: spine-text SHA. PDF: SHA-256 of normalized extracted text (web only; mobile null until native extraction).
+  pdf_id_original   text,                   -- PDF: trailer /ID[0]. Stable across modifications.
+  pdf_id_current    text,                   -- PDF: trailer /ID[1]. Changes on each save.
+  page_count        int,                    -- PDF: total pages. Mobile may leave null until native parsing lands.
+  has_text_layer    boolean,                -- PDF: true when extractable text exists (vs scanned image-only).
+  producer          text,                   -- PDF: /Info /Producer. Diagnostic only — not used in matching.
+  xmp_document_id   text,                   -- PDF: xmpMM:DocumentID. Changes on export/save-as. Forensics only.
+  xmp_original_id   text,                   -- PDF: xmpMM:OriginalDocumentID. Stable across re-saves — strong cross-device match.
+  page_hashes       text[],                 -- PDF: per-page SHA-256 of normalized text. Stored for deferred page-overlap match.
+  text_length       int,                    -- PDF: char count of normalized full text (after header/footer strip).
+  detected_doi      text,                   -- PDF: DOI scraped from first ~3 pages. Match layer (very_high).
+  detected_isbn     text,                   -- PDF: ISBN-10/13 (checksum-validated). Match layer (high) paired with page_count ±5%.
+  page_phashes      text[],                 -- PDF: per-sampled-page dHash (64-bit hex). Visual match layer (medium, ±10% page_count + avg hamming ≤ 8). Web only.
+  fingerprint_version int        NOT NULL DEFAULT 1,  -- Version of the fingerprinting algorithm that produced this row. Bumped when the algo changes.
   dc_identifier     text,
   language          text,
   publisher         text,
@@ -55,10 +68,14 @@ CREATE TABLE book_progress (
   UNIQUE (user_id, filename)
 );
 
-CREATE INDEX idx_book_progress_user_id      ON book_progress (user_id);
-CREATE INDEX idx_book_progress_last_read    ON book_progress (user_id, last_read_at DESC);
-CREATE INDEX idx_book_progress_file_hash    ON book_progress (file_hash) WHERE file_hash IS NOT NULL;
-CREATE INDEX idx_book_progress_content_hash ON book_progress (content_hash) WHERE content_hash IS NOT NULL;
+CREATE INDEX idx_book_progress_user_id           ON book_progress (user_id);
+CREATE INDEX idx_book_progress_last_read         ON book_progress (user_id, last_read_at DESC);
+CREATE INDEX idx_book_progress_file_hash         ON book_progress (file_hash)         WHERE file_hash IS NOT NULL;
+CREATE INDEX idx_book_progress_content_hash      ON book_progress (content_hash)      WHERE content_hash IS NOT NULL;
+CREATE INDEX idx_book_progress_pdf_id_original   ON book_progress (pdf_id_original)   WHERE pdf_id_original IS NOT NULL;
+CREATE INDEX idx_book_progress_xmp_original_id   ON book_progress (xmp_original_id)   WHERE xmp_original_id IS NOT NULL;
+CREATE INDEX idx_book_progress_detected_doi      ON book_progress (detected_doi)      WHERE detected_doi IS NOT NULL;
+CREATE INDEX idx_book_progress_detected_isbn     ON book_progress (detected_isbn)     WHERE detected_isbn IS NOT NULL;
 
 -- ── bookmarks ───────────────────────────────────────────────────────────────
 

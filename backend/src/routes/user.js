@@ -1,6 +1,7 @@
 
 const { Router } = require("express");
 const userService = require("../services/userService");
+const { ensureUserExists } = require("../middleware/verifyUser");
 
 const router = Router();
 
@@ -18,11 +19,14 @@ router.post("/create", async (req, res) => {
   }
 });
 
-// GET /api/user/:id — get user profile (public fields)
+// GET /api/user/:id — get user profile (public fields).
+// Returns 401 USER_NOT_FOUND (not 404) when the user has been deleted,
+// so the web frontend's api.ts interceptor can detect a stale session
+// and trigger the local wipe + sign-out.
 router.get("/:id", async (req, res) => {
+  if (!(await ensureUserExists(res, req.params.id))) return;
   try {
     const user = await userService.getProfile(parseInt(req.params.id, 10));
-    if (!user) return res.status(404).json({ error: "User not found" });
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });

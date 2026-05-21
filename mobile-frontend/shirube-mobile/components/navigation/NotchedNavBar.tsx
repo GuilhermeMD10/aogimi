@@ -127,25 +127,18 @@ function Slot({
       style={styles.slot}
     >
       <View style={styles.col}>
-        <View
-          style={[
-            styles.iconWrap,
-            active && {
-              backgroundColor: paper,
-              // No border — the active chip relies on its paper fill plus
-              // the multi-layer shadow for definition. With a square-look
-              // border the corners were not respecting borderRadius on
-              // some Android builds; dropping the border lets the
-              // 20px-radius round shape read cleanly everywhere.
-              borderRadius: 50,
-              boxShadow:
-                '0px 4px 10px rgba(26,25,24,0.18), 0px 1px 2px rgba(26,25,24,0.10), inset 0px 1px 0px rgba(255,255,255,0.8)',
-            },
-          ]}
-        >
+        <View style={[styles.iconWrap]}>
           <Feather name={iconName} size={ICON} color={active ? ink : muted} />
         </View>
-        <Text style={[styles.label, { color: active ? ink : muted }]} numberOfLines={1}>
+        <Text
+          style={[
+            styles.label,
+            { color: active ? ink : muted },
+            { fontSize: active ? 12 : 10 },
+            { fontWeight: active ? 'bold' : 'normal' },
+          ]}
+          numberOfLines={1}
+        >
           {label}
         </Text>
       </View>

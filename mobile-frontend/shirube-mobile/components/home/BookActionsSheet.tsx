@@ -12,7 +12,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import { deleteBook, updateBookTitle } from '@/lib/api';
-import { deleteBookFile } from '@/lib/bookFiles';
+import { deleteBookFile } from '@/lib/bookPaths';
 import { evictBookCache } from '@/lib/mangaPages';
 import { deleteCoverFor } from '@/lib/epubCover';
 import { clearBookStorage } from '@/lib/readerStorage';

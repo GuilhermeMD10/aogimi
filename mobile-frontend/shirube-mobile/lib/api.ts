@@ -12,7 +12,7 @@ import type {
   DeckRecord,
   DeviceBookRecord,
   DeviceRecord,
-  EpubIdentity,
+  BookIdentityPayload,
   SearchResponse,
   UserProfile,
   UserProfileUpdate,
@@ -152,6 +152,19 @@ export function createBook(
     coverColor?: string;
     fileHash?: string | null;
     contentHash?: string | null;
+    pdfIdOriginal?: string | null;
+    pdfIdCurrent?: string | null;
+    pageCount?: number | null;
+    hasTextLayer?: boolean | null;
+    producer?: string | null;
+    xmpDocumentId?: string | null;
+    xmpOriginalId?: string | null;
+    pageHashes?: string[] | null;
+    textLength?: number | null;
+    detectedDoi?: string | null;
+    detectedIsbn?: string | null;
+    pagePhashes?: string[] | null;
+    fingerprintVersion?: number | null;
     dcIdentifier?: string | null;
     language?: string | null;
     publisher?: string | null;
@@ -195,7 +208,7 @@ export function updateBookTitle(id: string, title: string): Promise<BookRecord> 
   });
 }
 
-export function updateBookIdentity(id: string, identity: EpubIdentity): Promise<BookRecord> {
+export function updateBookIdentity(id: string, identity: BookIdentityPayload): Promise<BookRecord> {
   return request<BookRecord>(`/api/books/${id}/identity`, {
     method: 'PUT',
     body: JSON.stringify(identity),

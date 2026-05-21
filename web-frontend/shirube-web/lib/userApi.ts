@@ -1,4 +1,4 @@
-import { apiSend, apiSendVoid, API_URL } from './api';
+import { apiGet, apiSend, apiSendVoid } from './api';
 import type { AuthUser, ProfileUpdate, UserProfile } from '@/lib/types';
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -13,10 +13,10 @@ export function signupUser(username: string, password: string): Promise<AuthUser
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
-export async function getUserProfile(userId: number, signal?: AbortSignal): Promise<UserProfile> {
-  const res = await fetch(`${API_URL}/api/user/${userId}`, { signal });
-  if (!res.ok) throw new Error('Failed to fetch profile');
-  return res.json();
+export function getUserProfile(userId: number, signal?: AbortSignal): Promise<UserProfile> {
+  // Routed through apiGet (not raw fetch) so the api.ts session-invalidation
+  // interceptor catches a 401 USER_NOT_FOUND here too.
+  return apiGet<UserProfile>(`/api/user/${userId}`, signal);
 }
 
 export function updateUserProfile(

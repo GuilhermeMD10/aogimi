@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Directory, File, Paths } from 'expo-file-system';
 import JSZip from 'jszip';
-import { bookFileExists, bookFilePath } from './bookFiles';
+import PdfThumbnail from 'react-native-pdf-thumbnail';
+import { bookFileExists, bookFilePath } from './bookPaths';
 
 const COVERS_DIR = 'covers';
 const COVER_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif'] as const;
@@ -193,9 +194,81 @@ async function extractCover(filename: string): Promise<string | null> {
   return target.uri;
 }
 
+// ── PDF cover extraction ────────────────────────────────────────────────────
+
+/**
+ * Render page 1 of a PDF to a JPEG and persist it under
+ * `covers/<safeName>.jpg`. Uses react-native-pdf-thumbnail (PDFKit on iOS,
+ * PdfRenderer on Android) — generates a single bitmap once at import time,
+ * which is what unblocks PDF covers in the grid. Mounting `<Pdf>` per tile
+ * was blocking PDFKit's main thread when opening books.
+ */
+async function extractPdfCoverImage(filename: string): Promise<string | null> {
+  if (!filename.toLowerCase().endsWith('.pdf')) return null;
+  const cached = existingCoverUri(filename);
+  if (cached) return cached;
+  if (!bookFileExists(filename)) return null;
+
+  // Pass a raw filesystem path (no file:// scheme, decoded) to PdfThumbnail.
+  // The Android module branches on scheme: with `file://` it goes through
+  // ContentResolver.openFileDescriptor, which can fail on Android 11+
+  // scoped-storage edge cases even for app-private files. The raw-path
+  // branch uses `File(path)` + ParcelFileDescriptor.open directly and
+  // works uniformly. iOS PDFKit accepts either form, so the raw path
+  // works there too.
+  const pdfPath = uriToFsPath(bookFilePath(filename));
+
+  try {
+    const result = await PdfThumbnail.generate(pdfPath, 0);
+    const tempUri = result?.uri;
+    if (!tempUri) throw new Error('PdfThumbnail returned no uri');
+    // The lib's returned uri may or may not carry a scheme depending on
+    // platform — normalize before handing it to expo-file-system's File.
+    const sourceUri = tempUri.startsWith('file://') || tempUri.startsWith('content://')
+      ? tempUri
+      : `file://${tempUri}`;
+    const source = new File(sourceUri);
+    const target = new File(coversDir(), `${safeName(filename)}.jpg`);
+    if (target.exists) target.delete();
+    source.copy(target);
+    try { source.delete(); } catch { /* best effort cleanup */ }
+    return target.uri;
+  } catch (err) {
+    // Surface the failure — silent null caches a "no cover" result that
+    // sticks until the next deleteCoverFor / wipe. Logging lets us tell
+    // whether PdfThumbnail failed, the copy failed, or the file is just
+    // unreadable.
+    console.warn('[epubCover] PDF cover generation failed:', filename, err);
+    return null;
+  }
+}
+
+/**
+ * Strip the `file://` scheme + URI-decode a path returned by expo-file-system.
+ * Native PDF renderers on both platforms prefer a raw FS path over a URI
+ * for app-private file access — avoids ContentResolver/scoped-storage
+ * edge cases on Android 11+ and URI-encoding mismatches.
+ */
+function uriToFsPath(uri: string): string {
+  let path = uri;
+  if (path.startsWith('file://')) path = path.slice('file://'.length);
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    /* malformed encoding — fall through with the raw string */
+  }
+  return path;
+}
+
 // ── Hook ────────────────────────────────────────────────────────────────────
 
-export function useEpubCover(filename: string | null | undefined): string | null {
+/**
+ * Resolve the on-disk cover URI for a book by filename. Extracts on first
+ * call, caches the URI (or null = "tried, no cover") in memory, and
+ * re-uses thereafter. Branches by extension: EPUBs read the embedded
+ * cover out of the OPF; PDFs render page 1 via react-native-pdf-thumbnail.
+ */
+export function useBookCover(filename: string | null | undefined): string | null {
   const initial =
     filename && memCache.has(filename) ? memCache.get(filename) ?? null : null;
   const [uri, setUri] = useState<string | null>(initial);
@@ -210,7 +283,9 @@ export function useEpubCover(filename: string | null | undefined): string | null
       return;
     }
     let cancelled = false;
-    extractCover(filename)
+    const isPdf = filename.toLowerCase().endsWith('.pdf');
+    const extractor = isPdf ? extractPdfCoverImage(filename) : extractCover(filename);
+    extractor
       .then((u) => {
         memCache.set(filename, u);
         if (!cancelled) setUri(u);

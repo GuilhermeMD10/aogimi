@@ -16,7 +16,8 @@ import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { BookRecord } from '@/lib/types';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { bookFileExists, importEpub } from '@/lib/bookFiles';
+import { bookFileExists } from '@/lib/bookPaths';
+import { importEpub } from '@/lib/bookFiles';
 import {
   createBook,
   markBookAvailable,
@@ -34,16 +35,22 @@ export function HomeScreen() {
   const t = useT();
   const router = useRouter();
   const { user } = useAuth();
-  const { books, loading, refreshing, error, refresh } = useBooks();
+  const { books, loading, refreshing, error, refresh, silentRefresh } = useBooks();
   // Refresh the books list whenever the tab regains focus — e.g. after
   // the user backs out of the reader. Pairs with the optimistic local
   // progress patch the reader writes on back-press: that patch keeps the
-  // tile instant; this fetch reconciles with server truth (and pulls in
-  // progress made on other devices).
+  // tile instant; this background fetch reconciles with server truth
+  // (and pulls in progress made on other devices).
+  //
+  // Uses `silentRefresh` instead of `refresh` so the RefreshControl
+  // spinner stays out of this code path. Toggling `refreshing: true →
+  // false` mid back-navigation transition leaves the native indicator
+  // frozen "shown" on Android — only the user-initiated pull-to-refresh
+  // should drive that prop.
   useFocusEffect(
     useCallback(() => {
-      if (user?.id) void refresh();
-    }, [user?.id, refresh]),
+      if (user?.id) void silentRefresh();
+    }, [user?.id, silentRefresh]),
   );
   const [importing, setImporting] = useState(false);
   // Per-tile actions: the … button on a BookGridItem opens BookActionsSheet
@@ -82,6 +89,12 @@ export function HomeScreen() {
       const candidate = {
         file_hash: imported.fileHash,
         content_hash: imported.contentHash,
+        pdf_id_original: imported.pdfIdOriginal,
+        xmp_original_id: imported.xmpOriginalId,
+        detected_doi: imported.detectedDoi,
+        detected_isbn: imported.detectedIsbn,
+        page_count: imported.pageCount,
+        page_phashes: imported.pagePhashes,
         metadata: {
           title: imported.title || imported.filename,
           author: imported.author,
@@ -91,16 +104,57 @@ export function HomeScreen() {
       };
       try {
         const [result] = await matchBooks(user.id, [candidate]);
-        if (result?.match && result.match_type !== 'none') {
+        // Only treat `file_hash` as strong enough to silently attach a
+        // new import to an existing backend record. Every other match
+        // type (pdf_trailer_id / xmp_original_id / doi / isbn /
+        // content / metadata / filename) can collide between distinct
+        // books — batch-generated PDFs in a series share /ID, manga
+        // volumes share ISBN+page_count, etc. Auto-attaching on those
+        // silently destroys the user's progress on the original book
+        // and ends up with the wrong content under a known title slot.
+        // Web's `importBookWithMatch.AUTO_ATTACH_TYPES` enforces the
+        // same rule.
+        if (result?.match && result.match_type === 'file_hash') {
           bookId = result.match.id;
           // Backfill any identity fields the existing row was missing so the
           // next match attempt on either device hits a higher-priority key.
           // updateBookIdentity uses COALESCE on the backend so we won't
           // clobber non-null values.
-          if (imported.fileHash || imported.contentHash || imported.dcIdentifier || imported.language || imported.publisher) {
+          if (
+            imported.fileHash ||
+            imported.contentHash ||
+            imported.pdfIdOriginal ||
+            imported.pdfIdCurrent ||
+            imported.pageCount != null ||
+            imported.hasTextLayer != null ||
+            imported.producer ||
+            imported.xmpDocumentId ||
+            imported.xmpOriginalId ||
+            imported.pageHashes ||
+            imported.textLength != null ||
+            imported.detectedDoi ||
+            imported.detectedIsbn ||
+            imported.pagePhashes ||
+            imported.dcIdentifier ||
+            imported.language ||
+            imported.publisher
+          ) {
             void updateBookIdentity(bookId, {
               fileHash: imported.fileHash ?? undefined,
               contentHash: imported.contentHash ?? undefined,
+              pdfIdOriginal: imported.pdfIdOriginal ?? undefined,
+              pdfIdCurrent: imported.pdfIdCurrent ?? undefined,
+              pageCount: imported.pageCount ?? undefined,
+              hasTextLayer: imported.hasTextLayer ?? undefined,
+              producer: imported.producer ?? undefined,
+              xmpDocumentId: imported.xmpDocumentId ?? undefined,
+              xmpOriginalId: imported.xmpOriginalId ?? undefined,
+              pageHashes: imported.pageHashes ?? undefined,
+              textLength: imported.textLength ?? undefined,
+              detectedDoi: imported.detectedDoi ?? undefined,
+              detectedIsbn: imported.detectedIsbn ?? undefined,
+              pagePhashes: imported.pagePhashes ?? undefined,
+              fingerprintVersion: imported.fingerprintVersion,
               dcIdentifier: imported.dcIdentifier ?? undefined,
               language: imported.language ?? undefined,
               publisher: imported.publisher ?? undefined,
@@ -118,6 +172,19 @@ export function HomeScreen() {
           author: imported.author,
           fileHash: imported.fileHash,
           contentHash: imported.contentHash,
+          pdfIdOriginal: imported.pdfIdOriginal,
+          pdfIdCurrent: imported.pdfIdCurrent,
+          pageCount: imported.pageCount,
+          hasTextLayer: imported.hasTextLayer,
+          producer: imported.producer,
+          xmpDocumentId: imported.xmpDocumentId,
+          xmpOriginalId: imported.xmpOriginalId,
+          pageHashes: imported.pageHashes,
+          textLength: imported.textLength,
+          detectedDoi: imported.detectedDoi,
+          detectedIsbn: imported.detectedIsbn,
+          pagePhashes: imported.pagePhashes,
+          fingerprintVersion: imported.fingerprintVersion,
           dcIdentifier: imported.dcIdentifier,
           language: imported.language,
           publisher: imported.publisher,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
@@ -8,13 +8,15 @@ import { useColors } from '@/theme/ThemeContext';
 import { fetchBook, sendProgressBeacon } from '@/lib/api';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import type { BookRecord, WordDetails } from '@/lib/types';
-import { bookFilePath, importEpub } from '@/lib/bookFiles';
+import { bookFilePath, deleteBookFile } from '@/lib/bookPaths';
+import { ExtensionMismatchError, importEpub } from '@/lib/bookFiles';
 import { useBookFile } from '@/lib/useBookFile';
 import {
   createBookmark as apiCreateBookmark,
   deleteBookmark as apiDeleteBookmark,
   fetchBookmarks as apiFetchBookmarks,
   markBookAvailable,
+  matchBooks,
 } from '@/lib/api';
 import { getDeviceId } from '@/lib/deviceId';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -496,9 +498,69 @@ export function ReaderScreen({ bookId }: Props) {
 
   // ── Missing-file recovery ───────────────────────────────────────────
   const handleImportMissingFile = useCallback(async () => {
-    if (!book) return;
-    const imported = await importEpub();
+    if (!book || !user) return;
+    let imported;
+    try {
+      imported = await importEpub({ expectedFilename: book.filename });
+    } catch (err) {
+      if (err instanceof ExtensionMismatchError) {
+        Alert.alert(
+          'Wrong file type',
+          `"${book.title}" is a .${err.expected} file, but you picked a .${err.picked} file. Pick a matching one.`,
+        );
+        return;
+      }
+      throw err;
+    }
     if (!imported) return;
+
+    // Identity-verify before attaching. Without this, the recovery flow
+    // happily overwrites book.filename with whatever the user picked,
+    // and the wrong content ends up "in the slot" of this book record.
+    let matchedId: string | null = null;
+    let matchedOther: { id: string; title: string } | null = null;
+    try {
+      const [result] = await matchBooks(user.id, [
+        {
+          file_hash: imported.fileHash,
+          content_hash: imported.contentHash,
+          pdf_id_original: imported.pdfIdOriginal,
+          xmp_original_id: imported.xmpOriginalId,
+          detected_doi: imported.detectedDoi,
+          detected_isbn: imported.detectedIsbn,
+          page_count: imported.pageCount,
+          page_phashes: imported.pagePhashes,
+          metadata: {
+            title: imported.title || imported.filename,
+            author: imported.author,
+            dc_identifier: imported.dcIdentifier,
+            filename: imported.filename,
+          },
+        },
+      ]);
+      if (result?.match && result.match_type !== 'none') {
+        matchedId = result.match.id;
+        if (matchedId !== book.id) {
+          matchedOther = { id: result.match.id, title: result.match.title };
+        }
+      }
+    } catch {
+      /* matcher unreachable — treat as no match, reject below */
+    }
+
+    if (matchedId !== book.id) {
+      // Throw away the picked file — importEpub already copied it into
+      // books/ under its own name, so it'd otherwise stay as litter.
+      deleteBookFile(imported.filename);
+      Alert.alert(
+        "Doesn't match",
+        matchedOther
+          ? `This file is already in your library as "${matchedOther.title}".`
+          : `This file doesn't match "${book.title}". The book stays unimported.`,
+      );
+      return;
+    }
+
     try {
       if (imported.filename !== book.filename) {
         const local = new File(bookFilePath(imported.filename));
@@ -506,14 +568,11 @@ export function ReaderScreen({ bookId }: Props) {
         local.delete();
       }
       setHasFile(true);
-      // Tell the backend this device now has the file locally.
-      if (user) {
-        try {
-          const deviceId = await getDeviceId();
-          await markBookAvailable(deviceId, book.id, user.id);
-        } catch {
-          /* non-fatal */
-        }
+      try {
+        const deviceId = await getDeviceId();
+        await markBookAvailable(deviceId, book.id, user.id);
+      } catch {
+        /* non-fatal */
       }
     } catch {
       /* next open will retry */

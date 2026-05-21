@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { File } from 'expo-file-system';
-import { bookFilePath } from '@/lib/bookFiles';
+import { bookFilePath } from '@/lib/bookPaths';
 import {
   FOLIATE_HTML,
   type BookType,

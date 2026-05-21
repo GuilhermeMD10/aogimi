@@ -1,6 +1,10 @@
-# Langecko Mobile
+# Shirube Mobile
 
-React Native (Expo + expo-router) companion to the Langecko web app.
+React Native (Expo + expo-router) companion to the Shirube web app.
+
+For the API surface this app talks to, see [../../backend/API_ROUTES.md](../../backend/API_ROUTES.md).
+For the local persistence layer (AsyncStorage, file-system, in-memory caches,
+account-switch wipe), see [STORAGE.md](./STORAGE.md).
 
 Three tabs, text-only bottom navbar:
 

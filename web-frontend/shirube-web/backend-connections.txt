@@ -1,6 +1,6 @@
-LANGECO WEB FRONTEND — BACKEND CONNECTION INVENTORY
+SHIRUBE WEB FRONTEND — BACKEND CONNECTION INVENTORY
 =====================================================
-Generated: 2026-05-10
+Last reviewed: 2026-05-20
 
 Base URL: NEXT_PUBLIC_API_URL (default: http://localhost:3000)
 HTTP helpers live in lib/api.ts (apiUrl, apiGet, apiSend, apiSendVoid).
@@ -87,21 +87,42 @@ DELETE /api/books/{id}
 
 POST /api/books/match
   Trigger:   Library restore — given a list of local files, ask the backend
-             which match existing user books by file_hash → content_hash →
-             dc_identifier+title → filename (in priority order).
+             which match existing user books by file_hash → xmp_original_id
+             → pdf_id_original → detected_doi → detected_isbn+page_count(±5%)
+             → content_hash → visual(phash+page_count(±10%)) →
+             dc_identifier+title → filename (priority order).
+             EPUB candidates leave PDF-only fields null; PDFs without a text
+             layer leave content_hash/doi/isbn null. Mobile always leaves
+             text-derived + page_phashes null (no extractor / no renderer).
   Request:   { userId, books: MatchCandidate[] }
   Response:  (MatchResult | null)[]   parallel-indexed to the request
+             match_type ∈ file_hash / xmp_original_id / pdf_trailer_id /
+                          doi / isbn / content / visual / metadata / filename
+             `visual` is medium confidence — NOT in STRONG_MATCH_TYPES.
 
 PUT /api/books/{id}/identity
-  Trigger:   Backfill — when a local book gains a content/file hash that the
-             backend record doesn't have yet (manual or automatic on import).
-  Request:   EpubIdentity  -- { fileHash, contentHash, dcIdentifier, language, publisher }
+  Trigger:   Backfill — when a local book gains a hash that the backend
+             record doesn't have yet (manual or automatic on import).
+  Request:   BookIdentityPayload --
+             { fileHash, contentHash, pdfIdOriginal, pdfIdCurrent,
+               pageCount, hasTextLayer, producer,
+               xmpDocumentId, xmpOriginalId,
+               pageHashes, textLength, detectedDoi, detectedIsbn,
+               pagePhashes,
+               fingerprintVersion,
+               dcIdentifier, language, publisher }
   Response:  BookProgressRecord
 
 BookProgressRecord shape:
   { id (UUID), user_id, filename, title, author, cover_color,
     cfi_position, spine_index, total_spine_items, progress,
-    file_hash, content_hash, dc_identifier, language, publisher,
+    file_hash, content_hash, pdf_id_original, pdf_id_current,
+    page_count, has_text_layer, producer,
+    xmp_document_id, xmp_original_id,
+    page_hashes, text_length, detected_doi, detected_isbn,
+    page_phashes,
+    fingerprint_version,
+    dc_identifier, language, publisher,
     started_at, last_read_at, created_at }
 
 
@@ -266,17 +287,69 @@ Profile page load:
     Promise.allSettled(). Each can fail independently.
 
 Client-side storage:
-  - localStorage:
-      auth-user                  current user
-      app-theme                  theme name (read by pre-hydration script)
-      reader_progress_<file>     per-book progress snapshot (one key per filename)
-      lgc_avatar_index           profile avatar choice
-      onboarding-state           first-run explainer dismissal
-      device-id                  per-browser device UUID
-      dictionary-state           recent searches + filter prefs
-  - IndexedDB (langeco-books):
-      metadata store             local book metadata
-      files store                EPUB/PDF blobs
+
+  localStorage (synchronous string/JSON kv) — keys + scope:
+
+    Device-scoped (kept across account switches):
+      lgc_device_id              per-browser device UUID, sent with every
+                                 /api/devices call
+      app-theme                  active theme name; read by the pre-hydration
+                                 <script> in app/layout.tsx to avoid
+                                 flash-of-default-theme
+      lgc_last_user_id           the last user id that owned local data;
+                                 survives logout so the next sign-in can
+                                 detect an account switch (see Account
+                                 switch wipe below)
+
+    User-scoped (wiped on account switch):
+      auth_user                  { id, username } cached for first-paint
+                                 (replaced by the new user on sign-in,
+                                 cleared on logout)
+      lgc_avatar_index           profile avatar palette choice
+      lgc_needs_onboarding       first-run explainer flag
+      dictionary_state           sticky dictionary view state
+      dictionary_recent_searches recent search history
+      reader_book_<filename>     per-book highlights + bookmarks + lastCfi
+                                 + per-book reader prefs (uri-encoded
+                                 filename). HIGHLIGHTS LIVE ONLY HERE —
+                                 there is no backend table yet.
+      reader_progress_<filename> per-book progress recovery snapshot
+                                 (every page turn; backend is canonical)
+
+  IndexedDB databases:
+
+    shirube-books (v1) — user-scoped, wiped on account switch
+      metadata store (keyPath 'id')
+        Full local BookRecord per imported book: title, author, filename,
+        coverColor, hasCover, coverImage (base64 data URL), fileHash,
+        contentHash, dcIdentifier, language, publisher, importedAt,
+        fileSize.
+      files store (keyed by id)
+        Raw .epub / .pdf ArrayBuffer. This is the only place the actual
+        book content lives — backend stores metadata only.
+
+    File System Access API handles (separate IDB, see lib/fsAccess.ts)
+      handles store
+        FileSystemDirectoryHandle the user picked as their "library
+        folder". Survives sessions because IndexedDB persists
+        structured-clone handles. Optional UX nicety; kept across
+        account switches (it's a folder, not user data).
+
+  In-memory caches (lost on reload, never persisted):
+    Dictionary search/word results
+    Books list + library reconcile state inside React tree
+
+Account-switch wipe:
+  Trigger:  AuthProvider.handleAuthenticated() compares incoming user.id
+            against lgc_last_user_id (NOT auth_user — that key is cleared
+            on logout and would miss the typical sign-out → sign-in flow).
+            On mismatch, lib/auth/wipeUserData.ts runs before persist().
+  Wipes:    Every user-scoped key listed above + the shirube-books IDB
+            (deleteDatabase + cached connection reset).
+  Single book delete:
+            lib/books/deleteBook.ts owns the per-book cleanup
+            (backend row + IDB metadata + IDB file blob + the two
+            localStorage entries). Used by the library trash button.
 
 
 ==============================================================================

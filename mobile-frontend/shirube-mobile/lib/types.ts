@@ -117,23 +117,62 @@ export type BookProgressUpdate = Partial<{
 }>;
 
 // Hash + canonical identity fields used by /api/books/match and
-// /api/books/{id}/identity. fileHash is sha256 of the raw EPUB bytes;
-// contentHash is a stable hash of the EPUB content (independent of repack
-// noise); dcIdentifier is the EPUB's <dc:identifier> from content.opf.
-export type EpubIdentity = Partial<{
+// /api/books/{id}/identity.
+//   - fileHash: SHA-256 of the raw file bytes (both formats).
+//   - contentHash: EPUB only — SHA-256 of concatenated spine text.
+//   - pdfIdOriginal / pdfIdCurrent: PDF only — trailer /ID[0] and /ID[1].
+//   - pageCount / hasTextLayer: PDF only. Mobile may leave null until
+//     phase 3 brings native PDF parsing.
+//   - producer: PDF only — diagnostic, not used in matching.
+//   - xmpDocumentId / xmpOriginalId: PDF only — XMP metadata IDs.
+//     xmpOriginalId is the strong cross-device match key for derived PDFs.
+//   - pageHashes / textLength / detectedDoi / detectedIsbn: PDF text-derived
+//     fields. Mobile leaves these null until/unless a future phase adds
+//     native PDF text extraction.
+//   - dcIdentifier / language / publisher: EPUB only — from content.opf.
+export type BookIdentityPayload = Partial<{
   fileHash: string;
   contentHash: string;
+  pdfIdOriginal: string;
+  pdfIdCurrent: string;
+  pageCount: number;
+  hasTextLayer: boolean;
+  producer: string;
+  xmpDocumentId: string;
+  xmpOriginalId: string;
+  pageHashes: string[];
+  textLength: number;
+  detectedDoi: string;
+  detectedIsbn: string;
+  pagePhashes: string[];
+  fingerprintVersion: number;
   dcIdentifier: string;
   language: string;
   publisher: string;
 }>;
 
 // Sent to /api/books/match — one candidate per local book lacking a
-// backend record. The server tries fileHash first, then contentHash,
-// then dcIdentifier+title, finally filename.
+// backend record. The server tries fileHash → xmp_original_id →
+// pdf_id_original → doi → isbn+page_count → content_hash →
+// dcIdentifier → title+author → filename.
 export type BookMatchCandidate = {
   file_hash: string | null;
+  /** EPUB spine-text SHA-256. PDF text-content SHA-256 (web only — mobile
+   *  leaves null since it has no text extractor). */
   content_hash: string | null;
+  /** PDF /ID[0]. Null for EPUB candidates. */
+  pdf_id_original: string | null;
+  /** xmpMM:OriginalDocumentID. Null for EPUBs and PDFs without XMP. */
+  xmp_original_id: string | null;
+  /** PDF: DOI scraped from front-matter (web only — mobile null). */
+  detected_doi: string | null;
+  /** PDF: validated ISBN (web only — mobile null). */
+  detected_isbn: string | null;
+  /** PDF: page count. Mobile null until phase-3 deferred native parsing. */
+  page_count: number | null;
+  /** PDF: per-sampled-page dHash array. Visual match layer input.
+   *  Mobile null (no render-to-grayscale pipeline). */
+  page_phashes: string[] | null;
   metadata: {
     title: string;
     author?: string;
@@ -144,7 +183,17 @@ export type BookMatchCandidate = {
 
 export type BookMatchResult = {
   match: BookRecord | null;
-  match_type: 'file_hash' | 'content' | 'metadata' | 'filename' | 'none';
+  match_type:
+    | 'file_hash'
+    | 'xmp_original_id'
+    | 'pdf_trailer_id'
+    | 'doi'
+    | 'isbn'
+    | 'content'
+    | 'visual'
+    | 'metadata'
+    | 'filename'
+    | 'none';
 };
 
 // ── Devices ─────────────────────────────────────────────────────────────────

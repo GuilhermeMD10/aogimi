@@ -7,13 +7,47 @@ export function apiUrl(path: string): string {
   return `${API_URL}${path}`;
 }
 
-async function parseError(response: Response): Promise<string> {
+// ── Session-invalidation hook ──────────────────────────────────────────────
+//
+// Wired from AuthProvider on mount. Fires when the backend returns a
+// `401 { error: "USER_NOT_FOUND" }` on any wrapped request — meaning the
+// authenticated user no longer exists on the server. The handler is
+// expected to drop local state (auth + per-user IndexedDB / localStorage)
+// so the next sign-in starts from a clean slate.
+//
+// Stored at module scope so any caller of apiGet/apiSend/apiSendVoid
+// participates automatically. Backend contract: see
+// `backend/src/middleware/verifyUser.js` — the status + error string pair
+// must stay in sync.
+
+let onSessionInvalid: (() => void) | null = null;
+
+export function setSessionInvalidatedHandler(
+  handler: (() => void) | null,
+): void {
+  onSessionInvalid = handler;
+}
+
+/**
+ * Read the error body once. If the response signals a deleted user,
+ * fire the session-invalidation handler before returning. The returned
+ * string is what the wrapper throws to the caller.
+ */
+async function handleErrorResponse(response: Response): Promise<string> {
+  let body: { error?: string; message?: string } | null = null;
   try {
-    const payload = (await response.json()) as { error?: string; message?: string };
-    return payload.error ?? payload.message ?? response.statusText ?? 'Request failed';
+    body = (await response.json()) as { error?: string; message?: string };
   } catch {
-    return response.statusText || 'Request failed';
+    /* non-JSON body — keep body null and fall back to statusText */
   }
+  if (response.status === 401 && body?.error === 'USER_NOT_FOUND') {
+    try {
+      onSessionInvalid?.();
+    } catch {
+      /* handler errors are non-fatal — still propagate the original error */
+    }
+  }
+  return body?.error ?? body?.message ?? response.statusText ?? 'Request failed';
 }
 
 export async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
@@ -25,7 +59,7 @@ export async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T
   });
 
   if (!response.ok) {
-    throw new Error(await parseError(response));
+    throw new Error(await handleErrorResponse(response));
   }
 
   return (await response.json()) as T;
@@ -53,7 +87,7 @@ export async function apiSend<T>(
     signal,
   });
   if (!response.ok) {
-    throw new Error(await parseError(response));
+    throw new Error(await handleErrorResponse(response));
   }
   return (await response.json()) as T;
 }
@@ -72,6 +106,6 @@ export async function apiSendVoid(
     signal,
   });
   if (!response.ok) {
-    throw new Error(await parseError(response));
+    throw new Error(await handleErrorResponse(response));
   }
 }

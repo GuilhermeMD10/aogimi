@@ -15,6 +15,19 @@ export async function registerBook(params: {
   coverColor: string;
   fileHash?: string;
   contentHash?: string;
+  pdfIdOriginal?: string | null;
+  pdfIdCurrent?: string | null;
+  pageCount?: number | null;
+  hasTextLayer?: boolean | null;
+  producer?: string | null;
+  xmpDocumentId?: string | null;
+  xmpOriginalId?: string | null;
+  pageHashes?: string[] | null;
+  textLength?: number | null;
+  detectedDoi?: string | null;
+  detectedIsbn?: string | null;
+  pagePhashes?: string[] | null;
+  fingerprintVersion?: number | null;
   dcIdentifier?: string | null;
   language?: string | null;
   publisher?: string | null;
@@ -95,13 +108,26 @@ export async function matchBooks(
 }
 
 /** Identity payload accepted by the backend's PUT /api/books/:id/identity.
- *  Supports both EPUB-derived identity (full set) and PDF-derived identity
- *  (file_hash + content_hash only). Null fields are sent through unchanged
- *  so the backend's COALESCE-based update preserves existing values rather
- *  than blanking them. */
+ *  Supports both EPUB-derived identity (file_hash + content_hash + dc_*)
+ *  and PDF-derived identity (file_hash + pdf_id_original + pdf_id_current).
+ *  Null fields are sent through unchanged so the backend's COALESCE-based
+ *  update preserves existing values rather than blanking them. */
 export type BookIdentityPayload = {
   fileHash: string | null;
   contentHash: string | null;
+  pdfIdOriginal?: string | null;
+  pdfIdCurrent?: string | null;
+  pageCount?: number | null;
+  hasTextLayer?: boolean | null;
+  producer?: string | null;
+  xmpDocumentId?: string | null;
+  xmpOriginalId?: string | null;
+  pageHashes?: string[] | null;
+  textLength?: number | null;
+  detectedDoi?: string | null;
+  detectedIsbn?: string | null;
+  pagePhashes?: string[] | null;
+  fingerprintVersion?: number | null;
   dcIdentifier?: string | null;
   language?: string | null;
   publisher?: string | null;

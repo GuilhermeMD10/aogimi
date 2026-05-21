@@ -16,7 +16,16 @@ export type FetchState<T> = {
   error: string | null;
 };
 
-export type FetchResult<T> = FetchState<T> & { refresh: () => Promise<void> };
+export type FetchResult<T> = FetchState<T> & {
+  /** User-initiated refresh. Toggles `refreshing` so a RefreshControl
+   *  spinner can bind to it. */
+  refresh: () => Promise<void>;
+  /** Background refresh. Updates `data`/`error` on completion but never
+   *  touches `loading`/`refreshing` — use for focus-triggered or
+   *  interval refetches where flipping a spinner during a navigation
+   *  transition causes a stuck-shown native RefreshControl. */
+  silentRefresh: () => Promise<void>;
+};
 
 interface UseFetchWithAbortOptions {
   /**
@@ -43,16 +52,17 @@ export function useFetchWithAbort<T>(
   const controllerRef = useRef<AbortController | null>(null);
   const hasLoadedRef = useRef(false);
 
-  const run = useCallback((mode: 'load' | 'refresh'): Promise<void> => {
+  const run = useCallback((mode: 'load' | 'refresh' | 'silent'): Promise<void> => {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
 
-    setState((prev) =>
-      mode === 'refresh'
-        ? { ...prev, refreshing: true, error: null }
-        : { data: null, loading: true, refreshing: false, error: null },
-    );
+    if (mode === 'refresh') {
+      setState((prev) => ({ ...prev, refreshing: true, error: null }));
+    } else if (mode === 'load') {
+      setState({ data: null, loading: true, refreshing: false, error: null });
+    }
+    // 'silent' leaves loading/refreshing/error untouched.
 
     return fetcherRef.current(controller.signal)
       .then((data) => {
@@ -63,6 +73,15 @@ export function useFetchWithAbort<T>(
       .catch((err) => {
         if (controller.signal.aborted) return;
         if (err instanceof Error && err.name === 'AbortError') return;
+        if (mode === 'silent') {
+          // Quiet failure — keep existing data + spinner state, just
+          // surface the error message.
+          setState((prev) => ({
+            ...prev,
+            error: err instanceof Error ? err.message : 'Request failed',
+          }));
+          return;
+        }
         setState((prev) => ({
           data: mode === 'refresh' ? prev.data : null,
           loading: false,
@@ -89,7 +108,12 @@ export function useFetchWithAbort<T>(
     return run(hasLoadedRef.current ? 'refresh' : 'load');
   }, [enabled, run]);
 
-  return { ...state, refresh };
+  const silentRefresh = useCallback((): Promise<void> => {
+    if (!enabled) return Promise.resolve();
+    return run(hasLoadedRef.current ? 'silent' : 'load');
+  }, [enabled, run]);
+
+  return { ...state, refresh, silentRefresh };
 }
 
 /**

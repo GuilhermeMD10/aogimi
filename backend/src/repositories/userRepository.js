@@ -15,6 +15,13 @@ module.exports = {
     );
     return result.rows[0];
   },
+  existsById: async (id) => {
+    const result = await pool.query(
+      "SELECT 1 FROM users WHERE id = $1 LIMIT 1",
+      [id]
+    );
+    return result.rowCount > 0;
+  },
   findByUsernameAndPassword: async (username, password) => {
     const result = await pool.query(
       "SELECT * FROM users WHERE username = $1 AND password = $2",

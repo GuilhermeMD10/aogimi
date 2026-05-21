@@ -40,8 +40,29 @@ Reading progress for a user's book. One row per user–book pair. The EPUB file 
 | started_at | timestamptz | NOT NULL DEFAULT now() | When the book was first imported |
 | last_read_at | timestamptz | NOT NULL DEFAULT now() | Updated on reading session close |
 | created_at | timestamptz | NOT NULL DEFAULT now() | |
+| file_hash | text | indexed (partial) | SHA-256 of raw file bytes — strongest cross-device match (both formats). Added in mig 006. |
+| content_hash | text | indexed (partial) | EPUB only: SHA-256 of spine text (survives repack noise). PDF-side reserved for the text-content-hash use case in a later phase. Added in mig 006; PDF rows nulled and migrated to `pdf_id_original` in mig 016. |
+| pdf_id_original | text | indexed (partial) | PDF only: `/ID[0]` from trailer — stable across modifications. Strong cross-device match key. Added in mig 016. |
+| pdf_id_current | text | | PDF only: `/ID[1]` from trailer — changes on each save. Stored for forensics; not currently used in matching. Added in mig 016. |
+| page_count | int | | PDF only: total pages. Mobile may leave null until phase 3 brings native PDF parsing. Used by future ISBN+page-count match tolerance check. Added in mig 017. |
+| has_text_layer | boolean | | PDF only: true when an extractable text layer exists (vs scanned image-only). Mobile may leave null until phase 3. Web populates via page-1 text probe. Added in mig 017. |
+| producer | text | | PDF only: `/Producer` from `/Info`. Diagnostic — kept for debugging match failures, not used in matching. Added in mig 017. |
+| xmp_document_id | text | | PDF only: `xmpMM:DocumentID` from XMP metadata. Changes on export/save-as. Forensics; not used in matching. Added in mig 017. |
+| xmp_original_id | text | indexed (partial) | PDF only: `xmpMM:OriginalDocumentID` from XMP — stable across re-saves/exports of the same source. Strong cross-device match key (priority 2 in the matcher). Added in mig 017. |
+| page_hashes | text[] | | PDF only: per-page SHA-256 of normalized text. Stored for the deferred page-overlap match layer; not yet matched on. Web populates; mobile null. Added in mig 018. |
+| text_length | int | | PDF only: character count of the normalized full text (post header/footer strip). Web populates; mobile null. Added in mig 018. |
+| detected_doi | text | indexed (partial) | PDF only: DOI scraped from the first ~3 pages. New match layer (priority 4, very_high). Web populates; mobile null. Added in mig 018. |
+| detected_isbn | text | indexed (partial) | PDF only: ISBN-10 or ISBN-13 (checksum-validated) scraped from front/back matter. New match layer (priority 5, high) paired with `page_count` ±5% tolerance. Web populates; mobile null. Added in mig 018. |
+| page_phashes | text[] | | PDF only: per-sampled-page dHash (64-bit hex). Visual match layer (priority 7, medium confidence) — fires when both sides have phashes, `page_count` agrees ±10%, and avg hamming distance ≤ 8. Web only (mobile has no render-to-grayscale pipeline). Added in mig 019. |
+| fingerprint_version | int | NOT NULL DEFAULT 1 | Version of the fingerprinting algorithm that produced this row. Bumped when any of the extraction / normalization / hashing rules change in a backwards-incompatible way. Old rows keep their version; future matcher revisions can require version equality on the layers whose semantics changed. Both frontends export `FINGERPRINT_VERSION` from `lib/fingerprint/version.ts`. Added in mig 020. |
+| dc_identifier | text | | EPUB only: `<dc:identifier>` from content.opf (often ISBN). |
+| language | text | | EPUB only: `<dc:language>`. |
+| publisher | text | | EPUB only: `<dc:publisher>`. |
 
 **Unique constraint:** (user_id, filename) — one import per filename per user.
+
+**Cross-device match priority** (POST /api/books/match):
+`file_hash → xmp_original_id → pdf_id_original → doi → isbn+page_count(±5%) → content_hash → visual(phash+page_count(±10%)) → dc_identifier → title+author → filename`. Match types reflect the layer that hit. The frontend's `STRONG_MATCH_TYPES` set (see `web-frontend/.../books/locateAndAttachFile.ts`) lists which layers are auto-attach safe. `visual` is **not** in that set — it's medium confidence, UI should ask the user to confirm when surfacing it.
 
 **Sync strategy:** Progress is saved to localStorage on every page turn. Backend is updated only on exit events (tab hidden, page unload, explicit book close) via `sendBeacon` or fetch.
 
