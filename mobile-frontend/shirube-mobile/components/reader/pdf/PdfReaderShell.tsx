@@ -4,7 +4,7 @@ import Pdf, { type PdfRef } from 'react-native-pdf';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily } from '@/theme/tokens';
 import type { BookRecord } from '@/lib/types';
-import { bookFilePath } from '@/lib/bookFiles';
+import { bookFilePath } from '@/lib/bookPaths';
 import { ReaderTopBar } from '../utils/ReaderTopBar';
 import { PdfDock } from './PdfDock';
 

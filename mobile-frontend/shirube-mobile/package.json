@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "gen-foliate-bundle": "node scripts/gen-foliate-bundle.mjs"
+    "gen-foliate-bundle": "node scripts/gen-foliate-bundle.mjs",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo-google-fonts/lora": "^0.4.2",
@@ -19,6 +20,7 @@
     "expo-blur": "~55.0.14",
     "expo-clipboard": "~55.0.13",
     "expo-constants": "~55.0.13",
+    "expo-crypto": "~55.0.15",
     "expo-dev-client": "~55.0.27",
     "expo-document-picker": "~55.0.13",
     "expo-file-system": "~55.0.16",
@@ -40,6 +42,7 @@
     "react-native-blob-util": "^0.19.11",
     "react-native-gesture-handler": "~2.30.0",
     "react-native-pdf": "^7.0.0",
+    "react-native-pdf-thumbnail": "^1.3.1",
     "react-native-reanimated": "4.2.1",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
@@ -53,6 +56,7 @@
     "esbuild": "^0.28.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~55.0.1",
+    "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   }
 }

@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Search, X } from 'lucide-react';
 import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
-import { useReaderState } from '@/components/providers/ReaderStateProvider';
+import { useReaderActions } from '@/components/providers/useReaderActions';
 import WordDetailView, { preferredHeadword } from '@/components/views/WordDetailView';
 import type { WordResult } from '@/lib/types';
 import { getRecentSearches, type RecentSearchItem } from '@/lib/storage/dictionary';
@@ -22,7 +22,7 @@ export type DictionarySidekickProps = {
 };
 
 export function DictionarySidekick({ onClose }: DictionarySidekickProps) {
-  const { setPendingCard } = useReaderState();
+  const { requestAddCard } = useReaderActions();
   const {
     query,
     result,
@@ -86,7 +86,7 @@ export function DictionarySidekick({ onClose }: DictionarySidekickProps) {
             query={query}
             onBack={() => setSelectedWordId(null)}
             onKanjiSearch={(char) => { void runSearch(char); }}
-            onAddCard={(word, back) => setPendingCard({ word, back, contextSentence: lastContextSentence })}
+            onAddCard={(word, back) => requestAddCard(word, back, lastContextSentence)}
           />
         </div>
       </div>

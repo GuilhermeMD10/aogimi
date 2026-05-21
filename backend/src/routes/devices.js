@@ -1,5 +1,6 @@
 const { Router } = require("express");
 const deviceService = require("../services/deviceService");
+const { ensureUserExists } = require("../middleware/verifyUser");
 
 const router = Router();
 
@@ -19,6 +20,7 @@ router.post("/", async (req, res) => {
 
 // GET /api/devices/user/:userId — list all devices for a user
 router.get("/user/:userId", async (req, res) => {
+  if (!(await ensureUserExists(res, req.params.userId))) return;
   try {
     const devices = await deviceService.getUserDevices(parseInt(req.params.userId, 10));
     res.json(devices);
@@ -89,6 +91,7 @@ router.get("/:deviceId/books", async (req, res) => {
   if (!userId) {
     return res.status(400).json({ error: "userId query param is required" });
   }
+  if (!(await ensureUserExists(res, userId))) return;
   try {
     const books = await deviceService.getDeviceBooks(parseInt(userId, 10), req.params.deviceId);
     res.json(books);

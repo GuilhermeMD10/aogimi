@@ -2,27 +2,10 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { BookOpen, CheckCircle2, CloudOff } from 'lucide-react';
-import { importBook } from '@/lib/bookStore';
-import { computeEpubIdentity } from '@/lib/epubIdentity';
-import { computePdfIdentity } from '@/lib/pdfIdentity';
-import { matchBooks } from '@/lib/booksApi';
 import { getDeviceId } from '@/lib/storage/device';
-import { markBookAvailable } from '@/lib/devicesApi';
+import { locateAndAttachFile } from '@/lib/books/locateAndAttachFile';
 import type { DeviceBookRecord } from '@/lib/types';
 import { BookCoverSwatch, type LibraryBook } from '@/components/library/BookList';
-
-function validateBookFile(file: File): string | null {
-  const name = file.name.toLowerCase();
-  const isEpub = file.type === 'application/epub+zip' || name.endsWith('.epub');
-  const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf');
-  if (!isEpub && !isPdf)
-    return 'Invalid file type. Please upload an EPUB or PDF file.';
-  if (isEpub && file.size > 50 * 1024 * 1024)
-    return 'EPUB too large. Maximum size is 50 MB.';
-  if (isPdf && file.size > 500 * 1024 * 1024)
-    return 'PDF too large. Maximum size is 500 MB.';
-  return null;
-}
 
 export default function RestoreLibrary({
   remoteBooks,
@@ -68,73 +51,42 @@ export default function RestoreLibrary({
       if (!file || !locatingBookId) return;
       e.target.value = '';
 
-      const validationError = validateBookFile(file);
-      if (validationError) {
-        setError(validationError);
-        setLocatingBookId(null);
-        return;
-      }
-
       const targetBook = books.find(b => b.id === locatingBookId);
-      if (!targetBook) {
+      if (!targetBook?.backendId) {
         setLocatingBookId(null);
         return;
       }
 
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const isPdf = file.name.toLowerCase().endsWith('.pdf');
-        const identity = isPdf
-          ? await computePdfIdentity(arrayBuffer).catch(() => null)
-          : await computeEpubIdentity(arrayBuffer).catch(() => null);
+      const result = await locateAndAttachFile({
+        file,
+        userId,
+        deviceId,
+        target: {
+          backendId: targetBook.backendId,
+          title: targetBook.title,
+          filename: targetBook.filename,
+        },
+      });
+      setLocatingBookId(null);
 
-        const candidates = [{
-          file_hash: identity?.fileHash ?? '',
-          content_hash: identity?.contentHash ?? '',
-          metadata: {
-            title: '',
-            author: '',
-            dc_identifier: !isPdf && identity && 'dcIdentifier' in identity && typeof identity.dcIdentifier === 'string'
-              ? identity.dcIdentifier
-              : null,
-            filename: file.name,
-          },
-        }];
-
-        const results = await matchBooks(userId, candidates);
-        const match = results[0];
-
-        const matchedBackendId = match?.match?.id;
-        if (!match || matchedBackendId !== targetBook.backendId) {
-          setError(
-            `This file doesn\u2019t match "${targetBook.title}". ` +
-            (match ? `It matched a different book ("${match.match.title}").` : 'No matching book found.'),
-          );
-          setLocatingBookId(null);
-          return;
-        }
-
-        const record = await importBook(file, userId);
-        markBookAvailable(deviceId, targetBook.backendId!, userId).catch(() => {});
-
-        setBooks(prev =>
-          prev.map(b =>
-            b.id === locatingBookId
-              ? {
-                  ...b,
-                  id: record.id,
-                  hasCover: record.hasCover,
-                  coverImage: record.coverImage,
-                  available: true,
-                }
-              : b,
-          ),
-        );
-      } catch {
-        setError('Failed to verify located file');
-      } finally {
-        setLocatingBookId(null);
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+
+      setBooks(prev =>
+        prev.map(b =>
+          b.id === locatingBookId
+            ? {
+                ...b,
+                id: result.record.id,
+                hasCover: result.record.hasCover,
+                coverImage: result.record.coverImage,
+                available: true,
+              }
+            : b,
+        ),
+      );
     },
     [locatingBookId, userId, books, deviceId],
   );
