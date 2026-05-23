@@ -1,6 +1,6 @@
 import { deleteCoverFor } from '@/lib/epubCover';
 import { clearBookStorage } from '@/lib/readerStorage';
-import { removeStoredFileHash } from '@/lib/storage/bookFingerprints';
+import { removeEntry } from '@/lib/sync';
 
 /**
  * Wipe every per-book local register tied to a single filename. Called
@@ -24,5 +24,5 @@ import { removeStoredFileHash } from '@/lib/storage/bookFingerprints';
 export async function wipeBookLocalState(filename: string): Promise<void> {
   await clearBookStorage(filename);          // reader_book_<filename>
   deleteCoverFor(filename);                  // covers/<safeName>.jpg
-  await removeStoredFileHash(filename);      // book_fingerprints_v1[filename]
+  await removeEntry(filename);               // book_fingerprints_v1[filename]
 }

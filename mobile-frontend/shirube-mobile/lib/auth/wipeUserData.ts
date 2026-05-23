@@ -37,7 +37,7 @@ import { wipeAllCovers } from '@/lib/epubCover';
 import { wipeMangaCache } from '@/lib/mangaPages';
 import { clearDictionaryCaches } from '@/lib/dictCache';
 import { clearLocalProgress } from '@/lib/booksLocalCache';
-import { clearAllStoredFileHashes } from '@/lib/storage/bookFingerprints';
+import { clearAll as clearAllSyncEntries } from '@/lib/sync';
 
 const USER_PREFIXES = ['reader_book_'];
 const USER_KEYS = [
@@ -76,7 +76,7 @@ export async function wipeUserData(): Promise<void> {
   // 3. Local fingerprint cache — drop the entire filename → hash side
   //    table so the next account's imports don't compare against a
   //    previous user's hashes.
-  try { await clearAllStoredFileHashes(); } catch { /* */ }
+  try { await clearAllSyncEntries(); } catch { /* */ }
 
   // 4. In-memory caches that outlive a screen but not a process.
   try { clearDictionaryCaches(); } catch { /* */ }

@@ -87,7 +87,8 @@ export default function ReaderView() {
           }
           record = result.record;
         } else {
-          record = await importBook(file);
+          const outcome = await importBook(file);
+          record = outcome.record;
         }
 
         const newBook: LibraryBook = {
