@@ -15,6 +15,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CloudOff, MoreHorizontal, Plus, Search, Pencil, CheckCircle2, Trash2, BookOpen, ArrowUpDown } from 'lucide-react';
 import type { LibraryBook } from '@/components/library/BookList';
 import { useBookRowEditing } from './useBookRowEditing';
+import { SyncPill, type SyncPillState } from '@/components/sync/SyncPill';
+
+function deriveSyncState(book: LibraryBook): SyncPillState {
+  if (!book.available) return 'toImport';
+  if (!book.backendId) return 'unsynced';
+  return 'synced';
+}
 
 type Filter = 'all' | 'reading' | 'upnext' | 'finished';
 
@@ -558,7 +565,7 @@ function BookCard({
           opacity: muted ? 0.6 : 1,
         }}
       >
-        <Cover book={book} finished={finished} />
+        <Cover book={book} finished={finished} syncState={deriveSyncState(book)} />
       </button>
 
       <div
@@ -779,16 +786,18 @@ function MenuItem({
   );
 }
 
-// ── Cover (flat color or image, with spine overlay) ─────────────────────────
+// ── Cover (flat color or image) ─────────────────────────────────────────────
 
 function Cover({
   book,
   width,
   finished = false,
+  syncState,
 }: {
   book: LibraryBook;
   width?: number;
   finished?: boolean;
+  syncState?: SyncPillState;
 }) {
   const hasImg = book.hasCover && Boolean(book.coverImage);
   return (
@@ -820,18 +829,6 @@ function Cover({
         />
       )}
 
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          left: '7%',
-          top: 0,
-          bottom: 0,
-          width: 1,
-          background: 'rgba(0,0,0,0.22)',
-        }}
-      />
-
       {finished && (
         <span
           style={{
@@ -852,6 +849,12 @@ function Cover({
         >
           <CheckCircle2 size={10} /> Finished
         </span>
+      )}
+
+      {syncState && (
+        <div style={{ position: 'absolute', top: 6, right: 6 }}>
+          <SyncPill state={syncState} onCover />
+        </div>
       )}
     </div>
   );

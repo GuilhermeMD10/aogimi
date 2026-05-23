@@ -104,6 +104,26 @@ export type BookRecord = {
   spine_index: number;
   total_spine_items: number | null;
   progress: number;
+  // Identity / fingerprint fields — same shape as web's BookProgressRecord.
+  // The matcher + reconcile flow needs the file_hash specifically.
+  file_hash: string | null;
+  content_hash: string | null;
+  pdf_id_original: string | null;
+  pdf_id_current: string | null;
+  page_count: number | null;
+  has_text_layer: boolean | null;
+  producer: string | null;
+  xmp_document_id: string | null;
+  xmp_original_id: string | null;
+  page_hashes: string[] | null;
+  text_length: number | null;
+  detected_doi: string | null;
+  detected_isbn: string | null;
+  page_phashes: string[] | null;
+  fingerprint_version: number;
+  dc_identifier: string | null;
+  language: string | null;
+  publisher: string | null;
   started_at: string;
   last_read_at: string;
   created_at: string;

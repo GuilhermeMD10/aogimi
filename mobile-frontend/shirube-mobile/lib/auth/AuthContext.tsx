@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -11,6 +12,7 @@ import { loadJSON, saveJSON } from '@/lib/storage';
 import { createUser, fetchUserInfo } from '@/lib/api';
 import type { UserProfile } from '@/lib/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { reconcileLibrary } from '@/lib/library/reconcileLibrary';
 import { wipeUserData } from './wipeUserData';
 
 type Credentials = { username: string; password: string };
@@ -126,6 +128,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setUser = useCallback((user: UserProfile) => {
     setSession((prev) => (prev ? { ...prev, user } : prev));
   }, []);
+
+  // First-load library reconcile. Fires once per user-id transition (auto-
+  // sign-in on launch OR fresh sign-in/up). Aligns on-device book files +
+  // AsyncStorage + fingerprint map with the backend's canonical list:
+  // wipes orphans and stale-bytes entries. Silent: failures are no-ops
+  // until the next session start or manual Sync-now.
+  const reconciledForUserId = useRef<number | null>(null);
+  useEffect(() => {
+    const userId = session?.user.id;
+    if (userId == null) {
+      reconciledForUserId.current = null;
+      return;
+    }
+    if (reconciledForUserId.current === userId) return;
+    reconciledForUserId.current = userId;
+    reconcileLibrary(userId).catch(() => {
+      // Reset so a Sync-now retry can re-fire if the user keeps the
+      // app open after a transient failure.
+      reconciledForUserId.current = null;
+    });
+  }, [session]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

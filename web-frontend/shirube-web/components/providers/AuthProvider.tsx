@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   clearStoredAuthUser,
   getLastUserId,
@@ -14,6 +14,7 @@ import { setNeedsOnboarding } from '@/lib/storage/onboarding';
 import { loginUser, signupUser } from '@/lib/userApi';
 import { wipeUserData } from '@/lib/auth/wipeUserData';
 import { setSessionInvalidatedHandler } from '@/lib/api';
+import { reconcileLibrary } from '@/lib/library/reconcileLibrary';
 
 type AuthContextValue = {
   user: User | null;
@@ -47,6 +48,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     return () => setSessionInvalidatedHandler(null);
   }, []);
+
+  // First-load library reconcile. Fires once per user-id transition (fresh
+  // sign-in OR persistent session after page reload). Aligns local IDB +
+  // localStorage with the backend's canonical book list — wipes orphans
+  // and stale-bytes entries. Silent: any failure is just a no-op for
+  // this session; next page load tries again.
+  const reconciledForUserId = useRef<number | null>(null);
+  useEffect(() => {
+    if (!user) {
+      reconciledForUserId.current = null;
+      return;
+    }
+    if (reconciledForUserId.current === user.id) return;
+    reconciledForUserId.current = user.id;
+    void reconcileLibrary(user.id).catch(() => {
+      // Reset so a subsequent retry (e.g. via the Sync-now button) can
+      // re-fire if the user keeps the session open.
+      reconciledForUserId.current = null;
+    });
+  }, [user]);
 
   const persist = (u: User | null) => {
     setUser(u);

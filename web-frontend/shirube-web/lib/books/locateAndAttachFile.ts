@@ -17,46 +17,40 @@ const MAX_PDF_SIZE = 500 * 1024 * 1024;
  * Used by both the locate flow and the +-button import flow so they treat
  * identity uniformly.
  */
-export const STRONG_MATCH_TYPES: ReadonlySet<MatchType> = new Set<MatchType>([
-  'file_hash',
-  'xmp_original_id',
-  'pdf_trailer_id',
-  'doi',
-  'isbn',
-  'content',
-  'metadata',
-]);
-
 /**
- * Match types strong enough to **silently auto-attach** a new import to
- * an existing backend record AND rename the local file to that record's
- * filename. ONLY `file_hash` qualifies — it's the single match type
- * that's a true "same bytes" guarantee.
+ * Match types reliable enough to confirm "this file IS that book record"
+ * without prompting the user. Used by:
  *
- * Why so strict: every other match type can collide between distinct
- * books in the real world:
+ *   - `importBookWithMatch` (+-button import): silently auto-attaches a
+ *     new import to an existing backend record and renames the local
+ *     file slot to match.
+ *   - `locateAndAttachFile` (locate-missing-file flow): verifies the
+ *     picked file is actually the book the user is trying to locate.
+ *
+ * Only `file_hash` qualifies. Every other match type can collide
+ * between distinct books in the real world:
+ *
  *   - `pdf_trailer_id` / `xmp_original_id` — batch-generated PDFs from
  *     a single script (e.g. a manga series exported in bulk) routinely
  *     share /ID and XMP OriginalDocumentID across volumes because the
  *     generator didn't seed per-output.
- *   - `doi` — possible but rare; same paper can have two DOIs (preprint,
- *     publisher) and different documents reference one another via DOI.
+ *   - `doi` — possible but rare: same paper can have two DOIs (preprint,
+ *     publisher) and different documents can reference one another by DOI.
  *   - `isbn` + page_count(±5%) — manga volumes of similar length may
  *     coincidentally agree.
- *   - `content` — only fires when both PDFs have a text layer; manga is
- *     image-only and content_hash is null.
- *   - `metadata` — different books can share title+author.
+ *   - `content` (text SHA) — only fires when both files have a text
+ *     layer; manga is image-only and content_hash is null.
+ *   - `metadata` (title+author) — different books can share both fields.
  *
- * If we auto-attach on any of those, the silent rename overwrites the
- * existing local IDB slot — losing the original book's reader state.
- * That bug was caught in production: importing manga volume 2 silently
- * destroyed volume 1's progress because both PDFs shared /ID.
+ * If either flow accepted any of those, the user would silently end up
+ * with the wrong content under a known book's slot — losing the original
+ * book's reader state (defensive reimport wipe correctly fires, but
+ * recovery requires re-importing the original from elsewhere). That bug
+ * was caught in production with a manga series sharing /ID across volumes.
  *
- * The `STRONG_MATCH_TYPES` set above is still used by `locateAndAttachFile`
- * (locate flow), where the user has explicitly targeted a specific
- * backend record and is implicitly confirming "yes, this is that book".
- * For the +-button import path (`importBookWithMatch`), this tighter
- * set is the only safe rule.
+ * Trade-off: legitimate re-saves of the same content (same book, different
+ * bytes) won't auto-attach or locate-verify. Acceptable — duplicate
+ * records on the backend are recoverable; data loss isn't.
  */
 export const AUTO_ATTACH_TYPES: ReadonlySet<MatchType> = new Set<MatchType>([
   'file_hash',
@@ -156,7 +150,12 @@ export async function locateAndAttachFile(input: {
     // file FOR a specific book, two unrelated files happening to share a
     // name must NOT be treated as the same book. Only accept strong
     // identity matches (file_hash, content, dc_identifier/metadata).
-    if (match?.match && STRONG_MATCH_TYPES.has(match.match_type)) {
+    // Only file_hash counts as "yes this is that book". Other match types
+    // (pdf_trailer_id, xmp_original_id, etc.) can collide between distinct
+    // books in batched-generated PDFs (manga series, templated academic
+    // exports) — accepting them here would silently attach the wrong
+    // content under the target's filename. See AUTO_ATTACH_TYPES above.
+    if (match?.match && AUTO_ATTACH_TYPES.has(match.match_type)) {
       matchedBackendId = match.match.id;
       if (matchedBackendId !== target.backendId) {
         matchedOtherTitle = match.match.title;
@@ -179,7 +178,8 @@ export async function locateAndAttachFile(input: {
 
   let record: BookRecord;
   try {
-    record = await importBook(file, userId);
+    const outcome = await importBook(file, userId);
+    record = outcome.record;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return { ok: false, error: `Failed to import book: ${msg}` };

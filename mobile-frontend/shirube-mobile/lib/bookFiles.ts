@@ -4,10 +4,7 @@ import { wipeBookLocalState } from './auth/wipeBookLocalState';
 import { booksDir } from './bookPaths';
 import { sha256Hex } from './fingerprint/hash';
 import { FINGERPRINT_VERSION } from './fingerprint/version';
-import {
-  getStoredFileHash,
-  setStoredFileHash,
-} from './storage/bookFingerprints';
+import { getStoredFileHash, setStoredFileHash } from './sync';
 
 // Path / existence helpers + the destructive `deleteBookFile` /
 // `wipeAllBookFiles` / `listLocalBookFilenames` exports live in
@@ -58,6 +55,11 @@ export type ImportedBook = {
   /** EPUB only: <dc:publisher>. */
   publisher: string | null;
   uri: string;
+  /** True when an on-disk file already existed under this filename AND
+   *  its stored fileHash matched the new file's fileHash — i.e. the user
+   *  re-imported the exact same bytes. UI surfaces this as a "you already
+   *  have this book" hint instead of silently no-op'ing. */
+  wasAlreadyPresentSameBytes: boolean;
 };
 
 /**
@@ -146,9 +148,11 @@ export async function importEpub(opts?: {
   } catch {
     /* hash computation failed — defensive path below skips the check */
   }
+  let wasAlreadyPresentSameBytes = false;
   if (target.exists) {
     const oldFileHash = await getStoredFileHash(filename);
     const sameBytes = Boolean(newFileHash && oldFileHash && oldFileHash === newFileHash);
+    wasAlreadyPresentSameBytes = sameBytes;
     if (!sameBytes) {
       await wipeBookLocalState(filename);
     }
@@ -238,6 +242,7 @@ export async function importEpub(opts?: {
     language: sanitizeMeta(language),
     publisher: sanitizeMeta(publisher),
     uri: target.uri,
+    wasAlreadyPresentSameBytes,
   };
 }
 

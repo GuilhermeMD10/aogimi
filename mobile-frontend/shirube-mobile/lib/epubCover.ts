@@ -209,24 +209,30 @@ async function extractPdfCoverImage(filename: string): Promise<string | null> {
   if (cached) return cached;
   if (!bookFileExists(filename)) return null;
 
-  // Pass a raw filesystem path (no file:// scheme, decoded) to PdfThumbnail.
-  // The Android module branches on scheme: with `file://` it goes through
-  // ContentResolver.openFileDescriptor, which can fail on Android 11+
-  // scoped-storage edge cases even for app-private files. The raw-path
-  // branch uses `File(path)` + ParcelFileDescriptor.open directly and
-  // works uniformly. iOS PDFKit accepts either form, so the raw path
-  // works there too.
-  const pdfPath = uriToFsPath(bookFilePath(filename));
+  // Pass the file:// URI directly — both platforms expect a parseable
+  // URL string, NOT a raw decoded path:
+  //
+  //   • iOS uses `URL(string: filePath)` then `PDFDocument(url:)`. A raw
+  //     path with spaces / CJK / typographic apostrophes (U+2019) is not
+  //     a valid URL string, so `URL(string:)` returns nil and the module
+  //     rejects with "File not found". expo-file-system's `File.uri`
+  //     returns a properly percent-encoded `file://` URI that iOS parses.
+  //   • Android uses `Uri.parse(filePath)` and branches on scheme. For
+  //     `file://` URIs to app-private documents, `openFileDescriptor`
+  //     succeeds — scoped-storage restrictions apply to other apps' files
+  //     and shared storage, not to our own internal documents directory.
+  const pdfUri = bookFilePath(filename);
 
   try {
-    const result = await PdfThumbnail.generate(pdfPath, 0);
+    const result = await PdfThumbnail.generate(pdfUri, 0);
     const tempUri = result?.uri;
     if (!tempUri) throw new Error('PdfThumbnail returned no uri');
     // The lib's returned uri may or may not carry a scheme depending on
     // platform — normalize before handing it to expo-file-system's File.
-    const sourceUri = tempUri.startsWith('file://') || tempUri.startsWith('content://')
-      ? tempUri
-      : `file://${tempUri}`;
+    const sourceUri =
+      tempUri.startsWith('file://') || tempUri.startsWith('content://')
+        ? tempUri
+        : `file://${tempUri}`;
     const source = new File(sourceUri);
     const target = new File(coversDir(), `${safeName(filename)}.jpg`);
     if (target.exists) target.delete();
@@ -241,23 +247,6 @@ async function extractPdfCoverImage(filename: string): Promise<string | null> {
     console.warn('[epubCover] PDF cover generation failed:', filename, err);
     return null;
   }
-}
-
-/**
- * Strip the `file://` scheme + URI-decode a path returned by expo-file-system.
- * Native PDF renderers on both platforms prefer a raw FS path over a URI
- * for app-private file access — avoids ContentResolver/scoped-storage
- * edge cases on Android 11+ and URI-encoding mismatches.
- */
-function uriToFsPath(uri: string): string {
-  let path = uri;
-  if (path.startsWith('file://')) path = path.slice('file://'.length);
-  try {
-    path = decodeURIComponent(path);
-  } catch {
-    /* malformed encoding — fall through with the raw string */
-  }
-  return path;
 }
 
 // ── Hook ────────────────────────────────────────────────────────────────────

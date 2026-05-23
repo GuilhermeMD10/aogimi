@@ -63,6 +63,12 @@ export interface BookRecord {
   language?: string | null;
   /** OPF dc:publisher */
   publisher?: string | null;
+  /** Sync state: 'synced' = backend has this book and we've confirmed
+   *  it; 'pending' = local-only, awaiting a push to the backend (Sync-
+   *  now button or per-tile sync action). Absent on legacy rows is
+   *  treated as 'synced' — they came from imports that successfully
+   *  pushed before this marker existed. See `lib/sync/`. */
+  syncState?: 'synced' | 'pending';
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -126,14 +132,27 @@ function getDb() {
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
+export type ImportBookOutcome = {
+  record: BookRecord;
+  /** True when an IDB record already existed under this filename AND its
+   *  fileHash matched the new file's fileHash — i.e. the user re-imported
+   *  the exact same bytes. UI uses this to surface a "already in your
+   *  library" hint instead of treating it as a fresh import. */
+  wasAlreadyPresentSameBytes: boolean;
+};
+
 /**
  * Import an EPUB file: extracts metadata + identity hashes, stores file + record
  * in IndexedDB. If userId is provided, also registers the book with the backend.
+ *
+ * Returns the new BookRecord plus a `wasAlreadyPresentSameBytes` flag so
+ * callers can show the user a "you already have this" hint instead of
+ * silently no-op'ing on a duplicate pick.
  */
 export async function importBook(
   file: File,
   userId?: number,
-): Promise<BookRecord> {
+): Promise<ImportBookOutcome> {
   const arrayBuffer = await file.arrayBuffer();
   const isPdf = file.name.toLowerCase().endsWith('.pdf');
 
@@ -230,6 +249,11 @@ export async function importBook(
     ? existingRecord.coverColor
     : COVER_PALETTE[existingCount % COVER_PALETTE.length];
 
+  // Initial sync state is 'pending' — the local write is the source
+  // of truth until the backend push below confirms otherwise. If userId
+  // is null (unauthed import, e.g. stamp theme without sign-in), the
+  // book stays pending forever from the local IDB's point of view;
+  // that's fine because the unauthed path doesn't use sync.
   const record: BookRecord = {
     id: file.name,
     title,
@@ -258,6 +282,7 @@ export async function importBook(
     dcIdentifier,
     language,
     publisher,
+    syncState: 'pending',
   };
 
   const tx = db.transaction([META_STORE, FILES_STORE], 'readwrite');
@@ -267,36 +292,45 @@ export async function importBook(
     tx.done,
   ]);
 
-  // Register with backend — the service returns existing record on duplicate
+  // Register with backend — opportunistic push. On success, flip the
+  // IDB row to 'synced'. On failure (offline / 5xx / etc.), leave as
+  // 'pending' — the user can later push via Sync-now or the per-tile
+  // sync badge.
   if (userId != null) {
-    await apiRegisterBook({
-      userId,
-      filename: file.name,
-      title,
-      author,
-      coverColor,
-      fileHash,
-      contentHash,
-      pdfIdOriginal,
-      pdfIdCurrent,
-      pageCount,
-      hasTextLayer,
-      producer,
-      xmpDocumentId,
-      xmpOriginalId,
-      pageHashes,
-      textLength,
-      detectedDoi,
-      detectedIsbn,
-      pagePhashes,
-      fingerprintVersion,
-      dcIdentifier,
-      language,
-      publisher,
-    });
+    try {
+      await apiRegisterBook({
+        userId,
+        filename: file.name,
+        title,
+        author,
+        coverColor,
+        fileHash,
+        contentHash,
+        pdfIdOriginal,
+        pdfIdCurrent,
+        pageCount,
+        hasTextLayer,
+        producer,
+        xmpDocumentId,
+        xmpOriginalId,
+        pageHashes,
+        textLength,
+        detectedDoi,
+        detectedIsbn,
+        pagePhashes,
+        fingerprintVersion,
+        dcIdentifier,
+        language,
+        publisher,
+      });
+      record.syncState = 'synced';
+      await db.put(META_STORE, record);
+    } catch {
+      // Stays pending. Caller's UI can detect via the returned record.
+    }
   }
 
-  return record;
+  return { record, wasAlreadyPresentSameBytes: sameBytes };
 }
 
 /**
