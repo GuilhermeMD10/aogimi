@@ -16,6 +16,9 @@
 @import "../styles/primitives.css";
 @import "../styles/utilities.css";
 
+/* ── Sync-state tokens ─────────────────────────────────────────────────── */
+@import "../styles/sync-tokens.css";
+
 @custom-variant dark (&:is(.dark *));
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -22,6 +22,7 @@ import {
   validateBookFile,
 } from '@/lib/books/locateAndAttachFile';
 import { importBookWithMatch } from '@/lib/books/importBookWithMatch';
+import { reconcileLibrary, syncPending } from '@/lib/library/reconcileLibrary';
 import { getDeviceId } from '@/lib/storage/device';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
@@ -48,6 +49,10 @@ export default function ReaderView() {
   const { pageState, setPageState, books, setBooks, remoteBooks, error, setError } =
     useSyncLibrary(user);
   const [importing, setImporting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  /** Transient success/info banner shown next to / instead of error. Cleared
+   *  by the next user action that interacts with the library. */
+  const [notice, setNotice] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const locateInputRef = useRef<HTMLInputElement>(null);
   const [locatingBookId, setLocatingBookId] = useState<string | null>(null);
@@ -88,6 +93,57 @@ export default function ReaderView() {
     if (getNeedsOnboarding()) setShowOnboarding(true);
   }, []);
 
+  const handleSyncNow = useCallback(async () => {
+    if (syncing) return;
+    setSyncing(true);
+    setError(null);
+    setNotice(null);
+    try {
+      // Pass 1: orphan + stale wipe (pending books are skipped).
+      const reconcileSummary = await reconcileLibrary(user.id);
+      // Pass 2: push every locally-pending book.
+      const pushSummary = await syncPending(user.id, getDeviceId());
+
+      const total =
+        reconcileSummary.staleReplaced.length +
+        reconcileSummary.removed.length +
+        reconcileSummary.syncedUp.length +
+        pushSummary.pushed.length +
+        pushSummary.failed.length;
+      if (total === 0) {
+        setNotice('Library is up to date.');
+      } else {
+        const parts: string[] = [];
+        if (reconcileSummary.removed.length > 0) {
+          parts.push(`${reconcileSummary.removed.length} removed (deleted on another device)`);
+        }
+        if (reconcileSummary.staleReplaced.length > 0) {
+          parts.push(
+            `${reconcileSummary.staleReplaced.length} replaced — re-locate to view the new bytes`,
+          );
+        }
+        if (pushSummary.pushed.length > 0) {
+          parts.push(`${pushSummary.pushed.length} pushed to cloud`);
+        }
+        if (pushSummary.failed.length > 0) {
+          parts.push(`${pushSummary.failed.length} couldn't push — try again`);
+        }
+        if (reconcileSummary.syncedUp.length > 0) {
+          parts.push(`${reconcileSummary.syncedUp.length} backfilled with local fingerprint`);
+        }
+        setNotice(`Synced: ${parts.join(' · ')}.`);
+      }
+      // Clear the active progress override so the next render reads
+      // fresh data on its own (useSyncLibrary owns the merged list).
+      setActiveProgress(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`Sync failed: ${msg}`);
+    } finally {
+      setSyncing(false);
+    }
+  }, [user, syncing, setError]);
+
   const handleImport = useCallback(
     async (file: File) => {
       const validationError = validateBookFile(file);
@@ -98,6 +154,7 @@ export default function ReaderView() {
 
       setImporting(true);
       setError(null);
+      setNotice(null);
       try {
         const result = await importBookWithMatch(file, user.id);
         if (!result.ok) {
@@ -105,6 +162,11 @@ export default function ReaderView() {
           return;
         }
         const { record } = result;
+        if (result.wasAlreadyPresentSameBytes) {
+          setNotice(
+            `Already in your library: "${record.title}" — same bytes were already imported on this device.`,
+          );
+        }
         const newBook: LibraryBook = {
           id: record.id,
           title: record.title,
@@ -425,6 +487,28 @@ export default function ReaderView() {
           {error}
         </div>
       )}
+      {notice && !error && (
+        <div className="mx-auto mt-4 max-w-295 flex items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-[13px] text-emerald-800" style={{ width: 'calc(100% - 80px)' }}>
+          <span>{notice}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            className="rounded px-2 py-0.5 text-[12px] text-emerald-800 hover:bg-emerald-100"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      <div className="mx-auto mt-3 max-w-295 flex justify-end" style={{ width: 'calc(100% - 80px)' }}>
+        <button
+          type="button"
+          onClick={handleSyncNow}
+          disabled={syncing}
+          className="rounded-md border border-lgc-border bg-lgc-bg-elev px-3 py-1 text-[12px] text-lgc-fg hover:bg-lgc-bg-hover disabled:opacity-55"
+        >
+          {syncing ? 'Syncing…' : 'Sync now'}
+        </button>
+      </div>
 
       {pageState === 'loading' ? (
         <div className="flex h-full items-center justify-center text-sm text-lgc-fg-muted">

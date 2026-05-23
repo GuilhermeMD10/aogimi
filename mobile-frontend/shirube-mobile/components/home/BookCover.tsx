@@ -51,6 +51,18 @@ export function BookCover({
           source={{ uri: coverUri }}
           style={StyleSheet.absoluteFill}
           resizeMode="contain"
+          onError={(e) => {
+            // Surface "extraction returned a URI but RN Image couldn't
+            // load it" separately from "extraction returned null". With
+            // the `[epubCover]` warn in extractPdfCoverImage already in
+            // place, these two logs together pinpoint exactly which
+            // half of the cover pipeline is failing for a given file.
+            console.warn(
+              '[BookCover] Image failed to load',
+              coverUri,
+              e.nativeEvent,
+            );
+          }}
         />
       ) : (
         <Text

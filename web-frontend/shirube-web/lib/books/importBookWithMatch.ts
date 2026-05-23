@@ -11,7 +11,15 @@ import { getDeviceId } from '@/lib/storage/device';
 import { AUTO_ATTACH_TYPES } from './locateAndAttachFile';
 
 export type ImportResult =
-  | { ok: true; record: BookRecord; attachedToExisting: boolean }
+  | {
+      ok: true;
+      record: BookRecord;
+      attachedToExisting: boolean;
+      /** True when the picked file was already in the user's local library
+       *  with byte-identical content. UI surfaces this as a "you already
+       *  have this book" notice instead of treating it as a fresh import. */
+      wasAlreadyPresentSameBytes: boolean;
+    }
   | { ok: false; error: string };
 
 /**
@@ -138,7 +146,7 @@ export async function importBookWithMatch(
         ? new File([arrayBuffer], strongMatchFilename, { type: file.type })
         : file;
 
-    const record = await importBook(fileForImport, userId);
+    const { record, wasAlreadyPresentSameBytes } = await importBook(fileForImport, userId);
 
     const deviceId = getDeviceId();
     try {
@@ -155,6 +163,7 @@ export async function importBookWithMatch(
       ok: true,
       record,
       attachedToExisting: Boolean(strongMatchFilename),
+      wasAlreadyPresentSameBytes,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

@@ -10,6 +10,7 @@ import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import type { BookRecord, WordDetails } from '@/lib/types';
 import { bookFilePath, deleteBookFile } from '@/lib/bookPaths';
 import { ExtensionMismatchError, importEpub } from '@/lib/bookFiles';
+import { removeEntry, setStoredFileHash } from '@/lib/sync';
 import { useBookFile } from '@/lib/useBookFile';
 import {
   createBookmark as apiCreateBookmark,
@@ -538,7 +539,12 @@ export function ReaderScreen({ bookId }: Props) {
           },
         },
       ]);
-      if (result?.match && result.match_type !== 'none') {
+      // Only file_hash certifies "this is exactly that book". Other match
+      // types (pdf_trailer_id, xmp_original_id, doi, isbn, content,
+      // metadata, filename) can collide between distinct books — accepting
+      // them here would silently attach the wrong content under the
+      // target's filename slot. Same rule the +-button import flow uses.
+      if (result?.match && result.match_type === 'file_hash') {
         matchedId = result.match.id;
         if (matchedId !== book.id) {
           matchedOther = { id: result.match.id, title: result.match.title };
@@ -566,6 +572,13 @@ export function ReaderScreen({ bookId }: Props) {
         const local = new File(bookFilePath(imported.filename));
         local.copy(new File(bookFilePath(book.filename)));
         local.delete();
+        // Clean up the sync entry for the picked filename — file moved.
+        await removeEntry(imported.filename);
+      }
+      // Locate flow: backend already had this record, so destination
+      // is `synced` directly.
+      if (imported.fileHash) {
+        await setStoredFileHash(book.filename, imported.fileHash);
       }
       setHasFile(true);
       try {

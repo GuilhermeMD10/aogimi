@@ -29,6 +29,12 @@ import { useBooks } from './useBooks';
 import { ContinueReadingCard } from './ContinueReadingCard';
 import { BookGridItem } from './BookGridItem';
 import { BookActionsSheet } from './BookActionsSheet';
+import { reconcileLibrary, syncPending } from '@/lib/library/reconcileLibrary';
+import {
+  isPendingBookId,
+  markPendingAndAttemptPush,
+  type PendingPayload,
+} from '@/lib/sync';
 
 export function HomeScreen() {
   const c = useColors();
@@ -53,6 +59,62 @@ export function HomeScreen() {
     }, [user?.id, silentRefresh]),
   );
   const [importing, setImporting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncNow = useCallback(async () => {
+    if (!user || syncing) return;
+    setSyncing(true);
+    try {
+      // Pass 1: orphan + stale wipe (skips pending books by design).
+      const reconcileSummary = await reconcileLibrary(user.id);
+
+      // Pass 2: push every locally-pending book to the backend. The
+      // deviceId is required for markBookAvailable to flag this device
+      // as the local source — skip the push pass if we can't get one.
+      let pushed: string[] = [];
+      let failed: string[] = [];
+      const deviceId = await getDeviceId().catch(() => null);
+      if (deviceId) {
+        const pushSummary = await syncPending(user.id, deviceId);
+        pushed = pushSummary.pushed;
+        failed = pushSummary.failed;
+      }
+
+      await refresh();
+
+      const total =
+        reconcileSummary.staleReplaced.length +
+        reconcileSummary.removed.length +
+        reconcileSummary.syncedUp.length +
+        pushed.length +
+        failed.length;
+      if (total === 0) {
+        Alert.alert('Library in sync', 'Nothing to update.');
+      } else {
+        const parts: string[] = [];
+        if (reconcileSummary.removed.length > 0) {
+          parts.push(`${reconcileSummary.removed.length} removed (deleted on another device)`);
+        }
+        if (reconcileSummary.staleReplaced.length > 0) {
+          parts.push(`${reconcileSummary.staleReplaced.length} replaced (different bytes on backend — re-locate to view)`);
+        }
+        if (pushed.length > 0) {
+          parts.push(`${pushed.length} pushed to cloud`);
+        }
+        if (failed.length > 0) {
+          parts.push(`${failed.length} couldn't push — try again`);
+        }
+        if (reconcileSummary.syncedUp.length > 0) {
+          parts.push(`${reconcileSummary.syncedUp.length} backfilled with local fingerprint`);
+        }
+        Alert.alert('Synced', parts.join('\n'));
+      }
+    } catch (err) {
+      Alert.alert('Sync failed', err instanceof Error ? err.message : t('common.error'));
+    } finally {
+      setSyncing(false);
+    }
+  }, [user, syncing, refresh, t]);
   // Per-tile actions: the … button on a BookGridItem opens BookActionsSheet
   // bound to whichever book is selected. Null means the sheet is closed.
   const [actionBook, setActionBook] = useState<BookRecord | null>(null);
@@ -70,7 +132,18 @@ export function HomeScreen() {
     )[0]!;
   }, [books]);
 
-  const openBook = (id: string) => router.push(`/reader/${id}`);
+  const openBook = (id: string) => {
+    if (isPendingBookId(id)) {
+      // The reader fetches by backend id, which a pending book doesn't
+      // have yet. Steer the user to sync first.
+      Alert.alert(
+        'Saved offline',
+        'This book is on your device but not on your account yet. Tap "Sync now" to push it, then open it from the library.',
+      );
+      return;
+    }
+    router.push(`/reader/${id}`);
+  };
 
   async function handleImport() {
     if (!user || importing) return;
@@ -78,129 +151,69 @@ export function HomeScreen() {
     try {
       const imported = await importEpub();
       if (!imported) return;
+
+      // Already-present notice: same bytes already on disk under this
+      // filename. Surface it; the push attempt below is still useful
+      // in case the backend's identity fields need backfilling.
+      if (imported.wasAlreadyPresentSameBytes) {
+        Alert.alert(
+          'Already in your library',
+          `"${imported.title || imported.filename}" is already imported on this device with the same bytes.`,
+        );
+      }
+
       const deviceId = await getDeviceId().catch(() => null);
 
-      // Cross-device reconcile: ask the backend whether this exact content
-      // already exists on the account before creating a new row. Priority
-      // inside the matcher: file_hash → content_hash → dc_identifier →
-      // title+author → filename. Skipping this step is what made the same
-      // book imported on two devices show as two records.
-      let bookId: string | null = null;
-      const candidate = {
-        file_hash: imported.fileHash,
-        content_hash: imported.contentHash,
-        pdf_id_original: imported.pdfIdOriginal,
-        xmp_original_id: imported.xmpOriginalId,
-        detected_doi: imported.detectedDoi,
-        detected_isbn: imported.detectedIsbn,
-        page_count: imported.pageCount,
-        page_phashes: imported.pagePhashes,
-        metadata: {
-          title: imported.title || imported.filename,
-          author: imported.author,
-          dc_identifier: imported.dcIdentifier,
-          filename: imported.filename,
-        },
+      // Build the snapshot the sync module needs to retry the push
+      // later if it fails now (offline) or any time after via Sync-now.
+      const payload: PendingPayload = {
+        title: imported.title || imported.filename,
+        author: imported.author,
+        fileHash: imported.fileHash,
+        contentHash: imported.contentHash,
+        pdfIdOriginal: imported.pdfIdOriginal,
+        pdfIdCurrent: imported.pdfIdCurrent,
+        pageCount: imported.pageCount,
+        hasTextLayer: imported.hasTextLayer,
+        producer: imported.producer,
+        xmpDocumentId: imported.xmpDocumentId,
+        xmpOriginalId: imported.xmpOriginalId,
+        pageHashes: imported.pageHashes,
+        textLength: imported.textLength,
+        detectedDoi: imported.detectedDoi,
+        detectedIsbn: imported.detectedIsbn,
+        pagePhashes: imported.pagePhashes,
+        fingerprintVersion: imported.fingerprintVersion,
+        dcIdentifier: imported.dcIdentifier,
+        language: imported.language,
+        publisher: imported.publisher,
       };
-      try {
-        const [result] = await matchBooks(user.id, [candidate]);
-        // Only treat `file_hash` as strong enough to silently attach a
-        // new import to an existing backend record. Every other match
-        // type (pdf_trailer_id / xmp_original_id / doi / isbn /
-        // content / metadata / filename) can collide between distinct
-        // books — batch-generated PDFs in a series share /ID, manga
-        // volumes share ISBN+page_count, etc. Auto-attaching on those
-        // silently destroys the user's progress on the original book
-        // and ends up with the wrong content under a known title slot.
-        // Web's `importBookWithMatch.AUTO_ATTACH_TYPES` enforces the
-        // same rule.
-        if (result?.match && result.match_type === 'file_hash') {
-          bookId = result.match.id;
-          // Backfill any identity fields the existing row was missing so the
-          // next match attempt on either device hits a higher-priority key.
-          // updateBookIdentity uses COALESCE on the backend so we won't
-          // clobber non-null values.
-          if (
-            imported.fileHash ||
-            imported.contentHash ||
-            imported.pdfIdOriginal ||
-            imported.pdfIdCurrent ||
-            imported.pageCount != null ||
-            imported.hasTextLayer != null ||
-            imported.producer ||
-            imported.xmpDocumentId ||
-            imported.xmpOriginalId ||
-            imported.pageHashes ||
-            imported.textLength != null ||
-            imported.detectedDoi ||
-            imported.detectedIsbn ||
-            imported.pagePhashes ||
-            imported.dcIdentifier ||
-            imported.language ||
-            imported.publisher
-          ) {
-            void updateBookIdentity(bookId, {
-              fileHash: imported.fileHash ?? undefined,
-              contentHash: imported.contentHash ?? undefined,
-              pdfIdOriginal: imported.pdfIdOriginal ?? undefined,
-              pdfIdCurrent: imported.pdfIdCurrent ?? undefined,
-              pageCount: imported.pageCount ?? undefined,
-              hasTextLayer: imported.hasTextLayer ?? undefined,
-              producer: imported.producer ?? undefined,
-              xmpDocumentId: imported.xmpDocumentId ?? undefined,
-              xmpOriginalId: imported.xmpOriginalId ?? undefined,
-              pageHashes: imported.pageHashes ?? undefined,
-              textLength: imported.textLength ?? undefined,
-              detectedDoi: imported.detectedDoi ?? undefined,
-              detectedIsbn: imported.detectedIsbn ?? undefined,
-              pagePhashes: imported.pagePhashes ?? undefined,
-              fingerprintVersion: imported.fingerprintVersion,
-              dcIdentifier: imported.dcIdentifier ?? undefined,
-              language: imported.language ?? undefined,
-              publisher: imported.publisher ?? undefined,
-            }).catch(() => undefined);
-          }
-        }
-      } catch {
-        /* matcher unreachable — fall through to create */
-      }
 
-      if (!bookId) {
-        const created = await createBook(user.id, {
-          filename: imported.filename,
-          title: imported.title || imported.filename,
-          author: imported.author,
-          fileHash: imported.fileHash,
-          contentHash: imported.contentHash,
-          pdfIdOriginal: imported.pdfIdOriginal,
-          pdfIdCurrent: imported.pdfIdCurrent,
-          pageCount: imported.pageCount,
-          hasTextLayer: imported.hasTextLayer,
-          producer: imported.producer,
-          xmpDocumentId: imported.xmpDocumentId,
-          xmpOriginalId: imported.xmpOriginalId,
-          pageHashes: imported.pageHashes,
-          textLength: imported.textLength,
-          detectedDoi: imported.detectedDoi,
-          detectedIsbn: imported.detectedIsbn,
-          pagePhashes: imported.pagePhashes,
-          fingerprintVersion: imported.fingerprintVersion,
-          dcIdentifier: imported.dcIdentifier,
-          language: imported.language,
-          publisher: imported.publisher,
-        });
-        bookId = created.id;
-      }
-
-      // Mark this device as a place where the book's file lives, so
-      // cross-device library listings know we have it locally.
-      if (deviceId) {
-        try {
-          await markBookAvailable(deviceId, bookId, user.id);
-        } catch {
-          /* non-fatal: re-syncs on next library refresh */
+      if (!deviceId) {
+        // No device id means we can't even register this device — keep
+        // the book pending locally; user can sync after device registers.
+        // (markPendingAndAttemptPush still writes the marker but won't
+        // push without a deviceId — see push.ts.)
+        Alert.alert(
+          'Saved offline',
+          `"${imported.title || imported.filename}" is on this device but couldn't reach the cloud. Tap Sync now when you're back online.`,
+        );
+      } else {
+        const result = await markPendingAndAttemptPush(
+          user.id,
+          deviceId,
+          imported.filename,
+          imported.fileHash ?? '',
+          payload,
+        );
+        if (!result.ok) {
+          Alert.alert(
+            'Saved offline',
+            `"${imported.title || imported.filename}" is on this device but the cloud push didn't go through. Tap Sync now when you're online to push it.`,
+          );
         }
       }
+
       await refresh();
     } catch (err) {
       Alert.alert('Import failed', err instanceof Error ? err.message : t('common.error'));
@@ -213,22 +226,40 @@ export function HomeScreen() {
     <Screen padded>
       <View style={styles.header}>
         <Text style={[styles.title, { color: c.fg }]}>{t('home.title')}</Text>
-        <Pressable
-          onPress={handleImport}
-          disabled={importing}
-          style={[
-            styles.importBtn,
-            { backgroundColor: c.bgElev, borderColor: c.border, opacity: importing ? 0.55 : 1 },
-          ]}
-          hitSlop={6}
-          accessibilityLabel={t('home.importEpub')}
-        >
-          {importing ? (
-            <ActivityIndicator size="small" color={c.fg} />
-          ) : (
-            <Text style={[styles.plus, { color: c.fg }]}>+</Text>
-          )}
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={handleSyncNow}
+            disabled={syncing || importing}
+            style={[
+              styles.importBtn,
+              { backgroundColor: c.bgElev, borderColor: c.border, opacity: syncing || importing ? 0.55 : 1 },
+            ]}
+            hitSlop={6}
+            accessibilityLabel="Sync library"
+          >
+            {syncing ? (
+              <ActivityIndicator size="small" color={c.fg} />
+            ) : (
+              <Text style={[styles.plus, { color: c.fg, fontSize: 16 }]}>↻</Text>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={handleImport}
+            disabled={importing || syncing}
+            style={[
+              styles.importBtn,
+              { backgroundColor: c.bgElev, borderColor: c.border, opacity: importing || syncing ? 0.55 : 1 },
+            ]}
+            hitSlop={6}
+            accessibilityLabel={t('home.importEpub')}
+          >
+            {importing ? (
+              <ActivityIndicator size="small" color={c.fg} />
+            ) : (
+              <Text style={[styles.plus, { color: c.fg }]}>+</Text>
+            )}
+          </Pressable>
+        </View>
       </View>
 
       {loading ? (
@@ -339,6 +370,11 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.displayBold,
     fontSize: 34,
     letterSpacing: -0.5,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   importBtn: {
     width: 36,

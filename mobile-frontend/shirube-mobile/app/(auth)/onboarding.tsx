@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { fetchUserBooks, fetchUserDecks, matchBooks } from '@/lib/api';
 import { bookFileExists, bookFilePath, deleteBookFile } from '@/lib/bookPaths';
 import { ExtensionMismatchError, importEpub } from '@/lib/bookFiles';
+import { removeEntry, setStoredFileHash } from '@/lib/sync';
 import type { BookRecord } from '@/lib/types';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 
@@ -97,7 +98,12 @@ export default function OnboardingScreen() {
           },
         },
       ]);
-      if (result?.match && result.match_type !== 'none') {
+      // Only file_hash certifies "this is exactly that book". Other match
+      // types (pdf_trailer_id, xmp_original_id, doi, isbn, content,
+      // metadata, filename) can collide between distinct books — accepting
+      // them here would silently attach the wrong content under the
+      // target's filename slot. Same rule the +-button import flow uses.
+      if (result?.match && result.match_type === 'file_hash') {
         matchedId = result.match.id;
         if (matchedId !== book.id) matchedOther = { title: result.match.title };
       }
@@ -121,6 +127,15 @@ export default function OnboardingScreen() {
         const local = new File(bookFilePath(imported.filename));
         local.copy(new File(bookFilePath(book.filename)));
         local.delete();
+        // Clean up the sync entry for the picked filename — file moved.
+        await removeEntry(imported.filename);
+      }
+      // Locate flow: backend already had this record, so the destination
+      // filename is `synced` directly. `setStoredFileHash` writes the
+      // fileHash with no explicit syncState — treated as `synced` by
+      // `effectiveSyncState`, which is what we want here.
+      if (imported.fileHash) {
+        await setStoredFileHash(book.filename, imported.fileHash);
       }
       setResolved((prev) => new Set(prev).add(book.id));
     } catch {

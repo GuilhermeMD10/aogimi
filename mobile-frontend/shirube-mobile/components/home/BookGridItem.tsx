@@ -2,7 +2,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius } from '@/theme/tokens';
 import type { BookRecord } from '@/lib/types';
+import { isPendingBookId } from '@/lib/sync';
+import { SyncPill, type SyncPillState } from '@/components/sync/SyncPill';
 import { BookCover } from './BookCover';
+
+function deriveSyncState(book: BookRecord, hasFile: boolean): SyncPillState {
+  if (!hasFile) return 'toImport';
+  if (isPendingBookId(book.id)) return 'unsynced';
+  return 'synced';
+}
 
 export function BookGridItem({
   book,
@@ -17,6 +25,7 @@ export function BookGridItem({
 }) {
   const c = useColors();
   const isPdf = book.filename.toLowerCase().endsWith('.pdf');
+  const syncState = deriveSyncState(book, hasFile);
   return (
     <Pressable
       onPress={onPress}
@@ -31,16 +40,9 @@ export function BookGridItem({
           cornerRadius={radius.md}
           style={{ ...styles.cover, opacity: hasFile ? 1 : 0.45 }}
         />
-        {!hasFile && (
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: c.bgElev, borderColor: c.borderStrong },
-            ]}
-          >
-            <Text style={[styles.badgeText, { color: c.fgMuted }]}>⬇</Text>
-          </View>
-        )}
+        <View style={styles.syncPillSlot}>
+          <SyncPill state={syncState} onCover />
+        </View>
         {/* Small format chip in the bottom-left corner of the cover so
             users can tell PDF from EPUB at a glance, especially for
             cross-device records that show the swatch placeholder. */}
@@ -97,18 +99,11 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 4,
   },
-  badge: {
+  syncPillSlot: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: 6,
+    right: 6,
   },
-  badgeText: { fontSize: 12, lineHeight: 14 },
   formatChip: {
     position: 'absolute',
     bottom: 6,

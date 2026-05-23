@@ -14,7 +14,6 @@ DROP TABLE IF EXISTS cards           CASCADE;
 DROP TABLE IF EXISTS bookmarks       CASCADE;
 DROP TABLE IF EXISTS decks           CASCADE;
 DROP TABLE IF EXISTS book_progress   CASCADE;
-DROP TABLE IF EXISTS user_books      CASCADE;   -- legacy, if still lingering
 DROP TABLE IF EXISTS users           CASCADE;
 
 -- ── users ───────────────────────────────────────────────────────────────────
