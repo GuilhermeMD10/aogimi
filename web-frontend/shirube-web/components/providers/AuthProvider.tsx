@@ -14,7 +14,7 @@ import { setNeedsOnboarding } from '@/lib/storage/onboarding';
 import { loginUser, signupUser } from '@/lib/userApi';
 import { wipeUserData } from '@/lib/auth/wipeUserData';
 import { setSessionInvalidatedHandler } from '@/lib/api';
-import { reconcileLibrary } from '@/lib/library/reconcileLibrary';
+import { reconcileBooks } from '@/components/books/utils/reconcileBooks';
 
 type AuthContextValue = {
   user: User | null;
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     if (reconciledForUserId.current === user.id) return;
     reconciledForUserId.current = user.id;
-    void reconcileLibrary(user.id).catch(() => {
+    void reconcileBooks(user.id).catch(() => {
       // Reset so a subsequent retry (e.g. via the Sync-now button) can
       // re-fire if the user keeps the session open.
       reconciledForUserId.current = null;

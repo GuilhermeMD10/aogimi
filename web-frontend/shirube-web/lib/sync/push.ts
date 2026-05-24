@@ -10,9 +10,9 @@ import {
   matchBooks,
   registerBook as apiRegisterBook,
   updateBookIdentity as apiUpdateBookIdentity,
-} from '@/lib/booksApi';
+} from '@/components/books/utils/booksApi';
 import { markBookAvailable } from '@/lib/devicesApi';
-import type { BookRecord } from '@/lib/bookStore';
+import type { BookRecord } from '@/components/books/utils/bookStore';
 import { listPending, markSynced } from './localState';
 
 export type PushResult =

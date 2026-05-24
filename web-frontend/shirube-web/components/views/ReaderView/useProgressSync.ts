@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
-import { updateBookProgress, sendProgressBeacon } from '@/lib/booksApi';
+import { updateBookProgress, sendProgressBeacon } from '@/components/books/utils/booksApi';
 import { setReaderProgress } from '@/lib/storage/readerSession';
 import type { ReaderSession } from '@/components/providers/ReaderStateProvider';
 

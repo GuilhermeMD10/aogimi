@@ -13,16 +13,16 @@
 import type { ComponentType, ComponentProps } from 'react';
 import type { ThemeName } from '@/theme/tokens';
 
-import type { HomeScreen as DefaultHomeScreen } from '@/components/home/HomeScreen';
-import type { DictionaryScreen as DefaultDictionaryScreen } from '@/components/dictionary/DictionaryScreen';
-import type { DictEntry as DefaultDictEntry } from '@/components/dictionary/DictEntry';
+import type { BooksScreen as DefaultBooksScreen } from '@/components/books/ui/BooksScreen';
+import type { DictionaryScreen as DefaultDictionaryScreen } from '@/components/dictionary/ui/DictionaryScreen';
+import type { DictEntry as DefaultDictEntry } from '@/components/dictionary/ui/DictEntry';
 
-import { HomeScreen as StampHomeScreen } from './stamp/home/HomeScreen';
+import { BooksScreen as StampBooksScreen } from './stamp/books/BooksScreen';
 import { DictionaryScreen as StampDictionaryScreen } from './stamp/dictionary/DictionaryScreen';
 import { DictEntry as StampDictEntry } from './stamp/dictionary/DictEntry';
 
 export type ThemeComponentMap = Partial<{
-  HomeScreen: ComponentType<ComponentProps<typeof DefaultHomeScreen>>;
+  BooksScreen: ComponentType<ComponentProps<typeof DefaultBooksScreen>>;
   DictionaryScreen: ComponentType<ComponentProps<typeof DefaultDictionaryScreen>>;
   DictEntry: ComponentType<ComponentProps<typeof DefaultDictEntry>>;
 }>;
@@ -33,7 +33,7 @@ export const themeComponentRegistry: Record<ThemeName, ThemeComponentMap> = {
   sakura: {},
   hanami: {},
   stamp: {
-    HomeScreen: StampHomeScreen,
+    BooksScreen: StampBooksScreen,
     DictionaryScreen: StampDictionaryScreen,
     DictEntry: StampDictEntry,
   },

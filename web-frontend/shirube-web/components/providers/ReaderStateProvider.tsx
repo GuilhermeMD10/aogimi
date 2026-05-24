@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useState } from 'react';
-import type { BookRecord } from '@/lib/bookStore';
+import type { BookRecord } from '@/components/books/utils/bookStore';
 
 // What's left in this provider is genuinely cross-cutting:
 //   - the active reader session + bubble overlay
@@ -30,7 +30,7 @@ export type ReaderBubbleState =
   | { mode: 'addCard'; word: string; back: string; contextSentence?: string };
 
 type ReaderContextValue = {
-  // Pending flashcard hand-off for `CardDeckView` — set by `requestAddCard`,
+  // Pending flashcard hand-off for `DecksView` — set by `requestAddCard`,
   // read-and-cleared by the decks page on mount.
   pendingCard: { word: string; back?: string; contextSentence?: string } | null;
   setPendingCard: React.Dispatch<React.SetStateAction<{ word: string; back?: string; contextSentence?: string } | null>>;

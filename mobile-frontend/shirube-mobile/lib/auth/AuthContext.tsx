@@ -9,10 +9,10 @@ import {
   type ReactNode,
 } from 'react';
 import { loadJSON, saveJSON } from '@/lib/storage';
-import { createUser, fetchUserInfo } from '@/lib/api';
-import type { UserProfile } from '@/lib/types';
+import { createUser, fetchUserInfo } from '@/components/profile/utils/profileApi';
+import type { UserProfile } from '@/components/profile/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { reconcileLibrary } from '@/lib/library/reconcileLibrary';
+import { reconcileBooks } from '@/components/books/utils/reconcileBooks';
 import { wipeUserData } from './wipeUserData';
 
 type Credentials = { username: string; password: string };
@@ -42,6 +42,21 @@ const CREDS_KEY = 'shirube_credentials';
 // (sign-out → sign-in to a different account) would skip the wipe because
 // sign-out clears the creds before the next sign-in runs.
 const LAST_USER_ID_KEY = 'shirube_last_user_id';
+// Cached UserProfile from the most recent successful `fetchUserInfo`.
+// Used as the offline-startup fallback so a launch without network
+// keeps the user signed in instead of bouncing to the login screen.
+const USER_CACHE_KEY = 'shirube_user_cache';
+
+/**
+ * Treat any `TypeError` from a fetch chain as "network unreachable" —
+ * RN throws `TypeError: Network request failed` when the request never
+ * reaches the server. HTTP errors (4xx/5xx) are surfaced by the
+ * `request` helper as plain `Error`, so this discriminates server-
+ * rejected from server-unreachable without parsing message strings.
+ */
+function isNetworkError(err: unknown): boolean {
+  return err instanceof TypeError;
+}
 
 /**
  * If the incoming user differs from whoever last owned local data on this
@@ -64,7 +79,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<AuthContextValue['status']>('loading');
 
-  // Auto-sign-in on launch
+  // Auto-sign-in on launch.
+  //
+  // Three outcomes:
+  //   1. No stored credentials → 'signed-out'. First launch, or post-
+  //      explicit-signOut.
+  //   2. Credentials present + `fetchUserInfo` succeeds → 'signed-in'
+  //      with fresh user, cache updated.
+  //   3. Credentials present + `fetchUserInfo` fails:
+  //       a. Network unreachable (TypeError) → fall back to the cached
+  //          UserProfile from last successful session. Stay signed-in
+  //          so the user can use the app offline. A background retry
+  //          fires (see below) and updates / signs out depending on
+  //          what the server eventually says.
+  //       b. Server rejected the credentials (any non-TypeError) →
+  //          drop them and sign out cleanly. The cached UserProfile
+  //          is wiped too — those credentials no longer earn access.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -76,11 +106,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const user = await fetchUserInfo(stored.username, stored.password);
         if (cancelled) return;
+        await saveJSON(USER_CACHE_KEY, user);
         setSession({ user, credentials: stored });
         setStatus('signed-in');
-      } catch {
+      } catch (err) {
         if (cancelled) return;
-        await AsyncStorage.removeItem(CREDS_KEY);
+        if (isNetworkError(err)) {
+          const cachedUser = await loadJSON<UserProfile | null>(USER_CACHE_KEY, null);
+          if (cachedUser) {
+            // Offline launch — stay signed-in with cached identity.
+            // Re-validation happens in the background effect below.
+            setSession({ user: cachedUser, credentials: stored });
+            setStatus('signed-in');
+            return;
+          }
+          // No cache and no network — nothing to fall back to.
+          setStatus('signed-out');
+          return;
+        }
+        // Real HTTP rejection (401, 403, etc.). Clear everything.
+        await AsyncStorage.multiRemove([CREDS_KEY, USER_CACHE_KEY]);
         setStatus('signed-out');
       }
     })();
@@ -88,6 +133,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  // Background re-validation when a session was restored from cache
+  // (i.e. startup couldn't reach the backend). Retries every 30 s while
+  // the user is signed-in; on success refreshes the cache, on a true
+  // 401-class rejection signs out.
+  useEffect(() => {
+    if (status !== 'signed-in' || !session) return;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const user = await fetchUserInfo(
+          session.credentials.username,
+          session.credentials.password,
+        );
+        if (cancelled) return;
+        await saveJSON(USER_CACHE_KEY, user);
+        setSession((prev) => (prev ? { ...prev, user } : prev));
+      } catch (err) {
+        if (cancelled) return;
+        if (isNetworkError(err)) return; // still offline, keep trying
+        // Server actively rejected — credentials no longer valid.
+        await AsyncStorage.multiRemove([CREDS_KEY, USER_CACHE_KEY]);
+        setSession(null);
+        setStatus('signed-out');
+      }
+    }, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [status, session]);
 
   const signIn = useCallback(async (username: string, password: string) => {
     const user = await fetchUserInfo(username, password);
@@ -97,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await maybeWipeOnAccountSwitch(user);
     const credentials = { username, password };
     await saveJSON(CREDS_KEY, credentials);
+    await saveJSON(USER_CACHE_KEY, user);
     setSession({ user, credentials });
     setStatus('signed-in');
   }, []);
@@ -109,12 +186,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await maybeWipeOnAccountSwitch(user);
     const credentials = { username, password };
     await saveJSON(CREDS_KEY, credentials);
+    await saveJSON(USER_CACHE_KEY, user);
     setSession({ user, credentials });
     setStatus('signed-in');
   }, []);
 
   const signOut = useCallback(async () => {
-    await AsyncStorage.removeItem(CREDS_KEY);
+    await AsyncStorage.multiRemove([CREDS_KEY, USER_CACHE_KEY]);
     setSession(null);
     setStatus('signed-out');
   }, []);
@@ -122,6 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     if (!session) return;
     const user = await fetchUserInfo(session.credentials.username, session.credentials.password);
+    await saveJSON(USER_CACHE_KEY, user);
     setSession({ ...session, user });
   }, [session]);
 
@@ -143,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     if (reconciledForUserId.current === userId) return;
     reconciledForUserId.current = userId;
-    reconcileLibrary(userId).catch(() => {
+    reconcileBooks(userId).catch(() => {
       // Reset so a Sync-now retry can re-fire if the user keeps the
       // app open after a transient failure.
       reconciledForUserId.current = null;

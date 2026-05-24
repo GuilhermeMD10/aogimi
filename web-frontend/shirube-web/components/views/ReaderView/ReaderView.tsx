@@ -5,49 +5,40 @@ import { Trash2 } from 'lucide-react';
 import { EpubReader } from '@/components/reader/EpubReader';
 import { PdfReader } from '@/components/reader/PdfReader';
 import { DictionarySidekick } from '@/components/views/DictionaryView/DictionarySidekick';
-import {
-  getAllBooks,
-  getBookFile,
-  ensureBackendBook,
-  renameBook as renameLocalBook,
-} from '@/lib/bookStore';
-import {
-  getUserBooks,
-  updateBookTitle as apiUpdateBookTitle,
-  updateBookProgress,
-} from '@/lib/booksApi';
-import { deleteBookEverywhere } from '@/lib/books/deleteBook';
-import {
-  locateAndAttachFile,
-  validateBookFile,
-} from '@/lib/books/locateAndAttachFile';
-import { importBookWithMatch } from '@/lib/books/importBookWithMatch';
-import { reconcileLibrary, syncPending } from '@/lib/library/reconcileLibrary';
+import { getAllBooks, getBookFile, ensureBackendBook, renameBook as renameLocalBook } from '@/components/books/utils/bookStore';
+import { getUserBooks, updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/components/books/utils/booksApi';
+import { deleteBookEverywhere } from '@/components/books/utils/deleteBook';
+import { locateAndAttachFile, validateBookFile } from '@/components/books/utils/locateAndAttachFile';
+import { importBookWithMatch } from '@/components/books/utils/importBookWithMatch';
+import { reconcileBooks, syncPending } from '@/components/books/utils/reconcileBooks';
 import { getDeviceId } from '@/lib/storage/device';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
 import { useReaderActions } from '@/components/providers/useReaderActions';
 import { useProgressSync } from './useProgressSync';
-import type { LibraryBook } from '@/components/library/BookList';
-import { LibraryDesk } from '@/components/library/LibraryDesk';
-import RestoreLibrary from '@/components/library/RestoreLibrary';
-import FsAccessBanner from '@/components/library/FsAccessBanner';
+import type { Book } from '@/components/books/types';
+import { BooksDesk } from '@/components/books/ui/BooksDesk';
+import RestoreBooks from '@/components/books/ui/RestoreBooks';
+import FsAccessBanner from '@/components/books/ui/FsAccessBanner';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
 import { getNeedsOnboarding } from '@/lib/storage/onboarding';
-import { useSyncLibrary } from './useSyncLibrary';
+import { useSyncBooks } from '@/components/books/hooks/useSyncBooks';
 
 export default function ReaderView() {
   const user = useAuthedUser();
   const {
-    readerSession, setReaderSession,
-    pendingBookOpen, setPendingBookOpen,
-    sidekickOpen, toggleSidekick, setSidekickOpen,
+    readerSession,
+    setReaderSession,
+    pendingBookOpen,
+    setPendingBookOpen,
+    sidekickOpen,
+    toggleSidekick,
+    setSidekickOpen,
   } = useReaderState();
   const { requestDictLookup, requestAddCard } = useReaderActions();
   const { recordProgress, flushProgress } = useProgressSync(readerSession);
 
-  const { pageState, setPageState, books, setBooks, remoteBooks, error, setError } =
-    useSyncLibrary(user);
+  const { pageState, setPageState, books, setBooks, remoteBooks, error, setError } = useSyncBooks(user);
   const [importing, setImporting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   /** Transient success/info banner shown next to / instead of error. Cleared
@@ -57,7 +48,7 @@ export default function ReaderView() {
   const locateInputRef = useRef<HTMLInputElement>(null);
   const [locatingBookId, setLocatingBookId] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [deletingBook, setDeletingBook] = useState<LibraryBook | null>(null);
+  const [deletingBook, setDeletingBook] = useState<Book | null>(null);
 
   const [loading, setLoading] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
@@ -65,22 +56,17 @@ export default function ReaderView() {
   // in the reader. The reader updates this on every page turn; the library
   // tile merges it over the server-returned progress so the % is correct
   // the moment we render the library view. Sticky for the session — next
-  // mount of the page (or login change) clears it via useSyncLibrary
+  // mount of the page (or login change) clears it via useSyncBooks
   // re-running, which is good enough; same trade-off mobile picked.
-  const [activeProgress, setActiveProgress] =
-    useState<{ filename: string; progress: number } | null>(null);
+  const [activeProgress, setActiveProgress] = useState<{ filename: string; progress: number } | null>(null);
 
   // Library tile reads from this. Memoised so the array identity is stable
-  // across re-renders when neither input changed — keeps LibraryDesk from
+  // across re-renders when neither input changed — keeps BooksDesk from
   // re-keying tiles every time something unrelated (e.g. importing toggle)
   // re-renders the parent.
   const displayBooks = useMemo(() => {
     if (!activeProgress) return books;
-    return books.map((b) =>
-      b.filename === activeProgress.filename
-        ? { ...b, progress: activeProgress.progress }
-        : b,
-    );
+    return books.map((b) => (b.filename === activeProgress.filename ? { ...b, progress: activeProgress.progress } : b));
   }, [books, activeProgress]);
 
   useEffect(() => {
@@ -100,7 +86,7 @@ export default function ReaderView() {
     setNotice(null);
     try {
       // Pass 1: orphan + stale wipe (pending books are skipped).
-      const reconcileSummary = await reconcileLibrary(user.id);
+      const reconcileSummary = await reconcileBooks(user.id);
       // Pass 2: push every locally-pending book.
       const pushSummary = await syncPending(user.id, getDeviceId());
 
@@ -118,9 +104,7 @@ export default function ReaderView() {
           parts.push(`${reconcileSummary.removed.length} removed (deleted on another device)`);
         }
         if (reconcileSummary.staleReplaced.length > 0) {
-          parts.push(
-            `${reconcileSummary.staleReplaced.length} replaced — re-locate to view the new bytes`,
-          );
+          parts.push(`${reconcileSummary.staleReplaced.length} replaced — re-locate to view the new bytes`);
         }
         if (pushSummary.pushed.length > 0) {
           parts.push(`${pushSummary.pushed.length} pushed to cloud`);
@@ -134,7 +118,7 @@ export default function ReaderView() {
         setNotice(`Synced: ${parts.join(' · ')}.`);
       }
       // Clear the active progress override so the next render reads
-      // fresh data on its own (useSyncLibrary owns the merged list).
+      // fresh data on its own (useSyncBooks owns the merged list).
       setActiveProgress(null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -163,11 +147,9 @@ export default function ReaderView() {
         }
         const { record } = result;
         if (result.wasAlreadyPresentSameBytes) {
-          setNotice(
-            `Already in your library: "${record.title}" — same bytes were already imported on this device.`,
-          );
+          setNotice(`Already in your library: "${record.title}" — same bytes were already imported on this device.`);
         }
-        const newBook: LibraryBook = {
+        const newBook: Book = {
           id: record.id,
           title: record.title,
           author: record.author,
@@ -180,8 +162,8 @@ export default function ReaderView() {
         };
         // Replace existing tile (when we attached to a known register) or
         // append (when this is a brand-new entry).
-        setBooks(prev => {
-          const idx = prev.findIndex(b => b.filename === newBook.filename);
+        setBooks((prev) => {
+          const idx = prev.findIndex((b) => b.filename === newBook.filename);
           if (idx >= 0) {
             const next = prev.slice();
             next[idx] = { ...prev[idx], ...newBook };
@@ -211,7 +193,7 @@ export default function ReaderView() {
       if (!file || !locatingBookId) return;
       e.target.value = '';
 
-      const targetBook = books.find(b => b.id === locatingBookId);
+      const targetBook = books.find((b) => b.id === locatingBookId);
       if (!targetBook?.backendId) {
         setLocatingBookId(null);
         return;
@@ -234,8 +216,8 @@ export default function ReaderView() {
         return;
       }
 
-      setBooks(prev =>
-        prev.map(b =>
+      setBooks((prev) =>
+        prev.map((b) =>
           b.id === locatingBookId
             ? {
                 ...b,
@@ -256,49 +238,40 @@ export default function ReaderView() {
     locateInputRef.current?.click();
   }, []);
 
-  const handleDeleteBook = useCallback(
-    async (book: LibraryBook) => {
-      setError(null);
-      try {
-        await deleteBookEverywhere(book);
-        setBooks(prev => prev.filter(b => b.id !== book.id));
-        setDeletingBook(null);
-      } catch {
-        setError('Failed to delete book');
-      }
-    },
-    [],
-  );
+  const handleDeleteBook = useCallback(async (book: Book) => {
+    setError(null);
+    try {
+      await deleteBookEverywhere(book);
+      setBooks((prev) => prev.filter((b) => b.id !== book.id));
+      setDeletingBook(null);
+    } catch {
+      setError('Failed to delete book');
+    }
+  }, []);
 
-  const handleMarkFinished = useCallback(
-    async (book: LibraryBook) => {
-      if (book.progress === 100) return;
-      setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, progress: 100 } : b)));
-      if (book.backendId) {
-        await updateBookProgress(book.backendId, { progress: 100 }).catch(() => {});
-      }
-    },
-    [],
-  );
+  const handleMarkFinished = useCallback(async (book: Book) => {
+    if (book.progress === 100) return;
+    setBooks((prev) => prev.map((b) => (b.id === book.id ? { ...b, progress: 100 } : b)));
+    if (book.backendId) {
+      await updateBookProgress(book.backendId, { progress: 100 }).catch(() => {});
+    }
+  }, []);
 
-  const handleRenameBook = useCallback(
-    async (book: LibraryBook, title: string) => {
-      const trimmed = title.trim();
-      if (!trimmed || trimmed === book.title) return;
-      setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, title: trimmed } : b)));
-      if (book.available) {
-        await renameLocalBook(book.id, trimmed, book.backendId).catch(() => {});
-      } else if (book.backendId) {
-        await apiUpdateBookTitle(book.backendId, trimmed).catch(() => {});
-      }
-    },
-    [],
-  );
+  const handleRenameBook = useCallback(async (book: Book, title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed || trimmed === book.title) return;
+    setBooks((prev) => prev.map((b) => (b.id === book.id ? { ...b, title: trimmed } : b)));
+    if (book.available) {
+      await renameLocalBook(book.id, trimmed, book.backendId).catch(() => {});
+    } else if (book.backendId) {
+      await apiUpdateBookTitle(book.backendId, trimmed).catch(() => {});
+    }
+  }, []);
 
   const openBook = useCallback(
     async (bookId: string) => {
       const allBooks = await getAllBooks();
-      const book = allBooks.find(b => b.id === bookId);
+      const book = allBooks.find((b) => b.id === bookId);
       if (!book) return;
 
       setLoading(true);
@@ -316,9 +289,7 @@ export default function ReaderView() {
           URL.revokeObjectURL(blobUrlRef.current);
         }
 
-        const mime = book.filename.toLowerCase().endsWith('.pdf')
-          ? 'application/pdf'
-          : 'application/epub+zip';
+        const mime = book.filename.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/epub+zip';
         const url = URL.createObjectURL(new Blob([arrayBuffer], { type: mime }));
         blobUrlRef.current = url;
 
@@ -342,7 +313,9 @@ export default function ReaderView() {
             const created = await ensureBackendBook(book, user.id);
             setReaderSession((prev) => (prev ? { ...prev, backendBookId: created.id } : prev));
           }
-        } catch { /* backend unavailable */ }
+        } catch {
+          /* backend unavailable */
+        }
       } catch {
         setError('Failed to load book');
         setLoading(false);
@@ -358,7 +331,7 @@ export default function ReaderView() {
       return;
     }
     if (pageState !== 'library') return;
-    const target = books.find(b => b.filename === pendingBookOpen && b.available);
+    const target = books.find((b) => b.filename === pendingBookOpen && b.available);
     if (!target) {
       setPendingBookOpen(null);
       return;
@@ -377,10 +350,10 @@ export default function ReaderView() {
     setReaderSession(null);
     setError(null);
     getAllBooks()
-      .then(allBooks => {
-        setBooks(prev => {
-          const localMap = new Map(allBooks.map(b => [b.filename, b]));
-          return prev.map(b => {
+      .then((allBooks) => {
+        setBooks((prev) => {
+          const localMap = new Map(allBooks.map((b) => [b.filename, b]));
+          return prev.map((b) => {
             const local = localMap.get(b.filename);
             if (local) {
               return { ...b, id: local.id, hasCover: local.hasCover, coverImage: local.coverImage, available: true };
@@ -402,12 +375,16 @@ export default function ReaderView() {
   );
 
   const handleLookup = useCallback(
-    (word: string, contextSentence?: string) => { requestDictLookup(word, contextSentence); },
+    (word: string, contextSentence?: string) => {
+      requestDictLookup(word, contextSentence);
+    },
     [requestDictLookup],
   );
 
   const handleAddCard = useCallback(
-    (word: string, contextSentence?: string) => { requestAddCard(word, undefined, contextSentence); },
+    (word: string, contextSentence?: string) => {
+      requestAddCard(word, undefined, contextSentence);
+    },
     [requestAddCard],
   );
 
@@ -418,7 +395,7 @@ export default function ReaderView() {
 
   if (pageState === 'restore' && !readerSession) {
     return (
-      <RestoreLibrary
+      <RestoreBooks
         remoteBooks={remoteBooks}
         userId={user.id}
         onComplete={handleRestoreComplete}
@@ -469,10 +446,7 @@ export default function ReaderView() {
           )}
         </div>
         {sidekickOpen && (
-          <aside
-            aria-label="Dictionary"
-            style={{ width: '25%', minWidth: 320, maxWidth: 480, flexShrink: 0 }}
-          >
+          <aside aria-label="Dictionary" style={{ width: '25%', minWidth: 320, maxWidth: 480, flexShrink: 0 }}>
             <DictionarySidekick onClose={() => setSidekickOpen(false)} />
           </aside>
         )}
@@ -483,12 +457,18 @@ export default function ReaderView() {
   return (
     <div className="relative h-full overflow-hidden">
       {error && (
-        <div className="mx-auto mt-4 max-w-295 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-[13px] text-red-700" style={{ width: 'calc(100% - 80px)' }}>
+        <div
+          className="mx-auto mt-4 max-w-295 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-[13px] text-red-700"
+          style={{ width: 'calc(100% - 80px)' }}
+        >
           {error}
         </div>
       )}
       {notice && !error && (
-        <div className="mx-auto mt-4 max-w-295 flex items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-[13px] text-emerald-800" style={{ width: 'calc(100% - 80px)' }}>
+        <div
+          className="mx-auto mt-4 max-w-295 flex items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-[13px] text-emerald-800"
+          style={{ width: 'calc(100% - 80px)' }}
+        >
           <span>{notice}</span>
           <button
             type="button"
@@ -511,11 +491,9 @@ export default function ReaderView() {
       </div>
 
       {pageState === 'loading' ? (
-        <div className="flex h-full items-center justify-center text-sm text-lgc-fg-muted">
-          Loading library…
-        </div>
+        <div className="flex h-full items-center justify-center text-sm text-lgc-fg-muted">Loading library…</div>
       ) : (
-        <LibraryDesk
+        <BooksDesk
           books={displayBooks}
           importing={importing}
           onOpen={(book) => (book.available ? openBook(book.id) : handleLocateClick(book.id))}
@@ -549,15 +527,14 @@ export default function ReaderView() {
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-lgc-border-strong bg-lgc-bg p-6 shadow-2xl">
             <div className="mb-1 flex items-center gap-2 text-red-500">
               <Trash2 size={16} />
-              <h2 className="text-[15px] font-medium font-display">
-                Delete book
-              </h2>
+              <h2 className="text-[15px] font-medium font-display">Delete book</h2>
             </div>
             <p className="mb-1 text-[13px] text-lgc-fg-muted">
               Are you sure you want to delete <strong className="text-lgc-fg">{deletingBook.title}</strong>?
             </p>
             <p className="mb-5 text-[12px] text-lgc-fg-subtle">
-              This will permanently remove all reading progress, bookmarks, and the local file from this device. This action cannot be undone.
+              This will permanently remove all reading progress, bookmarks, and the local file from this device. This
+              action cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -579,12 +556,7 @@ export default function ReaderView() {
         </>
       )}
 
-      {showOnboarding && (
-        <OnboardingExplainerModal
-          userId={user.id}
-          onDismiss={() => setShowOnboarding(false)}
-        />
-      )}
+      {showOnboarding && <OnboardingExplainerModal userId={user.id} onDismiss={() => setShowOnboarding(false)} />}
     </div>
   );
 }

@@ -12,23 +12,23 @@ import {
   ensureBackendBook,
   deleteBook as deleteLocalBook,
   renameBook as renameLocalBook,
-} from '@/lib/bookStore';
-import { deleteBookRecord, getUserBooks, updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/lib/booksApi';
+} from '@/components/books/utils/bookStore';
+import { deleteBookRecord, getUserBooks, updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/components/books/utils/booksApi';
 import { getDeviceId } from '@/lib/storage/device';
 import {
   locateAndAttachFile,
   validateBookFile,
-} from '@/lib/books/locateAndAttachFile';
-import { importBookWithMatch } from '@/lib/books/importBookWithMatch';
+} from '@/components/books/utils/locateAndAttachFile';
+import { importBookWithMatch } from '@/components/books/utils/importBookWithMatch';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
-import type { LibraryBook } from '@/components/library/BookList';
-import { LibraryDesk } from '@/components/library/LibraryDesk';
-import RestoreLibrary from '@/components/library/RestoreLibrary';
-import FsAccessBanner from '@/components/library/FsAccessBanner';
+import type { Book } from '@/components/books/types';
+import { BooksDesk } from '@/components/books/ui/BooksDesk';
+import RestoreBooks from '@/components/books/ui/RestoreBooks';
+import FsAccessBanner from '@/components/books/ui/FsAccessBanner';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
 import { getNeedsOnboarding } from '@/lib/storage/onboarding';
-import { useSyncLibrary } from '@/components/views/ReaderView/useSyncLibrary';
+import { useSyncBooks } from '@/components/books/hooks/useSyncBooks';
 import { useProgressSync } from '@/components/views/ReaderView/useProgressSync';
 import { useReaderActions } from '@/components/providers/useReaderActions';
 
@@ -43,13 +43,13 @@ export default function ReaderView() {
   const { recordProgress, flushProgress } = useProgressSync(readerSession);
 
   const { pageState, setPageState, books, setBooks, remoteBooks, error, setError } =
-    useSyncLibrary(user ?? null);
+    useSyncBooks(user ?? null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const locateInputRef = useRef<HTMLInputElement>(null);
   const [locatingBookId, setLocatingBookId] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [deletingBook, setDeletingBook] = useState<LibraryBook | null>(null);
+  const [deletingBook, setDeletingBook] = useState<Book | null>(null);
 
   const [loading, setLoading] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
@@ -91,7 +91,7 @@ export default function ReaderView() {
           record = outcome.record;
         }
 
-        const newBook: LibraryBook = {
+        const newBook: Book = {
           id: record.id,
           title: record.title,
           author: record.author,
@@ -179,7 +179,7 @@ export default function ReaderView() {
   }, []);
 
   const handleDeleteBook = useCallback(
-    async (book: LibraryBook) => {
+    async (book: Book) => {
       setError(null);
       try {
         if (book.backendId) {
@@ -198,7 +198,7 @@ export default function ReaderView() {
   );
 
   const handleRenameBook = useCallback(
-    async (book: LibraryBook, title: string) => {
+    async (book: Book, title: string) => {
       const trimmed = title.trim();
       if (!trimmed || trimmed === book.title) return;
       setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, title: trimmed } : b)));
@@ -212,7 +212,7 @@ export default function ReaderView() {
   );
 
   const handleMarkFinished = useCallback(
-    async (book: LibraryBook) => {
+    async (book: Book) => {
       if (book.progress === 100) return;
       setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, progress: 100 } : b)));
       if (book.backendId) {
@@ -345,12 +345,12 @@ export default function ReaderView() {
 
   if (pageState === 'restore' && !readerSession) {
     return (
-      <RestoreLibrary
+      <RestoreBooks
         remoteBooks={remoteBooks}
         userId={user!.id}
         onComplete={handleRestoreComplete}
         onSkip={() => {
-          const merged: LibraryBook[] = remoteBooks.map(r => ({
+          const merged: Book[] = remoteBooks.map(r => ({
             id: r.id,
             title: r.title,
             author: r.author,
@@ -429,7 +429,7 @@ export default function ReaderView() {
           Loading library…
         </div>
       ) : (
-        <LibraryDesk
+        <BooksDesk
           books={books}
           importing={importing}
           onOpen={(book) => (book.available ? openBook(book.id) : handleLocateClick(book.id))}

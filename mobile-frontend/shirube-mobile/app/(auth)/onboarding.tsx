@@ -8,11 +8,12 @@ import { BrandGlyph } from '@/components/ui/BrandGlyph';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { fetchUserBooks, fetchUserDecks, matchBooks } from '@/lib/api';
-import { bookFileExists, bookFilePath, deleteBookFile } from '@/lib/bookPaths';
-import { ExtensionMismatchError, importEpub } from '@/lib/bookFiles';
-import { removeEntry, setStoredFileHash } from '@/lib/sync';
-import type { BookRecord } from '@/lib/types';
+import { fetchUserBooks, matchBooks } from '@/components/books/utils/booksApi';
+import { fetchUserDecks } from '@/components/decks/utils/decksApi';
+import { bookFileExists, bookFilePath, deleteBookFile } from '@/components/books/utils/bookPaths';
+import { ExtensionMismatchError, importEpub } from '@/components/books/utils/bookFiles';
+import { removeEntry, setStoredFileHash } from '@/components/books/utils/bookLocalState';
+import type { BookRecord } from '@/components/books/types';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 
 type SyncState =

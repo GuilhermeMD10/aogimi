@@ -8,10 +8,10 @@ import { ArrowLeft, Check, Plus, Search, X } from 'lucide-react';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
 import { preferredHeadword } from '@/components/views/WordDetailView';
-import * as decksApi from '@/lib/decksApi';
+import * as decksApi from '@/components/decks/utils/decksApi';
 import { getWordDetails } from '@/lib/dictApi';
+import type { DeckRecord } from '@/components/decks/types';
 import type {
-  DeckRecord,
   DetailsResponse,
   KanjiInfo,
   SearchResponse,
@@ -19,7 +19,7 @@ import type {
 } from '@/lib/types';
 import { InfoRow } from '@/components/ui/InfoRow';
 import { SectionHead } from '@/components/ui/SectionHead';
-import { MAX_MEANINGS_ON_CARD } from '@/lib/config/limits';
+import { MAX_MEANINGS_ON_CARD } from '@/components/decks/utils/cardLimits';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';
 
