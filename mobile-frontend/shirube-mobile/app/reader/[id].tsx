@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { ReaderScreen } from '@/components/reader/ReaderScreen';
+import { ReaderScreen } from '@/components/reader/ui/ReaderScreen';
 
 export default function ReaderRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();

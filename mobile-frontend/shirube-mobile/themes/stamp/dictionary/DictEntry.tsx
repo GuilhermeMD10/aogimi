@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors, useFonts, useShape } from '@/theme/ThemeContext';
-import type { ExampleSentence, KanjiInfo, WordResult } from '@/lib/types';
+import type { ExampleSentence, KanjiInfo, WordResult } from '@/components/dictionary/types';
 import { Postmark } from '@/components/theme-decorations/stamp';
 import { JlptChip } from '@/components/ui/JlptChip';
 import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';

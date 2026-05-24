@@ -32,12 +32,12 @@
 //       booksLocalCache optimistic progress patches
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { wipeAllBookFiles } from '@/lib/bookPaths';
-import { wipeAllCovers } from '@/lib/epubCover';
-import { wipeMangaCache } from '@/lib/mangaPages';
-import { clearDictionaryCaches } from '@/lib/dictCache';
-import { clearLocalProgress } from '@/lib/booksLocalCache';
-import { clearAll as clearAllSyncEntries } from '@/lib/sync';
+import { wipeAllBookFiles } from '@/components/books/utils/bookPaths';
+import { wipeAllCovers } from '@/components/books/utils/epubCover';
+import { wipeMangaCache } from '@/components/books/utils/mangaPages';
+import { clearDictionaryCaches } from '@/components/dictionary/utils/dictCache';
+import { clearLocalProgress } from '@/components/books/utils/booksLocalCache';
+import { clearAll as clearAllSyncEntries } from '@/components/books/utils/bookLocalState';
 
 const USER_PREFIXES = ['reader_book_'];
 const USER_KEYS = [

@@ -21,7 +21,7 @@
 //     bookmarks / prefs / lastCfi)
 //   - localStorage `reader_progress_<filename>` (every match)
 
-import { wipeBookDatabase } from '@/lib/bookStore';
+import { wipeBookDatabase } from '@/components/books/utils/bookStore';
 
 const USER_PREFIXES = ['reader_book_', 'reader_progress_'];
 const USER_KEYS = [

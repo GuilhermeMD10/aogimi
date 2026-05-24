@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { StudyScreen } from '@/components/study/StudyScreen';
+import { StudyScreen } from '@/components/decks/ui/StudyScreen';
 
 export default function StudyRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
