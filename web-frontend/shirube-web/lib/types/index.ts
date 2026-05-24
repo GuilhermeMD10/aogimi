@@ -13,12 +13,6 @@ export type {
 } from './book';
 
 export type {
-  DeckRecord,
-  CardRecord,
-  CardState,
-} from './deck';
-
-export type {
   WordMeaning,
   WordResult,
   KanjiInfo,

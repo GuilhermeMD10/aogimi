@@ -1,6 +1,6 @@
-import { deleteCoverFor } from '@/lib/epubCover';
-import { clearBookStorage } from '@/lib/readerStorage';
-import { removeEntry } from '@/lib/sync';
+import { deleteCoverFor } from '@/components/books/utils/epubCover';
+import { clearBookStorage } from '@/components/reader/utils/readerStorage';
+import { removeEntry } from '@/components/books/utils/bookLocalState';
 
 /**
  * Wipe every per-book local register tied to a single filename. Called

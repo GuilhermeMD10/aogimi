@@ -9,7 +9,7 @@ import { ThemedDecoration } from '@/components/theme-decorations/ThemedDecoratio
 import { Postmark } from '@/components/theme-decorations/stamp/Postmark';
 import { getWordDetails } from '@/lib/dictApi';
 import type { DetailsResponse } from '@/lib/types';
-import { MAX_MEANINGS_ON_CARD } from '@/lib/config/limits';
+import { MAX_MEANINGS_ON_CARD } from '@/components/decks/utils/cardLimits';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';
 
