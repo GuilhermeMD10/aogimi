@@ -60,87 +60,110 @@ export default function OnboardingScreen() {
 
   const handleFind = useCallback(async (book: BookRecord) => {
     if (!user) return;
-    let imported;
+    // Outer try/catch is the safety net — ANY unhandled exception here
+    // would otherwise crash the JS runtime in dev mode, trigger a
+    // Metro reload, and bounce the user out of onboarding to the
+    // initial route (books tab). Every path inside MUST end with a
+    // friendly alert or no-op, never an uncaught throw.
     try {
-      imported = await importEpub({ expectedFilename: book.filename });
-    } catch (err) {
-      if (err instanceof ExtensionMismatchError) {
+      let imported;
+      try {
+        imported = await importEpub({ expectedFilename: book.filename });
+      } catch (err) {
+        if (err instanceof ExtensionMismatchError) {
+          Alert.alert(
+            'Wrong file type',
+            `"${book.title}" is a .${err.expected} file, but you picked a .${err.picked} file. Pick a matching one.`,
+          );
+        } else {
+          Alert.alert(
+            'Could not import',
+            err instanceof Error ? err.message : 'Unknown error reading the file. Try a different one.',
+          );
+        }
+        return;
+      }
+      if (!imported) return;
+
+      // Identity-verify the picked file against the targeted book before we
+      // attach it under book.filename. Without this, picking the wrong file
+      // here silently rewrites a known book's slot with someone else's content.
+      let matchedId: string | null = null;
+      let matchedOther: { title: string } | null = null;
+      try {
+        const [result] = await matchBooks(user.id, [
+          {
+            file_hash: imported.fileHash,
+            content_hash: imported.contentHash,
+            pdf_id_original: imported.pdfIdOriginal,
+            xmp_original_id: imported.xmpOriginalId,
+            detected_doi: imported.detectedDoi,
+            detected_isbn: imported.detectedIsbn,
+            page_count: imported.pageCount,
+            page_phashes: imported.pagePhashes,
+            metadata: {
+              title: imported.title || imported.filename,
+              author: imported.author,
+              dc_identifier: imported.dcIdentifier,
+              filename: imported.filename,
+            },
+          },
+        ]);
+        // Only file_hash certifies "this is exactly that book". Other match
+        // types (pdf_trailer_id, xmp_original_id, doi, isbn, content,
+        // metadata, filename) can collide between distinct books — accepting
+        // them here would silently attach the wrong content under the
+        // target's filename slot. Same rule the +-button import flow uses.
+        if (result?.match && result.match_type === 'file_hash') {
+          matchedId = result.match.id;
+          if (matchedId !== book.id) matchedOther = { title: result.match.title };
+        }
+      } catch {
+        /* matcher unreachable — treat as no match, reject below */
+      }
+
+      if (matchedId !== book.id) {
+        // Wrap the FS delete — file might be locked, missing, or just
+        // refusing to die. Either way, the user-facing outcome is the
+        // same "doesn't match" alert; the leftover bytes will get
+        // cleaned up by the next reconcile.
+        try { deleteBookFile(imported.filename); } catch { /* best-effort */ }
         Alert.alert(
-          'Wrong file type',
-          `"${book.title}" is a .${err.expected} file, but you picked a .${err.picked} file. Pick a matching one.`,
+          "Doesn't match",
+          matchedOther
+            ? `This file is already in your library as "${matchedOther.title}".`
+            : `This file doesn't match "${book.title}". The book stays unimported.`,
         );
         return;
       }
-      throw err;
-    }
-    if (!imported) return;
 
-    // Identity-verify the picked file against the targeted book before we
-    // attach it under book.filename. Without this, picking the wrong file
-    // here silently rewrites a known book's slot with someone else's content.
-    let matchedId: string | null = null;
-    let matchedOther: { title: string } | null = null;
-    try {
-      const [result] = await matchBooks(user.id, [
-        {
-          file_hash: imported.fileHash,
-          content_hash: imported.contentHash,
-          pdf_id_original: imported.pdfIdOriginal,
-          xmp_original_id: imported.xmpOriginalId,
-          detected_doi: imported.detectedDoi,
-          detected_isbn: imported.detectedIsbn,
-          page_count: imported.pageCount,
-          page_phashes: imported.pagePhashes,
-          metadata: {
-            title: imported.title || imported.filename,
-            author: imported.author,
-            dc_identifier: imported.dcIdentifier,
-            filename: imported.filename,
-          },
-        },
-      ]);
-      // Only file_hash certifies "this is exactly that book". Other match
-      // types (pdf_trailer_id, xmp_original_id, doi, isbn, content,
-      // metadata, filename) can collide between distinct books — accepting
-      // them here would silently attach the wrong content under the
-      // target's filename slot. Same rule the +-button import flow uses.
-      if (result?.match && result.match_type === 'file_hash') {
-        matchedId = result.match.id;
-        if (matchedId !== book.id) matchedOther = { title: result.match.title };
+      try {
+        if (imported.filename !== book.filename) {
+          const local = new File(bookFilePath(imported.filename));
+          local.copy(new File(bookFilePath(book.filename)));
+          local.delete();
+          // Clean up the sync entry for the picked filename — file moved.
+          await removeEntry(imported.filename);
+        }
+        // Locate flow: backend already had this record, so the destination
+        // filename is `synced` directly. `setStoredFileHash` writes the
+        // fileHash with no explicit syncState — treated as `synced` by
+        // `effectiveSyncState`, which is what we want here.
+        if (imported.fileHash) {
+          await setStoredFileHash(book.filename, imported.fileHash);
+        }
+        setResolved((prev) => new Set(prev).add(book.id));
+      } catch {
+        /* fs error — leave unresolved so the user can retry */
       }
-    } catch {
-      /* matcher unreachable — treat as no match, reject below */
-    }
-
-    if (matchedId !== book.id) {
-      deleteBookFile(imported.filename);
+    } catch (err) {
+      // Outer safety net — anything that slipped past the inner
+      // try/catches lands here as an alert instead of crashing the
+      // screen out to the books tab.
       Alert.alert(
-        "Doesn't match",
-        matchedOther
-          ? `This file is already in your library as "${matchedOther.title}".`
-          : `This file doesn't match "${book.title}". The book stays unimported.`,
+        'Something went wrong',
+        err instanceof Error ? err.message : 'Please try a different file.',
       );
-      return;
-    }
-
-    try {
-      if (imported.filename !== book.filename) {
-        const local = new File(bookFilePath(imported.filename));
-        local.copy(new File(bookFilePath(book.filename)));
-        local.delete();
-        // Clean up the sync entry for the picked filename — file moved.
-        await removeEntry(imported.filename);
-      }
-      // Locate flow: backend already had this record, so the destination
-      // filename is `synced` directly. `setStoredFileHash` writes the
-      // fileHash with no explicit syncState — treated as `synced` by
-      // `effectiveSyncState`, which is what we want here.
-      if (imported.fileHash) {
-        await setStoredFileHash(book.filename, imported.fileHash);
-      }
-      setResolved((prev) => new Set(prev).add(book.id));
-    } catch {
-      /* fs error — leave unresolved so the user can retry */
     }
   }, [user]);
 

@@ -1,27 +1,32 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
+import { fontFamily } from '@/theme/tokens';
 
-// Minimal top-edge chrome for the reader page. The floating-pill dock at the
-// bottom carries the progress, chapter, and bookmark surfaces; the only
-// remaining responsibility up here is back-to-library navigation.
+// Top-edge chrome for the reader page. Shows the book title and reading
+// progress. Back navigation lives in the floating bottom-left chevron
+// (FloatingBackButton) rather than here.
 
 type Props = {
-  onBack?: () => void;
+  title: string;
+  progress: number; // 0..100
 };
 
-export function ReaderTopBar({ onBack }: Props) {
+export function ReaderTopBar({ title, progress }: Props) {
   const c = useColors();
   return (
     <View pointerEvents="box-none" style={styles.row}>
-      <Pressable
-        onPress={onBack}
-        accessibilityRole="button"
-        accessibilityLabel="Back to library"
-        hitSlop={14}
-        style={[styles.iconBtn, { backgroundColor: c.bgElev, borderColor: c.border }]}
+      <Text
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        style={[styles.title, { color: c.fg, fontFamily: fontFamily.jp }]}
       >
-        <Text style={[styles.chevron, { color: c.fg }]}>‹</Text>
-      </Pressable>
+        {title}
+      </Text>
+      <Text
+        style={[styles.progress, { color: c.fgMuted, fontVariant: ['tabular-nums'] }]}
+      >
+        {Math.round(progress)}%
+      </Text>
     </View>
   );
 }
@@ -30,22 +35,17 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingTop: 4,
-    paddingBottom: 6,
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 12,
   },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+  title: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
   },
-  chevron: { fontSize: 22, lineHeight: 22, fontWeight: '300' },
+  progress: {
+    fontSize: 12,
+  },
 });

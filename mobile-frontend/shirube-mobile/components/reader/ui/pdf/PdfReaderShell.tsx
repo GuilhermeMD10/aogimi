@@ -6,6 +6,7 @@ import { fontFamily } from '@/theme/tokens';
 import type { BookRecord } from '@/components/books/types';
 import { bookFilePath } from '@/components/books/utils/bookPaths';
 import { ReaderTopBar } from '../ReaderTopBar';
+import { FloatingBackButton } from '../FloatingBackButton';
 import { PdfDock } from './PdfDock';
 
 type ProgressSnapshot = {
@@ -99,7 +100,11 @@ export function PdfReaderShell({
   // dock's absoluteFill host, so the chevron tap never fired router.back().
   return (
     <Fragment>
-      <ReaderTopBar onBack={onBack} />
+      <ReaderTopBar
+        title={book.title}
+        progress={totalPages > 0 ? (currentPage / totalPages) * 100 : 0}
+      />
+      <FloatingBackButton onPress={onBack} />
 
       <View style={[styles.body, { backgroundColor: c.bg }]}>
         {error ? (

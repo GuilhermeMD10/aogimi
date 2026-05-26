@@ -10,7 +10,7 @@ import { fontFamily } from '@/theme/tokens';
 // File still named NotchedNavBar to avoid a rename ripple; the notch
 // rendering is gone.
 
-const NAV_HEIGHT = 60;
+const NAV_HEIGHT = 75;
 const ICON = 20;
 
 const SLOTS = ['profile', 'dictionary', 'reader', 'decks', 'settings'] as const;
@@ -153,11 +153,12 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 55,
+    height: NAV_HEIGHT,
   },
   card: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.18,
@@ -179,8 +180,8 @@ const styles = StyleSheet.create({
   slotPlaceholder: { flex: 1 },
   col: { alignItems: 'center' },
   iconWrap: {
-    width: 40,
-    height: 40,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
     // Perfect circle (width / 2). Border + box-shadow on the active state

@@ -6,7 +6,6 @@ import type {
   BookProgressUpdate,
   BookRecord,
   BookmarkRecord,
-  DeviceBookRecord,
 } from '../types';
 
 // ── Books (book_progress) ───────────────────────────────────────────────────
@@ -127,40 +126,3 @@ export function deleteBookmark(bookmarkId: string): Promise<{ message: string }>
   return request<{ message: string }>(`/api/books/bookmarks/${bookmarkId}`, { method: 'DELETE' });
 }
 
-// ── Device-book availability ───────────────────────────────────────────────
-
-export function markBookAvailable(
-  deviceId: string,
-  bookId: string,
-  userId: number,
-): Promise<{ message: string }> {
-  return request<{ message: string }>(
-    `/api/devices/${deviceId}/books/${bookId}/available`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ userId }),
-    },
-  );
-}
-
-export function removeBookAvailability(
-  deviceId: string,
-  bookId: string,
-  userId: number,
-): Promise<{ message: string }> {
-  return request<{ message: string }>(
-    `/api/devices/${deviceId}/books/${bookId}/available?userId=${userId}`,
-    { method: 'DELETE' },
-  );
-}
-
-export function fetchDeviceBooks(
-  deviceId: string,
-  userId: number,
-  signal?: AbortSignal,
-): Promise<DeviceBookRecord[]> {
-  return request<DeviceBookRecord[]>(
-    `/api/devices/${deviceId}/books?userId=${userId}`,
-    { signal },
-  );
-}

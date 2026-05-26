@@ -1,0 +1,77 @@
+# When this file exists, EAS Build uses it INSTEAD of .gitignore to
+# decide which files to upload to the build cloud. We mirror .gitignore
+# but explicitly UN-ignore `assets/dictionary.sqlite` so the bundled
+# dictionary makes it into the build — it's a 248 MB artifact produced
+# by helpers/files/build_sqlite_dict.js that we keep out of git but
+# absolutely need inside the APK.
+
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+
+# Local env files
+.env
+.env.local
+.env*.local
+
+# TypeScript
+*.tsbuildinfo
+expo-env.d.ts
+
+# Native build outputs
+ios/build/
+ios/DerivedData/
+ios/Pods/
+ios/**/xcuserdata/
+ios/**/*.xcuserstate
+ios/**/project.xcworkspace/
+ios/.xcode.env.local
+*.ipa
+*.xcarchive
+*.dSYM.zip
+
+android/build/
+android/.gradle/
+android/app/build/
+android/.cxx/
+android/.kotlin/
+android/.idea/
+android/local.properties
+android/captures/
+android/**/*.iml
+*.hprof
+*.apk
+*.aab
+*.keystore
+
+# Expo build / EAS
+.expo-shared/
+eas-build-*
+.eas
+ios-build/
+android-build/
+
+# Dictionary: keep the gzipped variant out of the build (we ship
+# uncompressed). NOT ignoring the .sqlite itself — that's the asset
+# the app needs.
+assets/dictionary.sqlite.gz

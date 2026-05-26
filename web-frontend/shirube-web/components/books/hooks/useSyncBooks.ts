@@ -6,14 +6,7 @@ import {
   syncLocalBooksToBackend,
   backfillBookIdentity,
 } from '../utils/bookStore';
-import { getDeviceId } from '@/lib/storage/device';
-import { getDeviceName } from '@/lib/util/deviceName';
-import {
-  registerDevice,
-  getDeviceBooks,
-  markBookAvailable,
-} from '@/lib/devicesApi';
-import type { BookProgressRecord, DeviceBookRecord } from '@/lib/types';
+import type { BookProgressRecord } from '@/lib/types';
 import type { AuthUser } from '@/lib/types/user';
 import type { Book } from '../types';
 
@@ -21,21 +14,25 @@ export type PageState = 'loading' | 'restore' | 'library';
 
 /**
  * Owns the page-mount books reconciliation:
- *   IndexedDB → backend sync → device registration → device-books fetch
- *   → merge into a single Book list.
+ *   IndexedDB → backend sync → merge into a single Book list.
  *
- * Re-runs on `user` change. Internally tracks a `cancelled` flag so stale
- * fetches can't clobber newer state. Mutators (`setBooks`, `setError`,
- * `setPageState`) are exposed so import / locate / delete / rename handlers
- * in the page can update the same store without round-tripping the API.
+ * "Available on this device" is determined locally: a book counts as
+ * available if it has a matching local IDB row with bytes. No device-
+ * tracking endpoint involvement.
  *
- * When `user` is null, falls back to a local-only books view (used by the
- * stamp variant which doesn't gate behind useAuthedUser).
+ * Re-runs on `user` change. Internally tracks a `cancelled` flag so
+ * stale fetches can't clobber newer state. Mutators (`setBooks`,
+ * `setError`, `setPageState`) are exposed so import / locate / delete
+ * / rename handlers in the page can update the same store without
+ * round-tripping the API.
+ *
+ * When `user` is null, falls back to a local-only books view (used by
+ * the stamp variant which doesn't gate behind useAuthedUser).
  */
 export function useSyncBooks(user: AuthUser | null) {
   const [pageState, setPageState] = useState<PageState>('loading');
   const [books, setBooks] = useState<Book[]>([]);
-  const [remoteBooks, setRemoteBooks] = useState<DeviceBookRecord[]>([]);
+  const [remoteBooks, setRemoteBooks] = useState<BookProgressRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -66,14 +63,6 @@ export function useSyncBooks(user: AuthUser | null) {
           return;
         }
 
-        const deviceId = getDeviceId();
-        const deviceName = getDeviceName();
-        try {
-          await registerDevice(user.id, deviceId, deviceName);
-        } catch {
-          /* best-effort */
-        }
-
         let backendMap = new Map<string, BookProgressRecord>();
         try {
           backendMap = await syncLocalBooksToBackend(user.id);
@@ -82,31 +71,17 @@ export function useSyncBooks(user: AuthUser | null) {
         }
         if (cancelled) return;
 
+        const backendBooks = Array.from(backendMap.values());
+        setRemoteBooks(backendBooks);
+
         const localFilenames = new Set(localBooks.map((b) => b.filename));
-        for (const [filename, remote] of backendMap) {
-          if (localFilenames.has(filename)) {
-            markBookAvailable(deviceId, remote.id, user.id).catch(() => {});
-          }
-        }
 
-        let deviceBooks: DeviceBookRecord[] = [];
-        try {
-          deviceBooks = await getDeviceBooks(deviceId, user.id);
-        } catch {
-          deviceBooks = Array.from(backendMap.values()).map((r) => ({
-            ...r,
-            available: localFilenames.has(r.filename),
-          }));
-        }
-        if (cancelled) return;
-        setRemoteBooks(deviceBooks);
-
-        if (localBooks.length === 0 && deviceBooks.length > 0) {
+        if (localBooks.length === 0 && backendBooks.length > 0) {
           setPageState('restore');
           return;
         }
 
-        const merged: Book[] = deviceBooks.map((remote) => {
+        const merged: Book[] = backendBooks.map((remote) => {
           const local = localBooks.find((b) => b.filename === remote.filename);
           if (local) {
             return {
@@ -131,14 +106,17 @@ export function useSyncBooks(user: AuthUser | null) {
             coverColor: remote.cover_color,
             hasCover: false,
             progress: remote.progress,
-            available: remote.available,
+            // Backend says we have this book registered but the file
+            // isn't in local IDB — the "locate this file" affordance
+            // catches that gap.
+            available: localFilenames.has(remote.filename),
             backendId: remote.id,
             lastReadAt: remote.last_read_at,
           };
         });
 
         for (const local of localBooks) {
-          if (!deviceBooks.find((r) => r.filename === local.filename)) {
+          if (!backendBooks.find((r) => r.filename === local.filename)) {
             merged.push({
               id: local.id,
               title: local.title,

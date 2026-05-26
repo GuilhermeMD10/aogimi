@@ -3,9 +3,9 @@ import { fetchUserBooks } from '../utils/booksApi';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { applyLocalProgress, useLocalProgressVersion } from '../utils/booksLocalCache';
 import {
-  cacheBooks,
   getAllCachedBooks,
   listSessionPendingIds,
+  mergeBackendBooks,
 } from '../utils/syncedBookCache';
 import { listPendingBooks } from '../utils/bookPush';
 import type { BookRecord } from '../types';
@@ -80,13 +80,24 @@ export function useBooks(): BooksState {
     };
   }, []);
 
-  // Refresh the cache whenever a successful backend fetch lands. The
-  // backend is canonical: cached entries not in `data` are dropped
-  // (book deleted on another device).
+  // Refresh the cache whenever a successful backend fetch lands.
+  // `mergeBackendBooks` applies newer-wins: backend records replace
+  // local ones only when the backend `last_read_at` is strictly
+  // newer. Local cache entries not in the backend list are dropped
+  // (deleted on another device). Then re-read so React state shows
+  // the post-merge truth (which can differ from `data` when local
+  // is newer for some records).
   useEffect(() => {
     if (!data) return;
-    void cacheBooks(data);
-    setCachedBooks(data);
+    let cancelled = false;
+    (async () => {
+      await mergeBackendBooks(data);
+      const merged = await getAllCachedBooks();
+      if (!cancelled) setCachedBooks(merged);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [data]);
 
   // Pick up session-pending changes whenever the backend list updates

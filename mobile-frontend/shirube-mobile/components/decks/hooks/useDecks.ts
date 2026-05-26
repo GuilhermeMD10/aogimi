@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { fetchDeckCards, fetchUserDecks } from '../utils/decksApi';
 import { useAuth } from '@/lib/auth/AuthContext';
 import {
@@ -6,7 +7,7 @@ import {
   hydrateFromBackend as hydrateDecksFromBackend,
 } from '../utils/deckLocalState';
 import {
-  getAllCards,
+  getDeckCardCount,
   hydrateFromBackend as hydrateCardsFromBackend,
 } from '../utils/cardLocalState';
 import type { LocalDeck } from '../types';
@@ -37,14 +38,19 @@ export function useDecks() {
   const [error, setError] = useState<string | null>(null);
 
   const readFromLocal = useCallback(async () => {
-    const [allDecks, allCards] = await Promise.all([getAllDecks(), getAllCards()]);
-    const counts = new Map<string, number>();
-    for (const c of allCards) {
-      if (c.pendingOp === 'delete') continue;
-      counts.set(c.deck_id, (counts.get(c.deck_id) ?? 0) + 1);
-    }
+    const allDecks = await getAllDecks();
     const visible = allDecks.filter((d) => d.pendingOp !== 'delete');
-    setDecks(visible.map((d) => ({ ...d, cardCount: counts.get(d.id) ?? 0 })));
+    // Derive the card count via the same per-deck helper that the
+    // detail page uses. Reading per-deck (instead of iterating all
+    // cards once) guarantees the list and the detail page never
+    // disagree on the same filter logic.
+    const withCounts = await Promise.all(
+      visible.map(async (d) => ({
+        ...d,
+        cardCount: await getDeckCardCount(d.id),
+      })),
+    );
+    setDecks(withCounts);
   }, []);
 
   const hydrate = useCallback(async () => {
@@ -69,21 +75,33 @@ export function useDecks() {
     }
   }, [userId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      await readFromLocal();
-      if (cancelled) return;
-      setLoading(false);
-      await hydrate();
-      if (cancelled) return;
-      await readFromLocal();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [readFromLocal, hydrate]);
+  // Re-read local + hydrate every time the screen regains focus. This
+  // covers the "user added a card in another tab, came back to decks,
+  // count is stale" case — useEffect alone wouldn't re-fire because
+  // tab navigators keep child screens mounted across switches.
+  //
+  // Loading state only flashes on the very first focus; subsequent
+  // focuses refresh silently in the background.
+  const mountedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        const isFirstRun = !mountedRef.current;
+        mountedRef.current = true;
+        if (isFirstRun) setLoading(true);
+        await readFromLocal();
+        if (cancelled) return;
+        if (isFirstRun) setLoading(false);
+        await hydrate();
+        if (cancelled) return;
+        await readFromLocal();
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [readFromLocal, hydrate]),
+  );
 
   const refresh = useCallback(async () => {
     setRefreshing(true);

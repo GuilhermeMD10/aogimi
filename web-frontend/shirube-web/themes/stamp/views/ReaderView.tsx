@@ -14,7 +14,6 @@ import {
   renameBook as renameLocalBook,
 } from '@/components/books/utils/bookStore';
 import { deleteBookRecord, getUserBooks, updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/components/books/utils/booksApi';
-import { getDeviceId } from '@/lib/storage/device';
 import {
   locateAndAttachFile,
   validateBookFile,
@@ -142,7 +141,6 @@ export default function ReaderView() {
       const result = await locateAndAttachFile({
         file,
         userId: user.id,
-        deviceId: getDeviceId(),
         target: {
           backendId: targetBook.backendId,
           title: targetBook.title,

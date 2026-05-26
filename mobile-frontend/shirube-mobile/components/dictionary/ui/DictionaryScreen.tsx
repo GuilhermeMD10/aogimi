@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Screen } from '@/components/ui/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
@@ -300,6 +301,11 @@ function DetailView({
 }) {
   const c = useColors();
   const t = useT();
+  // Runtime tab bar height (already includes the bottom safe-area
+  // inset). Pushes the FAB and the scroll's bottom padding above the
+  // navbar so neither gets occluded. Returns 0 when this screen isn't
+  // inside a tab navigator — safe to apply everywhere.
+  const tabBarHeight = useBottomTabBarHeight();
   return (
     <View style={styles.flex}>
       <View style={styles.detailHeader}>
@@ -312,7 +318,13 @@ function DetailView({
       </View>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={styles.detailScroll}
+        contentContainerStyle={[
+          styles.detailScroll,
+          // Clear the FAB + the navbar. FAB sits at `tabBarHeight +
+          // spacing.lg`; add its visual height (~52) plus spacing so
+          // the last word doesn't hide behind it.
+          { paddingBottom: tabBarHeight + spacing.lg + 52 + spacing.md },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <DictEntry
@@ -330,6 +342,7 @@ function DetailView({
         style={({ pressed }) => [
           styles.fab,
           {
+            bottom: tabBarHeight + spacing.lg,
             backgroundColor: c.fg,
             opacity: pressed ? 0.85 : 1,
           },
@@ -424,7 +437,9 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 0,
-    bottom: spacing.lg,
+    // `bottom` is set inline at render time using the runtime tab bar
+    // height (see DetailView). Setting a static value here would race
+    // with the inline override on some platforms.
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,

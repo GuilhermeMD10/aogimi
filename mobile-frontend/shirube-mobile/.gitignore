@@ -70,3 +70,15 @@ eas-build-*
 .eas
 ios-build/
 android-build/
+
+# Dictionary build artifacts. The .gz variant is kept out — we ship
+# uncompressed. The .sqlite IS intentionally tracked (or untracked but
+# present at build time) because EAS Build needs it to bundle into the
+# APK; .easignore alone wasn't reliably overriding .gitignore in the
+# upload step. To keep it out of git but still have it on disk, use:
+#   git update-index --skip-worktree mobile-frontend/shirube-mobile/assets/dictionary.sqlite
+# after committing it once — that holds the committed version while
+# letting you regenerate the file locally without pollution noise.
+assets/dictionary.sqlite.gz
+
+assets/dictionary.sqlite

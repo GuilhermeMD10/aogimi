@@ -2,9 +2,8 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { BookOpen, CheckCircle2, CloudOff } from 'lucide-react';
-import { getDeviceId } from '@/lib/storage/device';
 import { locateAndAttachFile } from '../utils/locateAndAttachFile';
-import type { DeviceBookRecord } from '@/lib/types';
+import type { BookProgressRecord } from '@/lib/types';
 import type { Book } from '../types';
 
 export default function RestoreBooks({
@@ -13,7 +12,7 @@ export default function RestoreBooks({
   onComplete,
   onSkip,
 }: {
-  remoteBooks: DeviceBookRecord[];
+  remoteBooks: BookProgressRecord[];
   userId: number;
   onComplete: () => void;
   onSkip: () => void;
@@ -34,8 +33,6 @@ export default function RestoreBooks({
   const [error, setError] = useState<string | null>(null);
   const [locatingBookId, setLocatingBookId] = useState<string | null>(null);
   const locateInputRef = useRef<HTMLInputElement>(null);
-
-  const deviceId = typeof window !== 'undefined' ? getDeviceId() : '';
 
   const matchedCount = books.filter(b => b.available).length;
 
@@ -60,7 +57,6 @@ export default function RestoreBooks({
       const result = await locateAndAttachFile({
         file,
         userId,
-        deviceId,
         target: {
           backendId: targetBook.backendId,
           title: targetBook.title,
@@ -88,7 +84,7 @@ export default function RestoreBooks({
         ),
       );
     },
-    [locatingBookId, userId, books, deviceId],
+    [locatingBookId, userId, books],
   );
 
   return (

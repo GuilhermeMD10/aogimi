@@ -26,9 +26,20 @@ function existingCoverUri(filename: string): string | null {
   return null;
 }
 
-// ── Cache: filename → URI | null (null = tried, no cover found) ─────────────
-
-const memCache = new Map<string, string | null>();
+// ── Concurrency: dedup in-flight extractions ─────────────────────────────────
+//
+// Two tiles for the same book can mount simultaneously and both try to
+// extract the cover. The disk-existence check below catches the second
+// caller once the first has written the file — but during the window
+// between "first call starts writing" and "first call finishes", the
+// second call would race and try to extract a second time. The
+// in-flight map collapses concurrent calls to one shared Promise.
+//
+// We deliberately do NOT cache successful URIs in memory across calls.
+// Disk is the source of truth: every render asks `existingCoverUri`
+// fresh. That eliminates the class of bugs where the memory cache
+// holds a URI to a file that's been deleted out from under it.
+const inFlight = new Map<string, Promise<string | null>>();
 
 // ── Library-reconcile helpers ──────────────────────────────────────────────
 // Covers are stored at `covers/<safeName(filename)>.<ext>`. The reconcile
@@ -53,12 +64,12 @@ export function deleteCoverFor(filename: string): void {
       /* swallow — best effort */
     }
   }
-  memCache.delete(filename);
+  inFlight.delete(filename);
 }
 
 /**
- * Drop the entire covers directory + in-memory URI cache. Used by the
- * account-switch wipe — every cover on disk belongs to the previous user.
+ * Drop the entire covers directory. Used by the account-switch wipe
+ * — every cover on disk belongs to the previous user.
  */
 export function wipeAllCovers(): void {
   try {
@@ -67,7 +78,7 @@ export function wipeAllCovers(): void {
   } catch {
     /* best-effort */
   }
-  memCache.clear();
+  inFlight.clear();
 }
 
 /** All cover file basenames on disk, with the extension stripped. Returns
@@ -252,41 +263,73 @@ async function extractPdfCoverImage(filename: string): Promise<string | null> {
 // ── Hook ────────────────────────────────────────────────────────────────────
 
 /**
- * Resolve the on-disk cover URI for a book by filename. Extracts on first
- * call, caches the URI (or null = "tried, no cover") in memory, and
- * re-uses thereafter. Branches by extension: EPUBs read the embedded
- * cover out of the OPF; PDFs render page 1 via react-native-pdf-thumbnail.
+ * Returns the cover URI for a book by filename, plus a `retry` callback
+ * the consumer should call when a previously-good URI fails to load
+ * (file deleted out from under us, etc).
+ *
+ * Behaviour:
+ *   1. Initial state checks disk synchronously via `existingCoverUri`. If
+ *      a cover file already exists, it's returned immediately — no
+ *      re-extraction.
+ *   2. If no file on disk, kick off async extraction. Concurrent calls
+ *      for the same filename share one in-flight Promise (no duplicate
+ *      work). The extractor writes the file to disk and returns its URI.
+ *   3. On Image-load failure, `retry()` re-runs step 1 (which now finds
+ *      nothing on disk because the file was deleted) and triggers a
+ *      fresh extraction.
+ *
+ * Disk is the source of truth; this hook does not hold a persistent
+ * URI cache across calls. The previous in-memory cache was the source
+ * of the "file is gone but I'm still trying to render it" bug.
  */
-export function useBookCover(filename: string | null | undefined): string | null {
-  const initial =
-    filename && memCache.has(filename) ? memCache.get(filename) ?? null : null;
-  const [uri, setUri] = useState<string | null>(initial);
+export function useBookCover(
+  filename: string | null | undefined,
+): { uri: string | null; retry: () => void } {
+  const [tick, setTick] = useState(0);
+  const [uri, setUri] = useState<string | null>(() =>
+    filename ? existingCoverUri(filename) : null,
+  );
 
   useEffect(() => {
     if (!filename) {
       setUri(null);
       return;
     }
-    if (memCache.has(filename)) {
-      setUri(memCache.get(filename) ?? null);
+    // Re-check disk on every effect run — covers the "I had a URI but
+    // the file is gone" case after a retry() call.
+    const onDisk = existingCoverUri(filename);
+    if (onDisk) {
+      setUri(onDisk);
       return;
     }
+    // Not on disk — extract. Dedup concurrent calls for the same file.
     let cancelled = false;
     const isPdf = filename.toLowerCase().endsWith('.pdf');
-    const extractor = isPdf ? extractPdfCoverImage(filename) : extractCover(filename);
-    extractor
-      .then((u) => {
-        memCache.set(filename, u);
-        if (!cancelled) setUri(u);
-      })
-      .catch(() => {
-        memCache.set(filename, null);
-        if (!cancelled) setUri(null);
-      });
+    let promise = inFlight.get(filename);
+    if (!promise) {
+      promise = (isPdf ? extractPdfCoverImage(filename) : extractCover(filename))
+        .catch(() => null)
+        .finally(() => {
+          inFlight.delete(filename);
+        });
+      inFlight.set(filename, promise);
+    }
+    promise.then((u) => {
+      if (!cancelled) setUri(u);
+    });
     return () => {
       cancelled = true;
     };
-  }, [filename]);
+  }, [filename, tick]);
 
-  return uri;
+  return {
+    uri,
+    retry: () => {
+      // Drop any in-flight Promise for this filename so the next run
+      // starts fresh, and bump the tick to re-trigger the effect.
+      if (filename) inFlight.delete(filename);
+      setUri(null);
+      setTick((t) => t + 1);
+    },
+  };
 }

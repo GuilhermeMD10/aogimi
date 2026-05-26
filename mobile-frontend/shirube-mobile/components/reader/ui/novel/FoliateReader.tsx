@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import type { SuppressMenuItem } from 'react-native-webview/lib/WebViewTypes';
 import { File } from 'expo-file-system';
 import { bookFilePath } from '@/components/books/utils/bookPaths';
 import {
@@ -25,6 +26,7 @@ export type FoliateReaderHandle = {
   prev: () => void;
   addHighlight: (id: string, cfi: string, color: string) => void;
   removeHighlight: (cfi: string) => void;
+  clearSelection: () => void;
 };
 
 export type ReadyPayload = {
@@ -50,17 +52,32 @@ export type SelectionPayload = {
   cfi: string;
   pageX: number;
   pageY: number;
+  rect: { top: number; bottom: number; left: number; right: number };
 };
 
 export type CustomMenuKey = 'dict' | 'card' | 'deepl' | 'highlight' | 'copy';
 export type CustomMenuEvent = { key: CustomMenuKey; selectedText: string };
 
-const MENU_ITEMS: { key: CustomMenuKey; label: string }[] = [
-  { key: 'dict', label: 'Dictionary' },
-  { key: 'card', label: 'Card' },
-  { key: 'deepl', label: 'DeepL' },
-  { key: 'highlight', label: 'Highlight' },
-  { key: 'copy', label: 'Copy' },
+// OS selection bubble is replaced by NativeSelectionMenu (rendered by the
+// reader screen). We pass `menuItems: []` and exhaustively suppress every
+// stock action so the bubble has nothing to draw.
+const MENU_ITEMS: { key: CustomMenuKey; label: string }[] = [];
+// react-native-webview only exposes this fixed union for suppression. That
+// covers iOS's stock items; on Android the bubble has fewer items by default
+// and an empty menuItems list collapses it.
+const SUPPRESS_MENU_ITEMS: SuppressMenuItem[] = [
+  'cut',
+  'copy',
+  'paste',
+  'replace',
+  'bold',
+  'italic',
+  'underline',
+  'select',
+  'selectAll',
+  'translate',
+  'lookup',
+  'share',
 ];
 
 type Props = {
@@ -73,6 +90,10 @@ type Props = {
   // in a static rounded frame in RN — native pinch-zoom then only scales
   // the page art inside, not the frame itself.
   manga?: boolean;
+  // Fires whenever the WebView frame's measured size changes. The selection
+  // rect emitted by foliate is in this frame's coordinate space, so the
+  // parent screen needs the same size to clamp the custom selection menu.
+  onViewportLayout?: (size: { width: number; height: number }) => void;
   onReady?: (payload: ReadyPayload) => void;
   onRelocated?: (payload: RelocatedPayload) => void;
   onSelection?: (payload: SelectionPayload) => void;
@@ -88,6 +109,7 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
     initialHighlights,
     bgColor,
     manga,
+    onViewportLayout,
     onReady,
     onRelocated,
     onSelection,
@@ -101,14 +123,18 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
   const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null);
   const loadedRef = useRef(false);
 
-  const onLayout = useCallback((e: LayoutChangeEvent) => {
-    const { width, height } = e.nativeEvent.layout;
-    if (width <= 0 || height <= 0) return;
-    setViewport((prev) => {
-      if (prev && prev.width === width && prev.height === height) return prev;
-      return { width, height };
-    });
-  }, []);
+  const onLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const { width, height } = e.nativeEvent.layout;
+      if (width <= 0 || height <= 0) return;
+      setViewport((prev) => {
+        if (prev && prev.width === width && prev.height === height) return prev;
+        onViewportLayout?.({ width, height });
+        return { width, height };
+      });
+    },
+    [onViewportLayout],
+  );
 
   const post = useCallback((msg: FoliateBridgeInbound) => {
     const wv = webviewRef.current;
@@ -131,6 +157,7 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
       prev: () => post({ type: 'prev' }),
       addHighlight: (id, cfi, color) => post({ type: 'addHighlight', id, cfi, color }),
       removeHighlight: (cfi) => post({ type: 'removeHighlight', cfi }),
+      clearSelection: () => post({ type: 'clearSelection' }),
     }),
     [post],
   );
@@ -225,19 +252,7 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
           scrollEnabled={false}
           menuItems={MENU_ITEMS}
           onCustomMenuSelection={handleCustomMenu}
-          suppressMenuItems={[
-            'cut',
-            'paste',
-            'replace',
-            'bold',
-            'italic',
-            'underline',
-            'select',
-            'selectAll',
-            'translate',
-            'lookup',
-            'share',
-          ]}
+          suppressMenuItems={SUPPRESS_MENU_ITEMS}
           style={{ backgroundColor: bgColor }}
         />
       </View>

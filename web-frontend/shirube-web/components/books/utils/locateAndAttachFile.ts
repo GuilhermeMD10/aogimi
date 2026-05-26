@@ -2,7 +2,6 @@ import { importBook, type BookRecord } from './bookStore';
 import { computeEpubIdentity } from '@/lib/epubIdentity';
 import { computePdfIdentity } from '@/lib/pdfIdentity';
 import { matchBooks } from './booksApi';
-import { markBookAvailable } from '@/lib/devicesApi';
 import type { MatchType } from '@/lib/types';
 
 const MAX_EPUB_SIZE = 50 * 1024 * 1024;
@@ -62,7 +61,7 @@ export type LocateResult =
 
 /**
  * Verify a user-picked file actually belongs to the targeted backend book
- * record (`target.backendId`), then import + mark this device as available.
+ * record (`target.backendId`), then import it locally.
  *
  * Shared by:
  *   - ReaderView `onLocateFile` (locating a file for a "not on this device"
@@ -70,16 +69,14 @@ export type LocateResult =
  *   - RestoreBooks `onLocateFile` (the post-login reconcile screen).
  *
  * Both call sites previously hand-rolled the same validate → probe →
- * matchBooks → importBook + markBookAvailable sequence with subtly different
- * error wording.
+ * matchBooks → importBook sequence with subtly different error wording.
  */
 export async function locateAndAttachFile(input: {
   file: File;
   userId: number;
-  deviceId: string;
   target: { backendId: string; title: string; filename: string };
 }): Promise<LocateResult> {
-  const { file, userId, deviceId, target } = input;
+  const { file, userId, target } = input;
 
   // Quick pre-check: if the picked file's extension doesn't match the
   // target record's filename extension, reject before any IO. Saves
@@ -185,7 +182,6 @@ export async function locateAndAttachFile(input: {
     return { ok: false, error: `Failed to import book: ${msg}` };
   }
 
-  markBookAvailable(deviceId, target.backendId, userId).catch(() => undefined);
   return { ok: true, record };
 }
 

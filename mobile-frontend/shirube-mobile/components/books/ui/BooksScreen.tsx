@@ -16,21 +16,21 @@ import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { BookRecord, PendingPayload } from '../types';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { bookFileExists } from '../utils/bookPaths';
+import { bookFileExists, renameBookFile } from '../utils/bookPaths';
 import { importEpub } from '../utils/bookFiles';
 import {
   createBook,
-  markBookAvailable,
   matchBooks,
   updateBookIdentity,
 } from '../utils/booksApi';
-import { getDeviceId } from '@/lib/deviceId';
+import { markPending } from '../utils/bookLocalState';
 import { useBooks } from '../hooks/useBooks';
+import { useOnline } from '@/lib/network/network';
 import { ContinueReadingCard } from './ContinueReadingCard';
 import { BookGridItem } from './BookGridItem';
 import { BookActionsSheet } from './BookActionsSheet';
 import { reconcileBooks, syncPending } from '../utils/reconcileBooks';
-import { clearSessionPending } from '../utils/syncedBookCache';
+import { clearSessionPending, findCachedBookByFileHash } from '../utils/syncedBookCache';
 import { pushAllReaderState } from '../utils/readerStatePush';
 import { isPendingBookId, markPendingAndAttemptPush } from '../utils/bookPush';
 
@@ -40,6 +40,7 @@ export function BooksScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { books, loading, refreshing, error, refresh, silentRefresh, sessionPendingIds } = useBooks();
+  const online = useOnline();
   // Refresh the books list whenever the tab regains focus — e.g. after
   // the user backs out of the reader. Pairs with the optimistic local
   // progress patch the reader writes on back-press: that patch keeps the
@@ -66,17 +67,10 @@ export function BooksScreen() {
       // Pass 1: orphan + stale wipe (skips pending books by design).
       const reconcileSummary = await reconcileBooks(user.id);
 
-      // Pass 2: push every locally-pending book to the backend. The
-      // deviceId is required for markBookAvailable to flag this device
-      // as the local source — skip the push pass if we can't get one.
-      let pushed: string[] = [];
-      let failed: string[] = [];
-      const deviceId = await getDeviceId().catch(() => null);
-      if (deviceId) {
-        const pushSummary = await syncPending(user.id, deviceId);
-        pushed = pushSummary.pushed;
-        failed = pushSummary.failed;
-      }
+      // Pass 2: push every locally-pending book to the backend.
+      const pushSummary = await syncPending(user.id);
+      const pushed = pushSummary.pushed;
+      const failed = pushSummary.failed;
 
       // Pass 3: push any pending reader-state writes (bookmarks,
       // cfi advances) accumulated during offline sessions. Only books
@@ -178,20 +172,42 @@ export function BooksScreen() {
       const imported = await importEpub();
       if (!imported) return;
 
-      // Already-present notice: same bytes already on disk under this
-      // filename. Surface it; the push attempt below is still useful
-      // in case the backend's identity fields need backfilling.
+      // Same bytes already on disk under this filename — nothing to do.
       if (imported.wasAlreadyPresentSameBytes) {
         Alert.alert(
           'Already in your library',
           `"${imported.title || imported.filename}" is already imported on this device with the same bytes.`,
         );
+        await refresh();
+        return;
       }
 
-      const deviceId = await getDeviceId().catch(() => null);
+      // Offline-aware dedup against the cached backend list. If the
+      // imported file matches a cloud record (by file_hash), wire the
+      // local file to that record instead of creating a new pending
+      // entry. Skips any duplicate-creation work at sync time.
+      if (imported.fileHash) {
+        const cachedTwin = await findCachedBookByFileHash(imported.fileHash);
+        if (cachedTwin) {
+          if (cachedTwin.filename !== imported.filename) {
+            // Rename the local file to match the canonical backend
+            // filename so the cached BookRecord can resolve to it via
+            // bookFileExists / bookFilePath.
+            renameBookFile(imported.filename, cachedTwin.filename);
+          }
+          Alert.alert(
+            'Already in your cloud library',
+            `"${cachedTwin.title}" matches what you just imported. The file is now on this device.`,
+          );
+          await refresh();
+          return;
+        }
+      }
 
-      // Build the snapshot the sync module needs to retry the push
-      // later if it fails now (offline) or any time after via Sync-now.
+      // No cached match → mark pending so the book shows up in the
+      // library immediately. Push attempt runs opportunistically; if
+      // we're offline it stays pending until the next Sync-now or
+      // online-transition auto-push.
       const payload: PendingPayload = {
         title: imported.title || imported.filename,
         author: imported.author,
@@ -215,29 +231,17 @@ export function BooksScreen() {
         publisher: imported.publisher,
       };
 
-      if (!deviceId) {
-        // No device id means we can't even register this device — keep
-        // the book pending locally; user can sync after device registers.
-        // (markPendingAndAttemptPush still writes the marker but won't
-        // push without a deviceId — see push.ts.)
+      const result = await markPendingAndAttemptPush(
+        user.id,
+        imported.filename,
+        imported.fileHash ?? '',
+        payload,
+      );
+      if (!result.ok) {
         Alert.alert(
           'Saved offline',
-          `"${imported.title || imported.filename}" is on this device but couldn't reach the cloud. Tap Sync now when you're back online.`,
+          `"${imported.title || imported.filename}" is on this device. Tap Sync now when you're back online to push it.`,
         );
-      } else {
-        const result = await markPendingAndAttemptPush(
-          user.id,
-          deviceId,
-          imported.filename,
-          imported.fileHash ?? '',
-          payload,
-        );
-        if (!result.ok) {
-          Alert.alert(
-            'Saved offline',
-            `"${imported.title || imported.filename}" is on this device but the cloud push didn't go through. Tap Sync now when you're online to push it.`,
-          );
-        }
       }
 
       await refresh();
@@ -254,14 +258,18 @@ export function BooksScreen() {
         <Text style={[styles.title, { color: c.fg }]}>{t('home.title')}</Text>
         <View style={styles.headerActions}>
           <Pressable
-            onPress={handleSyncNow}
+            onPress={online ? handleSyncNow : () => Alert.alert('Offline', 'Connect to the internet to sync.')}
             disabled={syncing || importing}
             style={[
               styles.importBtn,
-              { backgroundColor: c.bgElev, borderColor: c.border, opacity: syncing || importing ? 0.55 : 1 },
+              {
+                backgroundColor: c.bgElev,
+                borderColor: c.border,
+                opacity: syncing || importing || !online ? 0.55 : 1,
+              },
             ]}
             hitSlop={6}
-            accessibilityLabel="Sync library"
+            accessibilityLabel={online ? 'Sync library' : 'Sync library (offline)'}
           >
             {syncing ? (
               <ActivityIndicator size="small" color={c.fg} />

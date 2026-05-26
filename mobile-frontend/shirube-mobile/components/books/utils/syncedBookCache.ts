@@ -74,6 +74,24 @@ export async function getAllCachedBooks(): Promise<BookRecord[]> {
   return Object.values(map);
 }
 
+/**
+ * Find a cached BookRecord whose `file_hash` matches. Used by the
+ * import dedup path so an offline import can still detect "this book
+ * is already in my cloud library" by checking against the locally
+ * cached backend list. Returns null when no cached record carries a
+ * matching hash (or when `hash` itself is null).
+ */
+export async function findCachedBookByFileHash(
+  hash: string | null,
+): Promise<BookRecord | null> {
+  if (!hash) return null;
+  const map = await readCache();
+  for (const book of Object.values(map)) {
+    if (book.file_hash && book.file_hash === hash) return book;
+  }
+  return null;
+}
+
 export async function isSessionPending(id: string): Promise<boolean> {
   const set = await readPendingSet();
   return set.has(id);
@@ -92,15 +110,73 @@ export async function cacheBook(book: BookRecord): Promise<void> {
 }
 
 /**
- * Overwrite the cache with the given list. Used by `useBooks` on every
- * successful backend fetch — the backend is the source of truth for
- * which books exist, so any cached entry NOT in the new list is
- * dropped (the user deleted it on another device).
+ * Overwrite the cache with the given list. Used in places where the
+ * backend response is the absolute truth — typically not during
+ * routine refreshes (use `mergeBackendBooks` for those — it preserves
+ * locally-newer state). Kept for callers that explicitly want a wipe.
  */
 export async function cacheBooks(books: BookRecord[]): Promise<void> {
   const map: CacheMap = {};
   for (const b of books) map[b.id] = b;
   await writeCache(map);
+}
+
+/**
+ * Merge a fresh backend book list into the cache with newer-wins
+ * semantics. This is the canonical refresh path: the local cache is
+ * the source of truth for any record where the local `last_read_at`
+ * exceeds the backend's (an unpushed reading session). Backend wins
+ * everywhere else.
+ *
+ * Books on the backend list that aren't in local cache are added.
+ * Books in local cache but not on the backend list are dropped
+ * (deleted on another device).
+ */
+export async function mergeBackendBooks(books: BookRecord[]): Promise<void> {
+  const map = await readCache();
+  const incomingIds = new Set(books.map((b) => b.id));
+  for (const remote of books) {
+    const local = map[remote.id];
+    if (!local || isNewer(remote.last_read_at, local.last_read_at)) {
+      map[remote.id] = remote;
+    }
+  }
+  for (const id of Object.keys(map)) {
+    if (!incomingIds.has(id)) delete map[id];
+  }
+  await writeCache(map);
+}
+
+/**
+ * Apply a local reading-progress patch to the persisted cache. Called
+ * by the reader's back-press / app-background flush so the library
+ * tile + the next reader open both paint the latest local state — not
+ * the stale backend snapshot from the last successful fetch.
+ *
+ * This is what makes the local cache the source of truth: any reading
+ * session, online or offline, writes through here. Push-side logic
+ * then compares `last_read_at` to decide direction.
+ */
+export async function applyLocalProgress(
+  id: string,
+  patch: { progress: number; cfi: string; lastReadAt: string },
+): Promise<void> {
+  const map = await readCache();
+  const existing = map[id];
+  if (!existing) return;
+  map[id] = {
+    ...existing,
+    progress: patch.progress,
+    cfi_position: patch.cfi,
+    last_read_at: patch.lastReadAt,
+  };
+  await writeCache(map);
+}
+
+function isNewer(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a) return false;
+  if (!b) return true;
+  return new Date(a).getTime() > new Date(b).getTime();
 }
 
 export async function removeCachedBook(id: string): Promise<void> {

@@ -8,10 +8,8 @@ import { useTheme } from '@/components/providers/ThemeProvider';
 import { getUserProfile, updateUserProfile } from '@/lib/userApi';
 import { getUserBooks } from '@/components/books/utils/booksApi';
 import { getUserDecks } from '@/components/decks/utils/decksApi';
-import { getUserDevices, removeDevice, renameDevice } from '@/lib/devicesApi';
-import type { BookProgressRecord, DeviceRecord, UserProfile } from '@/lib/types';
+import type { BookProgressRecord, UserProfile } from '@/lib/types';
 import type { DeckRecord } from '@/components/decks/types';
-import { getDeviceId } from '@/lib/storage/device';
 import { setStoredAvatarIndex } from '@/lib/storage/avatar';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
@@ -22,7 +20,6 @@ import { AccountSection } from '@/components/profile/AccountSection';
 import { DecksSection } from '@/components/profile/DecksSection';
 import { CurrentlyReadingSection } from '@/components/profile/CurrentlyReadingSection';
 import { ThemeSection } from '@/components/profile/ThemeSection';
-import { DevicesSection } from '@/components/profile/DevicesSection';
 import { ActionsSection } from '@/components/profile/ActionsSection';
 
 export default function ProfilePage() {
@@ -34,16 +31,13 @@ export default function ProfilePage() {
   const profileQ = useFetchWithAbort<UserProfile>((s) => getUserProfile(user.id, s), [user.id]);
   const booksQ = useFetchWithAbort<BookProgressRecord[]>((s) => getUserBooks(user.id, s), [user.id]);
   const decksQ = useFetchWithAbort<DeckRecord[]>((s) => getUserDecks(user.id, s), [user.id]);
-  const devicesQ = useFetchWithAbort<DeviceRecord[]>((s) => getUserDevices(user.id, s), [user.id]);
 
   // Local mirrors of server data so handlers can do optimistic updates.
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [devices, setDevices] = useState<DeviceRecord[]>([]);
   useEffect(() => { if (profileQ.data) setProfile(profileQ.data); }, [profileQ.data]);
-  useEffect(() => { if (devicesQ.data) setDevices(devicesQ.data); }, [devicesQ.data]);
   const books = booksQ.data ?? [];
   const decks = decksQ.data ?? [];
-  const loading = profileQ.loading || booksQ.loading || decksQ.loading || devicesQ.loading;
+  const loading = profileQ.loading || booksQ.loading || decksQ.loading;
 
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -73,31 +67,8 @@ export default function ProfilePage() {
     router.push('/authenticate');
   }, [logout, router]);
 
-  const handleRemoveDevice = useCallback(
-    async (deviceId: string) => {
-      try {
-        await removeDevice(deviceId, user.id);
-        setDevices((prev) => prev.filter((d) => d.device_id !== deviceId));
-      } catch { /* ignore */ }
-    },
-    [user],
-  );
-
-  const handleRenameDevice = useCallback(
-    async (deviceId: string, name: string) => {
-      try {
-        const updated = await renameDevice(deviceId, user.id, name);
-        setDevices((prev) =>
-          prev.map((d) => (d.device_id === deviceId ? { ...d, name: updated.name } : d)),
-        );
-      } catch { /* ignore */ }
-    },
-    [user],
-  );
-
   // ── Computed ─────────────────────────────────────────────────────────────────
   const readingBooks = books.filter((b) => b.progress > 0 && b.progress < 100).slice(0, 3);
-  const currentDeviceId = typeof window !== 'undefined' ? getDeviceId() : '';
 
   // ── Loading gate ─────────────────────────────────────────────────────────────
   if (loading) {
@@ -135,12 +106,6 @@ export default function ProfilePage() {
           <div>
             <CurrentlyReadingSection books={readingBooks} />
             <ThemeSection active={theme} onSelect={setTheme} />
-            <DevicesSection
-              devices={devices}
-              currentDeviceId={currentDeviceId}
-              onRename={handleRenameDevice}
-              onRemove={handleRemoveDevice}
-            />
             <ActionsSection
               onShowOnboarding={() => setShowOnboarding(true)}
               onSignOut={handleSignOut}
