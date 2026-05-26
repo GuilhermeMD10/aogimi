@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { fetchDeck, fetchDeckCards } from '../utils/decksApi';
 import {
   getCardsByDeckId,
@@ -67,22 +68,32 @@ export function useDeckDetail(deckId: string) {
     }
   }, [deckId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      await readFromLocal();
-      if (cancelled) return;
-      setLoading(false);
-      await hydrate();
-      if (cancelled) return;
-      await readFromLocal();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [readFromLocal, hydrate]);
+  // useFocusEffect so re-entering the deck (e.g. after closing the
+  // FlashcardDrawer) re-reads local state — tabs/stacks keep this
+  // screen mounted otherwise. Loading state only shows on first focus.
+  const mountedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        const isFirstRun = !mountedRef.current;
+        mountedRef.current = true;
+        if (isFirstRun) {
+          setLoading(true);
+          setError(null);
+        }
+        await readFromLocal();
+        if (cancelled) return;
+        if (isFirstRun) setLoading(false);
+        await hydrate();
+        if (cancelled) return;
+        await readFromLocal();
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [readFromLocal, hydrate]),
+  );
 
   const refresh = useCallback(async () => {
     await hydrate();

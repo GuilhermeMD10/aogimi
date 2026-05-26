@@ -1,7 +1,6 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Redirect, Tabs } from 'expo-router';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { useDeviceRegistration } from '@/lib/useDeviceRegistration';
 import { useT } from '@/lib/i18n/I18nContext';
 import { NotchedNavBar } from '@/components/navigation/NotchedNavBar';
 
@@ -12,7 +11,6 @@ import { NotchedNavBar } from '@/components/navigation/NotchedNavBar';
 export default function TabsLayout() {
   const { status } = useAuth();
   const t = useT();
-  useDeviceRegistration();
 
   if (status === 'signed-out') return <Redirect href="/(auth)/welcome" />;
   if (status === 'loading') return null;

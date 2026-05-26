@@ -12,7 +12,6 @@
 
 import {
   createBook,
-  markBookAvailable,
   matchBooks,
   updateBookIdentity,
 } from './booksApi';
@@ -54,15 +53,12 @@ function candidateFrom(filename: string, payload: PendingPayload) {
 
 /**
  * Push one book to the backend using its previously-stored
- * pendingPayload. On success: marks the local entry as synced and
- * marks the device as having the book available.
+ * pendingPayload. On success: marks the local entry as synced.
  *
  * Push strategy mirrors the +-button import flow:
  *   1. matchBooks — if a `file_hash` match exists, attach to it
  *      (same AUTO_ATTACH_TYPES rule the import flow uses).
  *   2. Otherwise createBook with the snapshot.
- *   3. Either way, markBookAvailable so the device-books listing knows
- *      this device has the file locally.
  *
  * Returns `ok: true` with the bookId for the caller to e.g. wire into
  * a router push or further sync UI. Returns `ok: false` on any failure
@@ -71,7 +67,6 @@ function candidateFrom(filename: string, payload: PendingPayload) {
  */
 export async function pushOneBook(
   userId: number,
-  deviceId: string,
   filename: string,
   payload: PendingPayload,
 ): Promise<PushResult> {
@@ -142,9 +137,6 @@ export async function pushOneBook(
     }
   }
 
-  // Best-effort availability mark — doesn't gate the success path.
-  markBookAvailable(deviceId, bookId, userId).catch(() => undefined);
-
   await markSynced(filename);
   return { ok: true, bookId };
 }
@@ -158,10 +150,7 @@ export async function pushOneBook(
  * Sequential by design so progress can be surfaced one-by-one without
  * a fan-out spike on the backend. Failures don't stop the loop.
  */
-export async function pushAllPending(
-  userId: number,
-  deviceId: string,
-): Promise<SyncSummary> {
+export async function pushAllPending(userId: number): Promise<SyncSummary> {
   const entries = await readAllEntries();
   const summary: SyncSummary = { pushed: [], failed: [] };
   for (const [filename, entry] of Object.entries(entries)) {
@@ -172,7 +161,7 @@ export async function pushAllPending(
       summary.failed.push(filename);
       continue;
     }
-    const result = await pushOneBook(userId, deviceId, filename, entry.pendingPayload);
+    const result = await pushOneBook(userId, filename, entry.pendingPayload);
     if (result.ok) {
       summary.pushed.push(filename);
     } else {
@@ -190,7 +179,6 @@ export async function pushAllPending(
  */
 export async function markPendingAndAttemptPush(
   userId: number,
-  deviceId: string,
   filename: string,
   fileHash: string,
   payload: PendingPayload,
@@ -198,7 +186,7 @@ export async function markPendingAndAttemptPush(
   // Always mark pending FIRST — guarantees the local marker exists
   // even if the network call below throws synchronously for any reason.
   await markPending(filename, fileHash, payload);
-  return pushOneBook(userId, deviceId, filename, payload);
+  return pushOneBook(userId, filename, payload);
 }
 
 /**

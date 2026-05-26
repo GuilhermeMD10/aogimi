@@ -12,7 +12,9 @@ import { loadJSON, saveJSON } from '@/lib/storage';
 import { createUser, fetchUserInfo } from '@/components/profile/utils/profileApi';
 import type { UserProfile } from '@/components/profile/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { reconcileBooks } from '@/components/books/utils/reconcileBooks';
+import { reconcileBooks, syncPending } from '@/components/books/utils/reconcileBooks';
+import { pushAllReaderState } from '@/components/books/utils/readerStatePush';
+import { subscribeOnlineTransition } from '@/lib/network/network';
 import { wipeUserData } from './wipeUserData';
 
 type Credentials = { username: string; password: string };
@@ -134,34 +136,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Background re-validation when a session was restored from cache
-  // (i.e. startup couldn't reach the backend). Retries every 30 s while
-  // the user is signed-in; on success refreshes the cache, on a true
-  // 401-class rejection signs out.
+  // Background re-validation: fires once whenever the network
+  // transitions offline → online. Previously this ran every 30s on a
+  // timer, which wasted battery while offline AND delayed recovery
+  // when the network briefly returned. Subscribing to the transition
+  // is cheaper and faster — the re-validate happens within seconds of
+  // the OS reporting connectivity.
+  //
+  // On success: refresh the cached user profile.
+  // On a real HTTP rejection (401, etc.): sign out — credentials are
+  //   no longer valid.
+  // On a network error during the re-validate attempt itself (rare —
+  //   the OS just told us we're online, but the request failed
+  //   anyway): swallow and wait for the next transition.
   useEffect(() => {
     if (status !== 'signed-in' || !session) return;
     let cancelled = false;
-    const interval = setInterval(async () => {
-      try {
-        const user = await fetchUserInfo(
-          session.credentials.username,
-          session.credentials.password,
-        );
-        if (cancelled) return;
-        await saveJSON(USER_CACHE_KEY, user);
-        setSession((prev) => (prev ? { ...prev, user } : prev));
-      } catch (err) {
-        if (cancelled) return;
-        if (isNetworkError(err)) return; // still offline, keep trying
-        // Server actively rejected — credentials no longer valid.
-        await AsyncStorage.multiRemove([CREDS_KEY, USER_CACHE_KEY]);
-        setSession(null);
-        setStatus('signed-out');
-      }
-    }, 30_000);
+    const unsub = subscribeOnlineTransition(() => {
+      void (async () => {
+        try {
+          const user = await fetchUserInfo(
+            session.credentials.username,
+            session.credentials.password,
+          );
+          if (cancelled) return;
+          await saveJSON(USER_CACHE_KEY, user);
+          setSession((prev) => (prev ? { ...prev, user } : prev));
+        } catch (err) {
+          if (cancelled) return;
+          if (isNetworkError(err)) return; // transient — wait for next transition
+          await AsyncStorage.multiRemove([CREDS_KEY, USER_CACHE_KEY]);
+          setSession(null);
+          setStatus('signed-out');
+        }
+      })();
+    });
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      unsub();
+    };
+  }, [status, session]);
+
+  // Auto-push pending writes when the network returns. Push-only — we
+  // never auto-pull, because pulling can overwrite local state (per the
+  // newer-wins rule) and that's a surprise we reserve for the user's
+  // explicit Sync-now tap. Auto-push is safe: sending your own work to
+  // the cloud can't hurt you.
+  //
+  // Two pushes fire in sequence:
+  //   1. syncPending — books imported offline get pushed to backend
+  //   2. pushAllReaderState — bookmarks + offline reading progress
+  //
+  // Both are best-effort; failures stay in the local pending sets and
+  // will retry on the next online transition or on manual Sync-now.
+  useEffect(() => {
+    if (status !== 'signed-in' || !session) return;
+    let cancelled = false;
+    const userId = session.user.id;
+    const unsub = subscribeOnlineTransition(() => {
+      void (async () => {
+        try {
+          await syncPending(userId).catch(() => undefined);
+          if (cancelled) return;
+          await pushAllReaderState().catch(() => undefined);
+        } catch {
+          /* best-effort */
+        }
+      })();
+    });
+    return () => {
+      cancelled = true;
+      unsub();
     };
   }, [status, session]);
 

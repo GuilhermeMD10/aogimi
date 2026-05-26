@@ -28,10 +28,5 @@ export type {
 } from './user';
 
 export type {
-  DeviceRecord,
-  DeviceBookRecord,
-} from './device';
-
-export type {
   TranslationResult,
 } from './translate';

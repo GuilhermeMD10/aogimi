@@ -198,11 +198,8 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
  * Delegates to `lib/sync/push.pushAllPending` — the reconcile module is
  * the single public entry point for "sync" operations callers reach for.
  */
-export async function syncPending(
-  userId: number,
-  deviceId: string,
-): Promise<SyncSummary> {
-  return pushAllPending(userId, deviceId);
+export async function syncPending(userId: number): Promise<SyncSummary> {
+  return pushAllPending(userId);
 }
 
 async function wipeLocalEverything(filename: string): Promise<void> {

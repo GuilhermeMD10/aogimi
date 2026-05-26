@@ -11,7 +11,6 @@ import {
   registerBook as apiRegisterBook,
   updateBookIdentity as apiUpdateBookIdentity,
 } from '@/components/books/utils/booksApi';
-import { markBookAvailable } from '@/lib/devicesApi';
 import type { BookRecord } from '@/components/books/utils/bookStore';
 import { listPending, markSynced } from './localState';
 
@@ -45,19 +44,16 @@ function candidateFrom(book: BookRecord) {
 
 /**
  * Push one book to the backend using its IDB BookRecord. On success:
- * flips the IDB row to `syncState: 'synced'` and flags this device
- * as a source of the file's bytes.
+ * flips the IDB row to `syncState: 'synced'`.
  *
  * Strategy mirrors the +-button import flow:
  *   1. matchBooks — if a `file_hash` match exists, attach (the
  *      AUTO_ATTACH_TYPES rule).
  *   2. Otherwise apiRegisterBook with the row's fields.
- *   3. markBookAvailable so device-books listings know we have it.
  */
 export async function pushOneBook(
   book: BookRecord,
   userId: number,
-  deviceId: string,
 ): Promise<PushResult> {
   let bookId: string | null = null;
   try {
@@ -125,7 +121,6 @@ export async function pushOneBook(
     }
   }
 
-  markBookAvailable(deviceId, bookId, userId).catch(() => undefined);
   await markSynced(book.filename);
   return { ok: true, bookId };
 }
@@ -134,14 +129,11 @@ export async function pushOneBook(
  * Iterate every locally-pending book and push each. Used by the
  * explicit Sync-now button. Sequential — clearer progress reporting.
  */
-export async function pushAllPending(
-  userId: number,
-  deviceId: string,
-): Promise<SyncSummary> {
+export async function pushAllPending(userId: number): Promise<SyncSummary> {
   const pending = await listPending<BookRecord>();
   const summary: SyncSummary = { pushed: [], failed: [] };
   for (const book of pending) {
-    const result = await pushOneBook(book, userId, deviceId);
+    const result = await pushOneBook(book, userId);
     if (result.ok) {
       summary.pushed.push(book.filename);
     } else {

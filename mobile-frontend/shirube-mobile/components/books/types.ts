@@ -123,13 +123,6 @@ export type BookMatchResult = {
     | 'none';
 };
 
-// A book as returned by GET /api/devices/{deviceId}/books — book metadata
-// plus an `available` flag indicating whether *this* device has the file
-// locally.
-export type DeviceBookRecord = BookRecord & {
-  available: boolean;
-};
-
 // ── Bookmarks (per-book, persisted on backend) ──────────────────────────────
 
 export type BookmarkRecord = {

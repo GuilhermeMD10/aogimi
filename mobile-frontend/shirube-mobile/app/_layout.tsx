@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -14,6 +14,9 @@ import {
 import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
 import { I18nProvider } from '@/lib/i18n/I18nContext';
 import { AuthProvider } from '@/lib/auth/AuthContext';
+import { getDictionary } from '@/lib/dictionary/openDictionary';
+import { initNetwork } from '@/lib/network/network';
+import { useHideAndroidNavBar } from '@/lib/useHideAndroidNavBar';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,6 +29,17 @@ SplashScreen.preventAutoHideAsync();
 // Android theme (app.json android plugin) rather than the JS API.
 
 export default function RootLayout() {
+  // App-wide Android nav-bar hide. RootLayout never unmounts, so the
+  // bar stays hidden for the whole app lifetime.
+  useHideAndroidNavBar();
+
+  // Install the NetInfo subscription once at app start. The returned
+  // unsubscribe is intentionally ignored — RootLayout lives for the
+  // whole app lifetime, so there's nothing to clean up.
+  useEffect(() => {
+    initNetwork();
+  }, []);
+
   const [fontsLoaded, fontsError] = useFonts({
     Lora_400Regular,
     Lora_600SemiBold,
@@ -33,11 +47,28 @@ export default function RootLayout() {
     Lora_400Regular_Italic,
   });
 
-  const onLayoutReady = useCallback(() => {
-    if (fontsLoaded || fontsError) SplashScreen.hideAsync();
-  }, [fontsLoaded, fontsError]);
+  // First-launch dictionary setup. `getDictionary()` copies the
+  // bundled SQLite (~250 MB) into documentDirectory the first time
+  // the app runs after install (or after a version bump). On every
+  // subsequent launch it's a no-op cache hit. The splash stays up
+  // until both fonts AND dictionary are ready.
+  const [dictReady, setDictReady] = useState(false);
+  const [dictError, setDictError] = useState<Error | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getDictionary()
+      .then(() => { if (!cancelled) setDictReady(true); })
+      .catch((err) => { if (!cancelled) setDictError(err); });
+    return () => { cancelled = true; };
+  }, []);
 
-  if (!fontsLoaded && !fontsError) return null;
+  const allReady = (fontsLoaded || fontsError) && (dictReady || dictError);
+
+  const onLayoutReady = useCallback(() => {
+    if (allReady) SplashScreen.hideAsync();
+  }, [allReady]);
+
+  if (!allReady) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

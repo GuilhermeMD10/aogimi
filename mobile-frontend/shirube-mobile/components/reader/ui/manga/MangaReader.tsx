@@ -1,4 +1,4 @@
-import { ReaderBottomDock } from '../ReaderBottomDock';
+import { ReaderBottomDock, type DockMode } from '../ReaderBottomDock';
 import type { EpubTocItem } from '../../utils/foliateHtml';
 import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../../utils/readerStorage';
 import type { MangaPageDir } from '../../utils/readerLayout';
@@ -28,6 +28,7 @@ export type MangaReaderProps = {
   onJumpSpine: (spineIndex: number) => void;
   onToggleBookmark: () => void;
   onDeleteBookmark: (id: string) => void;
+  onModeChange?: (mode: DockMode) => void;
 };
 
 /**
@@ -53,6 +54,7 @@ export function MangaReader({
   onJumpSpine,
   onToggleBookmark,
   onDeleteBookmark,
+  onModeChange,
 }: MangaReaderProps) {
   const goPrev = () => onJumpSpine(Math.max(0, page - 2));
   const goNext = () => onJumpSpine(Math.min(totalPages - 1, page));
@@ -96,6 +98,7 @@ export function MangaReader({
       onDeleteHighlight={() => undefined}
       onChangePrefs={() => undefined}
       onChangeLayout={() => undefined}
+      onModeChange={onModeChange}
     />
   );
 }

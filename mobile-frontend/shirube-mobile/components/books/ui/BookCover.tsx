@@ -28,8 +28,9 @@ export function BookCover({
 }: Props) {
   // EPUB: read the embedded cover out of the OPF. PDF: render page 1 to a
   // JPEG via react-native-pdf-thumbnail. Both write once into covers/ and
-  // cache the URI; the grid loads the static image (no `<Pdf>` per tile).
-  const coverUri = useBookCover(filename);
+  // the hook re-checks disk on every effect run, so a deleted file
+  // automatically triggers re-extraction via `retry`.
+  const { uri: coverUri, retry } = useBookCover(filename);
   const glyph = coverGlyphFor(title);
   const darker = darken(coverColor, 0.55);
 
@@ -51,18 +52,12 @@ export function BookCover({
           source={{ uri: coverUri }}
           style={StyleSheet.absoluteFill}
           resizeMode="contain"
-          onError={(e) => {
-            // Surface "extraction returned a URI but RN Image couldn't
-            // load it" separately from "extraction returned null". With
-            // the `[epubCover]` warn in extractPdfCoverImage already in
-            // place, these two logs together pinpoint exactly which
-            // half of the cover pipeline is failing for a given file.
-            console.warn(
-              '[BookCover] Image failed to load',
-              coverUri,
-              e.nativeEvent,
-            );
-          }}
+          // File was deleted out from under us, or extraction wrote a
+          // path that's no longer readable. Ask the hook to re-check
+          // disk + re-extract. If extraction fails (no book file, no
+          // embedded cover), the hook returns null and the glyph
+          // renders.
+          onError={retry}
         />
       ) : (
         <Text
