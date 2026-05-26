@@ -10,7 +10,6 @@ import {
   createBookmark as apiCreateBookmark,
   deleteBookmark as apiDeleteBookmark,
   fetchBookmarks as apiFetchBookmarks,
-  markBookAvailable,
   matchBooks,
 } from '@/components/books/utils/booksApi';
 import { useBookRecord } from '@/components/books/hooks/useBookRecord';
@@ -19,7 +18,6 @@ import { bookFilePath, deleteBookFile } from '@/components/books/utils/bookPaths
 import { ExtensionMismatchError, importEpub } from '@/components/books/utils/bookFiles';
 import { removeEntry, setStoredFileHash } from '@/components/books/utils/bookLocalState';
 import { useBookFile } from '@/components/books/hooks/useBookFile';
-import { getDeviceId } from '@/lib/deviceId';
 import { useAuth } from '@/lib/auth/AuthContext';
 import {
   HIGHLIGHT_COLORS,
@@ -35,6 +33,7 @@ import { FlashcardDrawer } from '@/components/decks/ui/FlashcardDrawer';
 import { Button } from '@/components/ui/Button';
 import { ReaderTopBar } from './ReaderTopBar';
 import { FloatingBackButton } from './FloatingBackButton';
+import type { DockMode } from './ReaderBottomDock';
 import { MangaScrollView, type MangaScrollViewHandle } from './manga/MangaScrollView';
 import { MangaPagedView, type MangaPagedViewHandle } from './manga/MangaPagedView';
 import { useMangaSpine } from './manga/useMangaSpine';
@@ -53,19 +52,19 @@ import { NovelReader } from './novel/NovelReader';
 import { MangaReader } from './manga/MangaReader';
 import { HighlightPicker } from './HighlightPicker';
 import { DeepLPopup } from './DeepLPopup';
+import { NativeSelectionMenu, type NativeMenuKey } from '../utils/native-selection';
 import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle } from '../utils/foliateHtml';
 import { useReaderLayoutPrefs, flowForCombo } from '../utils/readerLayout';
-import { useHideAndroidNavBar } from '@/lib/useHideAndroidNavBar';
 import { setLocalProgress } from '@/components/books/utils/booksLocalCache';
+import { applyLocalProgress as persistLocalProgress } from '@/components/books/utils/syncedBookCache';
 
 type Props = { bookId: string };
 
 export function ReaderScreen({ bookId }: Props) {
   const c = useColors();
   const router = useRouter();
-  // Lower the Android system nav bar while reading any book; restored on
-  // unmount when the user backs out of the reader. iOS is a no-op.
-  useHideAndroidNavBar();
+  // The Android nav bar is hidden globally from app/_layout.tsx, so no
+  // per-screen call is needed here. iOS is unaffected.
 
   // ── Book record ─────────────────────────────────────────────────────
   // Local-first: paints from the cached BookRecord immediately, then
@@ -133,6 +132,13 @@ export function ReaderScreen({ bookId }: Props) {
 
   // ── Selection / menus ───────────────────────────────────────────────
   const [selection, setSelection] = useState<SelectionPayload | null>(null);
+  // FoliateReader's frame size, used to clamp the custom selection menu so
+  // it doesn't extend below the dock or off the screen.
+  const [readerViewport, setReaderViewport] = useState<{ width: number; height: number } | null>(null);
+  // Current bottom-dock mode. Drives the floating back-chevron visibility:
+  // when the dock expands beyond the pill, the chevron slides out so it
+  // doesn't compete with the toolbar.
+  const [dockMode, setDockMode] = useState<DockMode>('pill');
   const {
     dictTerm,
     setDictTerm,
@@ -524,16 +530,24 @@ export function ReaderScreen({ bookId }: Props) {
 
   const handleBack = useCallback(() => {
     flushProgress();
-    // Optimistic local update so the library tile reflects this session
-    // immediately on back. The useFocusEffect refresh in HomeScreen will
-    // reconcile with server truth right after.
+    // Two writes for the same patch:
+    //   1. setLocalProgress — in-memory overlay so the current
+    //      library-tab render reflects the session immediately.
+    //   2. persistLocalProgress — writes through to the AsyncStorage
+    //      cache so on app restart (or next reader open) the cached
+    //      BookRecord already carries the latest local state.
+    //      Without (2), the local progress would revert to whatever
+    //      the backend last sent us, even though the local CFI in
+    //      reader storage is preserved.
     const latest = latestLocationRef.current;
     if (book?.id && latest) {
-      setLocalProgress(book.id, {
+      const patch = {
         progress: latest.progress,
         cfi: latest.cfi,
         lastReadAt: new Date().toISOString(),
-      });
+      };
+      setLocalProgress(book.id, patch);
+      void persistLocalProgress(book.id, patch);
     }
     router.back();
   }, [flushProgress, router, book?.id]);
@@ -622,12 +636,6 @@ export function ReaderScreen({ bookId }: Props) {
         await setStoredFileHash(book.filename, imported.fileHash);
       }
       setHasFile(true);
-      try {
-        const deviceId = await getDeviceId();
-        await markBookAvailable(deviceId, book.id, user.id);
-      } catch {
-        /* non-fatal */
-      }
     } catch {
       /* next open will retry */
     }
@@ -662,7 +670,8 @@ export function ReaderScreen({ bookId }: Props) {
     if (!hasFile) {
       return (
         <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
-          <ReaderTopBar onBack={handleBack} />
+          <ReaderTopBar title={book.title} progress={progress} />
+          <FloatingBackButton onPress={handleBack} />
           <View style={styles.missingWrap}>
             <Text style={[styles.missingTitle, { color: c.fg }]}>File not on this device</Text>
             <Text style={[styles.missingBody, { color: c.fgMuted }]}>
@@ -717,6 +726,7 @@ export function ReaderScreen({ bookId }: Props) {
     onToggleBookmark: toggleBookmark,
     onDeleteBookmark: removeBookmarkSynced,
     onDeleteHighlight: handleDeleteHighlight,
+    onModeChange: setDockMode,
   };
 
   const isManga = bookType === 'manga';
@@ -727,11 +737,13 @@ export function ReaderScreen({ bookId }: Props) {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: safeBg }]} edges={['top']}>
-      {isManga ? (
-        <FloatingBackButton onPress={handleBack} />
-      ) : (
-        <ReaderTopBar onBack={handleBack} />
+      {isManga ? null : (
+        <ReaderTopBar title={book.title} progress={progress} />
       )}
+
+      {/* Back navigation: floating chevron pinned bottom-left, fades out
+          when the dock expands so it doesn't compete with the toolbar. */}
+      <FloatingBackButton onPress={handleBack} visible={dockMode === 'pill'} />
 
       <View style={styles.body}>
         {/* Manga and reflowable text are two separate renderers, mutually
@@ -773,6 +785,7 @@ export function ReaderScreen({ bookId }: Props) {
             onRelocated={handleRelocated}
             onSelection={handleSelection}
             onCustomMenu={handleCustomMenu}
+            onViewportLayout={setReaderViewport}
             onError={handleEpubError}
           />
         ) : !hasFile ? (
@@ -820,6 +833,28 @@ export function ReaderScreen({ bookId }: Props) {
           }}
           onToggleBookmark={toggleBookmark}
           onDeleteBookmark={removeBookmarkSynced}
+          onModeChange={setDockMode}
+        />
+      )}
+
+      {/* Custom selection menu (replaces the OS bubble; positioned above the
+          selection, flipped below near the top edge). Hidden while the
+          highlight color picker is up so the two don't stack. */}
+      {selection && readerViewport && !highlightPicker && !isManga && (
+        <NativeSelectionMenu
+          selectionRect={selection.rect}
+          viewport={readerViewport}
+          onAction={(key: NativeMenuKey) => {
+            handleCustomMenu({ key, selectedText: selection.text });
+            if (key !== 'highlight') {
+              epubRef.current?.clearSelection();
+              setSelection(null);
+            }
+          }}
+          onDismiss={() => {
+            epubRef.current?.clearSelection();
+            setSelection(null);
+          }}
         />
       )}
 

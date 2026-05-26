@@ -24,6 +24,7 @@ import {
   getCachedBook,
   markSessionPending,
 } from '../utils/syncedBookCache';
+import { isOnlineNow } from '@/lib/network/network';
 import type { BookRecord } from '../types';
 
 type State = {
@@ -35,6 +36,12 @@ type State = {
    *  pushes (bookmarks, progress beacon, etc.) for the session. */
   offlineMode: boolean;
 };
+
+function isNewer(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a) return false;
+  if (!b) return true;
+  return new Date(a).getTime() > new Date(b).getTime();
+}
 
 function isNetworkError(err: unknown): boolean {
   return err instanceof TypeError;
@@ -61,12 +68,34 @@ export function useBookRecord(bookId: string): State {
         setLoading(false);
       }
 
-      // 2. Backend hydrate.
+      // Skip the backend hydrate entirely when we already know we're
+      // offline. Saves a round-trip that would fail anyway and lets
+      // the reader open instantly. The book is still flagged
+      // session-pending so the library UI reflects "needs sync".
+      if (!isOnlineNow()) {
+        if (cached) {
+          await markSessionPending(bookId);
+          setOfflineMode(true);
+        } else {
+          setError('Offline — open this book once with a connection.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      // 2. Backend hydrate. Newer-wins: only overwrite the cached
+      //    record (and surface the backend version) when the backend
+      //    `last_read_at` is strictly newer than the local cache.
+      //    If the cache is newer (an unpushed reading session), we
+      //    keep painting the local version — the next Sync-now will
+      //    reconcile.
       try {
         const fresh = await fetchBook(bookId);
         if (cancelled) return;
-        await cacheBook(fresh);
-        setBook(fresh);
+        if (!cached || isNewer(fresh.last_read_at, cached.last_read_at)) {
+          await cacheBook(fresh);
+          setBook(fresh);
+        }
         setLoading(false);
       } catch (err) {
         if (cancelled) return;

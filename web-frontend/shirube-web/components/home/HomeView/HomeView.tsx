@@ -6,9 +6,8 @@ import { BookOpen, Search, Layers, ChevronRight, User, type LucideIcon } from 'l
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import { useBubble } from '@/components/providers/BubbleProvider';
-import { getDeviceBooks } from '@/lib/devicesApi';
-import type { DeviceBookRecord } from '@/lib/types';
-import { getDeviceId } from '@/lib/storage/device';
+import { getUserBooks } from '@/components/books/utils/booksApi';
+import type { BookProgressRecord } from '@/lib/types';
 import type { BubbleKey } from '@/components/WorkspaceNav';
 import {
   CoverMini,
@@ -41,12 +40,11 @@ export default function HomeView() {
   const { setPendingBookOpen } = useReaderState();
   const { setActiveBubble } = useBubble();
 
-  const [recent, setRecent] = useState<DeviceBookRecord[]>([]);
+  const [recent, setRecent] = useState<BookProgressRecord[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    const deviceId = getDeviceId();
-    getDeviceBooks(deviceId, user.id)
+    getUserBooks(user.id)
       .then((books) => {
         if (cancelled) return;
         const sorted = [...books].sort(
@@ -72,8 +70,12 @@ export default function HomeView() {
   );
 
   const resumeBook = useCallback(
-    (book: DeviceBookRecord) => {
-      if (book.available) setPendingBookOpen(book.filename);
+    (book: BookProgressRecord) => {
+      // The reader-tab open handler checks for local file presence;
+      // setting `pendingBookOpen` unconditionally is safe — if the
+      // file isn't on this device the reader surfaces the locate
+      // affordance there.
+      setPendingBookOpen(book.filename);
       router.push('/reader');
     },
     [router, setPendingBookOpen],
@@ -217,7 +219,6 @@ export default function HomeView() {
                       </div>
                       <div style={{ fontSize: 11.5, color: 'var(--lgc-fg-muted)', marginTop: 1 }}>
                         {b.author}
-                        {!b.available && <span style={{ marginLeft: 8 }}>· not on this device</span>}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
                         <div

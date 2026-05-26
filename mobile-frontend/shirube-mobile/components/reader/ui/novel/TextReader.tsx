@@ -1,4 +1,4 @@
-import { ReaderBottomDock } from '../ReaderBottomDock';
+import { ReaderBottomDock, type DockMode } from '../ReaderBottomDock';
 import type { EpubTocItem } from '../../utils/foliateHtml';
 import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../../utils/readerStorage';
 import type { ReaderDirection, ReaderLayout } from '../../utils/readerLayout';
@@ -26,6 +26,7 @@ export type TextReaderProps = {
   onToggleDirection: () => void;
   onSetLayout?: (layout: ReaderLayout) => void;
   onSetDirection?: (direction: ReaderDirection) => void;
+  onModeChange?: (mode: DockMode) => void;
 };
 
 /**
@@ -58,6 +59,7 @@ export function TextReader({
   onToggleDirection,
   onSetLayout,
   onSetDirection,
+  onModeChange,
 }: TextReaderProps) {
   const handleChangeLayout = (patch: { layout?: ReaderLayout; direction?: ReaderDirection }) => {
     if (patch.layout && patch.layout !== layout) {
@@ -91,6 +93,7 @@ export function TextReader({
       onDeleteHighlight={onDeleteHighlight}
       onChangePrefs={onChangePrefs}
       onChangeLayout={handleChangeLayout}
+      onModeChange={onModeChange}
     />
   );
 }

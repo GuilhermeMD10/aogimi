@@ -6,8 +6,6 @@ import {
 import { computeEpubIdentity } from '@/lib/epubIdentity';
 import { computePdfIdentity } from '@/lib/pdfIdentity';
 import { matchBooks } from './booksApi';
-import { markBookAvailable } from '@/lib/devicesApi';
-import { getDeviceId } from '@/lib/storage/device';
 import { AUTO_ATTACH_TYPES } from './locateAndAttachFile';
 
 export type ImportResult =
@@ -148,13 +146,11 @@ export async function importBookWithMatch(
 
     const { record, wasAlreadyPresentSameBytes } = await importBook(fileForImport, userId);
 
-    const deviceId = getDeviceId();
     try {
-      const backendMap = await syncLocalBooksToBackend(userId);
-      const remote = backendMap.get(record.filename);
-      if (remote) {
-        await markBookAvailable(deviceId, remote.id, userId).catch(() => undefined);
-      }
+      // Ensure the backend register is in sync with what we just
+      // imported locally. Failures are best-effort — the local IDB
+      // row + sync map carry the pending state for the next push.
+      await syncLocalBooksToBackend(userId);
     } catch {
       /* best-effort */
     }

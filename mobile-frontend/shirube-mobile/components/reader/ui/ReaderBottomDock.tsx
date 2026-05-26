@@ -1,14 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Dimensions,
-  Easing,
-  PanResponder,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Animated, Dimensions, Easing, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily } from '@/theme/tokens';
@@ -76,6 +67,10 @@ type Props = {
   onDeleteHighlight: (id: string) => void;
   onChangePrefs: (patch: Partial<ReaderPrefs>) => void;
   onChangeLayout: (patch: { layout?: ReaderLayout; direction?: ReaderDirection }) => void;
+  // Fires whenever the dock's internal mode changes. The reader uses this
+  // to slide the floating back chevron out of the way when the dock
+  // expands beyond the pill.
+  onModeChange?: (mode: DockMode) => void;
 };
 
 // ─── Layout per mode ─────────────────────────────────────────────────────────
@@ -83,7 +78,7 @@ type Props = {
 const SCREEN_W = Dimensions.get('window').width;
 const SCREEN_H = Dimensions.get('window').height;
 
-const PILL_WIDTH = Math.min(SCREEN_W - 48, 320);
+const PILL_WIDTH = 80;
 const PILL_HEIGHT = 38;
 const PILL_BOTTOM = 22;
 const PILL_RADIUS = 999;
@@ -95,22 +90,25 @@ const SHEET_WIDTH = SCREEN_W;
 const SHEET_BOTTOM = 0;
 const SHEET_RADIUS = 22;
 
-const MODES: Record<DockMode, {
-  width: number;
-  height: number;
-  bottom: number;
-  radius: number;
-  backdrop: boolean;
-}> = {
-  pill:        { width: PILL_WIDTH,  height: PILL_HEIGHT,    bottom: PILL_BOTTOM,  radius: PILL_RADIUS, backdrop: false },
-  toolbar:     { width: SHEET_WIDTH, height: TOOLBAR_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: false },
-  toc:         { width: SHEET_WIDTH, height: PANE_HEIGHT,    bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: true  },
-  annotations: { width: SHEET_WIDTH, height: PANE_HEIGHT,    bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: true  },
-  settings:    { width: SHEET_WIDTH, height: PANE_HEIGHT,    bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: false },
+const MODES: Record<
+  DockMode,
+  {
+    width: number;
+    height: number;
+    bottom: number;
+    radius: number;
+    backdrop: boolean;
+  }
+> = {
+  pill: { width: PILL_WIDTH, height: PILL_HEIGHT, bottom: PILL_BOTTOM, radius: PILL_RADIUS, backdrop: false },
+  toolbar: { width: SHEET_WIDTH, height: TOOLBAR_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: false },
+  toc: { width: SHEET_WIDTH, height: PANE_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: true },
+  annotations: { width: SHEET_WIDTH, height: PANE_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: true },
+  settings: { width: SHEET_WIDTH, height: PANE_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: false },
 };
 
-const ANIM_MS = 280;
-const CONTENT_FADE_MS = 140;
+const ANIM_MS = 200;
+const CONTENT_FADE_MS = 0;
 
 // Swipe-down close thresholds.
 const SWIPE_CLOSE_VELOCITY = 0.6;
@@ -123,6 +121,11 @@ export function ReaderBottomDock(props: Props) {
   // visible — diverges from `mode` only during the content cross-fade.
   const [mode, setMode] = useState<DockMode>('pill');
   const [renderMode, setRenderMode] = useState<DockMode>('pill');
+
+  const onModeChange = props.onModeChange;
+  useEffect(() => {
+    onModeChange?.(mode);
+  }, [mode, onModeChange]);
 
   // ── Animated values ──────────────────────────────────────────────────
   const widthA = useRef(new Animated.Value(MODES.pill.width)).current;
@@ -138,30 +141,49 @@ export function ReaderBottomDock(props: Props) {
     const target = MODES[mode];
     Animated.parallel([
       Animated.timing(widthA, {
-        toValue: target.width, duration: ANIM_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false,
+        toValue: target.width,
+        duration: ANIM_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
       }),
       Animated.timing(heightA, {
-        toValue: target.height, duration: ANIM_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false,
+        toValue: target.height,
+        duration: ANIM_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
       }),
       Animated.timing(bottomA, {
-        toValue: target.bottom, duration: ANIM_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false,
+        toValue: target.bottom,
+        duration: ANIM_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
       }),
       Animated.timing(radiusA, {
-        toValue: target.radius, duration: ANIM_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false,
+        toValue: target.radius,
+        duration: ANIM_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
       }),
       Animated.timing(backdropA, {
-        toValue: target.backdrop ? 0.35 : 0, duration: ANIM_MS, useNativeDriver: true,
+        toValue: target.backdrop ? 0.35 : 0,
+        duration: ANIM_MS,
+        useNativeDriver: true,
       }),
     ]).start();
 
     // Content cross-fade: fade out → swap renderMode → fade back in.
     if (renderMode !== mode) {
       Animated.timing(contentA, {
-        toValue: 0, duration: CONTENT_FADE_MS, useNativeDriver: true,
+        toValue: 0,
+        duration: CONTENT_FADE_MS,
+        useNativeDriver: true,
       }).start(() => {
         setRenderMode(mode);
         Animated.timing(contentA, {
-          toValue: 1, duration: CONTENT_FADE_MS, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+          toValue: 1,
+          duration: CONTENT_FADE_MS,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
         }).start();
       });
     }
@@ -189,13 +211,19 @@ export function ReaderBottomDock(props: Props) {
       onPanResponderRelease: (_, gs) => {
         const shouldClose = gs.vy > SWIPE_CLOSE_VELOCITY || gs.dy > SWIPE_CLOSE_DISTANCE;
         Animated.spring(dragY, {
-          toValue: 0, useNativeDriver: false, bounciness: 0, speed: 18,
+          toValue: 0,
+          useNativeDriver: false,
+          bounciness: 0,
+          speed: 18,
         }).start();
         if (shouldClose) stepBack();
       },
       onPanResponderTerminate: () => {
         Animated.spring(dragY, {
-          toValue: 0, useNativeDriver: false, bounciness: 0, speed: 18,
+          toValue: 0,
+          useNativeDriver: false,
+          bounciness: 0,
+          speed: 18,
         }).start();
       },
     }),
@@ -207,21 +235,14 @@ export function ReaderBottomDock(props: Props) {
   return (
     <View style={styles.host} pointerEvents="box-none">
       {/* Backdrop — visible only for toc/annotations. Tap dismisses. */}
-      <Animated.View
-        pointerEvents={showBackdrop ? 'auto' : 'none'}
-        style={[styles.backdrop, { opacity: backdropA }]}
-      >
+      <Animated.View pointerEvents={showBackdrop ? 'auto' : 'none'} style={[styles.backdrop, { opacity: backdropA }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={stepBack} />
       </Animated.View>
 
       {/* Outside-tap zone — fills the area above the dock when expanded
           without a backdrop (toolbar / settings). */}
       {expanded && !showBackdrop && (
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={stepBack}
-          accessibilityLabel="Close reader controls"
-        />
+        <Pressable style={StyleSheet.absoluteFill} onPress={stepBack} accessibilityLabel="Close reader controls" />
       )}
 
       {/* Animated container. */}
@@ -246,25 +267,14 @@ export function ReaderBottomDock(props: Props) {
         )}
 
         <Animated.View style={[styles.contentWrap, { opacity: contentA }]}>
-          {renderMode === 'pill' && (
-            <PillContent
-              colors={c}
-              title={props.title}
-              progress={props.progress}
-              onPress={() => setMode('toolbar')}
-            />
-          )}
+          {renderMode === 'pill' && <PillContent colors={c} onPress={() => setMode('toolbar')} />}
           {renderMode === 'toolbar' && (
             <ToolbarContent
               colors={c}
-              title={props.title}
-              progress={props.progress}
               bookmarked={props.bookmarked}
               layout={props.layout}
               direction={props.direction}
               variant={props.variant ?? 'default'}
-              page={props.page}
-              totalPages={props.totalPages}
               mangaMode={props.mangaMode}
               onToggleMangaMode={props.onToggleMangaMode}
               mangaPageDir={props.mangaPageDir}
@@ -322,36 +332,16 @@ export function ReaderBottomDock(props: Props) {
 // Pill content (A1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PillContent({
-  colors: c,
-  title,
-  progress,
-  onPress,
-}: {
-  colors: ReturnType<typeof useColors>;
-  title: string;
-  progress: number;
-  onPress: () => void;
-}) {
+function PillContent({ colors: c, onPress }: { colors: ReturnType<typeof useColors>; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Open reader controls — ${title}, ${Math.round(progress)}%`}
+      accessibilityLabel="Open reader controls"
       hitSlop={8}
       style={styles.pillRow}
     >
-      <Text
-        numberOfLines={1}
-        ellipsizeMode="tail"
-        style={[styles.pillTitle, { color: c.fg, fontFamily: fontFamily.jp }]}
-      >
-        {title}
-      </Text>
-      <Text style={[styles.pillProgress, { color: c.fgMuted, fontVariant: ['tabular-nums'] }]}>
-        {Math.round(progress)}%
-      </Text>
-      <Feather name="chevron-up" size={12} color={c.fgMuted} />
+      <Text style={[styles.pillDots, { color: c.fgMuted }]}>•••</Text>
     </Pressable>
   );
 }
@@ -362,14 +352,10 @@ function PillContent({
 
 function ToolbarContent({
   colors: c,
-  title,
-  progress,
   bookmarked,
   layout,
   direction,
   variant,
-  page,
-  totalPages,
   mangaMode,
   onToggleMangaMode,
   mangaPageDir,
@@ -383,14 +369,10 @@ function ToolbarContent({
   onChangeLayout,
 }: {
   colors: ReturnType<typeof useColors>;
-  title: string;
-  progress: number;
   bookmarked?: boolean;
   layout: ReaderLayout;
   direction: ReaderDirection;
   variant: 'default' | 'manga';
-  page?: number;
-  totalPages?: number;
   mangaMode?: 'scroll' | 'pages';
   onToggleMangaMode?: () => void;
   mangaPageDir?: MangaPageDir;
@@ -406,32 +388,15 @@ function ToolbarContent({
   const flowNext: ReaderLayout = layout === 'continuous' ? 'pages' : 'continuous';
   const dirNext: ReaderDirection = direction === 'horizontal' ? 'vertical' : 'horizontal';
   const isManga = variant === 'manga';
-  const meta =
-    isManga && totalPages && totalPages > 0
-      ? `${page ?? 1}/${totalPages}`
-      : `${Math.round(progress)}%`;
-
   return (
     <View style={styles.toolbar}>
-      {/* Page-nav row. Chevrons drive prev/next; tapping the title opens
-          the chapter list. */}
+      {/* Page-nav row. Chevrons drive prev/next; the center icon opens
+          the chapter list (title + progress moved up to the top bar). */}
       <View style={[styles.pageRow, { borderBottomColor: c.border }]}>
         <NavCell colors={c} icon="chevron-left" onPress={onPrev} ariaLabel="Previous page" />
 
-        <Pressable
-          onPress={onOpenToc}
-          accessibilityLabel="Open chapter list"
-          style={styles.pageMeta}
-          hitSlop={6}
-        >
-          <Text
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            style={[styles.pageMetaText, { color: c.fg, fontFamily: fontFamily.jp }]}
-          >
-            {title}
-            <Text style={{ color: c.fgMuted }}>{` · ${meta}`}</Text>
-          </Text>
+        <Pressable onPress={onOpenToc} accessibilityLabel="Open chapter list" style={styles.pageMeta} hitSlop={6}>
+          <Feather name="list" size={18} color={c.fgMuted} />
         </Pressable>
 
         <NavCell colors={c} icon="chevron-right" onPress={onNext} ariaLabel="Next page" />
@@ -442,13 +407,7 @@ function ToolbarContent({
           (one-page-at-a-time pinch-zoom gallery). */}
       <View style={styles.actionRow}>
         <ToolCol colors={c} icon="edit-3" label="NOTES" onPress={onOpenAnnotations} />
-        <ToolCol
-          colors={c}
-          icon="bookmark"
-          label="MARK"
-          active={!!bookmarked}
-          onPress={onToggleBookmark}
-        />
+        <ToolCol colors={c} icon="bookmark" label="MARK" active={!!bookmarked} onPress={onToggleBookmark} />
         {isManga && onToggleMangaMode && (
           <ToolCol
             colors={c}
@@ -509,10 +468,7 @@ function NavCell({
       onPress={onPress}
       accessibilityLabel={ariaLabel}
       hitSlop={8}
-      style={({ pressed }) => [
-        styles.navCell,
-        { backgroundColor: c.bgSunken, opacity: pressed ? 0.7 : 1 },
-      ]}
+      style={({ pressed }) => [styles.navCell, { backgroundColor: c.bgSunken, opacity: pressed ? 0.7 : 1 }]}
     >
       <Feather name={icon} size={20} color={c.fg} />
     </Pressable>
@@ -538,11 +494,7 @@ function ToolCol({
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={4}
-      style={({ pressed }) => [
-        styles.tool,
-        active && { backgroundColor: c.bgSunken },
-        pressed && { opacity: 0.7 },
-      ]}
+      style={({ pressed }) => [styles.tool, active && { backgroundColor: c.bgSunken }, pressed && { opacity: 0.7 }]}
     >
       <Feather name={icon} size={18} color={active ? c.fg : c.fgMuted} />
       <Text
@@ -604,8 +556,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 14,
   },
-  pillTitle: { fontSize: 12, fontWeight: '500', flexShrink: 1 },
-  pillProgress: { fontSize: 10, letterSpacing: 0.4 },
+  pillDots: { fontSize: 18, fontWeight: '500', lineHeight: 18, letterSpacing: 2 },
 
   // Toolbar
   toolbar: { flex: 1, paddingHorizontal: 8, paddingBottom: 16 },

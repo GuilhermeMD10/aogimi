@@ -11,6 +11,7 @@
 // they'll be wired in the next migration pass.
 
 import { FOLIATE_SOURCE } from './foliateLibs';
+import { selectionCss, TAP_TO_SELECT_FN } from './native-selection';
 
 // ── Bridge types (kept identical to epubHtml.ts so RN doesn't care which
 //    engine is running) ────────────────────────────────────────────────────
@@ -47,7 +48,8 @@ export type FoliateBridgeInbound =
   | { type: 'next' }
   | { type: 'prev' }
   | { type: 'addHighlight'; id: string; cfi: string; color: string }
-  | { type: 'removeHighlight'; cfi: string };
+  | { type: 'removeHighlight'; cfi: string }
+  | { type: 'clearSelection' };
 
 export type FoliateBridgeOutbound =
   | {
@@ -69,7 +71,14 @@ export type FoliateBridgeOutbound =
       chapterHref?: string;
       chapterLabel?: string;
     }
-  | { type: 'selection'; text: string; cfi: string; pageX: number; pageY: number };
+  | {
+      type: 'selection';
+      text: string;
+      cfi: string;
+      pageX: number;
+      pageY: number;
+      rect: { top: number; bottom: number; left: number; right: number };
+    };
 
 // ── HTML shell ─────────────────────────────────────────────────────────────
 
@@ -128,6 +137,12 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
 
   <script>
     (function () {
+      // ─── Native selection helpers (hold-to-select-word) ─────────────────
+      // Injected from components/reader/utils/native-selection. Defines
+      // attachHoldSelect(doc) and selectWordAt(doc, x, y); we call the
+      // attach helper from attachSelectionListener on each chapter doc.
+      ${TAP_TO_SELECT_FN}
+
       // ─── Layout tweakables ───────────────────────────────────────────────
       // Fraction of the viewport height each next/prev advances in vertical
       // (scrolled) mode. 1.0 = exactly one screen (foliate's default);
@@ -259,7 +274,9 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
       // punctuation winds up at column top when direction:rtl cascades from
       // package-progression-direction).
       function buildThemeCss(style) {
+        var selectionRules = ${JSON.stringify(selectionCss())};
         var common =
+          selectionRules +
           'html, body {' +
             'background: ' + style.bg + ' !important;' +
             'color: ' + style.fg + ' !important;' +
@@ -271,8 +288,15 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
           '}' +
           'p, div, span, li, h1, h2, h3, h4, h5, h6, a, blockquote, td, th, figcaption {' +
             'color: ' + style.fg + ' !important;' +
+            // Keep elements selectable so ::selection actually renders for
+            // our programmatic ranges (Android Chromium does NOT paint the
+            // selection band when the element is user-select: none, even
+            // for ranges created via Selection.addRange).
+            // OS-initiated selection is blocked at the JS layer instead by
+            // preventDefault on the selectstart event in webviewInjections.
             '-webkit-user-select: text !important;' +
             'user-select: text !important;' +
+            '-webkit-touch-callout: none !important;' +
           '}';
         if (style.vertical) {
           var vertical =
@@ -359,6 +383,7 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
       function attachSelectionListener(doc, index) {
         if (!doc || loadedDocs.get(index) === doc) return;
         loadedDocs.set(index, doc);
+        try { attachHoldSelect(doc); } catch (e) { err('attachHoldSelect', e); }
         // selectionchange fires on the iframe document; debounce to the next
         // animation frame so we read the final range, not an interim one
         // mid-drag.
@@ -367,6 +392,10 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
           if (raf) cancelAnimationFrame(raf);
           raf = requestAnimationFrame(function () {
             raf = 0;
+            // Suppress emission while the custom hold-and-drag gesture is
+            // mid-flight (set by attachHoldSelect). The selection event
+            // that follows touchend will fire normally.
+            if (__readerInDrag) return;
             try {
               var sel = doc.defaultView && doc.defaultView.getSelection();
               if (!sel || sel.rangeCount === 0) return;
@@ -382,6 +411,12 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
                 cfi: cfi,
                 pageX: rect.left + rect.width / 2,
                 pageY: rect.top,
+                rect: {
+                  top: rect.top,
+                  bottom: rect.bottom,
+                  left: rect.left,
+                  right: rect.right,
+                },
               });
             } catch (e) { /* swallow; non-fatal */ }
           });
@@ -622,6 +657,19 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
         }
         if (msg.type === 'addHighlight') return addHighlight(msg.id, msg.cfi, msg.color);
         if (msg.type === 'removeHighlight') return removeHighlight(msg.cfi);
+        if (msg.type === 'clearSelection') return clearSelectionInAllDocs();
+      }
+
+      // Called when the user taps outside the custom selection menu — we
+      // wipe the visible selection in every chapter doc so the highlight
+      // band disappears alongside the menu.
+      function clearSelectionInAllDocs() {
+        loadedDocs.forEach(function (doc) {
+          try {
+            var sel = doc.defaultView && doc.defaultView.getSelection();
+            if (sel) sel.removeAllRanges();
+          } catch (_) {}
+        });
       }
 
       document.addEventListener('message', function (e) { handleInbound(e.data); });

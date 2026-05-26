@@ -11,4 +11,10 @@ const designFolderRegex = new RegExp(
 );
 config.resolver.blockList = [designFolderRegex];
 
+// Allow metro to bundle our SQLite dictionary file as an asset. By
+// default `.sqlite` is not in `assetExts`, so `require('./dictionary.sqlite')`
+// would fail. We add it here so `expo-asset`'s `Asset.fromModule(...)` flow
+// can resolve to a downloadable URI at runtime.
+config.resolver.assetExts = [...config.resolver.assetExts, 'sqlite'];
+
 module.exports = config;

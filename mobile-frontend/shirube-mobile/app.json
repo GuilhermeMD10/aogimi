@@ -29,7 +29,16 @@
     },
     "plugins": [
       "expo-router",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true
@@ -37,8 +46,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "af6314f5-1c29-4681-8fb2-de90248580b4"
+        "projectId": "a862022e-3ccd-4f7e-ac8b-35cd797a5ecb"
       }
-    }
+    },
+    "owner": "guilhermemdias"
   }
 }

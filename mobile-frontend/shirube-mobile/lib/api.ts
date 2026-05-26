@@ -1,6 +1,5 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import type { DeviceRecord } from './types';
 
 // Resolution order:
 //   1. EXPO_PUBLIC_API_URL  — explicit dev override (use this for physical
@@ -42,33 +41,3 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-// ── Devices ─────────────────────────────────────────────────────────────────
-
-export function registerDevice(
-  userId: number,
-  deviceId: string,
-  name: string,
-): Promise<DeviceRecord> {
-  return request<DeviceRecord>('/api/devices', {
-    method: 'POST',
-    body: JSON.stringify({ userId, deviceId, name }),
-  });
-}
-
-export function fetchUserDevices(userId: number, signal?: AbortSignal): Promise<DeviceRecord[]> {
-  return request<DeviceRecord[]>(`/api/devices/user/${userId}`, { signal });
-}
-
-export function renameDevice(deviceId: string, name: string): Promise<DeviceRecord> {
-  return request<DeviceRecord>(`/api/devices/${deviceId}`, {
-    method: 'PUT',
-    body: JSON.stringify({ name }),
-  });
-}
-
-export function removeDevice(deviceId: string, userId: number): Promise<{ message: string }> {
-  return request<{ message: string }>(
-    `/api/devices/${deviceId}?userId=${userId}`,
-    { method: 'DELETE' },
-  );
-}

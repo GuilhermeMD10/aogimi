@@ -11,7 +11,6 @@ import { deleteBookEverywhere } from '@/components/books/utils/deleteBook';
 import { locateAndAttachFile, validateBookFile } from '@/components/books/utils/locateAndAttachFile';
 import { importBookWithMatch } from '@/components/books/utils/importBookWithMatch';
 import { reconcileBooks, syncPending } from '@/components/books/utils/reconcileBooks';
-import { getDeviceId } from '@/lib/storage/device';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
 import { useReaderActions } from '@/components/providers/useReaderActions';
@@ -88,7 +87,7 @@ export default function ReaderView() {
       // Pass 1: orphan + stale wipe (pending books are skipped).
       const reconcileSummary = await reconcileBooks(user.id);
       // Pass 2: push every locally-pending book.
-      const pushSummary = await syncPending(user.id, getDeviceId());
+      const pushSummary = await syncPending(user.id);
 
       const total =
         reconcileSummary.staleReplaced.length +
@@ -202,7 +201,6 @@ export default function ReaderView() {
       const result = await locateAndAttachFile({
         file,
         userId: user.id,
-        deviceId: getDeviceId(),
         target: {
           backendId: targetBook.backendId,
           title: targetBook.title,
