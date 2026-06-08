@@ -54,7 +54,7 @@ export function BookGridItem({
           style={{ ...styles.cover, opacity: hasFile ? 1 : 0.45 }}
         />
         <View style={styles.syncPillSlot}>
-          <SyncPill state={syncState} onCover />
+          <SyncPill state={syncState} />
         </View>
         {/* Small format chip in the bottom-left corner of the cover so
             users can tell PDF from EPUB at a glance, especially for

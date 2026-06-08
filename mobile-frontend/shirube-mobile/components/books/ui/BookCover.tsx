@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { coverGlyphFor } from '@/lib/coverGlyph';
@@ -34,10 +35,22 @@ export function BookCover({
   const glyph = coverGlyphFor(title);
   const darker = darken(coverColor, 0.55);
 
+  // Once the cover image loads we learn its real width:height and size
+  // the shell to match, so the container hugs the artwork instead of
+  // pillarboxing a narrow cover inside a fixed-ratio box. Falls back to
+  // the caller-supplied `aspectRatio` until the image loads (and for
+  // the glyph placeholder when there's no cover). Reset on filename
+  // change so a new book doesn't inherit the previous cover's ratio.
+  const [naturalAspect, setNaturalAspect] = useState<number | null>(null);
+  useEffect(() => {
+    setNaturalAspect(null);
+  }, [filename]);
+
+  const effectiveAspect = naturalAspect ?? aspectRatio;
   const dims: ViewStyle = {};
   if (width !== undefined) dims.width = width;
   if (height !== undefined) dims.height = height;
-  if (aspectRatio !== undefined) dims.aspectRatio = aspectRatio;
+  if (effectiveAspect !== undefined) dims.aspectRatio = effectiveAspect;
 
   return (
     <View style={[styles.wrap, dims, { borderRadius: cornerRadius }, style]}>
@@ -52,12 +65,19 @@ export function BookCover({
           source={{ uri: coverUri }}
           style={StyleSheet.absoluteFill}
           resizeMode="contain"
+          onLoad={(e) => {
+            const { width: w, height: h } = e.nativeEvent.source;
+            if (w > 0 && h > 0) setNaturalAspect(w / h);
+          }}
           // File was deleted out from under us, or extraction wrote a
           // path that's no longer readable. Ask the hook to re-check
           // disk + re-extract. If extraction fails (no book file, no
           // embedded cover), the hook returns null and the glyph
           // renders.
-          onError={retry}
+          onError={() => {
+            setNaturalAspect(null);
+            retry();
+          }}
         />
       ) : (
         <Text

@@ -29,8 +29,11 @@ export type DeckWithCount = LocalDeck & { cardCount: number };
  * now button.
  */
 export function useDecks() {
-  const { user } = useAuth();
+  const { user, status } = useAuth();
   const userId = user?.id;
+  // Guests stay local-only — the hydrate helper bails when this is
+  // false. Local reads (readFromLocal) keep working regardless.
+  const backendEnabled = status === 'signed-in';
 
   const [decks, setDecks] = useState<DeckWithCount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +57,7 @@ export function useDecks() {
   }, []);
 
   const hydrate = useCallback(async () => {
-    if (userId == null) return;
+    if (userId == null || !backendEnabled) return;
     try {
       const remoteDecks = await fetchUserDecks(userId);
       await hydrateDecksFromBackend(remoteDecks);
@@ -73,7 +76,7 @@ export function useDecks() {
     } catch {
       /* network — keep local */
     }
-  }, [userId]);
+  }, [userId, backendEnabled]);
 
   // Re-read local + hydrate every time the screen regains focus. This
   // covers the "user added a card in another tab, came back to decks,

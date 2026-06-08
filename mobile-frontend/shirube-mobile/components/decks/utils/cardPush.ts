@@ -4,7 +4,7 @@
 
 import * as Crypto from 'expo-crypto';
 import { createCard, deleteCard, updateCard } from './decksApi';
-import type { CardRecord, CardState, LocalCard } from '../types';
+import type { CardState, LocalCard } from '../types';
 import {
   getCard,
   listPendingCards,
@@ -14,8 +14,8 @@ import {
 } from './cardLocalState';
 
 export type CardPushResult =
-  | { ok: true; cardId: string; previousId: string }
-  | { ok: false; reason: 'rejected' | 'network'; previousId: string };
+  | { ok: true; cardId: string }
+  | { ok: false; reason: 'rejected' };
 
 export type CardSyncSummary = {
   pushed: string[];
@@ -70,6 +70,16 @@ export async function updateCardLocal(
   const existing = await getCard(id);
   if (!existing) return null;
 
+  // Defense-in-depth: refuse to update a card that's already marked for
+  // deletion. Sync order is creates → updates → deletes, so an update
+  // here would push first and resurrect the card on the server before
+  // the DELETE ran. UI already filters delete-pending cards out of
+  // edit surfaces, but if a stale reference somehow reaches this path
+  // we bail rather than rewrite the intent.
+  if (existing.pendingOp === 'delete') {
+    return null;
+  }
+
   const merged: LocalCard = {
     ...existing,
     ...updates,
@@ -99,7 +109,7 @@ export async function deleteCardLocal(id: string): Promise<void> {
 
 export async function pushCard(card: LocalCard): Promise<CardPushResult> {
   if (card.syncState !== 'pending') {
-    return { ok: true, cardId: card.id, previousId: card.id };
+    return { ok: true, cardId: card.id };
   }
 
   try {
@@ -111,7 +121,7 @@ export async function pushCard(card: LocalCard): Promise<CardPushResult> {
         notes: card.notes,
       });
       const newId = await markCardSynced(card.id, remote);
-      return { ok: true, cardId: newId, previousId: card.id };
+      return { ok: true, cardId: newId };
     }
 
     if (card.pendingOp === 'update') {
@@ -123,19 +133,19 @@ export async function pushCard(card: LocalCard): Promise<CardPushResult> {
         state: card.state,
       });
       await markCardSynced(card.id, remote);
-      return { ok: true, cardId: card.id, previousId: card.id };
+      return { ok: true, cardId: card.id };
     }
 
     if (card.pendingOp === 'delete') {
       await deleteCard(card.id);
       await removeCard(card.id);
-      return { ok: true, cardId: card.id, previousId: card.id };
+      return { ok: true, cardId: card.id };
     }
 
-    return { ok: true, cardId: card.id, previousId: card.id };
+    return { ok: true, cardId: card.id };
   } catch (err) {
     void err;
-    return { ok: false, reason: 'rejected', previousId: card.id };
+    return { ok: false, reason: 'rejected' };
   }
 }
 

@@ -84,60 +84,6 @@ const defaultStyles = StyleSheet.create({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Stamp — sumi-bordered mono cap with vermillion accent on the "N" digit
-// ─────────────────────────────────────────────────────────────────────────────
-
-function StampJlptChip({ level, compact, style }: JlptChipProps) {
-  const c = useColors();
-  const f = useFonts();
-
-  return (
-    <View
-      accessibilityLabel={`JLPT N${level}`}
-      style={[
-        stampStyles.box,
-        compact && stampStyles.boxCompact,
-        { borderColor: c.fg, backgroundColor: c.bg },
-        style,
-      ]}
-    >
-      <Text
-        allowFontScaling={false}
-        style={[
-          stampStyles.label,
-          compact && stampStyles.labelCompact,
-          { color: c.accent, fontFamily: f.mono },
-        ]}
-      >
-        N{level}
-      </Text>
-    </View>
-  );
-}
-
-const stampStyles = StyleSheet.create({
-  box: {
-    borderWidth: 1.25,
-    borderRadius: 0,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-  },
-  boxCompact: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.4,
-  },
-  labelCompact: {
-    fontSize: 9,
-    letterSpacing: 1.2,
-  },
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Helper: blend `color` with paper (white-ish) at the given alpha. Cheap
 // substitute for CSS color-mix(in oklab, ...) — close enough at the chip
 // size we render.
@@ -159,6 +105,6 @@ function tint(hex: string, alpha: number): string {
 
 export const JlptChip = createThemedComponent<JlptChipProps>(
   DefaultJlptChip,
-  { stamp: StampJlptChip },
+  {},
   'JlptChip',
 );

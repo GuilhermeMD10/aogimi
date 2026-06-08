@@ -200,6 +200,10 @@ const EMPTY: StoredBook = {
 export type ReaderStorage = {
   hydrated: boolean;
   lastCfi?: string;
+  /** The cfi that was last successfully pushed via the progress beacon
+   *  (either an in-session flush or a sync-now). Persists across reader
+   *  sessions so a cold open can seed its session-dedup state. */
+  lastCfiPushed?: string;
   highlights: EpubHighlight[];
   /** Visible bookmarks — excludes any `pendingDelete: true` entries.
    *  Items carry optional `backendId` so callers can decide whether to
@@ -355,6 +359,7 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
   return {
     hydrated,
     lastCfi: state.lastCfi,
+    lastCfiPushed: state.lastCfiPushed,
     highlights: state.highlights,
     bookmarks: visibleBookmarks,
     saveLastCfi,

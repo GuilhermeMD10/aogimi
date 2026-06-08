@@ -15,5 +15,8 @@ export default function Index() {
     );
   }
 
-  return <Redirect href={status === 'signed-in' ? '/(tabs)/reader' : '/(auth)/welcome'} />;
+  // Guest sessions are valid app-state too — route them straight into
+  // the tabs. Only the explicit signed-out state goes to /welcome.
+  const inApp = status === 'signed-in' || status === 'guest';
+  return <Redirect href={inApp ? '/(tabs)/reader' : '/(auth)/welcome'} />;
 }

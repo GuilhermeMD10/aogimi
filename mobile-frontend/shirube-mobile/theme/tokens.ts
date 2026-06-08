@@ -1,8 +1,8 @@
 import { Platform } from 'react-native';
 
-export type ThemeName = 'default' | 'kanagawa' | 'sakura' | 'hanami' | 'stamp';
+export type ThemeName = 'default' | 'kanagawa' | 'sakura' | 'hanami';
 
-export const THEME_NAMES: ThemeName[] = ['default', 'kanagawa', 'sakura', 'hanami', 'stamp'];
+export const THEME_NAMES: ThemeName[] = ['default', 'kanagawa', 'sakura', 'hanami'];
 
 export type ThemeColors = {
   bg: string;
@@ -137,37 +137,11 @@ const DEFAULT_FONTS: ThemeFonts = {
   mono: SYSTEM_MONO,
 };
 
-/** Stamp typography — Editorial Mincho pairing per the Stamp DS.
- *
- *  The DS calls for Shippori Mincho (display + JP) + Cormorant Garamond
- *  (Latin body) + DM Mono (caps metadata). Mobile ships with Lora + the
- *  system mincho already loaded, which is a credible fallback because:
- *   - System mincho on iOS/Android is the same family used by `fontFamily.jp`,
- *     and reads as a postage-era serif at the sizes Stamp uses.
- *   - Lora is a humanist book serif that pairs cleanly with mincho.
- *
- *  To upgrade to the exact DS pairing, install:
- *      @expo-google-fonts/shippori-mincho
- *      @expo-google-fonts/cormorant-garamond
- *      @expo-google-fonts/dm-mono
- *  …register the weights in `app/_layout.tsx`, and swap the values below
- *  to e.g. `'ShipporiMincho_700Bold'`. No call sites change. */
-const STAMP_FONTS: ThemeFonts = {
-  ui: 'Lora_400Regular',
-  display: JP_STACK,
-  displayBold: JP_STACK,
-  reader: 'Lora_400Regular',
-  readerItalic: 'Lora_400Regular_Italic',
-  jp: JP_STACK,
-  jpSans: JP_SANS_STACK,
-  mono: SYSTEM_MONO,
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Shape recipes
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Soft modern surface — used by every non-stamp theme. */
+/** Soft modern surface — used by every theme. */
 function softSurface(colors: ThemeColors): SurfaceShape {
   return {
     borderColor: colors.border,
@@ -208,51 +182,6 @@ function softButton(colors: ThemeColors): ButtonShape {
     shadowRadius: 0,
     elevation: 0,
     letterSpacing: -0.1,
-    textTransform: 'none',
-  };
-}
-
-/** Stamp surface — 1.5px sumi border + hard 3px offset shadow + crisp 2px corners. */
-function stampSurface(colors: ThemeColors): SurfaceShape {
-  return {
-    borderColor: colors.fg,
-    borderWidth: 1.5,
-    radius: 2,
-    shadowOffset: { width: 3, height: 3 },
-    shadowColor: colors.fg,
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 0,
-  };
-}
-
-function stampChip(colors: ThemeColors): ChipShape {
-  return {
-    bg: colors.bg,
-    fg: colors.fg,
-    borderColor: colors.fg,
-    borderWidth: 1.25,
-    radius: 0,
-    paddingV: 3,
-    paddingH: 9,
-    fontSize: 11,
-    letterSpacing: 1.3,
-    textTransform: 'uppercase',
-    fontWeight: '500',
-  };
-}
-
-function stampButton(colors: ThemeColors): ButtonShape {
-  return {
-    borderColor: colors.fg,
-    borderWidth: 1,
-    radius: 2,
-    shadowOffset: { width: 2, height: 2 },
-    shadowColor: colors.fg,
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 0,
-    letterSpacing: 0.6,
     textTransform: 'none',
   };
 }
@@ -360,36 +289,6 @@ const PALETTES: Record<ThemeName, Palette> = {
       shadow: 'rgba(0, 0, 0, 0.45)',
     },
   },
-  stamp: {
-    meta: { name: 'stamp', label: 'Stamp', glyph: '印', isDark: false },
-    colors: {
-      // 1930s Japanese postage palette — vermillion + cream paper + sumi ink.
-      bg: '#EBE2D0',         // paper
-      bgElev: '#F0E6D2',     // paper-warm
-      bgSunken: '#D9CDB6',   // paper-deep
-      fg: '#1A1411',         // sumi
-      fgMuted: '#3B2F26',    // sumi-soft
-      fgSubtle: '#6F6358',   // ash
-      border: '#1A1411',     // every border is sumi under stamp
-      borderStrong: '#1A1411',
-      accent: '#C8362B',     // vermillion
-      accentSoft: 'rgba(200, 54, 43, 0.18)',
-      accentFg: '#EBE2D0',   // paper on red
-      highlight: 'rgba(200, 54, 43, 0.35)',
-      success: '#3B7A40',
-      warning: '#B8802A',
-      error: '#9B2A22',      // vermillion-deep
-      backdrop: 'rgba(26, 20, 17, 0.45)',
-      shadow: 'rgba(26, 20, 17, 1)', // hard ink shadow
-    },
-    fonts: STAMP_FONTS,
-    shape: (colors) => ({
-      surface: stampSurface(colors),
-      chip: stampChip(colors),
-      button: stampButton(colors),
-      sectionLabel: { color: colors.accent, letterSpacing: 2.4, fontWeight: '500' },
-    }),
-  },
 };
 
 function defaultShape(colors: ThemeColors): ThemeShape {
@@ -455,7 +354,6 @@ export const fontSize = {
 /**
  * Static font lookup — the *Default* theme's fonts. Components that don't
  * yet need theme-aware typography keep importing from here. Theme-aware
- * code (anything that should change typeface under the Stamp theme) should
- * read fonts via `useFonts()` from `theme/ThemeContext`.
+ * code should read fonts via `useFonts()` from `theme/ThemeContext`.
  */
 export const fontFamily = DEFAULT_FONTS;

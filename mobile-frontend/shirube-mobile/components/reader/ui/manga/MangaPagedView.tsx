@@ -73,8 +73,16 @@ export const MangaPagedView = forwardRef<MangaPagedViewHandle, Props>(function M
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: MangaSpineEntry }) =>
-      handle ? <PagedItem entry={item} handle={handle} /> : null,
+    ({
+      item,
+      setImageDimensions,
+    }: {
+      item: MangaSpineEntry;
+      setImageDimensions: (dims: { width: number; height: number }) => void;
+    }) =>
+      handle ? (
+        <PagedItem entry={item} handle={handle} setImageDimensions={setImageDimensions} />
+      ) : null,
     [handle],
   );
 
@@ -129,12 +137,21 @@ export const MangaPagedView = forwardRef<MangaPagedViewHandle, Props>(function M
 // the extract is in flight an ActivityIndicator stands in. The fixed
 // aspect ratio matches the scroll view's PAGE_ASPECT so the on-disk cache
 // is identical between modes.
+//
+// `setImageDimensions` MUST be called with the page's true pixel size
+// once the image loads. awesome-gallery uses it to compute the
+// zoomable bounds + clamping. Without it the library assumes the image
+// fills the whole screen, and since we render `contentFit="contain"`
+// (letterboxed), pinch-release snaps the transform back to the wrong
+// (full-screen) bounds — the flicker-to-a-bit-above bug.
 function PagedItem({
   entry,
   handle,
+  setImageDimensions,
 }: {
   entry: MangaSpineEntry;
   handle: MangaSpineHandle;
+  setImageDimensions: (dims: { width: number; height: number }) => void;
 }) {
   const [uri, setUri] = useState<string | null>(null);
 
@@ -166,6 +183,11 @@ function PagedItem({
       style={styles.pageImage}
       contentFit="contain"
       cachePolicy="memory-disk"
+      onLoad={(e) => {
+        const w = e.source?.width;
+        const h = e.source?.height;
+        if (w && h) setImageDimensions({ width: w, height: h });
+      }}
     />
   );
 }

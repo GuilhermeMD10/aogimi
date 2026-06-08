@@ -13,8 +13,8 @@ type Props = {
  * Use this to drop theme-specific decorations into shared layouts without
  * scattering theme conditionals across screens:
  *
- *   <ThemedDecoration theme="stamp">
- *     <HankoSeal>語</HankoSeal>
+ *   <ThemedDecoration theme="kanagawa">
+ *     <WaveCrest />
  *   </ThemedDecoration>
  *
  * Returns null under any non-matching theme.

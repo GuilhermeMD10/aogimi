@@ -1,0 +1,30 @@
+diff --git a/node_modules/react-native-awesome-gallery/src/index.tsx b/node_modules/react-native-awesome-gallery/src/index.tsx
+index 4aa4c54..9d61711 100644
+--- a/node_modules/react-native-awesome-gallery/src/index.tsx
++++ b/node_modules/react-native-awesome-gallery/src/index.tsx
+@@ -400,7 +400,7 @@ const ResizableImage = React.memo(
+         origin.x.value = adjustedFocal.x.value;
+         origin.y.value = adjustedFocal.y.value;
+       })
+-      .onUpdate(({ scale: s, focalX, focalY, numberOfPointers }) => {
++      .onUpdate(({ scale: s, numberOfPointers }) => {
+         'worklet';
+         if (!isActive.value) return;
+         if (numberOfPointers !== 2) return;
+@@ -414,8 +414,14 @@ const ResizableImage = React.memo(
+ 
+         scale.value = nextScale;
+ 
+-        setAdjustedFocal({ focalX, focalY });
+-
++        // PATCH: focal is locked to the pinch START centroid (set in
++        // onStart) rather than re-tracking the live two-finger centroid
++        // every frame. Per-frame focal tracking caused a release flicker:
++        // as the two fingers lift one at a time, the centroid lurches
++        // toward whichever finger is still down, and onEnd snapped the
++        // transform to that shifted anchor. Anchoring to the start point
++        // makes zoom stable and predictable; pan-while-zoomed is still
++        // available through the separate pan gesture.
+         translation.x.value =
+           adjustedFocal.x.value +
+           ((-1 * nextScale) / scaleOffset.value) * origin.x.value;

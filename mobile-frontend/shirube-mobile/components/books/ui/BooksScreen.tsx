@@ -1,14 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { useColors } from '@/theme/ThemeContext';
@@ -18,12 +10,8 @@ import type { BookRecord, PendingPayload } from '../types';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { bookFileExists, renameBookFile } from '../utils/bookPaths';
 import { importEpub } from '../utils/bookFiles';
-import {
-  createBook,
-  matchBooks,
-  updateBookIdentity,
-} from '../utils/booksApi';
 import { markPending } from '../utils/bookLocalState';
+import { pushOneBook } from '../utils/bookPush';
 import { useBooks } from '../hooks/useBooks';
 import { useOnline } from '@/lib/network/network';
 import { ContinueReadingCard } from './ContinueReadingCard';
@@ -32,14 +20,17 @@ import { BookActionsSheet } from './BookActionsSheet';
 import { reconcileBooks, syncPending } from '../utils/reconcileBooks';
 import { clearSessionPending, findCachedBookByFileHash } from '../utils/syncedBookCache';
 import { pushAllReaderState } from '../utils/readerStatePush';
-import { isPendingBookId, markPendingAndAttemptPush } from '../utils/bookPush';
+import { CloudSyncIcon } from '@/components/icons/sync-icons';
+
+const AVAILABLE_ONLY_KEY = 'books_filter_available_only_v1';
 
 export function BooksScreen() {
   const c = useColors();
   const t = useT();
   const router = useRouter();
-  const { user } = useAuth();
-  const { books, loading, refreshing, error, refresh, silentRefresh, sessionPendingIds } = useBooks();
+  const { user, status } = useAuth();
+  const isGuest = status === 'guest';
+  const { books, loading, refreshing, error, refresh, silentRefresh, reloadPending, sessionPendingIds } = useBooks();
   const online = useOnline();
   // Refresh the books list whenever the tab regains focus — e.g. after
   // the user backs out of the reader. Pairs with the optimistic local
@@ -78,16 +69,12 @@ export function BooksScreen() {
       // cleared — dirty books stay flagged and will retry on the next
       // Sync-now.
       const readerStateSummary = await pushAllReaderState();
-      await Promise.all(
-        readerStateSummary.bookIdsClean.map((id) => clearSessionPending(id)),
-      );
+      await Promise.all(readerStateSummary.bookIdsClean.map((id) => clearSessionPending(id)));
 
       await refresh();
 
       const readerStateActivity =
-        readerStateSummary.bookmarksCreated +
-        readerStateSummary.bookmarksDeleted +
-        readerStateSummary.cfisPushed;
+        readerStateSummary.bookmarksCreated + readerStateSummary.bookmarksDeleted + readerStateSummary.cfisPushed;
       const total =
         reconcileSummary.staleReplaced.length +
         reconcileSummary.removed.length +
@@ -104,7 +91,9 @@ export function BooksScreen() {
           parts.push(`${reconcileSummary.removed.length} removed (deleted on another device)`);
         }
         if (reconcileSummary.staleReplaced.length > 0) {
-          parts.push(`${reconcileSummary.staleReplaced.length} replaced (different bytes on backend — re-locate to view)`);
+          parts.push(
+            `${reconcileSummary.staleReplaced.length} replaced (different bytes on backend — re-locate to view)`,
+          );
         }
         if (pushed.length > 0) {
           parts.push(`${pushed.length} pushed to cloud`);
@@ -116,16 +105,24 @@ export function BooksScreen() {
           parts.push(`${reconcileSummary.syncedUp.length} backfilled with local fingerprint`);
         }
         if (readerStateSummary.bookmarksCreated > 0) {
-          parts.push(`${readerStateSummary.bookmarksCreated} bookmark${readerStateSummary.bookmarksCreated === 1 ? '' : 's'} pushed`);
+          parts.push(
+            `${readerStateSummary.bookmarksCreated} bookmark${readerStateSummary.bookmarksCreated === 1 ? '' : 's'} pushed`,
+          );
         }
         if (readerStateSummary.bookmarksDeleted > 0) {
-          parts.push(`${readerStateSummary.bookmarksDeleted} bookmark deletion${readerStateSummary.bookmarksDeleted === 1 ? '' : 's'} pushed`);
+          parts.push(
+            `${readerStateSummary.bookmarksDeleted} bookmark deletion${readerStateSummary.bookmarksDeleted === 1 ? '' : 's'} pushed`,
+          );
         }
         if (readerStateSummary.cfisPushed > 0) {
-          parts.push(`${readerStateSummary.cfisPushed} reading position${readerStateSummary.cfisPushed === 1 ? '' : 's'} synced`);
+          parts.push(
+            `${readerStateSummary.cfisPushed} reading position${readerStateSummary.cfisPushed === 1 ? '' : 's'} synced`,
+          );
         }
         if (readerStateSummary.bookIdsDirty.length > 0) {
-          parts.push(`${readerStateSummary.bookIdsDirty.length} book${readerStateSummary.bookIdsDirty.length === 1 ? '' : 's'} still pending — try again`);
+          parts.push(
+            `${readerStateSummary.bookIdsDirty.length} book${readerStateSummary.bookIdsDirty.length === 1 ? '' : 's'} still pending — try again`,
+          );
         }
         Alert.alert('Synced', parts.join('\n'));
       }
@@ -140,28 +137,46 @@ export function BooksScreen() {
   const [actionBook, setActionBook] = useState<BookRecord | null>(null);
   // Library filter: hide books whose EPUB file isn't on this device. Useful
   // when synced from another device but not yet imported locally.
+  // Persisted across launches so the user's choice survives an app close.
   const [availableOnly, setAvailableOnly] = useState(false);
-  const visibleBooks = availableOnly
-    ? books.filter((b) => bookFileExists(b.filename))
-    : books;
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(AVAILABLE_ONLY_KEY)
+      .then((v) => {
+        if (!cancelled && v === '1') setAvailableOnly(true);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const toggleAvailableOnly = useCallback(() => {
+    setAvailableOnly((prev) => {
+      const next = !prev;
+      AsyncStorage.setItem(AVAILABLE_ONLY_KEY, next ? '1' : '0').catch(() => undefined);
+      return next;
+    });
+  }, []);
+  const visibleBooks = availableOnly ? books.filter((b) => bookFileExists(b.filename)) : books;
 
   const hero = useMemo<BookRecord | null>(() => {
     if (books.length === 0) return null;
-    return [...books].sort(
-      (a, b) => new Date(b.last_read_at).getTime() - new Date(a.last_read_at).getTime(),
-    )[0]!;
+    return [...books].sort((a, b) => new Date(b.last_read_at).getTime() - new Date(a.last_read_at).getTime())[0]!;
   }, [books]);
 
   const openBook = (id: string) => {
-    if (isPendingBookId(id)) {
-      // The reader fetches by backend id, which a pending book doesn't
-      // have yet. Steer the user to sync first.
-      Alert.alert(
-        'Saved offline',
-        'This book is on your device but not on your account yet. Tap "Sync now" to push it, then open it from the library.',
-      );
+    // Cloud-only register (no local file on this device) → the dedicated
+    // import screen, NOT the reader. The reader has nothing to render
+    // without the file and its chrome (progress bar etc.) is misleading.
+    const book = books.find((b) => b.id === id);
+    if (book && !bookFileExists(book.filename)) {
+      router.push(`/import/${id}`);
       return;
     }
+    // Pending books open in the reader too — useBookRecord reconstructs
+    // the BookRecord from the local entry and forces offlineMode so the
+    // reader skips backend pushes. The next Sync-now will pick up any
+    // session writes by filename.
     router.push(`/reader/${id}`);
   };
 
@@ -178,7 +193,7 @@ export function BooksScreen() {
           'Already in your library',
           `"${imported.title || imported.filename}" is already imported on this device with the same bytes.`,
         );
-        await refresh();
+        void silentRefresh();
         return;
       }
 
@@ -199,15 +214,17 @@ export function BooksScreen() {
             'Already in your cloud library',
             `"${cachedTwin.title}" matches what you just imported. The file is now on this device.`,
           );
-          await refresh();
+          void silentRefresh();
           return;
         }
       }
 
-      // No cached match → mark pending so the book shows up in the
-      // library immediately. Push attempt runs opportunistically; if
-      // we're offline it stays pending until the next Sync-now or
-      // online-transition auto-push.
+      // No cached match → commit the pending entry LOCALLY first.
+      // That's the only blocking step; everything else is best-effort
+      // network work that the user shouldn't have to wait on. If the
+      // backend is unreachable, the import still completes and the new
+      // tile appears as UNSYNCED in the library — exactly the behavior
+      // a user expects from "offline-first".
       const payload: PendingPayload = {
         title: imported.title || imported.filename,
         author: imported.author,
@@ -229,22 +246,23 @@ export function BooksScreen() {
         dcIdentifier: imported.dcIdentifier,
         language: imported.language,
         publisher: imported.publisher,
+        firstSeenAt: new Date().toISOString(),
       };
 
-      const result = await markPendingAndAttemptPush(
-        user.id,
-        imported.filename,
-        imported.fileHash ?? '',
-        payload,
-      );
-      if (!result.ok) {
-        Alert.alert(
-          'Saved offline',
-          `"${imported.title || imported.filename}" is on this device. Tap Sync now when you're back online to push it.`,
-        );
-      }
+      await markPending(imported.filename, imported.fileHash ?? '', payload);
+      // Update the library state in-place so the new pending tile shows
+      // up without waiting for a backend round-trip.
+      await reloadPending();
 
-      await refresh();
+      // Fire-and-forget push. If the backend is reachable it promotes
+      // the entry to 'synced' and a later refresh will pick that up; if
+      // not, the entry stays pending and a later manual sync handles
+      // it. Either way the user is done.
+      void pushOneBook(user.id, imported.filename, payload).catch(() => undefined);
+      // Opportunistic refresh — fires the backend fetch in the
+      // background but doesn't block the import. silentRefresh swallows
+      // its own errors, so an unreachable backend is a no-op here.
+      void silentRefresh();
     } catch (err) {
       Alert.alert('Import failed', err instanceof Error ? err.message : t('common.error'));
     } finally {
@@ -257,26 +275,27 @@ export function BooksScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: c.fg }]}>{t('home.title')}</Text>
         <View style={styles.headerActions}>
-          <Pressable
-            onPress={online ? handleSyncNow : () => Alert.alert('Offline', 'Connect to the internet to sync.')}
-            disabled={syncing || importing}
-            style={[
-              styles.importBtn,
-              {
-                backgroundColor: c.bgElev,
-                borderColor: c.border,
-                opacity: syncing || importing || !online ? 0.55 : 1,
-              },
-            ]}
-            hitSlop={6}
-            accessibilityLabel={online ? 'Sync library' : 'Sync library (offline)'}
-          >
-            {syncing ? (
-              <ActivityIndicator size="small" color={c.fg} />
-            ) : (
-              <Text style={[styles.plus, { color: c.fg, fontSize: 16 }]}>↻</Text>
-            )}
-          </Pressable>
+          {/* Sync-now is meaningless for guests (no account to push to).
+              Hidden entirely; user gets the action by converting to a
+              real account from the Profile page. */}
+          {!isGuest && (
+            <Pressable
+              onPress={online ? handleSyncNow : () => Alert.alert('Offline', 'Connect to the internet to sync.')}
+              disabled={syncing || importing}
+              style={[
+                styles.importBtn,
+                {
+                  backgroundColor: c.bgElev,
+                  borderColor: c.border,
+                  opacity: syncing || importing || !online ? 0.55 : 1,
+                },
+              ]}
+              hitSlop={6}
+              accessibilityLabel={online ? 'Sync library' : 'Sync library (offline)'}
+            >
+              {syncing ? <ActivityIndicator size="small" color={c.fg} /> : <CloudSyncIcon size={18} color="#2E9F58" />}
+            </Pressable>
+          )}
           <Pressable
             onPress={handleImport}
             disabled={importing || syncing}
@@ -303,9 +322,7 @@ export function BooksScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={styles.scroll}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.fg} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.fg} />}
           showsVerticalScrollIndicator={false}
         >
           {error && (
@@ -329,7 +346,7 @@ export function BooksScreen() {
               <View style={styles.sectionRow}>
                 <Text style={[styles.section, { color: c.fgMuted }]}>Your books</Text>
                 <Pressable
-                  onPress={() => setAvailableOnly((v) => !v)}
+                  onPress={toggleAvailableOnly}
                   hitSlop={6}
                   style={[
                     styles.filterChip,
@@ -341,12 +358,7 @@ export function BooksScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Toggle available-only filter"
                 >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      { color: availableOnly ? c.fg : c.fgMuted },
-                    ]}
-                  >
+                  <Text style={[styles.filterChipText, { color: availableOnly ? c.fg : c.fgMuted }]}>
                     {availableOnly ? 'Available only ✓' : 'All books'}
                   </Text>
                 </Pressable>
@@ -365,9 +377,7 @@ export function BooksScreen() {
                 ))}
                 {visibleBooks.length === 0 && (
                   <View style={styles.emptyWrap}>
-                    <Text style={[styles.empty, { color: c.fgMuted }]}>
-                      No books available on this device.
-                    </Text>
+                    <Text style={[styles.empty, { color: c.fgMuted }]}>No books available on this device.</Text>
                   </View>
                 )}
               </View>
@@ -382,11 +392,7 @@ export function BooksScreen() {
         </ScrollView>
       )}
 
-      <BookActionsSheet
-        book={actionBook}
-        onDismiss={() => setActionBook(null)}
-        onChanged={refresh}
-      />
+      <BookActionsSheet book={actionBook} onDismiss={() => setActionBook(null)} onChanged={refresh} />
     </Screen>
   );
 }

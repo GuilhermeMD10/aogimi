@@ -130,6 +130,30 @@ function getDb() {
   return dbPromise;
 }
 
+// ── Storage durability ───────────────────────────────────────────────────────
+
+let persistRequested = false;
+
+/**
+ * Ask the browser to mark this origin's storage as persistent. Without
+ * this, IDB is "best-effort" and can be silently evicted under disk
+ * pressure — a user with a heavy library could find their books gone
+ * after a low-disk warning. Chrome auto-grants based on engagement
+ * heuristics; Firefox prompts; Safari ignores. Idempotent and noisy-
+ * fail-safe (no throws).
+ */
+async function requestPersistentStorage(): Promise<void> {
+  if (persistRequested) return;
+  persistRequested = true;
+  try {
+    if (typeof navigator === 'undefined' || !navigator.storage?.persist) return;
+    if (await navigator.storage.persisted()) return;
+    await navigator.storage.persist();
+  } catch {
+    /* feature absent or denied — fine, we just stay best-effort */
+  }
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export type ImportBookOutcome = {
@@ -291,6 +315,12 @@ export async function importBook(
     tx.objectStore(FILES_STORE).put(arrayBuffer, record.id),
     tx.done,
   ]);
+
+  // Ask the browser to make our IDB storage durable so it isn't silently
+  // evicted under disk pressure. Idempotent — if already granted, this
+  // resolves immediately. Tied to the import call site because that's
+  // the first time the user has demonstrated intent (gestures only).
+  void requestPersistentStorage();
 
   // Register with backend — opportunistic push. On success, flip the
   // IDB row to 'synced'. On failure (offline / 5xx / etc.), leave as
