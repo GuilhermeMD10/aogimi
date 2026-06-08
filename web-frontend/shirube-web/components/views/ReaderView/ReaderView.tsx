@@ -386,10 +386,28 @@ export default function ReaderView() {
     [requestAddCard],
   );
 
+  // Both "Go to library" and "Skip for now" do the same thing: drop
+  // the user into the library with cloud registers rendered as
+  // unavailable tiles. They can locate files later from the library
+  // itself. No reload — useSyncBooks routes off local-vs-remote book
+  // state, so a reload would just bounce back to the restore screen.
   const handleRestoreComplete = useCallback(() => {
-    setPageState('loading');
-    window.location.reload();
-  }, []);
+    setBooks(
+      remoteBooks.map((r) => ({
+        id: r.id,
+        title: r.title,
+        author: r.author,
+        filename: r.filename,
+        coverColor: r.cover_color,
+        hasCover: false,
+        progress: r.progress,
+        available: false,
+        backendId: r.id,
+        lastReadAt: r.last_read_at,
+      })),
+    );
+    setPageState('library');
+  }, [remoteBooks, setBooks, setPageState]);
 
   if (pageState === 'restore' && !readerSession) {
     return (
@@ -397,11 +415,6 @@ export default function ReaderView() {
         remoteBooks={remoteBooks}
         userId={user.id}
         onComplete={handleRestoreComplete}
-        // Skip mirrors complete: both land on the library with the
-        // current state. The previous inline mapping rebuilt the list
-        // from the stale `remoteBooks` snapshot taken at restore-screen
-        // mount, so any books the user just imported during the restore
-        // session were flagged available:false again.
         onSkip={handleRestoreComplete}
       />
     );

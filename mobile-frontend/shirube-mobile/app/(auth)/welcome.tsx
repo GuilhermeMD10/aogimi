@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
@@ -6,11 +6,13 @@ import { BrandGlyph } from '@/components/ui/BrandGlyph';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export default function WelcomeScreen() {
   const c = useColors();
   const t = useT();
   const router = useRouter();
+  const { continueAsGuest } = useAuth();
 
   return (
     <Screen padded>
@@ -37,6 +39,21 @@ export default function WelcomeScreen() {
             <Button label={t('auth.welcome.google')} variant="secondary" full style={{ flex: 1 }} />
             <Button label={t('auth.welcome.apple')} variant="secondary" full style={{ flex: 1 }} />
           </View>
+          {/* "Continue without account" — local-only session. Books +
+              decks + cards still work, all marked unsynced. Conversion
+              to a real account happens later from the Profile page. */}
+          <Pressable
+            onPress={async () => {
+              await continueAsGuest();
+              router.replace('/(tabs)/reader');
+            }}
+            hitSlop={8}
+            style={({ pressed }) => [styles.guestRow, { opacity: pressed ? 0.55 : 1 }]}
+          >
+            <Text style={[styles.guestLabel, { color: c.fgMuted }]}>
+              {t('auth.welcome.continueAsGuest')}
+            </Text>
+          </Pressable>
         </View>
       </View>
     </Screen>
@@ -60,4 +77,14 @@ const styles = StyleSheet.create({
   },
   bottom: { marginTop: 'auto', gap: 10 },
   socialRow: { flexDirection: 'row', gap: 10, marginTop: 6 },
+  guestRow: {
+    alignSelf: 'center',
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  guestLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
 });

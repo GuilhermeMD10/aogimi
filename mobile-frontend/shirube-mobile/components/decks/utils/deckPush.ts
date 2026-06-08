@@ -9,8 +9,9 @@
 
 import * as Crypto from 'expo-crypto';
 import { createDeck, deleteDeck, updateDeck } from './decksApi';
-import type { DeckRecord, LocalDeck } from '../types';
+import type { LocalDeck } from '../types';
 import {
+  getDeck,
   listPendingDecks,
   markDeckSynced,
   removeDeck,
@@ -19,16 +20,12 @@ import {
 import { rewriteDeckId } from './cardLocalState';
 
 export type DeckPushResult =
-  | { ok: true; deckId: string; previousId: string }
-  | { ok: false; reason: 'rejected' | 'network'; previousId: string };
+  | { ok: true; deckId: string }
+  | { ok: false; reason: 'rejected' };
 
 export type DeckSyncSummary = {
   pushed: string[];
   failed: string[];
-  /** Map of localId → newBackendId for every successful create push.
-   *  Caller uses this to rewrite card foreign keys before pushing
-   *  cards. */
-  idRemap: Record<string, string>;
 };
 
 /**
@@ -79,9 +76,14 @@ export async function updateDeckLocal(
   id: string,
   updates: Partial<{ name: string; description: string }>,
 ): Promise<LocalDeck | null> {
-  const { getDeck } = await import('./deckLocalState');
   const existing = await getDeck(id);
   if (!existing) return null;
+
+  // Same guard as updateCardLocal — refuse to rewrite a pending-delete
+  // into a pending-update, which would resurrect the row on the server.
+  if (existing.pendingOp === 'delete') {
+    return null;
+  }
 
   const merged: LocalDeck = {
     ...existing,
@@ -104,7 +106,6 @@ export async function updateDeckLocal(
  * Otherwise mark `pendingOp: 'delete'` and try to push.
  */
 export async function deleteDeckLocal(id: string): Promise<void> {
-  const { getDeck } = await import('./deckLocalState');
   const existing = await getDeck(id);
   if (!existing) return;
 
@@ -126,7 +127,7 @@ export async function deleteDeckLocal(id: string): Promise<void> {
  */
 export async function pushDeck(deck: LocalDeck): Promise<DeckPushResult> {
   if (deck.syncState !== 'pending') {
-    return { ok: true, deckId: deck.id, previousId: deck.id };
+    return { ok: true, deckId: deck.id };
   }
 
   try {
@@ -136,7 +137,7 @@ export async function pushDeck(deck: LocalDeck): Promise<DeckPushResult> {
       // Patch every card's deck_id reference. Cheap to do here so
       // callers don't have to remember.
       await rewriteDeckId(deck.id, newId);
-      return { ok: true, deckId: newId, previousId: deck.id };
+      return { ok: true, deckId: newId };
     }
 
     if (deck.pendingOp === 'update') {
@@ -145,23 +146,23 @@ export async function pushDeck(deck: LocalDeck): Promise<DeckPushResult> {
         description: deck.description,
       });
       await markDeckSynced(deck.id, remote);
-      return { ok: true, deckId: deck.id, previousId: deck.id };
+      return { ok: true, deckId: deck.id };
     }
 
     if (deck.pendingOp === 'delete') {
       await deleteDeck(deck.id);
       await removeDeck(deck.id);
-      return { ok: true, deckId: deck.id, previousId: deck.id };
+      return { ok: true, deckId: deck.id };
     }
 
     // No pendingOp on a 'pending' record — treat as already synced.
-    return { ok: true, deckId: deck.id, previousId: deck.id };
+    return { ok: true, deckId: deck.id };
   } catch (err) {
     // 4xx (rejected by backend) vs network error — the difference
     // matters less here than for books; we surface both as "stays
     // pending" and let the user retry via Sync-now.
     void err;
-    return { ok: false, reason: 'rejected', previousId: deck.id };
+    return { ok: false, reason: 'rejected' };
   }
 }
 
@@ -172,7 +173,7 @@ export async function pushDeck(deck: LocalDeck): Promise<DeckPushResult> {
  * the id available before they push.
  */
 export async function pushAllPendingDecks(): Promise<DeckSyncSummary> {
-  const summary: DeckSyncSummary = { pushed: [], failed: [], idRemap: {} };
+  const summary: DeckSyncSummary = { pushed: [], failed: [] };
   const pending = await listPendingDecks();
 
   const byOp = (op: LocalDeck['pendingOp']) =>
@@ -180,12 +181,8 @@ export async function pushAllPendingDecks(): Promise<DeckSyncSummary> {
 
   for (const d of byOp('create')) {
     const result = await pushDeck(d);
-    if (result.ok) {
-      summary.pushed.push(d.id);
-      if (result.deckId !== d.id) summary.idRemap[d.id] = result.deckId;
-    } else {
-      summary.failed.push(d.id);
-    }
+    if (result.ok) summary.pushed.push(d.id);
+    else summary.failed.push(d.id);
   }
 
   for (const d of byOp('update')) {

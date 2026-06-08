@@ -3,20 +3,16 @@ import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Text, View }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
-import { File } from 'expo-file-system';
 import { useColors } from '@/theme/ThemeContext';
 import {
   sendProgressBeacon,
   createBookmark as apiCreateBookmark,
   deleteBookmark as apiDeleteBookmark,
   fetchBookmarks as apiFetchBookmarks,
-  matchBooks,
 } from '@/components/books/utils/booksApi';
 import { useBookRecord } from '@/components/books/hooks/useBookRecord';
 import type { WordDetails } from '@/components/dictionary/types';
-import { bookFilePath, deleteBookFile } from '@/components/books/utils/bookPaths';
-import { ExtensionMismatchError, importEpub } from '@/components/books/utils/bookFiles';
-import { removeEntry, setStoredFileHash } from '@/components/books/utils/bookLocalState';
+import { locateBookFile } from '@/components/books/utils/locateBookFile';
 import { useBookFile } from '@/components/books/hooks/useBookFile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import {
@@ -24,6 +20,7 @@ import {
   MANGA_SHELL_BG,
   READER_FONT_STACKS,
   READER_THEMES,
+  loadStoredBook,
   useReaderStorage,
   type HighlightColor,
 } from '../utils/readerStorage';
@@ -56,7 +53,7 @@ import { NativeSelectionMenu, type NativeMenuKey } from '../utils/native-selecti
 import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle } from '../utils/foliateHtml';
 import { useReaderLayoutPrefs, flowForCombo } from '../utils/readerLayout';
 import { setLocalProgress } from '@/components/books/utils/booksLocalCache';
-import { applyLocalProgress as persistLocalProgress } from '@/components/books/utils/syncedBookCache';
+import { persistLocalProgress } from '@/components/books/utils/syncedBookCache';
 
 type Props = { bookId: string };
 
@@ -81,6 +78,7 @@ export function ReaderScreen({ bookId }: Props) {
   const storage = useReaderStorage(book?.filename ?? null);
   const {
     hydrated: storageHydrated,
+    lastCfiPushed,
     highlights,
     bookmarks,
     saveLastCfi,
@@ -158,7 +156,6 @@ export function ReaderScreen({ bookId }: Props) {
     mangaPageDir,
     setLayout,
     setDirection,
-    setMangaPageDir,
     toggleLayout,
     toggleDirection,
     toggleMangaMode,
@@ -186,6 +183,21 @@ export function ReaderScreen({ bookId }: Props) {
     totalSpineItems: number;
   } | null>(null);
   const lastSyncedRef = useRef<{ cfi: string; progress: number } | null>(null);
+
+  // Seed the session-dedup ref from the persisted `lastCfiPushed` once
+  // storage hydrates. Without this, the first AppState transition after
+  // a cold reader open would fire a beacon even if the CFI hasn't moved
+  // since last session — `lastSyncedRef.current` would be null and the
+  // dedup check at the top of `flushProgress` would always fail. Seeding
+  // also covers the cross-session case that Sync-now's CFI push already
+  // handles, but lets the session-only path stay correct on its own.
+  useEffect(() => {
+    if (!storageHydrated || lastSyncedRef.current || !lastCfiPushed) return;
+    // `progress` isn't persisted alongside `lastCfiPushed`; using the
+    // current `book.progress` (or 0) is fine — the dedup compares both
+    // and any genuine progress advance triggers a fresh beacon.
+    lastSyncedRef.current = { cfi: lastCfiPushed, progress: book?.progress ?? 0 };
+  }, [storageHydrated, lastCfiPushed, book?.progress]);
 
   // ── Style derivation (vertical=true for JP novels) ──────────────────
   // For manga we send the darker shell color as `bg` so the WebView surround
@@ -358,6 +370,13 @@ export function ReaderScreen({ bookId }: Props) {
   // One-shot pull of server bookmarks once the book record is loaded and
   // local storage is hydrated. Skipped when `offlineMode` — the
   // fetch would fail anyway and the local set continues unchanged.
+  //
+  // After pulling, also retry any soft-deleted bookmarks whose original
+  // DELETE failed in a prior session. `bookmarks` hides pending-deletes
+  // from the UI but they persist in storage, so we read the raw stored
+  // list here and call apiDeleteBookmark for each, then purge on success.
+  // Without this retry, a single failed DELETE leaves the row in limbo
+  // until the user remembers to hit Sync-now.
   useEffect(() => {
     if (!book || !hydrated || bookmarksSyncedRef.current) return;
     if (offlineMode) return; // backend unreachable for this session
@@ -382,6 +401,29 @@ export function ReaderScreen({ bookId }: Props) {
         }
       } catch {
         /* server unreachable -- local set continues, retry next session */
+      }
+
+      if (cancelled) return;
+
+      // Retry pending-delete bookmarks: any soft-deleted local row with
+      // a backendId whose DELETE didn't land last session.
+      try {
+        const stored = await loadStoredBook(book.filename);
+        if (cancelled || !stored) return;
+        const pendingDeletes = stored.bookmarks.filter(
+          (b) => b.pendingDelete && b.backendId,
+        );
+        for (const bm of pendingDeletes) {
+          if (cancelled) return;
+          try {
+            await apiDeleteBookmark(bm.backendId!);
+            purgeBookmark(bm.id);
+          } catch {
+            /* still unreachable -- next session will try again */
+          }
+        }
+      } catch {
+        /* storage read failed -- skip retry, no harm done */
       }
     })();
     return () => {
@@ -553,93 +595,22 @@ export function ReaderScreen({ bookId }: Props) {
   }, [flushProgress, router, book?.id]);
 
   // ── Missing-file recovery ───────────────────────────────────────────
+  // Delegates the locate-verify-attach flow to the shared helper so the
+  // reader, onboarding, and the dedicated import screen all behave
+  // identically (and all carry the same anti-clobber guards).
   const handleImportMissingFile = useCallback(async () => {
     if (!book || !user) return;
-    let imported;
-    try {
-      imported = await importEpub({ expectedFilename: book.filename });
-    } catch (err) {
-      if (err instanceof ExtensionMismatchError) {
-        Alert.alert(
-          'Wrong file type',
-          `"${book.title}" is a .${err.expected} file, but you picked a .${err.picked} file. Pick a matching one.`,
-        );
-        return;
-      }
-      throw err;
-    }
-    if (!imported) return;
-
-    // Identity-verify before attaching. Without this, the recovery flow
-    // happily overwrites book.filename with whatever the user picked,
-    // and the wrong content ends up "in the slot" of this book record.
-    let matchedId: string | null = null;
-    let matchedOther: { id: string; title: string } | null = null;
-    try {
-      const [result] = await matchBooks(user.id, [
-        {
-          file_hash: imported.fileHash,
-          content_hash: imported.contentHash,
-          pdf_id_original: imported.pdfIdOriginal,
-          xmp_original_id: imported.xmpOriginalId,
-          detected_doi: imported.detectedDoi,
-          detected_isbn: imported.detectedIsbn,
-          page_count: imported.pageCount,
-          page_phashes: imported.pagePhashes,
-          metadata: {
-            title: imported.title || imported.filename,
-            author: imported.author,
-            dc_identifier: imported.dcIdentifier,
-            filename: imported.filename,
-          },
-        },
-      ]);
-      // Only file_hash certifies "this is exactly that book". Other match
-      // types (pdf_trailer_id, xmp_original_id, doi, isbn, content,
-      // metadata, filename) can collide between distinct books — accepting
-      // them here would silently attach the wrong content under the
-      // target's filename slot. Same rule the +-button import flow uses.
-      if (result?.match && result.match_type === 'file_hash') {
-        matchedId = result.match.id;
-        if (matchedId !== book.id) {
-          matchedOther = { id: result.match.id, title: result.match.title };
-        }
-      }
-    } catch {
-      /* matcher unreachable — treat as no match, reject below */
-    }
-
-    if (matchedId !== book.id) {
-      // Throw away the picked file — importEpub already copied it into
-      // books/ under its own name, so it'd otherwise stay as litter.
-      deleteBookFile(imported.filename);
-      Alert.alert(
-        "Doesn't match",
-        matchedOther
-          ? `This file is already in your library as "${matchedOther.title}".`
-          : `This file doesn't match "${book.title}". The book stays unimported.`,
-      );
-      return;
-    }
-
-    try {
-      if (imported.filename !== book.filename) {
-        const local = new File(bookFilePath(imported.filename));
-        local.copy(new File(bookFilePath(book.filename)));
-        local.delete();
-        // Clean up the sync entry for the picked filename — file moved.
-        await removeEntry(imported.filename);
-      }
-      // Locate flow: backend already had this record, so destination
-      // is `synced` directly.
-      if (imported.fileHash) {
-        await setStoredFileHash(book.filename, imported.fileHash);
-      }
+    const outcome = await locateBookFile(
+      { id: book.id, filename: book.filename, title: book.title },
+      user.id,
+    );
+    if (outcome.status === 'attached') {
       setHasFile(true);
-    } catch {
-      /* next open will retry */
+    } else if (outcome.status === 'rejected') {
+      Alert.alert("Doesn't match", outcome.message);
     }
-  }, [book, user]);
+    // 'canceled' → user backed out of the picker; do nothing.
+  }, [book, user, setHasFile]);
 
   // ── Render guards ───────────────────────────────────────────────────
   if (loading) {
@@ -705,8 +676,6 @@ export function ReaderScreen({ bookId }: Props) {
 
   // Common props for the text/novel overlays
   const sharedTextProps = {
-    title: book.title,
-    progress,
     toc,
     prefs,
     onChangePrefs: savePrefs,
@@ -737,9 +706,7 @@ export function ReaderScreen({ bookId }: Props) {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: safeBg }]} edges={['top']}>
-      {isManga ? null : (
-        <ReaderTopBar title={book.title} progress={progress} />
-      )}
+      <ReaderTopBar title={book.title} progress={progress} />
 
       {/* Back navigation: floating chevron pinned bottom-left, fades out
           when the dock expands so it doesn't compete with the toolbar. */}
@@ -801,6 +768,28 @@ export function ReaderScreen({ bookId }: Props) {
             <ActivityIndicator color={c.fg} />
           </View>
         )}
+
+        {/* Custom selection menu over the selection. Positioned with the
+            same coordinate system as the WebView so it lines up with the
+            text. Adjustment handles live INSIDE the WebView (DOM divs in
+            webviewInjections) attached to the selection band itself. */}
+        {selection && readerViewport && !highlightPicker && !isManga && (
+          <NativeSelectionMenu
+            selectionRect={selection.rect}
+            viewport={readerViewport}
+            onAction={(key: NativeMenuKey) => {
+              handleCustomMenu({ key, selectedText: selection.text });
+              if (key !== 'highlight') {
+                epubRef.current?.clearSelection();
+                setSelection(null);
+              }
+            }}
+            onDismiss={() => {
+              epubRef.current?.clearSelection();
+              setSelection(null);
+            }}
+          />
+        )}
       </View>
 
       {/* Type-specific overlay */}
@@ -808,8 +797,6 @@ export function ReaderScreen({ bookId }: Props) {
       {ready && bookType === 'novel' && <NovelReader {...sharedTextProps} />}
       {isManga && (
         <MangaReader
-          title={book.title}
-          progress={progress}
           page={page}
           totalPages={totalPages}
           toc={toc}
@@ -821,7 +808,6 @@ export function ReaderScreen({ bookId }: Props) {
           onToggleMode={toggleMangaMode}
           pageDir={mangaPageDir}
           onTogglePageDir={toggleMangaPageDir}
-          onSetPageDir={setMangaPageDir}
           // Chevrons route to whichever view is mounted. The other ref
           // is null; both are safe to no-op on.
           onJumpSpine={(idx) => {
@@ -834,27 +820,6 @@ export function ReaderScreen({ bookId }: Props) {
           onToggleBookmark={toggleBookmark}
           onDeleteBookmark={removeBookmarkSynced}
           onModeChange={setDockMode}
-        />
-      )}
-
-      {/* Custom selection menu (replaces the OS bubble; positioned above the
-          selection, flipped below near the top edge). Hidden while the
-          highlight color picker is up so the two don't stack. */}
-      {selection && readerViewport && !highlightPicker && !isManga && (
-        <NativeSelectionMenu
-          selectionRect={selection.rect}
-          viewport={readerViewport}
-          onAction={(key: NativeMenuKey) => {
-            handleCustomMenu({ key, selectedText: selection.text });
-            if (key !== 'highlight') {
-              epubRef.current?.clearSelection();
-              setSelection(null);
-            }
-          }}
-          onDismiss={() => {
-            epubRef.current?.clearSelection();
-            setSelection(null);
-          }}
         />
       )}
 

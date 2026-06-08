@@ -14,7 +14,7 @@ import type { ThemeName } from './tokens';
  *
  *   const ReaderProgressBar = createThemedComponent(
  *     DefaultReaderProgressBar,
- *     { stamp: StampReaderProgressBar },
+ *     { kanagawa: KanagawaReaderProgressBar },
  *     'ReaderProgressBar',
  *   );
  */

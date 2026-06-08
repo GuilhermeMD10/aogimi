@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { File } from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
@@ -8,11 +7,10 @@ import { BrandGlyph } from '@/components/ui/BrandGlyph';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { fetchUserBooks, matchBooks } from '@/components/books/utils/booksApi';
+import { fetchUserBooks } from '@/components/books/utils/booksApi';
 import { fetchUserDecks } from '@/components/decks/utils/decksApi';
-import { bookFileExists, bookFilePath, deleteBookFile } from '@/components/books/utils/bookPaths';
-import { ExtensionMismatchError, importEpub } from '@/components/books/utils/bookFiles';
-import { removeEntry, setStoredFileHash } from '@/components/books/utils/bookLocalState';
+import { bookFileExists } from '@/components/books/utils/bookPaths';
+import { locateBookFile } from '@/components/books/utils/locateBookFile';
 import type { BookRecord } from '@/components/books/types';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 
@@ -60,111 +58,20 @@ export default function OnboardingScreen() {
 
   const handleFind = useCallback(async (book: BookRecord) => {
     if (!user) return;
-    // Outer try/catch is the safety net — ANY unhandled exception here
-    // would otherwise crash the JS runtime in dev mode, trigger a
-    // Metro reload, and bounce the user out of onboarding to the
-    // initial route (books tab). Every path inside MUST end with a
-    // friendly alert or no-op, never an uncaught throw.
-    try {
-      let imported;
-      try {
-        imported = await importEpub({ expectedFilename: book.filename });
-      } catch (err) {
-        if (err instanceof ExtensionMismatchError) {
-          Alert.alert(
-            'Wrong file type',
-            `"${book.title}" is a .${err.expected} file, but you picked a .${err.picked} file. Pick a matching one.`,
-          );
-        } else {
-          Alert.alert(
-            'Could not import',
-            err instanceof Error ? err.message : 'Unknown error reading the file. Try a different one.',
-          );
-        }
-        return;
-      }
-      if (!imported) return;
-
-      // Identity-verify the picked file against the targeted book before we
-      // attach it under book.filename. Without this, picking the wrong file
-      // here silently rewrites a known book's slot with someone else's content.
-      let matchedId: string | null = null;
-      let matchedOther: { title: string } | null = null;
-      try {
-        const [result] = await matchBooks(user.id, [
-          {
-            file_hash: imported.fileHash,
-            content_hash: imported.contentHash,
-            pdf_id_original: imported.pdfIdOriginal,
-            xmp_original_id: imported.xmpOriginalId,
-            detected_doi: imported.detectedDoi,
-            detected_isbn: imported.detectedIsbn,
-            page_count: imported.pageCount,
-            page_phashes: imported.pagePhashes,
-            metadata: {
-              title: imported.title || imported.filename,
-              author: imported.author,
-              dc_identifier: imported.dcIdentifier,
-              filename: imported.filename,
-            },
-          },
-        ]);
-        // Only file_hash certifies "this is exactly that book". Other match
-        // types (pdf_trailer_id, xmp_original_id, doi, isbn, content,
-        // metadata, filename) can collide between distinct books — accepting
-        // them here would silently attach the wrong content under the
-        // target's filename slot. Same rule the +-button import flow uses.
-        if (result?.match && result.match_type === 'file_hash') {
-          matchedId = result.match.id;
-          if (matchedId !== book.id) matchedOther = { title: result.match.title };
-        }
-      } catch {
-        /* matcher unreachable — treat as no match, reject below */
-      }
-
-      if (matchedId !== book.id) {
-        // Wrap the FS delete — file might be locked, missing, or just
-        // refusing to die. Either way, the user-facing outcome is the
-        // same "doesn't match" alert; the leftover bytes will get
-        // cleaned up by the next reconcile.
-        try { deleteBookFile(imported.filename); } catch { /* best-effort */ }
-        Alert.alert(
-          "Doesn't match",
-          matchedOther
-            ? `This file is already in your library as "${matchedOther.title}".`
-            : `This file doesn't match "${book.title}". The book stays unimported.`,
-        );
-        return;
-      }
-
-      try {
-        if (imported.filename !== book.filename) {
-          const local = new File(bookFilePath(imported.filename));
-          local.copy(new File(bookFilePath(book.filename)));
-          local.delete();
-          // Clean up the sync entry for the picked filename — file moved.
-          await removeEntry(imported.filename);
-        }
-        // Locate flow: backend already had this record, so the destination
-        // filename is `synced` directly. `setStoredFileHash` writes the
-        // fileHash with no explicit syncState — treated as `synced` by
-        // `effectiveSyncState`, which is what we want here.
-        if (imported.fileHash) {
-          await setStoredFileHash(book.filename, imported.fileHash);
-        }
-        setResolved((prev) => new Set(prev).add(book.id));
-      } catch {
-        /* fs error — leave unresolved so the user can retry */
-      }
-    } catch (err) {
-      // Outer safety net — anything that slipped past the inner
-      // try/catches lands here as an alert instead of crashing the
-      // screen out to the books tab.
-      Alert.alert(
-        'Something went wrong',
-        err instanceof Error ? err.message : 'Please try a different file.',
-      );
+    // Delegates to the shared locate-verify-attach helper, which never
+    // throws (all paths return a discriminated outcome). That matters
+    // here: an uncaught throw would crash the JS runtime in dev, trigger
+    // a Metro reload, and bounce the user out of onboarding.
+    const outcome = await locateBookFile(
+      { id: book.id, filename: book.filename, title: book.title },
+      user.id,
+    );
+    if (outcome.status === 'attached') {
+      setResolved((prev) => new Set(prev).add(book.id));
+    } else if (outcome.status === 'rejected') {
+      Alert.alert("Doesn't match", outcome.message);
     }
+    // 'canceled' → user backed out of the picker; do nothing.
   }, [user]);
 
   return (
@@ -217,9 +124,7 @@ export default function OnboardingScreen() {
             allResolved(state.missing, resolved) ? (
               <Button label={t('auth.onboarding.continue')} onPress={finish} full />
             ) : (
-              <View style={{ gap: 10 }}>
-                <Button label={t('auth.onboarding.skipAll')} variant="secondary" onPress={finish} full />
-              </View>
+              <Button label={t('auth.onboarding.skipAll')} variant="secondary" onPress={finish} full />
             )
           ) : (
             <Button

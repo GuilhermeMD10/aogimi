@@ -92,7 +92,15 @@ export default function ProfilePage() {
           onEditAvatar={() => setShowAvatarPicker(true)}
         />
 
-        <div className="grid gap-5" style={{ gridTemplateColumns: '1.25fr 1fr' }}>
+        {/* Auto-fit grid: gracefully collapses to one column under
+            ~580px and expands back to two when the surface is wider.
+            Same component is rendered in the standalone /profile route
+            AND inside the 880px ProfileBubble — and could land in a
+            narrower surface later without re-layout work. */}
+        <div
+          className="grid gap-5"
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}
+        >
           <div>
             <AccountSection
               displayName={displayName}

@@ -170,6 +170,3 @@ export async function clearAllCards(): Promise<void> {
   }
 }
 
-export function effectiveCardSyncState(card: LocalCard): SyncState {
-  return card.syncState ?? 'synced';
-}

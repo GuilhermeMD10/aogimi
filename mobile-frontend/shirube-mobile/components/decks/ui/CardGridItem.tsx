@@ -21,9 +21,13 @@ export function CardGridItem({ card, onPress }: Props) {
         { backgroundColor: c.bgElev, borderColor: c.border, opacity: pressed ? 0.9 : 1 },
       ]}
     >
-      <View style={styles.pillSlot}>
-        <SyncPill state={card.syncState === 'pending' ? 'unsynced' : 'synced'} />
-      </View>
+      {/* Synced cards don't display any badge — only the unsynced ones
+          get a small blue dot to nudge the user toward Sync now. */}
+      {card.syncState === 'pending' && (
+        <View style={styles.pillSlot}>
+          <SyncPill state="unsynced" variant="dot" />
+        </View>
+      )}
       <View style={[styles.chip, { backgroundColor: chip.bg }]}>
         <Text style={[styles.chipText, { color: chip.fg }]}>{card.state}</Text>
       </View>

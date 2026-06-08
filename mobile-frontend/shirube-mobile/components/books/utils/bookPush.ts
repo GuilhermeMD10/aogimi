@@ -15,8 +15,9 @@ import {
   matchBooks,
   updateBookIdentity,
 } from './booksApi';
-import type { BookRecord, PendingPayload } from '../types';
-import { markPending, markSynced, readAllEntries } from './bookLocalState';
+import type { BookRecord, LocalBookEntry, PendingPayload } from '../types';
+import { getEntry, markPending, markSynced, readAllEntries } from './bookLocalState';
+import { pushForBook } from './readerStatePush';
 
 export type PushResult =
   | { ok: true; bookId: string }
@@ -100,7 +101,9 @@ export async function pushOneBook(
         dcIdentifier: payload.dcIdentifier ?? undefined,
         language: payload.language ?? undefined,
         publisher: payload.publisher ?? undefined,
-      }).catch(() => undefined);
+      }).catch((err) => {
+        console.warn('[bookPush] updateBookIdentity backfill failed', err);
+      });
     }
   } catch {
     return { ok: false, reason: 'network' };
@@ -190,53 +193,70 @@ export async function markPendingAndAttemptPush(
 }
 
 /**
+ * Build a synthetic `BookRecord` for a single pending entry. Shared by
+ * `listPendingBooks` (library list) and `useBookRecord` (reader entry
+ * point for a pending book opened as a guest or offline). Timestamps
+ * come from the entry's `firstSeenAt` so the tile reflects when the
+ * book was actually imported, not when the helper was called.
+ *
+ * `entry.pendingPayload` is required; the helper assumes the caller
+ * already gated on syncState === 'pending' && pendingPayload != null.
+ */
+export function buildPendingBookRecord(
+  filename: string,
+  entry: LocalBookEntry,
+  userId: number,
+): BookRecord {
+  const p = entry.pendingPayload!;
+  const ts = p.firstSeenAt ?? new Date().toISOString();
+  return {
+    id: `pending:${filename}`,
+    user_id: userId,
+    filename,
+    title: p.title || filename,
+    author: p.author,
+    cover_color: '#4A4038',
+    cfi_position: null,
+    spine_index: 0,
+    total_spine_items: null,
+    progress: 0,
+    started_at: ts,
+    last_read_at: ts,
+    created_at: ts,
+    file_hash: p.fileHash,
+    content_hash: p.contentHash,
+    pdf_id_original: p.pdfIdOriginal,
+    pdf_id_current: p.pdfIdCurrent,
+    page_count: p.pageCount,
+    has_text_layer: p.hasTextLayer,
+    producer: p.producer,
+    xmp_document_id: p.xmpDocumentId,
+    xmp_original_id: p.xmpOriginalId,
+    page_hashes: p.pageHashes,
+    text_length: p.textLength,
+    detected_doi: p.detectedDoi,
+    detected_isbn: p.detectedIsbn,
+    page_phashes: p.pagePhashes,
+    fingerprint_version: p.fingerprintVersion,
+    dc_identifier: p.dcIdentifier,
+    language: p.language,
+    publisher: p.publisher,
+  };
+}
+
+/**
  * Build a synthetic `BookRecord` for each locally-pending book. Used by
  * `useBooks` to surface pending books in the library list before they
  * have a backend record. The synthetic id is `pending:<filename>` so
- * the library tile's open handler can intercept the tap and show a
- * "sync first to read" prompt instead of routing to the reader (the
- * reader fetches by backend id, which pending books don't have yet).
+ * the library tile's open handler can route reads through `useBookRecord`,
+ * which rebuilds the same shape via `buildPendingBookRecord`.
  */
 export async function listPendingBooks(userId: number): Promise<BookRecord[]> {
   const entries = await readAllEntries();
-  const now = new Date().toISOString();
   const result: BookRecord[] = [];
   for (const [filename, entry] of Object.entries(entries)) {
     if (entry.syncState !== 'pending' || !entry.pendingPayload) continue;
-    const p = entry.pendingPayload;
-    result.push({
-      id: `pending:${filename}`,
-      user_id: userId,
-      filename,
-      title: p.title || filename,
-      author: p.author,
-      cover_color: '#4A4038',
-      cfi_position: null,
-      spine_index: 0,
-      total_spine_items: null,
-      progress: 0,
-      started_at: now,
-      last_read_at: now,
-      created_at: now,
-      file_hash: p.fileHash,
-      content_hash: p.contentHash,
-      pdf_id_original: p.pdfIdOriginal,
-      pdf_id_current: p.pdfIdCurrent,
-      page_count: p.pageCount,
-      has_text_layer: p.hasTextLayer,
-      producer: p.producer,
-      xmp_document_id: p.xmpDocumentId,
-      xmp_original_id: p.xmpOriginalId,
-      page_hashes: p.pageHashes,
-      text_length: p.textLength,
-      detected_doi: p.detectedDoi,
-      detected_isbn: p.detectedIsbn,
-      page_phashes: p.pagePhashes,
-      fingerprint_version: p.fingerprintVersion,
-      dc_identifier: p.dcIdentifier,
-      language: p.language,
-      publisher: p.publisher,
-    });
+    result.push(buildPendingBookRecord(filename, entry, userId));
   }
   return result;
 }
@@ -251,4 +271,44 @@ export function isPendingBookId(id: string): boolean {
 /** Extract the filename embedded in a synthetic pending book id. */
 export function filenameFromPendingId(id: string): string {
   return id.startsWith('pending:') ? id.slice('pending:'.length) : id;
+}
+
+/**
+ * Per-book sync triggered from the library tile's actions menu.
+ *
+ *   - Pending book (synthetic id `pending:<filename>`): look up the local
+ *     entry and push it via `pushOneBook`. Returns `ok: false` on network
+ *     failure so the caller can show "still pending" feedback.
+ *   - Already-synced book: push any unsent reader state (CFI/bookmarks)
+ *     for just this book via `pushForBook`. Returns `ok: false` if any of
+ *     those calls failed.
+ *
+ * Intentionally narrow — no reconcile pass, no cache rewrite. The caller
+ * is expected to follow up with a list refresh so the tile re-renders
+ * with the new sync state.
+ */
+export async function syncOneBookOnDemand(
+  userId: number,
+  book: { id: string; filename: string },
+): Promise<{ ok: true } | { ok: false; reason: 'network' | 'rejected' }> {
+  if (isPendingBookId(book.id)) {
+    const entry = await getEntry(book.filename);
+    if (!entry || entry.syncState !== 'pending' || !entry.pendingPayload) {
+      // Stale tile — entry was already pushed (or never recorded). Treat
+      // as success; the next refresh will drop the pending marker.
+      return { ok: true };
+    }
+    const result = await pushOneBook(userId, book.filename, entry.pendingPayload);
+    return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+  }
+
+  // Synced book: only reader-state writes (CFI, bookmarks) can be pending.
+  // pushForBook returns `clean: true` when every write succeeded or there
+  // was nothing to push.
+  try {
+    const result = await pushForBook(book as BookRecord);
+    return result.clean ? { ok: true } : { ok: false, reason: 'network' };
+  } catch {
+    return { ok: false, reason: 'network' };
+  }
 }

@@ -16,6 +16,7 @@
       "tagline": "Tap any word to see its meaning, save it to flashcards, and study in context.",
       "signIn": "Sign in",
       "createAccount": "Create account",
+      "continueAsGuest": "Continue without account",
       "google": "Google",
       "apple": "Apple"
     },
@@ -108,6 +109,8 @@
     "changeAvatar": "Change avatar"
   },
   "settings": {
-    "title": "Settings"
+    "title": "Settings",
+    "help": "Help",
+    "credits": "Credits"
   }
 }

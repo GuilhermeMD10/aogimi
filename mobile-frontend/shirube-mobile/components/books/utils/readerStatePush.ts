@@ -68,7 +68,7 @@ function partition(bookmarks: StoredBookmark[]): {
  * operation succeeded (or there was nothing to do); `false` if any
  * step failed.
  */
-async function pushForBook(book: BookRecord): Promise<{
+export async function pushForBook(book: BookRecord): Promise<{
   clean: boolean;
   created: number;
   deleted: number;

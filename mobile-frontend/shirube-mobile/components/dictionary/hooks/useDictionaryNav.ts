@@ -46,10 +46,6 @@ export function useDictionaryNav(): DictNav {
   const current = history[history.length - 1]!;
   const query = current.kind === 'search' ? current.query : '';
 
-  const replaceTop = useCallback((frame: DictFrame) => {
-    setHistory((h) => [...h.slice(0, -1), frame]);
-  }, []);
-
   const push = useCallback((frame: DictFrame) => {
     setHistory((h) => [...h, frame]);
   }, []);

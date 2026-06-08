@@ -145,6 +145,3 @@ export async function clearAllDecks(): Promise<void> {
   }
 }
 
-export function effectiveDeckSyncState(deck: LocalDeck): SyncState {
-  return deck.syncState ?? 'synced';
-}

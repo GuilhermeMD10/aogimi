@@ -17,6 +17,8 @@ import { evictBookCache } from '../utils/mangaPages';
 import { deleteCoverFor } from '../utils/epubCover';
 import { clearBookStorage } from '@/components/reader/utils/readerStorage';
 import { clearLocalProgress } from '../utils/booksLocalCache';
+import { syncOneBookOnDemand } from '../utils/bookPush';
+import { useAuth } from '@/lib/auth/AuthContext';
 import type { BookRecord } from '../types';
 
 type Props = {
@@ -34,6 +36,8 @@ type Props = {
  */
 export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
   const c = useColors();
+  const { user, status } = useAuth();
+  const isGuest = status === 'guest';
   const [mode, setMode] = useState<'menu' | 'rename'>('menu');
   const [draftTitle, setDraftTitle] = useState('');
   const [busy, setBusy] = useState(false);
@@ -65,6 +69,33 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
     } catch (err) {
       Alert.alert(
         'Rename failed',
+        err instanceof Error ? err.message : 'Please try again.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSync = async () => {
+    if (!book || !user || busy) return;
+    setBusy(true);
+    try {
+      const result = await syncOneBookOnDemand(user.id, {
+        id: book.id,
+        filename: book.filename,
+      });
+      if (result.ok) {
+        onChanged();
+        onDismiss();
+      } else {
+        Alert.alert(
+          'Still pending',
+          'Couldn’t reach the server. The book stays on this device — try again when you’re back online.',
+        );
+      }
+    } catch (err) {
+      Alert.alert(
+        'Sync failed',
         err instanceof Error ? err.message : 'Please try again.',
       );
     } finally {
@@ -118,7 +149,7 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
   };
 
   return (
-    <BottomSheet visible={visible} onDismiss={onDismiss} heightRatio={0.34}>
+    <BottomSheet visible={visible} onDismiss={onDismiss} heightRatio={0.4}>
       <View style={styles.host}>
         <Text
           style={[styles.title, { color: c.fg }]}
@@ -130,6 +161,16 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
 
         {mode === 'menu' && (
           <View style={styles.menu}>
+            {/* Sync-now is hidden for guests — no account to push to. */}
+            {!isGuest && (
+              <ActionRow
+                label="Sync now"
+                onPress={handleSync}
+                tint={c.fg}
+                border={c.border}
+                disabled={busy}
+              />
+            )}
             <ActionRow
               label="Rename"
               onPress={() => setMode('rename')}

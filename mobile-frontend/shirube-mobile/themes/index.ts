@@ -17,24 +17,19 @@ import type { BooksScreen as DefaultBooksScreen } from '@/components/books/ui/Bo
 import type { DictionaryScreen as DefaultDictionaryScreen } from '@/components/dictionary/ui/DictionaryScreen';
 import type { DictEntry as DefaultDictEntry } from '@/components/dictionary/ui/DictEntry';
 
-import { BooksScreen as StampBooksScreen } from './stamp/books/BooksScreen';
-import { DictionaryScreen as StampDictionaryScreen } from './stamp/dictionary/DictionaryScreen';
-import { DictEntry as StampDictEntry } from './stamp/dictionary/DictEntry';
-
 export type ThemeComponentMap = Partial<{
   BooksScreen: ComponentType<ComponentProps<typeof DefaultBooksScreen>>;
   DictionaryScreen: ComponentType<ComponentProps<typeof DefaultDictionaryScreen>>;
   DictEntry: ComponentType<ComponentProps<typeof DefaultDictEntry>>;
 }>;
 
+// Empty registries by default — each theme is colors + shape tokens only
+// until a screen-level override is added. The `useThemedComponent` lookup
+// falls through to the caller's default implementation when a slot is
+// missing, so adding a new theme costs nothing here.
 export const themeComponentRegistry: Record<ThemeName, ThemeComponentMap> = {
   default: {},
   kanagawa: {},
   sakura: {},
   hanami: {},
-  stamp: {
-    BooksScreen: StampBooksScreen,
-    DictionaryScreen: StampDictionaryScreen,
-    DictEntry: StampDictEntry,
-  },
 };

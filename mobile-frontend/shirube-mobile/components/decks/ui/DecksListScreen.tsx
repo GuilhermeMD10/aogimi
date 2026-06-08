@@ -18,11 +18,15 @@ import type { LocalDeck } from '../types';
 import { useDecks } from '../hooks/useDecks';
 import { DeckGridItem } from './DeckGridItem';
 import { NewDeckSheet } from './NewDeckSheet';
+import { CloudSyncIcon } from '@/components/icons/sync-icons';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export function DecksListScreen() {
   const c = useColors();
   const t = useT();
   const router = useRouter();
+  const { status } = useAuth();
+  const isGuest = status === 'guest';
   const { decks, loading, refreshing, error, refresh, reloadLocal } = useDecks();
   const [newDeckOpen, setNewDeckOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -59,24 +63,30 @@ export function DecksListScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: c.fg }]}>{t('decks.title')}</Text>
         <View style={styles.headerActions}>
-          <Pressable
-            onPress={handleSyncNow}
-            disabled={syncing}
-            style={[
-              styles.syncBtn,
-              {
-                backgroundColor: c.bgElev,
-                borderColor: pendingCount > 0 ? c.fg : c.border,
-                opacity: syncing ? 0.5 : 1,
-              },
-            ]}
-            hitSlop={6}
-            accessibilityLabel="Sync now"
-          >
-            <Text style={[styles.syncBtnText, { color: c.fg }]}>
-              {syncing ? '…' : pendingCount > 0 ? `Sync (${pendingCount})` : 'Sync'}
-            </Text>
-          </Pressable>
+          {/* Sync-now is hidden for guests — they have no account to
+              push to. Conversion happens from the Profile page. */}
+          {!isGuest && (
+            <Pressable
+              onPress={handleSyncNow}
+              disabled={syncing}
+              style={[
+                styles.syncBtn,
+                {
+                  backgroundColor: c.bgElev,
+                  borderColor: pendingCount > 0 ? c.fg : c.border,
+                  opacity: syncing ? 0.5 : 1,
+                },
+              ]}
+              hitSlop={6}
+              accessibilityLabel="Sync now"
+            >
+              {syncing ? (
+                <ActivityIndicator size="small" color={c.fg} />
+              ) : (
+                <CloudSyncIcon size={18} color="#2E9F58" />
+              )}
+            </Pressable>
+          )}
           <Pressable
             onPress={() => setNewDeckOpen(true)}
             style={[styles.addBtn, { backgroundColor: c.bgElev, borderColor: c.border }]}

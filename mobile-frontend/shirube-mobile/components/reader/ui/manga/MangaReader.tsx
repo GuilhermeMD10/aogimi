@@ -4,8 +4,8 @@ import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../../utils/reade
 import type { MangaPageDir } from '../../utils/readerLayout';
 
 export type MangaReaderProps = {
-  title: string;
-  progress: number;
+  // Only used for chevron-driven prev/next spine jumps; the visible page
+  // number lives in the top bar's progress%, not here.
   page: number;
   totalPages: number;
   toc: EpubTocItem[];
@@ -22,7 +22,6 @@ export type MangaReaderProps = {
   // surfaces the control regardless so the choice persists.
   pageDir: MangaPageDir;
   onTogglePageDir: () => void;
-  onSetPageDir: (v: MangaPageDir) => void;
   // Chevron callback used by both views — jumps to a spine index (the
   // current view's ref handles the actual scroll/setIndex).
   onJumpSpine: (spineIndex: number) => void;
@@ -37,8 +36,6 @@ export type MangaReaderProps = {
  * not foliate; the dock just shows position and exposes bookmark / TOC.
  */
 export function MangaReader({
-  title,
-  progress,
   page,
   totalPages,
   toc,
@@ -50,7 +47,6 @@ export function MangaReader({
   onToggleMode,
   pageDir,
   onTogglePageDir,
-  onSetPageDir,
   onJumpSpine,
   onToggleBookmark,
   onDeleteBookmark,
@@ -62,16 +58,11 @@ export function MangaReader({
   return (
     <ReaderBottomDock
       variant="manga"
-      title={title}
-      progress={progress}
-      page={page}
-      totalPages={totalPages}
       bookmarked={isBookmarked}
       mangaMode={mode}
       onToggleMangaMode={onToggleMode}
       mangaPageDir={pageDir}
       onToggleMangaPageDir={onTogglePageDir}
-      onSetMangaPageDir={onSetPageDir}
       layout="pages"
       direction="horizontal"
       toc={toc}

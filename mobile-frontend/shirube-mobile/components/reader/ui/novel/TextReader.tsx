@@ -5,8 +5,6 @@ import type { ReaderDirection, ReaderLayout } from '../../utils/readerLayout';
 
 export type TextReaderProps = {
   rtl?: boolean;
-  title: string;
-  progress: number;
   toc: EpubTocItem[];
   prefs: ReaderPrefs;
   onChangePrefs: (patch: Partial<ReaderPrefs>) => void;
@@ -38,8 +36,6 @@ export type TextReaderProps = {
  */
 export function TextReader({
   rtl,
-  title,
-  progress,
   toc,
   prefs,
   onChangePrefs,
@@ -74,8 +70,6 @@ export function TextReader({
 
   return (
     <ReaderBottomDock
-      title={title}
-      progress={progress}
       bookmarked={isBookmarked}
       layout={layout}
       direction={direction}

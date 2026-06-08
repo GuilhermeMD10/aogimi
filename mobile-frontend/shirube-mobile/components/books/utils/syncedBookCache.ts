@@ -157,7 +157,7 @@ export async function mergeBackendBooks(books: BookRecord[]): Promise<void> {
  * session, online or offline, writes through here. Push-side logic
  * then compares `last_read_at` to decide direction.
  */
-export async function applyLocalProgress(
+export async function persistLocalProgress(
   id: string,
   patch: { progress: number; cfi: string; lastReadAt: string },
 ): Promise<void> {

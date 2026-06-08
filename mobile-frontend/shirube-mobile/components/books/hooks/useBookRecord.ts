@@ -24,6 +24,13 @@ import {
   getCachedBook,
   markSessionPending,
 } from '../utils/syncedBookCache';
+import { getEntry } from '../utils/bookLocalState';
+import {
+  buildPendingBookRecord,
+  filenameFromPendingId,
+  isPendingBookId,
+} from '../utils/bookPush';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { isOnlineNow } from '@/lib/network/network';
 import type { BookRecord } from '../types';
 
@@ -48,6 +55,8 @@ function isNetworkError(err: unknown): boolean {
 }
 
 export function useBookRecord(bookId: string): State {
+  const { user } = useAuth();
+  const userId = user?.id ?? 0;
   const [book, setBook] = useState<BookRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +69,25 @@ export function useBookRecord(bookId: string): State {
     setOfflineMode(false);
 
     (async () => {
+      // Pending book: no backend record exists yet (offline import, or
+      // guest account that never pushes). Reconstruct the BookRecord
+      // from the local pending entry and run the reader in offlineMode
+      // so it skips all backend pushes.
+      if (isPendingBookId(bookId)) {
+        const filename = filenameFromPendingId(bookId);
+        const entry = await getEntry(filename);
+        if (cancelled) return;
+        if (!entry || !entry.pendingPayload) {
+          setError('Book not found locally');
+          setLoading(false);
+          return;
+        }
+        setBook(buildPendingBookRecord(filename, entry, userId));
+        setOfflineMode(true);
+        setLoading(false);
+        return;
+      }
+
       // 1. Cached read — render immediately if available.
       const cached = await getCachedBook(bookId);
       if (cancelled) return;
@@ -121,7 +149,7 @@ export function useBookRecord(bookId: string): State {
     return () => {
       cancelled = true;
     };
-  }, [bookId]);
+  }, [bookId, userId]);
 
   return { book, loading, error, offlineMode };
 }

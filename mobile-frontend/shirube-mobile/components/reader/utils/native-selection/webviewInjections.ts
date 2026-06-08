@@ -15,16 +15,15 @@ export function selectionCss(): string {
 // states drive the visual + haptic feedback:
 //
 //   idle      → finger up, nothing on screen.
-//   pressing  → finger down for < MIN_HOLD_MS. A small dim circle shows
-//               under the finger so the user sees that the touch was
-//               registered. Movement > MOVE_PX cancels (was a scroll).
+//   pressing  → finger down for < MIN_HOLD_MS. No visuals (intentional —
+//               we don't want a flash on quick taps).
 //   selecting → MIN_HOLD_MS elapsed without moving. Vibrate once (Android
 //               only — iOS WebKit has no navigator.vibrate; bridge to
-//               expo-haptics if you ever want feedback there). The circle
-//               grows + brightens. Selection becomes live: every touchmove
-//               re-runs Selection.addRange from the start point to the
-//               current finger position. On touchend the last range is
-//               kept; the indicator fades out.
+//               expo-haptics if you ever want feedback there). A small
+//               circle shows under the finger; selection becomes live:
+//               every touchmove re-runs Selection.addRange from the start
+//               point to the current finger position. On touchend the
+//               last range is kept; the indicator fades out.
 //
 // All visual chrome lives inside the chapter iframe doc as an absolutely-
 // positioned <div>; no RN-side overlay needed.
@@ -36,7 +35,7 @@ export const TAP_TO_SELECT_FN = `
   var __readerInDrag = false;
 
   function attachHoldSelect(doc) {
-    var MIN_HOLD_MS = 250;
+    var MIN_HOLD_MS = 150;
     var MOVE_PX = 8;
 
     var startX = 0, startY = 0, startTime = 0;
@@ -72,13 +71,6 @@ export const TAP_TO_SELECT_FN = `
       el.style.top = y + 'px';
     }
 
-    function showPressing() {
-      var el = ensureIndicator();
-      el.style.opacity = '1';
-      el.style.transform = 'translate(-50%,-50%) scale(0.85)';
-      el.style.background = 'rgba(0,0,0,0.18)';
-    }
-
     function showSelecting() {
       var el = ensureIndicator();
       el.style.opacity = '1';
@@ -108,8 +100,9 @@ export const TAP_TO_SELECT_FN = `
       startX = t.clientX; startY = t.clientY;
       startTime = Date.now();
       state = 'pressing';
-      moveIndicator(startX, startY);
-      showPressing();
+      // Indicator stays hidden during the pressing window so a brief tap
+      // doesn't flash the circle. It only appears once the hold threshold
+      // is met (i.e. when entering the 'selecting' state below).
       cancelHold();
       holdTimer = setTimeout(function () {
         holdTimer = 0;
@@ -117,6 +110,7 @@ export const TAP_TO_SELECT_FN = `
         state = 'selecting';
         __readerInDrag = true;
         haptic();
+        moveIndicator(startX, startY);
         showSelecting();
         // Seed the selection at the starting point so the user has visible
         // feedback before they begin dragging.

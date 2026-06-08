@@ -16,6 +16,11 @@ import { reconcileBooks, syncPending } from '@/components/books/utils/reconcileB
 import { pushAllReaderState } from '@/components/books/utils/readerStatePush';
 import { subscribeOnlineTransition } from '@/lib/network/network';
 import { wipeUserData } from './wipeUserData';
+// ConvertProgress is owned by the convert module so the AuthContext →
+// convert import direction stays one-way. Re-exported here for callers
+// who pull the type from the auth surface.
+import { runConvertPush, type ConvertProgress } from './convert';
+export type { ConvertProgress } from './convert';
 
 type Credentials = { username: string; password: string };
 
@@ -25,7 +30,9 @@ type Session = {
 };
 
 type AuthContextValue = {
-  status: 'loading' | 'signed-in' | 'signed-out';
+  /** `guest` = local-only session, no backend account. `signed-in` =
+   *  authenticated user with a real backend id. */
+  status: 'loading' | 'signed-in' | 'signed-out' | 'guest';
   user: UserProfile | null;
   credentials: Credentials | null;
   signIn: (username: string, password: string) => Promise<void>;
@@ -33,6 +40,21 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
   setUser: (user: UserProfile) => void;
+  /** Drop the user into a local-only session. No backend call, no user
+   *  object — books / decks / cards still go through their pending sync
+   *  state, which is what lets them be promoted later. */
+  continueAsGuest: () => Promise<void>;
+  /** Sign up + push every local guest item to the new account in
+   *  sequence, reporting per-item progress. Bypasses the cross-user
+   *  data-wipe path (the guest's data is what we're moving over).
+   *  Resolves with `{ ok: true }` on success or `{ ok: false, reason }`
+   *  on signup failure. Item-level push failures don't abort — they
+   *  leave the failed items as pending for the user to retry. */
+  convertToAccount: (
+    username: string,
+    password: string,
+    onProgress?: (p: ConvertProgress) => void,
+  ) => Promise<{ ok: true } | { ok: false; reason: string }>;
 };
 
 const AuthCtx = createContext<AuthContextValue | null>(null);
@@ -48,6 +70,20 @@ const LAST_USER_ID_KEY = 'shirube_last_user_id';
 // Used as the offline-startup fallback so a launch without network
 // keeps the user signed in instead of bouncing to the login screen.
 const USER_CACHE_KEY = 'shirube_user_cache';
+// Set when the user picks "Continue as guest" from the welcome screen.
+// Cleared on sign-out or on successful conversion to a real account.
+const GUEST_FLAG_KEY = 'shirube_is_guest';
+// Set immediately AFTER signup but BEFORE the convert push starts. Lets a
+// crash-interrupted conversion resume the push on next launch instead of
+// leaving local pending data orphaned on the new account. Cleared once
+// `runConvertPush` returns.
+const CONVERT_IN_PROGRESS_KEY = 'shirube_convert_in_progress';
+
+type ConvertCheckpoint = {
+  userId: number;
+  username: string;
+  startedAt: string;
+};
 
 /**
  * Treat any `TypeError` from a fetch chain as "network unreachable" —
@@ -102,7 +138,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (async () => {
       const stored = await loadJSON<Credentials | null>(CREDS_KEY, null);
       if (!stored?.username || !stored?.password) {
-        if (!cancelled) setStatus('signed-out');
+        // No credentials. Either truly signed out, or the user previously
+        // picked "Continue as guest" — restore guest mode if so.
+        const isGuest = await AsyncStorage.getItem(GUEST_FLAG_KEY);
+        if (cancelled) return;
+        if (isGuest) {
+          const guestUser: UserProfile = {
+            id: 0,
+            username: 'Guest',
+            display_name: null,
+            email: null,
+            language: 'en',
+            avatar_index: 0,
+            created_at: new Date().toISOString(),
+          };
+          setSession({ user: guestUser, credentials: { username: '', password: '' } });
+          setStatus('guest');
+        } else {
+          setStatus('signed-out');
+        }
         return;
       }
       try {
@@ -111,6 +165,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await saveJSON(USER_CACHE_KEY, user);
         setSession({ user, credentials: stored });
         setStatus('signed-in');
+
+        // Resume an interrupted guest→account conversion: if the marker
+        // is still present, the previous run died after credentials
+        // were saved but before `runConvertPush` finished. Pending
+        // books/decks/cards are still in local storage; re-run the push
+        // best-effort. The push itself is idempotent — each item that
+        // already made it gets `pendingOp` cleared, the rest retry.
+        const checkpoint = await loadJSON<ConvertCheckpoint | null>(
+          CONVERT_IN_PROGRESS_KEY,
+          null,
+        );
+        if (checkpoint && checkpoint.userId === user.id) {
+          try {
+            await runConvertPush(user.id, () => {});
+          } catch {
+            /* leave marker for the next launch to retry */
+          }
+          await AsyncStorage.removeItem(CONVERT_IN_PROGRESS_KEY);
+        } else if (checkpoint) {
+          // Marker is for a different user (manual sign-in to a
+          // different account before resume ran). Drop the stale entry.
+          await AsyncStorage.removeItem(CONVERT_IN_PROGRESS_KEY);
+        }
       } catch (err) {
         if (cancelled) return;
         if (isNetworkError(err)) {
@@ -237,10 +314,96 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await AsyncStorage.multiRemove([CREDS_KEY, USER_CACHE_KEY]);
+    await AsyncStorage.multiRemove([
+      CREDS_KEY,
+      USER_CACHE_KEY,
+      GUEST_FLAG_KEY,
+      CONVERT_IN_PROGRESS_KEY,
+    ]);
     setSession(null);
     setStatus('signed-out');
   }, []);
+
+  const continueAsGuest = useCallback(async () => {
+    // Placeholder profile so every `user.id` / `user.username` read in
+    // the app keeps working without a backend round-trip. The sentinel
+    // `id: 0` lets local operations that need a user-id (e.g.
+    // `createDeckLocal`) stamp something stable; conversion rewrites
+    // those stamps to the new real user id.
+    const guestUser: UserProfile = {
+      id: 0,
+      username: 'Guest',
+      display_name: null,
+      email: null,
+      language: 'en',
+      avatar_index: 0,
+      created_at: new Date().toISOString(),
+    };
+    await AsyncStorage.setItem(GUEST_FLAG_KEY, '1');
+    setSession({ user: guestUser, credentials: { username: '', password: '' } });
+    setStatus('guest');
+  }, []);
+
+  const convertToAccount = useCallback(
+    async (
+      username: string,
+      password: string,
+      onProgress?: (p: ConvertProgress) => void,
+    ): Promise<{ ok: true } | { ok: false; reason: string }> => {
+      const report = onProgress ?? (() => {});
+      report({ stage: 'signup', current: 0, total: 1 });
+      try {
+        await createUser(username, password);
+      } catch (err) {
+        return { ok: false, reason: err instanceof Error ? err.message : 'Signup failed' };
+      }
+      let user: UserProfile;
+      try {
+        user = await fetchUserInfo(username, password);
+      } catch (err) {
+        return { ok: false, reason: err instanceof Error ? err.message : 'Could not load profile' };
+      }
+      report({ stage: 'signup', current: 1, total: 1 });
+
+      // Bypass maybeWipeOnAccountSwitch: the guest's pending data is
+      // exactly what we want to promote. Stamp the new user id directly
+      // so any later session start treats the new account as the owner.
+      const credentials = { username, password };
+      // Drop the in-progress marker BEFORE persisting the credentials.
+      // If the app dies after this write but before the push completes,
+      // the next launch will find the marker AND valid creds, then call
+      // `runConvertPush` again to finish the job. The marker is the
+      // sole signal that the local pending data still needs to flow to
+      // the new account.
+      const checkpoint: ConvertCheckpoint = {
+        userId: user.id,
+        username,
+        startedAt: new Date().toISOString(),
+      };
+      await saveJSON(CONVERT_IN_PROGRESS_KEY, checkpoint);
+      await AsyncStorage.setItem(LAST_USER_ID_KEY, String(user.id));
+      await saveJSON(CREDS_KEY, credentials);
+      await saveJSON(USER_CACHE_KEY, user);
+      await AsyncStorage.removeItem(GUEST_FLAG_KEY);
+
+      // Run the sequenced push. Statically imported — Expo / Metro
+      // production bundling occasionally tripped on the dynamic
+      // `await import()`, and the module is small enough that lazy
+      // loading wasn't buying us anything anyway.
+      await runConvertPush(user.id, report);
+
+      // Marker is only cleared once the push completed — any crash
+      // before this line leaves the marker in place for the next launch
+      // to resume from.
+      await AsyncStorage.removeItem(CONVERT_IN_PROGRESS_KEY);
+
+      report({ stage: 'done', current: 1, total: 1 });
+      setSession({ user, credentials });
+      setStatus('signed-in');
+      return { ok: true };
+    },
+    [],
+  );
 
   const refreshUser = useCallback(async () => {
     if (!session) return;
@@ -260,6 +423,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // until the next session start or manual Sync-now.
   const reconciledForUserId = useRef<number | null>(null);
   useEffect(() => {
+    // Guests have a placeholder user with id 0 and no backend account —
+    // hitting reconcileBooks for them would only fire a doomed network
+    // request. Limit to signed-in real users.
+    if (status !== 'signed-in') {
+      reconciledForUserId.current = null;
+      return;
+    }
     const userId = session?.user.id;
     if (userId == null) {
       reconciledForUserId.current = null;
@@ -272,7 +442,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // app open after a transient failure.
       reconciledForUserId.current = null;
     });
-  }, [session]);
+  }, [status, session]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -284,8 +454,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       refreshUser,
       setUser,
+      continueAsGuest,
+      convertToAccount,
     }),
-    [status, session, signIn, signUp, signOut, refreshUser, setUser],
+    [status, session, signIn, signUp, signOut, refreshUser, setUser, continueAsGuest, convertToAccount],
   );
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;

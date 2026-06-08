@@ -23,16 +23,16 @@ import { Asset } from 'expo-asset';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
 
-/**
- * Bump this whenever you rebuild the bundled `dictionary.sqlite`. On
- * launch we compare it against the version recorded in the local
- * marker file; mismatch triggers a re-copy from the bundle.
- *
- * The version is opaque — date stamps, semver, hashes, anything works
- * as long as a change here means "the bundle is newer than what's on
- * disk".
- */
-const DICTIONARY_VERSION = '2026-05-24-001';
+// Asset hash is Metro's md5 of the bundled `.sqlite` content, injected
+// at build time. Every rebuild that changes the file ships a new hash;
+// every rebuild that doesn't, doesn't. That means we never have to
+// remember to bump a manual `DICTIONARY_VERSION` constant — the marker
+// auto-invalidates the moment the asset bytes change.
+//
+// The hash is resolved by `resolveBundleAsset()` rather than read at
+// module load time so that `Asset.fromModule` only fires when the
+// dictionary is actually needed (avoids surfacing init errors at app
+// boot for screens that don't touch the dictionary).
 
 const DB_FILENAME = 'dictionary.sqlite';
 const VERSION_FILENAME = 'dictionary.version';
@@ -75,12 +75,12 @@ function writeInstalledVersion(version: string): void {
 }
 
 /**
- * Resolve the bundled SQLite asset to a local path. In production
- * builds this is a no-op (the file is already part of the app
- * bundle); in dev with Metro it downloads from the dev server on
- * first access and caches.
+ * Resolve the bundled SQLite asset. Returns both the local URI (for
+ * copying) and Metro's content hash (used as the version marker). In
+ * production builds the URI is already on-device; in dev with Metro it
+ * downloads from the dev server on first access and caches.
  */
-async function resolveBundleAsset(): Promise<string> {
+async function resolveBundleAsset(): Promise<{ uri: string; hash: string }> {
   const asset = Asset.fromModule(
     require('../../assets/dictionary.sqlite'),
   );
@@ -88,20 +88,25 @@ async function resolveBundleAsset(): Promise<string> {
   if (!asset.localUri) {
     throw new Error('Dictionary asset has no localUri after downloadAsync');
   }
-  return asset.localUri;
+  if (!asset.hash) {
+    throw new Error('Dictionary asset has no hash (bundler issue)');
+  }
+  return { uri: asset.localUri, hash: asset.hash };
 }
 
 /**
  * Copy the bundled `dictionary.sqlite` into the SQLite directory.
  * Overwrites any existing file at the target. Takes ~3–5 s on iOS for
  * a 250 MB file; call sites should drive a loading splash around this.
+ * Returns the asset hash so the caller can stamp the version marker.
  */
-async function copyFromBundle(): Promise<void> {
-  const sourceUri = await resolveBundleAsset();
-  const source = new File(sourceUri);
+async function copyFromBundle(): Promise<string> {
+  const { uri, hash } = await resolveBundleAsset();
+  const source = new File(uri);
   const target = dbFile();
   if (target.exists) target.delete();
   source.copy(target);
+  return hash;
 }
 
 /**
@@ -114,11 +119,17 @@ export async function getDictionary(): Promise<SQLite.SQLiteDatabase> {
   if (inFlight) return inFlight;
 
   inFlight = (async () => {
+    // Resolve the asset first so we have the current bundle hash to
+    // compare against the marker. This is cheap — `Asset.fromModule`
+    // returns synchronously in prod (URI already on disk); the only
+    // network cost is dev-mode metro asset fetch, which we'd hit on
+    // the copy step anyway.
+    const { hash: bundleHash } = await resolveBundleAsset();
     const installed = await readInstalledVersion();
-    const needsCopy = !dbFile().exists || installed !== DICTIONARY_VERSION;
+    const needsCopy = !dbFile().exists || installed !== bundleHash;
     if (needsCopy) {
       await copyFromBundle();
-      writeInstalledVersion(DICTIONARY_VERSION);
+      writeInstalledVersion(bundleHash);
     }
     const db = await SQLite.openDatabaseAsync(DB_FILENAME);
     // Performance pragmas — the file is effectively read-only, so we
@@ -145,11 +156,3 @@ export async function getDictionary(): Promise<SQLite.SQLiteDatabase> {
   }
 }
 
-/**
- * Returns the current copy / open state without triggering setup. UI
- * uses this to render the "preparing dictionary" splash on first
- * launch without forcing the copy from a render path.
- */
-export function isDictionaryReady(): boolean {
-  return cached !== null;
-}

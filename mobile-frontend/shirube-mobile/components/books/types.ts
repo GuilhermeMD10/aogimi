@@ -177,6 +177,15 @@ export type PendingPayload = {
   dcIdentifier: string | null;
   language: string | null;
   publisher: string | null;
+  /**
+   * ISO timestamp captured when the local entry was first marked
+   * pending (i.e. the moment of import on this device). Used by the
+   * library tile to render `started_at` / `created_at` / `last_read_at`
+   * for pending books instead of "now-on-render" timestamps that lie
+   * about how old the import is. Optional for back-compat with entries
+   * written before this field existed — readers fall back to "now".
+   */
+  firstSeenAt?: string;
 };
 
 /**
