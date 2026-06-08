@@ -28,18 +28,14 @@ import { SettingsPane } from './dock/SettingsPane';
 export type DockMode = 'pill' | 'toolbar' | 'toc' | 'annotations' | 'settings';
 
 type Props = {
-  title: string;
-  progress: number; // 0..100
   bookmarked?: boolean;
   layout: ReaderLayout;
   direction: ReaderDirection;
 
   // Manga variant: hides the TYPE / SCROLL / HORIZ controls (irrelevant for
-  // fixed-layout pages) and swaps the page-row "X%" for "page N/total". The
-  // page/totalPages props are only read when variant === 'manga'.
+  // fixed-layout pages). Title + progress live in the top bar now, so the
+  // toolbar doesn't carry per-page metadata anymore.
   variant?: 'default' | 'manga';
-  page?: number;
-  totalPages?: number;
   // Manga only: which renderer is active. The toolbar exposes a toggle
   // between the vertical scroll view (continuous stream) and the paged
   // view (horizontal swipe per page). Toggle is a no-op when undefined.
@@ -48,7 +44,6 @@ type Props = {
   // Manga only: page-flip direction (RTL traditional, LTR western).
   mangaPageDir?: MangaPageDir;
   onToggleMangaPageDir?: () => void;
-  onSetMangaPageDir?: (v: MangaPageDir) => void;
 
   // Pane data
   toc: EpubTocItem[];

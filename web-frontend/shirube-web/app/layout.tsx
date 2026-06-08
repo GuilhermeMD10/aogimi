@@ -11,6 +11,7 @@ import './globals.css';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 import { ThemeProvider, THEMES } from '@/components/providers/ThemeProvider';
 import { AppShell } from '@/components/AppShell';
+import { MobileGate } from '@/components/MobileGate';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -93,11 +94,13 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="h-full">
-        <ThemeProvider>
-          <AuthProvider>
-            <AppShell>{children}</AppShell>
-          </AuthProvider>
-        </ThemeProvider>
+        <MobileGate>
+          <ThemeProvider>
+            <AuthProvider>
+              <AppShell>{children}</AppShell>
+            </AuthProvider>
+          </ThemeProvider>
+        </MobileGate>
       </body>
     </html>
   );

@@ -2,7 +2,7 @@
 // (per ReaderThemeStyle or app theme) is a follow-up — keeping the values
 // here lets future themes override by reading from this module.
 
-export const SELECTION_BAND_COLOR = '#D4D4D4';
+export const SELECTION_BAND_COLOR = '#C0EDEB';
 
 // More accented than the band — used by the Android handle drawables (vector
 // line) and as the iOS tint. Mirrored in `android/app/src/main/res/values/

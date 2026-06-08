@@ -1,61 +1,92 @@
-// Visual badge for a book's sync state. Display-only.
-// Tokens live in `styles/sync-tokens.css`.
+'use client';
+
+import { type ComponentType } from 'react';
+import { CloudAlert, CloudDownload, Cloudy } from 'lucide-react';
+
+// Visual badge for a book's sync state. Mirrors the mobile SyncPill:
+// icon-only on a white pill with subtle shadow. Clicking it surfaces
+// a short explanation of what the state means. Tokens live in
+// `styles/sync-tokens.css`.
 
 export type SyncPillState = 'synced' | 'unsynced' | 'toImport';
 
-const CONFIG: Record<SyncPillState, { defaultLabel: string; color: string; bg: string; border: string }> = {
+type IconProps = { size?: number; color?: string };
+
+const CONFIG: Record<
+  SyncPillState,
+  { color: string; Icon: ComponentType<IconProps>; message: { title: string; body: string } }
+> = {
   synced: {
-    defaultLabel: 'SYNCED',
     color: 'var(--sync-synced)',
-    bg: 'var(--sync-synced-bg)',
-    border: 'var(--sync-synced-border)',
+    Icon: Cloudy,
+    message: {
+      title: 'Synced',
+      body: "This book's progress is synced across devices.",
+    },
   },
   unsynced: {
-    defaultLabel: 'UNSYNCED',
     color: 'var(--sync-unsynced)',
-    bg: 'var(--sync-unsynced-bg)',
-    border: 'var(--sync-unsynced-border)',
+    Icon: CloudAlert,
+    message: {
+      title: 'Not synced',
+      body: "This book's progress is only on this device. Sync it to make it available everywhere.",
+    },
   },
   toImport: {
-    defaultLabel: 'TO IMPORT',
     color: 'var(--sync-import)',
-    bg: 'var(--sync-import-bg)',
-    border: 'var(--sync-import-border)',
+    Icon: CloudDownload,
+    message: {
+      title: 'On your account',
+      body: 'This book is on your account but not on this device. Open it to import the file here.',
+    },
   },
 };
 
-export function SyncPill({
-  state,
-  label,
-  onCover = false,
-}: {
-  state: SyncPillState;
-  /** Override the default label text. */
-  label?: string;
-  /** When true, paper background instead of the tinted state colour. */
-  onCover?: boolean;
-}) {
+export function SyncPill({ state }: { state: SyncPillState }) {
   const cfg = CONFIG[state];
+  const Icon = cfg.Icon;
+  const showInfo = () => window.alert(`${cfg.message.title}\n\n${cfg.message.body}`);
   return (
+    // `<span role="button">` rather than a real `<button>`: the book
+    // card already wraps its cover in a <button> to open the reader,
+    // and a button-inside-a-button is invalid HTML (React hydration
+    // throws). Span + role + keydown gives the same behaviour
+    // (clickable, focusable, keyboard-activatable) without the
+    // nesting violation.
     <span
+      role="button"
+      tabIndex={0}
+      title={`${cfg.message.title} — ${cfg.message.body}`}
+      aria-label={cfg.message.title}
+      onClick={(e) => {
+        // Don't let the click bubble to the surrounding tile/open handler.
+        e.stopPropagation();
+        e.preventDefault();
+        showInfo();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.stopPropagation();
+          e.preventDefault();
+          showInfo();
+        }
+      }}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        padding: '5px 12px',
+        justifyContent: 'center',
+        padding: 5,
         borderRadius: 999,
-        background: onCover ? '#FFFEFB' : cfg.bg,
-        border: `1px solid ${cfg.border}`,
+        background: '#FFFFFF',
+        border: '1.5px solid #FFFFFF',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
         color: cfg.color,
-        fontFamily: 'var(--lgc-font-mono)',
-        fontSize: 10.5,
-        fontWeight: 700,
-        letterSpacing: '0.14em',
-        textTransform: 'uppercase',
-        lineHeight: 1,
-        whiteSpace: 'nowrap',
+        cursor: 'pointer',
+        lineHeight: 0,
+        userSelect: 'none',
       }}
     >
-      {label ?? cfg.defaultLabel}
+      <Icon size={18} color={cfg.color} />
     </span>
   );
 }

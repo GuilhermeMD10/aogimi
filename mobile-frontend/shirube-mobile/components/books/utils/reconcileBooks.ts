@@ -27,6 +27,7 @@ import {
 } from './booksApi';
 import { wipeBookLocalState } from '@/lib/auth/wipeBookLocalState';
 import {
+  bookFileExists,
   deleteBookFile,
   listLocalBookFilenames,
 } from './bookPaths';
@@ -106,9 +107,18 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
 
     if (!remote) {
       // Synced book that lost its backend twin = deleted on another
-      // device (or backend wipe). Drop local.
+      // device (or backend wipe). Drop local. Only count toward the
+      // summary if the wipe actually succeeded — otherwise the same
+      // file gets re-reported on every sync and the message lies.
       await wipeLocalEverything(filename);
-      summary.removed.push(filename);
+      if (!bookFileExists(filename)) {
+        summary.removed.push(filename);
+      } else {
+        // Wipe silently failed (deleteBookFile throws are swallowed
+        // for best-effort). The file will reappear next reconcile —
+        // log so we can spot persistent ghosts.
+        console.warn('[reconcile] wipe failed, file still present:', filename);
+      }
       continue;
     }
 
@@ -118,8 +128,13 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
     if (localHash && remoteHash && localHash !== remoteHash) {
       // Another device replaced the bytes under this filename. Reader
       // state (CFI, page positions) anchored to old bytes — wipe.
+      // Same truthful-count rule as the orphan branch above.
       await wipeLocalEverything(filename);
-      summary.staleReplaced.push(filename);
+      if (!bookFileExists(filename)) {
+        summary.staleReplaced.push(filename);
+      } else {
+        console.warn('[reconcile] stale wipe failed, file still present:', filename);
+      }
       continue;
     }
 

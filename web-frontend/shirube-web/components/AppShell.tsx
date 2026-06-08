@@ -9,6 +9,7 @@ import { DictionaryStateProvider } from '@/components/providers/DictionaryStateP
 import { ShortcutsProvider } from '@/components/providers/ShortcutsProvider';
 import WorkspaceNav from '@/components/WorkspaceNav';
 import ProfileBubble from '@/components/page-bubbles/ProfileBubble';
+import SettingsBubble from '@/components/page-bubbles/SettingsBubble';
 import ReaderBubble from '@/components/page-bubbles/ReaderBubble';
 import { ShortcutsCheatsheet } from '@/components/ui/ShortcutsCheatsheet';
 
@@ -60,6 +61,7 @@ function ShellContent({ isAuthPage, children }: { isAuthPage: boolean; children:
       )}
 
       {activeBubble === 'profile' && <ProfileBubble onClose={() => setActiveBubble(null)} />}
+      {activeBubble === 'settings' && <SettingsBubble onClose={() => setActiveBubble(null)} />}
 
       {readerBubble && (readerBubble.mode === 'dict' ? (
         <ReaderBubble mode="dict" onClose={() => setReaderBubble(null)} />

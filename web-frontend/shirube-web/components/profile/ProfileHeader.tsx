@@ -18,8 +18,20 @@ export function ProfileHeader({
   onEditAvatar: () => void;
 }) {
   return (
-    <div className="mb-5 flex items-end gap-5" style={{ marginTop: -44 }}>
-      <div className="relative">
+    // Row sits naturally below the HeroBanner. The negative margin lives
+    // on the avatar alone (with `self-start` overriding the row's
+    // `items-end`) so only the avatar floats over the banner — the title
+    // column and action buttons stay at their natural row position.
+    // Previously the negative margin was on the row, lifting EVERYTHING
+    // — the taller middle column then poked up into the dark banner
+    // and "cropped" the title visually.
+    //
+    // `flex-wrap` + `min-w-0` on the title column make the layout
+    // gracefully reflow when the container narrows (the profile bubble
+    // is fixed-width today, but this keeps it from breaking if the
+    // bubble ever becomes resizable or is rendered in a narrow surface).
+    <div className="mb-5 flex flex-wrap items-end gap-x-5 gap-y-3">
+      <div className="relative self-start shrink-0" style={{ marginTop: -44 }}>
         <Kamon char={KAMON_SET[avatarIndex]?.k ?? '波'} size={88} />
         <button
           type="button"
@@ -30,16 +42,16 @@ export function ProfileHeader({
         </button>
       </div>
 
-      <div className="flex-1 pb-1.5">
+      <div className="flex-1 min-w-0 pb-1.5">
         <div className="mb-1 flex items-center gap-2">
           <h1
-            className="text-[22px] font-medium tracking-tight text-lgc-fg font-display"
+            className="truncate text-[22px] font-medium tracking-tight text-lgc-fg font-display"
             style={{ letterSpacing: '-0.015em' }}
           >
             {displayName}
           </h1>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {language && (
             <span
               className="lgc-chip font-semibold"
@@ -52,7 +64,7 @@ export function ProfileHeader({
         </div>
       </div>
 
-      <div className="flex gap-1.5 pb-1.5">
+      <div className="flex gap-1.5 pb-1.5 shrink-0">
         <button
           type="button"
           className="flex items-center gap-1.5 rounded-md border border-lgc-border px-3 py-1.5 text-[13px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev"

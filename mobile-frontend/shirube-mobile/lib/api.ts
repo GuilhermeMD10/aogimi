@@ -25,19 +25,43 @@ export const API_BASE = resolveApiBase();
 
 type RequestInit = Parameters<typeof fetch>[1];
 
+// Backend-down fail-fast threshold. When the device still has network but
+// the server is unreachable, fetch waits for the OS connect/TCP timeout
+// (~30–60s on Android), which freezes any awaited code path through the
+// backend. 8s is short enough to feel responsive in the import flow and
+// long enough to absorb a slow LAN handshake.
+const REQUEST_TIMEOUT_MS = 8_000;
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      Accept: 'application/json',
-      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(init?.headers ?? {}),
-    },
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? `Request failed (${res.status})`);
+  // Compose a timeout controller with any caller-supplied AbortSignal so
+  // either source can cancel the fetch. Avoids hanging when the backend
+  // refuses connections (during dev with the server down, for instance).
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
+  const callerSignal = init?.signal;
+  const onCallerAbort = () => timeoutController.abort();
+  if (callerSignal) {
+    if (callerSignal.aborted) timeoutController.abort();
+    else callerSignal.addEventListener('abort', onCallerAbort);
   }
-  return (await res.json()) as T;
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      signal: timeoutController.signal,
+      headers: {
+        Accept: 'application/json',
+        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init?.headers ?? {}),
+      },
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(body.error ?? `Request failed (${res.status})`);
+    }
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timeoutId);
+    if (callerSignal) callerSignal.removeEventListener('abort', onCallerAbort);
+  }
 }
 

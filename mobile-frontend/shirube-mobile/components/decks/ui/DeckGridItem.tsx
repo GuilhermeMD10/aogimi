@@ -25,9 +25,13 @@ export function DeckGridItem({
     >
       <View style={styles.coverWrap}>
         <DeckCover deckKey={deck.id} deckName={deck.name} height={92} cornerRadius={0} />
-        <View style={styles.pillSlot}>
-          <SyncPill state={deck.syncState === 'pending' ? 'unsynced' : 'synced'} onCover />
-        </View>
+        {/* Synced decks don't display any badge — only the unsynced
+            ones get a small blue dot to nudge the user toward Sync now. */}
+        {deck.syncState === 'pending' && (
+          <View style={styles.pillSlot}>
+            <SyncPill state="unsynced" variant="dot" />
+          </View>
+        )}
       </View>
       <View style={styles.info}>
         <Text style={[styles.name, { color: c.fg }]} numberOfLines={1}>

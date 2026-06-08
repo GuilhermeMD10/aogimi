@@ -1,0 +1,116 @@
+{
+  "common": {
+    "back": "Voltar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "done": "Concluído",
+    "continue": "Continuar",
+    "loading": "A carregar…",
+    "retry": "Tentar novamente",
+    "error": "Algo correu mal"
+  },
+  "auth": {
+    "welcome": {
+      "headline": "Lê japonês\ncom confiança.",
+      "tagline": "Toca em qualquer palavra para ver o seu significado, guardá-la em flashcards e estudá-la em contexto.",
+      "signIn": "Iniciar sessão",
+      "createAccount": "Criar conta",
+      "continueAsGuest": "Continuar sem conta",
+      "google": "Google",
+      "apple": "Apple"
+    },
+    "orContinueWith": "ou continuar com",
+    "signIn": {
+      "title": "Iniciar sessão",
+      "username": "Nome de utilizador",
+      "password": "Palavra-passe",
+      "submit": "Iniciar sessão",
+      "noAccount": "Ainda não tens conta?",
+      "signUp": "Registar",
+      "errorInvalid": "Nome de utilizador ou palavra-passe inválidos"
+    },
+    "signUp": {
+      "title": "Criar conta",
+      "username": "Nome de utilizador",
+      "usernamePlaceholder": "@oteunome",
+      "password": "Palavra-passe",
+      "confirmPassword": "Confirmar palavra-passe",
+      "submit": "Criar conta",
+      "haveAccount": "Já tens conta?",
+      "signIn": "Iniciar sessão",
+      "errorMismatch": "As palavras-passe não coincidem",
+      "errorTaken": "Esse nome de utilizador já está em uso"
+    },
+    "onboarding": {
+      "syncing": "A sincronizar os teus livros…",
+      "synced": "Sincronizados {books} livros · {decks} baralhos",
+      "noRecords": "Ainda nada para sincronizar. Começa a ler para construir a tua coleção.",
+      "errorOffline": "Não foi possível contactar o servidor. Podes tentar mais tarde.",
+      "continue": "Continuar",
+      "reconcileTitle": "Trazer os teus livros para aqui",
+      "reconcileBody": "{count} livros da tua conta ainda não têm ficheiro neste dispositivo. Localiza cada EPUB agora ou salta e importa depois.",
+      "find": "Localizar",
+      "found": "Encontrado",
+      "skipAll": "Saltar por agora"
+    }
+  },
+  "home": {
+    "title": "Leitor",
+    "continueReading": "Continuar a leitura",
+    "importEpub": "Importar EPUB",
+    "empty": "Ainda sem livros"
+  },
+  "reader": {
+    "define": "Definir",
+    "flashcard": "Flashcard",
+    "copy": "Copiar",
+    "highlight": "Realçar",
+    "toolbar": {
+      "size": "Tamanho",
+      "lineHeight": "Espaçamento",
+      "font": "Tipo de letra",
+      "margin": "Margem",
+      "vertical": "Vertical"
+    }
+  },
+  "dict": {
+    "title": "Dicionário",
+    "search": "Procura em japonês, romaji ou inglês",
+    "empty": "Começa a escrever para procurar",
+    "addFlashcard": "Adicionar flashcard"
+  },
+  "decks": {
+    "title": "Baralhos",
+    "new": "Novo baralho",
+    "cards": "{count} cartões",
+    "studyNow": "Estudar agora",
+    "rename": "Renomear",
+    "delete": "Eliminar baralho"
+  },
+  "study": {
+    "tapToReveal": "Toca para revelar",
+    "dontKnow": "Não sei",
+    "know": "Sei",
+    "summaryTitle": "Bom trabalho",
+    "summaryCards": "{reviewed} cartões · {pct}% sabidos",
+    "studyAgain": "Estudar de novo",
+    "backToDeck": "Voltar ao baralho"
+  },
+  "profile": {
+    "title": "Tu",
+    "editProfile": "Editar perfil",
+    "account": "Conta",
+    "username": "Nome de utilizador",
+    "language": "Idioma",
+    "theme": "Tema",
+    "currentlyReading": "A ler agora",
+    "signOut": "Terminar sessão",
+    "changeAvatar": "Mudar avatar"
+  },
+  "settings": {
+    "title": "Definições",
+    "help": "Ajuda",
+    "credits": "Créditos"
+  }
+}

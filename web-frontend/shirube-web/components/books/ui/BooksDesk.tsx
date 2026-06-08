@@ -908,7 +908,7 @@ function Cover({
 
       {syncState && (
         <div style={{ position: 'absolute', top: 6, right: 6 }}>
-          <SyncPill state={syncState} onCover />
+          <SyncPill state={syncState} />
         </div>
       )}
     </div>

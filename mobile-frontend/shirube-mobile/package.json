@@ -11,12 +11,13 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "gen-foliate-bundle": "node scripts/gen-foliate-bundle.mjs",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "eas-build-pre-install": "mkdir -p assets && curl -fSL --retry 3 -H \"Authorization: Bearer $GITHUB_TOKEN\" -H \"Accept: application/octet-stream\" https://api.github.com/repos/GuilhermeMD10/japanese-study-ecosystem/releases/assets/441747993 | gunzip > assets/dictionary.sqlite"
   },
   "dependencies": {
     "@expo-google-fonts/lora": "^0.4.2",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-native-community/netinfo": "11.4.1",
+    "@react-native-community/netinfo": "11.5.2",
     "expo": "~55.0.26",
     "expo-blur": "~55.0.14",
     "expo-build-properties": "~55.0.14",
@@ -31,7 +32,7 @@
     "expo-linking": "~55.0.15",
     "expo-navigation-bar": "~55.0.13",
     "expo-router": "~55.0.16",
-    "expo-splash-screen": "~55.0.21",
+    "expo-splash-screen": "^55.0.21",
     "expo-sqlite": "~55.0.16",
     "expo-status-bar": "~55.0.6",
     "expo-system-ui": "~55.0.18",
