@@ -4,12 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/ThemeContext';
-import {
-  sendProgressBeacon,
-  createBookmark as apiCreateBookmark,
-  deleteBookmark as apiDeleteBookmark,
-  fetchBookmarks as apiFetchBookmarks,
-} from '@/components/books/utils/booksApi';
+import { sendProgressBeacon } from '@/components/books/utils/booksApi';
 import { useBookRecord } from '@/components/books/hooks/useBookRecord';
 import type { WordDetails } from '@/components/dictionary/types';
 import { locateBookFile } from '@/components/books/utils/locateBookFile';
@@ -20,7 +15,7 @@ import {
   MANGA_SHELL_BG,
   READER_FONT_STACKS,
   READER_THEMES,
-  loadStoredBook,
+  saveProgressSnapshot,
   useReaderStorage,
   type HighlightColor,
 } from '../utils/readerStorage';
@@ -35,6 +30,8 @@ import { MangaScrollView, type MangaScrollViewHandle } from './manga/MangaScroll
 import { MangaPagedView, type MangaPagedViewHandle } from './manga/MangaPagedView';
 import { useMangaSpine } from './manga/useMangaSpine';
 import { useReaderModals } from '../hooks/useReaderModals';
+import { useBookmarkSync } from '../hooks/useBookmarkSync';
+import { useAnnotationManager } from '../hooks/useAnnotationManager';
 import { PdfReaderShell } from './pdf/PdfReaderShell';
 import {
   FoliateReader,
@@ -293,37 +290,29 @@ export function ReaderScreen({ bookId }: Props) {
   );
 
   // ── Highlight create / replace / remove ─────────────────────────────
+  // Annotation CRUD owned by useAnnotationManager — ReaderScreen just
+  // wires the picker UI to it. The previous three-callback shape
+  // duplicated the find→ref→storage triad and was hard to keep aligned
+  // when the foliate ref or storage contract changed.
+  const annotations = useAnnotationManager({
+    epubRef,
+    storage: { highlights, addHighlight, removeHighlight, setHighlightColor },
+  });
+
   const applyHighlightColor = useCallback(
     (color: HighlightColor) => {
       if (!highlightPicker) return;
-      const { cfi, text } = highlightPicker;
-      const existing = highlights.find((h) => h.cfi === cfi);
-      if (existing) {
-        epubRef.current?.removeHighlight(cfi);
-        if (existing.color === color) {
-          removeHighlight(existing.id);
-        } else {
-          setHighlightColor(existing.id, color);
-          epubRef.current?.addHighlight(existing.id, cfi, HIGHLIGHT_COLORS[color]);
-        }
-      } else {
-        const created = addHighlight({ cfi, text, color });
-        epubRef.current?.addHighlight(created.id, cfi, HIGHLIGHT_COLORS[color]);
-      }
+      annotations.applyColor(highlightPicker.cfi, highlightPicker.text, color);
       setHighlightPicker(null);
     },
-    [highlightPicker, highlights, addHighlight, removeHighlight, setHighlightColor],
+    [highlightPicker, annotations, setHighlightPicker],
   );
 
   const clearHighlightAtPicker = useCallback(() => {
     if (!highlightPicker) return;
-    const existing = highlights.find((h) => h.cfi === highlightPicker.cfi);
-    if (existing) {
-      epubRef.current?.removeHighlight(existing.cfi);
-      removeHighlight(existing.id);
-    }
+    annotations.clearAt(highlightPicker.cfi);
     setHighlightPicker(null);
-  }, [highlightPicker, highlights, removeHighlight]);
+  }, [highlightPicker, annotations, setHighlightPicker]);
 
   const existingHighlightAtPicker = highlightPicker
     ? (highlights.find((h) => h.cfi === highlightPicker.cfi)?.color ?? null)
@@ -363,128 +352,21 @@ export function ReaderScreen({ bookId }: Props) {
   // persisted bookmark (see `StoredBookmark` in lib/readerStorage.ts),
   // so we no longer keep an in-memory ref Map.
   const { user } = useAuth();
-  const bookmarksSyncedRef = useRef(false);
 
   const isBookmarked = useMemo(() => bookmarks.some((b) => b.cfi === currentCfi), [bookmarks, currentCfi]);
 
-  // One-shot pull of server bookmarks once the book record is loaded and
-  // local storage is hydrated. Skipped when `offlineMode` — the
-  // fetch would fail anyway and the local set continues unchanged.
-  //
-  // After pulling, also retry any soft-deleted bookmarks whose original
-  // DELETE failed in a prior session. `bookmarks` hides pending-deletes
-  // from the UI but they persist in storage, so we read the raw stored
-  // list here and call apiDeleteBookmark for each, then purge on success.
-  // Without this retry, a single failed DELETE leaves the row in limbo
-  // until the user remembers to hit Sync-now.
-  useEffect(() => {
-    if (!book || !hydrated || bookmarksSyncedRef.current) return;
-    if (offlineMode) return; // backend unreachable for this session
-    bookmarksSyncedRef.current = true;
-    let cancelled = false;
-    (async () => {
-      try {
-        const remote = await apiFetchBookmarks(book.id);
-        if (cancelled) return;
-        for (const rb of remote) {
-          const existingLocal = bookmarks.find((b) => b.cfi === rb.cfi);
-          if (existingLocal) {
-            // Server already knows about this one — record its backend
-            // id locally so sync-push knows it's already synced.
-            if (existingLocal.backendId !== rb.id) {
-              setBookmarkBackendId(existingLocal.id, rb.id);
-            }
-          } else {
-            const created = addBookmark({ cfi: rb.cfi, label: rb.label });
-            setBookmarkBackendId(created.id, rb.id);
-          }
-        }
-      } catch {
-        /* server unreachable -- local set continues, retry next session */
-      }
-
-      if (cancelled) return;
-
-      // Retry pending-delete bookmarks: any soft-deleted local row with
-      // a backendId whose DELETE didn't land last session.
-      try {
-        const stored = await loadStoredBook(book.filename);
-        if (cancelled || !stored) return;
-        const pendingDeletes = stored.bookmarks.filter(
-          (b) => b.pendingDelete && b.backendId,
-        );
-        for (const bm of pendingDeletes) {
-          if (cancelled) return;
-          try {
-            await apiDeleteBookmark(bm.backendId!);
-            purgeBookmark(bm.id);
-          } catch {
-            /* still unreachable -- next session will try again */
-          }
-        }
-      } catch {
-        /* storage read failed -- skip retry, no harm done */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [book, hydrated, offlineMode]);
-
-  const toggleBookmark = useCallback(() => {
-    if (!currentCfi || !book) return;
-    const existing = bookmarks.find((b) => b.cfi === currentCfi);
-    if (existing) {
-      // Local soft-delete (pendingDelete) if backendId exists; hard-
-      // remove otherwise. The storage helper figures it out.
-      removeBookmark(existing.id);
-      if (existing.backendId && !offlineMode) {
-        // Best-effort backend DELETE. On success purge the soft-
-        // deleted row; on failure leave it (sync-push will retry).
-        const backendId = existing.backendId;
-        const localId = existing.id;
-        void apiDeleteBookmark(backendId)
-          .then(() => purgeBookmark(localId))
-          .catch(() => undefined);
-      }
-      return;
-    }
-    const label = chapterLabel ? `${chapterLabel} · ${progress}%` : `${progress}%`;
-    const created = addBookmark({ cfi: currentCfi, label });
-    if (!offlineMode) {
-      void apiCreateBookmark(book.id, { cfi: currentCfi, label })
-        .then((row) => setBookmarkBackendId(created.id, row.id))
-        .catch(() => undefined);
-    }
-  }, [
-    currentCfi,
+  // Bookmark state machine — pull-on-open + retry-pending-deletes +
+  // toggle/remove dispatch. Owned by useBookmarkSync; ReaderScreen
+  // only forwards the result handlers to its child surfaces.
+  const bookmarkLabel = chapterLabel ? `${chapterLabel} · ${progress}%` : `${progress}%`;
+  const { toggle: toggleBookmark, removeAt: removeBookmarkSynced } = useBookmarkSync({
     book,
-    bookmarks,
-    chapterLabel,
-    progress,
-    addBookmark,
-    removeBookmark,
-    setBookmarkBackendId,
-    purgeBookmark,
+    hydrated,
     offlineMode,
-  ]);
-
-  // Same wrap for the dock's "Delete bookmark" affordance (e.g. swipe in
-  // the bookmark list). Mirrors the backend deletion when we know the id.
-  const removeBookmarkSynced = useCallback(
-    (localId: string) => {
-      const target = bookmarks.find((b) => b.id === localId);
-      removeBookmark(localId);
-      if (target?.backendId && !offlineMode) {
-        const backendId = target.backendId;
-        void apiDeleteBookmark(backendId)
-          .then(() => purgeBookmark(localId))
-          .catch(() => undefined);
-      }
-    },
-    [bookmarks, removeBookmark, purgeBookmark, offlineMode],
-  );
+    currentCfi,
+    bookmarkLabel,
+    storage: { bookmarks, addBookmark, removeBookmark, setBookmarkBackendId, purgeBookmark },
+  });
 
   // ── Initial highlights for the WebView ──────────────────────────────
   const initialHighlights = useMemo<HighlightStyle[]>(
@@ -499,14 +381,7 @@ export function ReaderScreen({ bookId }: Props) {
     [hydrated],
   );
 
-  const handleDeleteHighlight = useCallback(
-    (id: string) => {
-      const h = highlights.find((x) => x.id === id);
-      if (h) epubRef.current?.removeHighlight(h.cfi);
-      removeHighlight(id);
-    },
-    [highlights, removeHighlight],
-  );
+  const handleDeleteHighlight = annotations.removeById;
 
   // ── Manga lifecycle wiring ──────────────────────────────────────────
   // useMangaSpine owns detection + spine prep. Once it reports a manga
@@ -563,36 +438,47 @@ export function ReaderScreen({ bookId }: Props) {
   }, [book?.id, book?.filename, offlineMode, markCfiPushed]);
 
   // AppState background/inactive = "soft close" (mirrors web visibilitychange).
+  // We also flush the per-filename progress snapshot here so a hard kill
+  // (user swipes away the task) doesn't lose the guest's progress — the
+  // beacon path needs a backend round-trip and a real book.id, neither
+  // of which guests have.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background' || state === 'inactive') flushProgress();
+      if (state !== 'background' && state !== 'inactive') return;
+      flushProgress();
+      const latest = latestLocationRef.current;
+      if (book?.filename && latest) {
+        void saveProgressSnapshot(book.filename, latest.progress, new Date().toISOString());
+      }
     });
     return () => sub.remove();
-  }, [flushProgress]);
+  }, [flushProgress, book?.filename]);
 
   const handleBack = useCallback(() => {
     flushProgress();
-    // Two writes for the same patch:
+    // Three writes for the same patch:
     //   1. setLocalProgress — in-memory overlay so the current
     //      library-tab render reflects the session immediately.
     //   2. persistLocalProgress — writes through to the AsyncStorage
-    //      cache so on app restart (or next reader open) the cached
-    //      BookRecord already carries the latest local state.
-    //      Without (2), the local progress would revert to whatever
-    //      the backend last sent us, even though the local CFI in
-    //      reader storage is preserved.
+    //      synced-book cache so on app restart the cached BookRecord
+    //      already carries the latest local state. No-op for pending
+    //      books (their id isn't in the synced cache).
+    //   3. saveProgressSnapshot — writes through to the per-filename
+    //      reader-storage row. This is the path that survives an app
+    //      restart for GUEST and PENDING books: those have no synced
+    //      cache entry, so (2) is a no-op for them. Filename-keyed,
+    //      so it also carries over verbatim through guest→account
+    //      conversion (the file is the same; only the owner changes).
     const latest = latestLocationRef.current;
-    if (book?.id && latest) {
-      const patch = {
-        progress: latest.progress,
-        cfi: latest.cfi,
-        lastReadAt: new Date().toISOString(),
-      };
+    if (book?.id && book?.filename && latest) {
+      const lastReadAt = new Date().toISOString();
+      const patch = { progress: latest.progress, cfi: latest.cfi, lastReadAt };
       setLocalProgress(book.id, patch);
       void persistLocalProgress(book.id, patch);
+      void saveProgressSnapshot(book.filename, latest.progress, lastReadAt);
     }
     router.back();
-  }, [flushProgress, router, book?.id]);
+  }, [flushProgress, router, book?.id, book?.filename]);
 
   // ── Missing-file recovery ───────────────────────────────────────────
   // Delegates the locate-verify-attach flow to the shared helper so the

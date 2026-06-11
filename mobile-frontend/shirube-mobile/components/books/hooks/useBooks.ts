@@ -1,15 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { fetchUserBooks } from '../utils/booksApi';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { applyLocalProgress, useLocalProgressVersion } from '../utils/booksLocalCache';
-import {
-  getAllCachedBooks,
-  listSessionPendingIds,
-  mergeBackendBooks,
-} from '../utils/syncedBookCache';
-import { listPendingBooks } from '../utils/bookPush';
+import { usePendingBooks } from './usePendingBooks';
+import { useSyncedBookCache } from './useSyncedBookCache';
 import type { BookRecord } from '../types';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
+
+// Composition layer for the library tile list. Three concerns,
+// each owned by its own hook so this file stays a pure orchestrator:
+//
+//   - usePendingBooks       → reads the local pending-import map
+//   - useSyncedBookCache    → AsyncStorage cache + session-pending set
+//   - useFetchWithAbort     → backend fetch for signed-in users
+//
+// The optimistic-merge memo at the bottom layers reader-session patches
+// (held in `booksLocalCache`) over whichever synced source is canonical
+// (backend `data` if available, otherwise the AsyncStorage cache).
 
 export type BooksState = {
   books: BookRecord[];
@@ -32,101 +39,25 @@ export type BooksState = {
 export function useBooks(): BooksState {
   const { user, status } = useAuth();
   const userId = user?.id;
-  // Backend fetch only fires for real authenticated users. For guests
-  // (status === 'guest') we skip the network — the library is still
-  // populated from the local pending map below.
+  // Backend fetch only fires for real authenticated users. Guests still
+  // see their pending books via `usePendingBooks` below; no backend
+  // round-trip is involved.
   const backendEnabled = status === 'signed-in' && userId != null;
-  const { data, loading, refreshing, error, refresh, silentRefresh } = useFetchWithAbort<BookRecord[]>(
-    (signal) => fetchUserBooks(userId!, signal),
-    [userId, backendEnabled],
-    { enabled: backendEnabled },
-  );
+  const { data, loading, refreshing, error, refresh, silentRefresh } =
+    useFetchWithAbort<BookRecord[]>(
+      (signal) => fetchUserBooks(userId!, signal),
+      [userId, backendEnabled],
+      { enabled: backendEnabled },
+    );
 
-  // Pending (offline-imported, not pushed yet) books — read from the
-  // local sync map. Synthetic BookRecord with `id: 'pending:<filename>'`
-  // so the library tile open handler can route a tap differently.
-  const [pendingBooks, setPendingBooks] = useState<BookRecord[]>([]);
-  const reloadPending = useCallback(async () => {
-    if (userId == null) {
-      setPendingBooks([]);
-      return;
-    }
-    const list = await listPendingBooks(userId);
-    setPendingBooks(list);
-  }, [userId]);
-  useEffect(() => {
-    // Re-read whenever the backend list updates (a refresh just ran,
-    // or an import flipped a book from pending→synced). For local-only
-    // commits the caller should call reloadPending() directly.
-    void reloadPending();
-  }, [userId, data, reloadPending]);
+  const { pendingBooks, reloadPending } = usePendingBooks(userId, data);
+  const { cachedBooks, sessionPendingIds } = useSyncedBookCache(data ?? null);
 
-  // Synced-book cache + session-pending flags. The cache lets the
-  // library render real synced books offline; the pending set lets
-  // tiles render the UNSYNCED pill for books that have unpushed
-  // session writes.
-  const [cachedBooks, setCachedBooks] = useState<BookRecord[]>([]);
-  const [sessionPendingIds, setSessionPendingIds] = useState<Set<string>>(new Set());
-
-  // Initial load from cache — paints immediately on cold start, no
-  // network required.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const [cached, pending] = await Promise.all([
-        getAllCachedBooks(),
-        listSessionPendingIds(),
-      ]);
-      if (cancelled) return;
-      setCachedBooks(cached);
-      setSessionPendingIds(new Set(pending));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Refresh the cache whenever a successful backend fetch lands.
-  // `mergeBackendBooks` applies newer-wins: backend records replace
-  // local ones only when the backend `last_read_at` is strictly
-  // newer. Local cache entries not in the backend list are dropped
-  // (deleted on another device). Then re-read so React state shows
-  // the post-merge truth (which can differ from `data` when local
-  // is newer for some records).
-  useEffect(() => {
-    if (!data) return;
-    let cancelled = false;
-    (async () => {
-      await mergeBackendBooks(data);
-      const merged = await getAllCachedBooks();
-      if (!cancelled) setCachedBooks(merged);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [data]);
-
-  // Pick up session-pending changes whenever the backend list updates
-  // (manual refresh / silent refresh / sync-now would call
-  // `clearSessionPending` for resolved books).
-  useEffect(() => {
-    let cancelled = false;
-    listSessionPendingIds().then((ids) => {
-      if (!cancelled) setSessionPendingIds(new Set(ids));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [data]);
-
-  // Merge optimistic patches from the reader's back-press over the synced
-  // list so tiles reflect just-finished sessions before the next refresh
-  // round-trip lands. The version bumps whenever a patch is set/cleared,
-  // re-running this memo.
-  //
-  // Source priority: backend `data` if we have it (fresh from this
-  // session), otherwise the AsyncStorage cache (offline / never
-  // reached backend this session). Pending books always shown first.
+  // Source priority: backend `data` if fresh from this session,
+  // otherwise the AsyncStorage cache. Optimistic patches from the
+  // reader's back-press layer on top via `applyLocalProgress`. The
+  // version ref bumps whenever a patch is set/cleared so the memo
+  // re-runs without us listing every patch field as a dep.
   const version = useLocalProgressVersion();
   const books = useMemo(() => {
     const syncedSource = data ?? cachedBooks;

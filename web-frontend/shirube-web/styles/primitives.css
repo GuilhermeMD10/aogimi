@@ -185,15 +185,6 @@
   flex-shrink: 0;
 }
 
-.lgc-panechip-live {
-  width: 6px;
-  height: 6px;
-  border-radius: 99px;
-  background: #22c55e;
-  box-shadow: 0 0 0 2px color-mix(in oklab, #22c55e 30%, transparent);
-  flex-shrink: 0;
-}
-
 .lgc-panearrow {
   color: var(--lgc-fg-subtle);
   font-size: 14px;

@@ -84,6 +84,21 @@ type StoredBook = {
    *  When `lastCfi` differs from this, the sync push needs to send
    *  a fresh beacon. */
   lastCfiPushed?: string;
+  /** Latest known reading-progress percentage (0-100). Mirrored from the
+   *  reader's `latestLocationRef` on book close (and on AppState
+   *  background) so guest sessions — which have no backend round-trip —
+   *  can still surface the right number on the library tile after an app
+   *  restart. For signed-in users this is also the source for the sync
+   *  push, replacing the previous behavior of pulling progress off the
+   *  synthetic `book.progress` that was stuck at 0 for pending books. */
+  lastProgress?: number;
+  /** ISO timestamp of the latest read session. Used to sort the hero
+   *  tile (continue reading) and as the newer-wins clock when reconciling
+   *  local-vs-backend state. */
+  lastReadAt?: string;
+  /** `lastProgress` that the backend has confirmed receiving. When this
+   *  diverges from `lastProgress` we need to push again. */
+  lastProgressPushed?: number;
   highlights: EpubHighlight[];
   bookmarks: StoredBookmark[];
 };
@@ -106,6 +121,9 @@ const keyOf = (filename: string) => KEY_PREFIX + encodeURIComponent(filename);
 export async function loadStoredBook(filename: string): Promise<{
   lastCfi?: string;
   lastCfiPushed?: string;
+  lastProgress?: number;
+  lastReadAt?: string;
+  lastProgressPushed?: number;
   bookmarks: StoredBookmark[];
   highlights: EpubHighlight[];
 } | null> {
@@ -115,6 +133,9 @@ export async function loadStoredBook(filename: string): Promise<{
     return {
       lastCfi: data.lastCfi,
       lastCfiPushed: data.lastCfiPushed,
+      lastProgress: data.lastProgress,
+      lastReadAt: data.lastReadAt,
+      lastProgressPushed: data.lastProgressPushed,
       bookmarks: data.bookmarks ?? [],
       highlights: data.highlights ?? [],
     };
@@ -129,19 +150,19 @@ export async function loadStoredBook(filename: string): Promise<{
  * purge a bookmark after a successful DELETE. The patch function
  * receives the current shape and returns the new one.
  */
+type StoredBookPatchShape = {
+  lastCfi?: string;
+  lastCfiPushed?: string;
+  lastProgress?: number;
+  lastReadAt?: string;
+  lastProgressPushed?: number;
+  bookmarks: StoredBookmark[];
+  highlights: EpubHighlight[];
+};
+
 export async function patchStoredBook(
   filename: string,
-  patch: (current: {
-    lastCfi?: string;
-    lastCfiPushed?: string;
-    bookmarks: StoredBookmark[];
-    highlights: EpubHighlight[];
-  }) => {
-    lastCfi?: string;
-    lastCfiPushed?: string;
-    bookmarks: StoredBookmark[];
-    highlights: EpubHighlight[];
-  },
+  patch: (current: StoredBookPatchShape) => StoredBookPatchShape,
 ): Promise<void> {
   try {
     const current = (await loadStoredBook(filename)) ?? {
@@ -153,6 +174,29 @@ export async function patchStoredBook(
   } catch {
     /* best-effort */
   }
+}
+
+/**
+ * Persist the latest progress snapshot for one book. Called by the
+ * reader on back-press and on AppState background — the two moments
+ * where we know the session has ended (or paused) and the latest
+ * `latestLocationRef` value should survive an app kill.
+ *
+ * Filename-keyed and user-agnostic: guest sessions write here too, and
+ * the value carries over verbatim when the guest converts to a real
+ * account (no rewrite needed — `pushForBook` reads from this map
+ * regardless of who owns the book).
+ */
+export async function saveProgressSnapshot(
+  filename: string,
+  progress: number,
+  lastReadAt: string,
+): Promise<void> {
+  await patchStoredBook(filename, (current) => ({
+    ...current,
+    lastProgress: progress,
+    lastReadAt,
+  }));
 }
 
 /** Remove the reader_book_<filename> row for one book. */

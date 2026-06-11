@@ -13,7 +13,7 @@ import {
 import { setNeedsOnboarding } from '@/lib/storage/onboarding';
 import { loginUser, signupUser } from '@/lib/userApi';
 import { wipeUserData } from '@/lib/auth/wipeUserData';
-import { setSessionInvalidatedHandler } from '@/lib/api';
+import { registerSessionInvalidatedHandler } from '@/lib/api';
 import { reconcileBooks } from '@/components/books/utils/reconcileBooks';
 
 type AuthContextValue = {
@@ -41,12 +41,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // the browser tab kept its local session). Wipe local data and drop
   // the auth_user record so the rest of the app sees a logged-out state.
   useEffect(() => {
-    setSessionInvalidatedHandler(() => {
+    return registerSessionInvalidatedHandler(() => {
       void wipeUserData();
       setUser(null);
       clearStoredAuthUser();
     });
-    return () => setSessionInvalidatedHandler(null);
   }, []);
 
   // First-load library reconcile. Fires once per user-id transition (fresh

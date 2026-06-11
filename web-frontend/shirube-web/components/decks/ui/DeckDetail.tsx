@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ArrowLeft, Plus, Search, Grid3x3, List, Trash2, Check } from 'lucide-react';
 import type { Deck } from '../types';
 import { DeckForm } from './DeckForm';
+import { deckVisuals } from '../utils/deckVisuals';
 
 interface DeckDetailProps {
   deck: Deck;
@@ -15,20 +16,6 @@ interface DeckDetailProps {
 }
 
 type FormMode = null | 'add-card' | 'edit-deck';
-
-// Deterministic visuals from deck name (same algo as DeckList)
-const COVER_COLORS = ['#6B5A45', '#2E5D4E', '#263B5C', '#8E3B36', '#4A4038', '#7A5330', '#3D5A80', '#5A3D6B'];
-const KAMON_CHARS = ['\u5FC3', '\u6587', '\u9280', '\u6F22', '\u656C', '\u53E4', '\u8A00', '\u5B66', '\u66F8', '\u9053'];
-
-function deckVisuals(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
-  const idx = Math.abs(hash);
-  return {
-    color: COVER_COLORS[idx % COVER_COLORS.length],
-    kamon: KAMON_CHARS[idx % KAMON_CHARS.length],
-  };
-}
 
 export function DeckDetail({
   deck,
@@ -142,10 +129,11 @@ export function DeckDetail({
             </div>
           </div>
 
-          {/* Stats strip */}
+          {/* Stats strip — single tile until additional metrics (mastered,
+              due, studied-today) land. Two tiles both showing `cards.length`
+              was a copy-paste leftover. */}
           <div className="flex gap-7 border-b border-t border-lgc-border py-3 text-xs text-lgc-fg-muted @md:py-4">
-            <StatCell label="Total" value={deck.cards.length} accent />
-            <StatCell label="Cards" value={deck.cards.length} />
+            <StatCell label="Cards" value={deck.cards.length} accent />
           </div>
         </div>
 

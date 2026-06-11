@@ -44,7 +44,7 @@ import {
   setStoredFileHash,
 } from './bookLocalState';
 import { pushAllPending, type SyncSummary } from './bookPush';
-import type { BookRecord } from '../types';
+import type { BookRecord, LocalBookEntry } from '../types';
 
 export type ReconcileSummary = {
   /** Filenames whose local file + state was wiped because the backend's
@@ -97,65 +97,12 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
   }
 
   for (const filename of localFiles) {
-    const remote = remoteByFilename.get(filename);
-    const entry = localEntries[filename];
-    const syncState = entry ? effectiveSyncState(entry) : 'synced';
-
-    // Pending books are intentional local-only awaiting a manual push.
-    // They have no backend twin BY DESIGN — skip every check below.
-    if (syncState === 'pending') continue;
-
-    if (!remote) {
-      // Synced book that lost its backend twin = deleted on another
-      // device (or backend wipe). Drop local. Only count toward the
-      // summary if the wipe actually succeeded — otherwise the same
-      // file gets re-reported on every sync and the message lies.
-      await wipeLocalEverything(filename);
-      if (!bookFileExists(filename)) {
-        summary.removed.push(filename);
-      } else {
-        // Wipe silently failed (deleteBookFile throws are swallowed
-        // for best-effort). The file will reappear next reconcile —
-        // log so we can spot persistent ghosts.
-        console.warn('[reconcile] wipe failed, file still present:', filename);
-      }
-      continue;
-    }
-
-    const localHash = entry?.fileHash ?? null;
-    const remoteHash = remote.file_hash ?? null;
-
-    if (localHash && remoteHash && localHash !== remoteHash) {
-      // Another device replaced the bytes under this filename. Reader
-      // state (CFI, page positions) anchored to old bytes — wipe.
-      // Same truthful-count rule as the orphan branch above.
-      await wipeLocalEverything(filename);
-      if (!bookFileExists(filename)) {
-        summary.staleReplaced.push(filename);
-      } else {
-        console.warn('[reconcile] stale wipe failed, file still present:', filename);
-      }
-      continue;
-    }
-
-    if (remoteHash && !localHash) {
-      // Backfill local cache with backend's hash so the defensive
-      // reimport check has a baseline next time.
-      await setStoredFileHash(filename, remoteHash);
-      continue;
-    }
-
-    if (localHash && !remoteHash) {
-      // Backfill backend with local's hash so cross-device match has
-      // the strong file_hash signal it needs.
-      try {
-        await apiUpdateBookIdentity(remote.id, { fileHash: localHash });
-        summary.syncedUp.push(filename);
-      } catch {
-        /* best-effort */
-      }
-    }
-    // Both null or both equal → no action.
+    await reconcileOneBook(
+      filename,
+      remoteByFilename.get(filename),
+      localEntries[filename],
+      summary,
+    );
   }
 
   // 4. Orphan sweep across the three derived storage layers. Re-read
@@ -173,6 +120,84 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
   sweepOrphanCovers(survivingSet);
 
   return summary;
+}
+
+/**
+ * Reconcile a single locally-present file against its backend twin.
+ * Owns the four decision branches the previous inline loop body did:
+ *
+ *   - Pending → no-op (waiting on a manual push).
+ *   - No remote → wipe local (book deleted on another device).
+ *   - Hashes diverge → wipe local (bytes replaced on another device).
+ *   - Either side missing a hash → backfill the gap in whichever
+ *     direction has the canonical value.
+ *
+ * `summary` is mutated in place so the caller can keep a single
+ * accumulator across all files.
+ */
+async function reconcileOneBook(
+  filename: string,
+  remote: BookRecord | undefined,
+  entry: LocalBookEntry | undefined,
+  summary: ReconcileSummary,
+): Promise<void> {
+  const syncState = entry ? effectiveSyncState(entry) : 'synced';
+
+  // Pending books are intentionally local-only awaiting a manual push.
+  // They have no backend twin BY DESIGN — skip every check below.
+  if (syncState === 'pending') return;
+
+  if (!remote) {
+    // Synced book that lost its backend twin = deleted on another
+    // device (or backend wipe). Drop local. Only count toward the
+    // summary if the wipe actually succeeded — otherwise the same
+    // file gets re-reported on every sync and the message lies.
+    await wipeLocalEverything(filename);
+    if (!bookFileExists(filename)) {
+      summary.removed.push(filename);
+    } else {
+      // Wipe silently failed (deleteBookFile throws are swallowed for
+      // best-effort). The file will reappear next reconcile — log so
+      // we can spot persistent ghosts.
+      console.warn('[reconcile] wipe failed, file still present:', filename);
+    }
+    return;
+  }
+
+  const localHash = entry?.fileHash ?? null;
+  const remoteHash = remote.file_hash ?? null;
+
+  if (localHash && remoteHash && localHash !== remoteHash) {
+    // Another device replaced the bytes under this filename. Reader
+    // state (CFI, page positions) anchored to old bytes — wipe.
+    // Same truthful-count rule as the orphan branch above.
+    await wipeLocalEverything(filename);
+    if (!bookFileExists(filename)) {
+      summary.staleReplaced.push(filename);
+    } else {
+      console.warn('[reconcile] stale wipe failed, file still present:', filename);
+    }
+    return;
+  }
+
+  if (remoteHash && !localHash) {
+    // Backfill local cache with backend's hash so the defensive
+    // reimport check has a baseline next time.
+    await setStoredFileHash(filename, remoteHash);
+    return;
+  }
+
+  if (localHash && !remoteHash) {
+    // Backfill backend with local's hash so cross-device match has
+    // the strong file_hash signal it needs.
+    try {
+      await apiUpdateBookIdentity(remote.id, { fileHash: localHash });
+      summary.syncedUp.push(filename);
+    } catch {
+      /* best-effort */
+    }
+  }
+  // Both null or both equal → no action.
 }
 
 /**

@@ -190,7 +190,12 @@ export function useTextReaderEngine({
 
   // Chapter docs reached so far — selectionchange handlers are attached on
   // load and we don't want to double-bind if a chapter re-fires the event.
-  const docsRef = useRef<Map<number, Document>>(new Map());
+  // Per-chapter listener bookkeeping: each entry carries the iframe doc and
+  // a `cleanup` thunk that removes the selectionchange + contextmenu
+  // listeners we attached. Stored together so the effect's teardown can
+  // run them all and avoid foliate keeping references to bound listeners
+  // long after this component unmounts.
+  const docsRef = useRef<Map<number, { doc: Document; cleanup: () => void }>>(new Map());
   const currentChapterIndexRef = useRef(0);
 
   // Highlight metadata indexed by CFI so draw-annotation knows what color to
@@ -348,10 +353,18 @@ export function useTextReaderEngine({
       }
     };
 
-    // selectionchange on each loaded chapter iframe document.
+    // selectionchange + contextmenu on each loaded chapter iframe document.
+    // The handlers are stored alongside their doc in `docs` so the effect
+    // teardown can call `removeEventListener` rather than relying on the
+    // iframe being torn down for cleanup (foliate's `view.close()` does NOT
+    // GC the chapter docs synchronously, so handlers could otherwise fire
+    // setState on an unmounted component).
     const attachChapterListeners = (doc: Document, index: number) => {
-      if (docs.get(index) === doc) return;
-      docs.set(index, doc);
+      const existing = docs.get(index);
+      if (existing && existing.doc === doc) return;
+      // A different doc replaced this chapter slot — clean up the old one
+      // before attaching new listeners.
+      if (existing) existing.cleanup();
 
       let raf = 0;
       const onSelectionChange = () => {
@@ -382,10 +395,8 @@ export function useTextReaderEngine({
           } catch { /* ignore */ }
         });
       };
-      doc.addEventListener('selectionchange', onSelectionChange);
 
-      doc.addEventListener('contextmenu', (e: MouseEvent) => {
-        if (dead) return;
+      const onContextMenu = (e: MouseEvent) => {
         const sel = doc.defaultView?.getSelection();
         const text = sel ? cleanSelectionText(sel) : '';
         if (!text) { setSelectedCfi(null); return; }
@@ -404,6 +415,18 @@ export function useTextReaderEngine({
         const iframeEl = doc.defaultView?.frameElement as HTMLIFrameElement | null;
         const ir = iframeEl?.getBoundingClientRect() ?? { left: 0, top: 0 };
         setCtxMenu({ x: ir.left + e.clientX + 8, y: ir.top + e.clientY + 8 });
+      };
+
+      doc.addEventListener('selectionchange', onSelectionChange);
+      doc.addEventListener('contextmenu', onContextMenu);
+
+      docs.set(index, {
+        doc,
+        cleanup: () => {
+          if (raf) cancelAnimationFrame(raf);
+          doc.removeEventListener('selectionchange', onSelectionChange);
+          doc.removeEventListener('contextmenu', onContextMenu);
+        },
       });
     };
 
@@ -413,6 +436,9 @@ export function useTextReaderEngine({
       dead = true;
       const view = viewRef.current;
       viewRef.current = null;
+      // Tear down per-chapter listeners BEFORE closing the foliate view so
+      // we never leave bound handlers that could fire after unmount.
+      for (const entry of docs.values()) entry.cleanup();
       docs.clear();
       if (view) {
         try { view.close(); } catch { /* foliate teardown */ }
@@ -453,8 +479,8 @@ export function useTextReaderEngine({
       setIsSpeaking(false);
       return;
     }
-    const doc = docsRef.current.get(currentChapterIndexRef.current);
-    const text = (doc?.body?.innerText ?? '').trim();
+    const entry = docsRef.current.get(currentChapterIndexRef.current);
+    const text = (entry?.doc.body?.innerText ?? '').trim();
     if (!text) return;
     const utt = new SpeechSynthesisUtterance(text);
     utt.onend = () => setIsSpeaking(false);
@@ -534,15 +560,15 @@ export function useTextReaderEngine({
     window.addEventListener('scroll', close, true);
     // Also listen inside each loaded chapter doc — selection scrolls there
     // shouldn't leave the menu floating.
-    const docs = Array.from(docsRef.current.values());
-    docs.forEach((d) => {
+    const chapterDocs = Array.from(docsRef.current.values()).map((e) => e.doc);
+    chapterDocs.forEach((d) => {
       d.addEventListener('pointerdown', close);
       d.addEventListener('scroll', close, true);
     });
     return () => {
       window.removeEventListener('pointerdown', onDown);
       window.removeEventListener('scroll', close, true);
-      docs.forEach((d) => {
+      chapterDocs.forEach((d) => {
         d.removeEventListener('pointerdown', close);
         d.removeEventListener('scroll', close, true);
       });

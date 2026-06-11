@@ -16,8 +16,10 @@ import {
   updateBookIdentity,
 } from './booksApi';
 import type { BookRecord, LocalBookEntry, PendingPayload } from '../types';
-import { getEntry, markPending, markSynced, readAllEntries } from './bookLocalState';
+import { getEntry, markSynced, readAllEntries } from './bookLocalState';
+import { buildMatchCandidate } from './matchCandidate';
 import { pushForBook } from './readerStatePush';
+import { loadStoredBook } from '@/components/reader/utils/readerStorage';
 
 export type PushResult =
   | { ok: true; bookId: string }
@@ -28,28 +30,8 @@ export type SyncSummary = {
   failed: string[];
 };
 
-/**
- * Build the match-candidate shape from a pending payload. Same shape
- * the +-button import flow constructs from an `ImportedBook` — keeps
- * the match-priority order consistent across flows.
- */
 function candidateFrom(filename: string, payload: PendingPayload) {
-  return {
-    file_hash: payload.fileHash,
-    content_hash: payload.contentHash,
-    pdf_id_original: payload.pdfIdOriginal,
-    xmp_original_id: payload.xmpOriginalId,
-    detected_doi: payload.detectedDoi,
-    detected_isbn: payload.detectedIsbn,
-    page_count: payload.pageCount,
-    page_phashes: payload.pagePhashes,
-    metadata: {
-      title: payload.title || filename,
-      author: payload.author,
-      dc_identifier: payload.dcIdentifier,
-      filename,
-    },
-  };
+  return buildMatchCandidate({ ...payload, filename });
 }
 
 /**
@@ -175,24 +157,6 @@ export async function pushAllPending(userId: number): Promise<SyncSummary> {
 }
 
 /**
- * Convenience for the import flow: takes a fresh import's filename +
- * payload, marks it pending in storage, then attempts an opportunistic
- * push. Returns whether the push succeeded so the caller can give the
- * user immediate feedback. Either way, the local entry exists.
- */
-export async function markPendingAndAttemptPush(
-  userId: number,
-  filename: string,
-  fileHash: string,
-  payload: PendingPayload,
-): Promise<PushResult> {
-  // Always mark pending FIRST — guarantees the local marker exists
-  // even if the network call below throws synchronously for any reason.
-  await markPending(filename, fileHash, payload);
-  return pushOneBook(userId, filename, payload);
-}
-
-/**
  * Build a synthetic `BookRecord` for a single pending entry. Shared by
  * `listPendingBooks` (library list) and `useBookRecord` (reader entry
  * point for a pending book opened as a guest or offline). Timestamps
@@ -201,14 +165,26 @@ export async function markPendingAndAttemptPush(
  *
  * `entry.pendingPayload` is required; the helper assumes the caller
  * already gated on syncState === 'pending' && pendingPayload != null.
+ *
+ * `snapshot`, when provided, is the per-filename reader-storage row
+ * (last cfi, last progress, last-read-at). Guest sessions write into
+ * that row on book-close, so threading it here is what lets the tile
+ * show the real % instead of the hardcoded 0 — and what lets the
+ * "continue reading" hero pick reflect the actual recency.
  */
 export function buildPendingBookRecord(
   filename: string,
   entry: LocalBookEntry,
   userId: number,
+  snapshot?: {
+    lastCfi?: string;
+    lastProgress?: number;
+    lastReadAt?: string;
+  },
 ): BookRecord {
   const p = entry.pendingPayload!;
-  const ts = p.firstSeenAt ?? new Date().toISOString();
+  const importedAt = p.firstSeenAt ?? new Date().toISOString();
+  const lastReadAt = snapshot?.lastReadAt ?? importedAt;
   return {
     id: `pending:${filename}`,
     user_id: userId,
@@ -216,13 +192,13 @@ export function buildPendingBookRecord(
     title: p.title || filename,
     author: p.author,
     cover_color: '#4A4038',
-    cfi_position: null,
+    cfi_position: snapshot?.lastCfi ?? null,
     spine_index: 0,
     total_spine_items: null,
-    progress: 0,
-    started_at: ts,
-    last_read_at: ts,
-    created_at: ts,
+    progress: snapshot?.lastProgress ?? 0,
+    started_at: importedAt,
+    last_read_at: lastReadAt,
+    created_at: importedAt,
     file_hash: p.fileHash,
     content_hash: p.contentHash,
     pdf_id_original: p.pdfIdOriginal,
@@ -253,12 +229,24 @@ export function buildPendingBookRecord(
  */
 export async function listPendingBooks(userId: number): Promise<BookRecord[]> {
   const entries = await readAllEntries();
-  const result: BookRecord[] = [];
-  for (const [filename, entry] of Object.entries(entries)) {
-    if (entry.syncState !== 'pending' || !entry.pendingPayload) continue;
-    result.push(buildPendingBookRecord(filename, entry, userId));
-  }
-  return result;
+  const pending = Object.entries(entries).filter(
+    ([, e]) => e.syncState === 'pending' && e.pendingPayload,
+  );
+  // Load the per-filename reader-storage snapshot in parallel so the tile
+  // can render the last-known progress + last-read-at without waiting on
+  // sequential AsyncStorage reads.
+  const snapshots = await Promise.all(
+    pending.map(([filename]) =>
+      loadStoredBook(filename)
+        .then((s) =>
+          s ? { lastCfi: s.lastCfi, lastProgress: s.lastProgress, lastReadAt: s.lastReadAt } : undefined,
+        )
+        .catch(() => undefined),
+    ),
+  );
+  return pending.map(([filename, entry], i) =>
+    buildPendingBookRecord(filename, entry, userId, snapshots[i]),
+  );
 }
 
 /** Whether a `BookRecord.id` is one we synthesized for a pending book.

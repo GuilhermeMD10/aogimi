@@ -17,9 +17,8 @@ import { useOnline } from '@/lib/network/network';
 import { ContinueReadingCard } from './ContinueReadingCard';
 import { BookGridItem } from './BookGridItem';
 import { BookActionsSheet } from './BookActionsSheet';
-import { reconcileBooks, syncPending } from '../utils/reconcileBooks';
-import { clearSessionPending, findCachedBookByFileHash } from '../utils/syncedBookCache';
-import { pushAllReaderState } from '../utils/readerStatePush';
+import { runFullSync, fullSyncActivityCount, formatFullSyncDetails } from '../utils/runFullSync';
+import { findCachedBookByFileHash } from '../utils/syncedBookCache';
 import { CloudSyncIcon } from '@/components/icons/sync-icons';
 
 const AVAILABLE_ONLY_KEY = 'books_filter_available_only_v1';
@@ -46,7 +45,13 @@ export function BooksScreen() {
   useFocusEffect(
     useCallback(() => {
       if (user?.id) void silentRefresh();
-    }, [user?.id, silentRefresh]),
+      // Guests have no backend round-trip, so silentRefresh is a no-op
+      // for them. Re-read the local pending map anyway so a just-closed
+      // book's persisted progress / lastReadAt surfaces on the tile.
+      // Cheap (AsyncStorage read + map of stored snapshots), fine to
+      // run for signed-in users too.
+      void reloadPending();
+    }, [user?.id, silentRefresh, reloadPending]),
   );
   const [importing, setImporting] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -55,76 +60,12 @@ export function BooksScreen() {
     if (!user || syncing) return;
     setSyncing(true);
     try {
-      // Pass 1: orphan + stale wipe (skips pending books by design).
-      const reconcileSummary = await reconcileBooks(user.id);
-
-      // Pass 2: push every locally-pending book to the backend.
-      const pushSummary = await syncPending(user.id);
-      const pushed = pushSummary.pushed;
-      const failed = pushSummary.failed;
-
-      // Pass 3: push any pending reader-state writes (bookmarks,
-      // cfi advances) accumulated during offline sessions. Only books
-      // whose pushes completed cleanly get their session-pending flag
-      // cleared — dirty books stay flagged and will retry on the next
-      // Sync-now.
-      const readerStateSummary = await pushAllReaderState();
-      await Promise.all(readerStateSummary.bookIdsClean.map((id) => clearSessionPending(id)));
-
+      const summary = await runFullSync(user.id);
       await refresh();
-
-      const readerStateActivity =
-        readerStateSummary.bookmarksCreated + readerStateSummary.bookmarksDeleted + readerStateSummary.cfisPushed;
-      const total =
-        reconcileSummary.staleReplaced.length +
-        reconcileSummary.removed.length +
-        reconcileSummary.syncedUp.length +
-        pushed.length +
-        failed.length +
-        readerStateActivity +
-        readerStateSummary.bookIdsDirty.length;
-      if (total === 0) {
+      if (fullSyncActivityCount(summary) === 0) {
         Alert.alert('Library in sync', 'Nothing to update.');
       } else {
-        const parts: string[] = [];
-        if (reconcileSummary.removed.length > 0) {
-          parts.push(`${reconcileSummary.removed.length} removed (deleted on another device)`);
-        }
-        if (reconcileSummary.staleReplaced.length > 0) {
-          parts.push(
-            `${reconcileSummary.staleReplaced.length} replaced (different bytes on backend — re-locate to view)`,
-          );
-        }
-        if (pushed.length > 0) {
-          parts.push(`${pushed.length} pushed to cloud`);
-        }
-        if (failed.length > 0) {
-          parts.push(`${failed.length} couldn't push — try again`);
-        }
-        if (reconcileSummary.syncedUp.length > 0) {
-          parts.push(`${reconcileSummary.syncedUp.length} backfilled with local fingerprint`);
-        }
-        if (readerStateSummary.bookmarksCreated > 0) {
-          parts.push(
-            `${readerStateSummary.bookmarksCreated} bookmark${readerStateSummary.bookmarksCreated === 1 ? '' : 's'} pushed`,
-          );
-        }
-        if (readerStateSummary.bookmarksDeleted > 0) {
-          parts.push(
-            `${readerStateSummary.bookmarksDeleted} bookmark deletion${readerStateSummary.bookmarksDeleted === 1 ? '' : 's'} pushed`,
-          );
-        }
-        if (readerStateSummary.cfisPushed > 0) {
-          parts.push(
-            `${readerStateSummary.cfisPushed} reading position${readerStateSummary.cfisPushed === 1 ? '' : 's'} synced`,
-          );
-        }
-        if (readerStateSummary.bookIdsDirty.length > 0) {
-          parts.push(
-            `${readerStateSummary.bookIdsDirty.length} book${readerStateSummary.bookIdsDirty.length === 1 ? '' : 's'} still pending — try again`,
-          );
-        }
-        Alert.alert('Synced', parts.join('\n'));
+        Alert.alert('Synced', formatFullSyncDetails(summary).join('\n'));
       }
     } catch (err) {
       Alert.alert('Sync failed', err instanceof Error ? err.message : t('common.error'));
