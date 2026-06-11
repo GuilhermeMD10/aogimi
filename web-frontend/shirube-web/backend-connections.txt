@@ -127,47 +127,7 @@ BookProgressRecord shape:
 
 
 ==============================================================================
-4. DEVICES
-   File: lib/devicesApi.ts
-==============================================================================
-
-POST /api/devices
-  Trigger:   First load on a new device, plus heartbeat refresh (idempotent)
-  Request:   { userId, deviceId, name }
-  Response:  DeviceRecord
-
-GET /api/devices/user/{userId}
-  Trigger:   Profile devices section mount (once per page load)
-  Response:  DeviceRecord[]
-
-PUT /api/devices/{deviceId}
-  Trigger:   Device rename (manual)
-  Request:   { userId, name }
-  Response:  DeviceRecord
-
-DELETE /api/devices/{deviceId}?userId={userId}
-  Trigger:   Device removal (manual)
-  Response:  void
-
-POST /api/devices/{deviceId}/books/{bookId}/available
-  Trigger:   Book file confirmed local on this device
-  Request:   { userId }
-  Response:  void
-
-DELETE /api/devices/{deviceId}/books/{bookId}/available?userId={userId}
-  Trigger:   Book file removed from this device
-  Response:  void
-
-GET /api/devices/{deviceId}/books?userId={userId}
-  Trigger:   Library page mount on a registered device
-  Response:  DeviceBookRecord[]   -- BookProgressRecord + { available: boolean }
-
-DeviceRecord shape:
-  { device_id, user_id, name, last_seen_at, created_at, book_count }
-
-
-==============================================================================
-5. DECKS & FLASHCARDS
+4. DECKS & FLASHCARDS
    File: lib/decksApi.ts
 ==============================================================================
 
@@ -222,7 +182,7 @@ CardRecord shape:
 
 
 ==============================================================================
-6. DICTIONARY & WORD SEARCH
+5. DICTIONARY & WORD SEARCH
    File: lib/dictApi.ts
 ==============================================================================
 
@@ -249,7 +209,7 @@ KanjiInfo shape:
 
 
 ==============================================================================
-7. INTERNAL NEXT.JS API ROUTES (server-side proxies)
+6. INTERNAL NEXT.JS API ROUTES (server-side proxies)
 ==============================================================================
 
 POST /api/translate                    (app/api/translate/route.ts)
@@ -258,14 +218,9 @@ POST /api/translate                    (app/api/translate/route.ts)
   Response:  { translatedText, detectedLanguage }
   Proxies:   DeepL free tier (api-free.deepl.com/v2/translate)
 
-POST /api/pdf-reader                   (app/api/pdf-reader/route.ts)
-  Trigger:   PDF file upload in reader (manual)
-  Request:   FormData with `file` (max 50 MB)
-  Response:  { pages: number, text: string }
-
 
 ==============================================================================
-8. SYNC & PERSISTENCE PATTERNS
+7. SYNC & PERSISTENCE PATTERNS
 ==============================================================================
 
 Reading-progress sync:

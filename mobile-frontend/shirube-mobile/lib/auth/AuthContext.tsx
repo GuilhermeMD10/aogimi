@@ -53,31 +53,38 @@ type AuthContextValue = {
   convertToAccount: (
     username: string,
     password: string,
-    onProgress?: (p: ConvertProgress) => void,
+    onProgress: (p: ConvertProgress) => void,
   ) => Promise<{ ok: true } | { ok: false; reason: string }>;
 };
 
 const AuthCtx = createContext<AuthContextValue | null>(null);
 
-const CREDS_KEY = 'shirube_credentials';
-// Survives sign-out on purpose so the next sign-in (different or same
-// account) can compare against the last user that owned local data. If we
-// gated this on `shirube_credentials` instead, the typical flow
-// (sign-out → sign-in to a different account) would skip the wipe because
-// sign-out clears the creds before the next sign-in runs.
-const LAST_USER_ID_KEY = 'shirube_last_user_id';
-// Cached UserProfile from the most recent successful `fetchUserInfo`.
-// Used as the offline-startup fallback so a launch without network
-// keeps the user signed in instead of bouncing to the login screen.
-const USER_CACHE_KEY = 'shirube_user_cache';
-// Set when the user picks "Continue as guest" from the welcome screen.
-// Cleared on sign-out or on successful conversion to a real account.
-const GUEST_FLAG_KEY = 'shirube_is_guest';
-// Set immediately AFTER signup but BEFORE the convert push starts. Lets a
-// crash-interrupted conversion resume the push on next launch instead of
-// leaving local pending data orphaned on the new account. Cleared once
-// `runConvertPush` returns.
-const CONVERT_IN_PROGRESS_KEY = 'shirube_convert_in_progress';
+/**
+ * Every AsyncStorage key the auth layer owns, in one place. Grouped so
+ * any rename or migration touches a single object and the per-key
+ * docstrings stay aligned with the rest of the layer's contract.
+ */
+const AUTH_STORAGE_KEYS = {
+  /** Stored credentials. Cleared on sign-out. */
+  CREDS: 'shirube_credentials',
+  /** Survives sign-out on purpose so the next sign-in (different or same
+   *  account) can compare against the last user that owned local data.
+   *  Gating on `CREDS` instead would skip the wipe in the typical
+   *  sign-out → sign-in-different-account flow because sign-out clears
+   *  creds before the next sign-in runs. */
+  LAST_USER_ID: 'shirube_last_user_id',
+  /** Cached UserProfile from the most recent successful `fetchUserInfo`.
+   *  Offline-startup fallback so a launch without network keeps the
+   *  user signed in instead of bouncing to the login screen. */
+  USER_CACHE: 'shirube_user_cache',
+  /** Set when the user picks "Continue as guest" from the welcome
+   *  screen. Cleared on sign-out or successful conversion. */
+  GUEST_FLAG: 'shirube_is_guest',
+  /** Set immediately AFTER signup but BEFORE the convert push starts.
+   *  Lets a crash-interrupted conversion resume on next launch instead
+   *  of leaving local pending data orphaned on the new account. */
+  CONVERT_IN_PROGRESS: 'shirube_convert_in_progress',
+} as const;
 
 type ConvertCheckpoint = {
   userId: number;
@@ -103,11 +110,11 @@ function isNetworkError(err: unknown): boolean {
  */
 async function maybeWipeOnAccountSwitch(incoming: UserProfile): Promise<void> {
   try {
-    const prev = await AsyncStorage.getItem(LAST_USER_ID_KEY);
+    const prev = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.LAST_USER_ID);
     if (prev && prev !== String(incoming.id)) {
       await wipeUserData();
     }
-    await AsyncStorage.setItem(LAST_USER_ID_KEY, String(incoming.id));
+    await AsyncStorage.setItem(AUTH_STORAGE_KEYS.LAST_USER_ID, String(incoming.id));
   } catch {
     /* best-effort — failure here must not block sign-in */
   }
@@ -136,11 +143,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const stored = await loadJSON<Credentials | null>(CREDS_KEY, null);
+      const stored = await loadJSON<Credentials | null>(AUTH_STORAGE_KEYS.CREDS, null);
       if (!stored?.username || !stored?.password) {
         // No credentials. Either truly signed out, or the user previously
         // picked "Continue as guest" — restore guest mode if so.
-        const isGuest = await AsyncStorage.getItem(GUEST_FLAG_KEY);
+        const isGuest = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.GUEST_FLAG);
         if (cancelled) return;
         if (isGuest) {
           const guestUser: UserProfile = {
@@ -162,36 +169,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const user = await fetchUserInfo(stored.username, stored.password);
         if (cancelled) return;
-        await saveJSON(USER_CACHE_KEY, user);
+        await saveJSON(AUTH_STORAGE_KEYS.USER_CACHE, user);
         setSession({ user, credentials: stored });
         setStatus('signed-in');
-
-        // Resume an interrupted guest→account conversion: if the marker
-        // is still present, the previous run died after credentials
-        // were saved but before `runConvertPush` finished. Pending
-        // books/decks/cards are still in local storage; re-run the push
-        // best-effort. The push itself is idempotent — each item that
-        // already made it gets `pendingOp` cleared, the rest retry.
-        const checkpoint = await loadJSON<ConvertCheckpoint | null>(
-          CONVERT_IN_PROGRESS_KEY,
-          null,
-        );
-        if (checkpoint && checkpoint.userId === user.id) {
-          try {
-            await runConvertPush(user.id, () => {});
-          } catch {
-            /* leave marker for the next launch to retry */
-          }
-          await AsyncStorage.removeItem(CONVERT_IN_PROGRESS_KEY);
-        } else if (checkpoint) {
-          // Marker is for a different user (manual sign-in to a
-          // different account before resume ran). Drop the stale entry.
-          await AsyncStorage.removeItem(CONVERT_IN_PROGRESS_KEY);
-        }
+        // Convert-resume handled by its own effect below — keeps this
+        // bootstrap path focused on "load creds → install session".
       } catch (err) {
         if (cancelled) return;
         if (isNetworkError(err)) {
-          const cachedUser = await loadJSON<UserProfile | null>(USER_CACHE_KEY, null);
+          const cachedUser = await loadJSON<UserProfile | null>(AUTH_STORAGE_KEYS.USER_CACHE, null);
           if (cachedUser) {
             // Offline launch — stay signed-in with cached identity.
             // Re-validation happens in the background effect below.
@@ -204,7 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         // Real HTTP rejection (401, 403, etc.). Clear everything.
-        await AsyncStorage.multiRemove([CREDS_KEY, USER_CACHE_KEY]);
+        await AsyncStorage.multiRemove([AUTH_STORAGE_KEYS.CREDS, AUTH_STORAGE_KEYS.USER_CACHE]);
         setStatus('signed-out');
       }
     })();
@@ -212,6 +198,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  // Resume an interrupted guest→account conversion. The marker is set
+  // by `convertToAccount` BEFORE the push runs and cleared after — a
+  // launch that finds it still set means the previous run died mid-
+  // push (or before it started). Pending books/decks/cards are still
+  // in local storage; re-running `runConvertPush` is idempotent.
+  //
+  // This used to be inlined into the bootstrap effect above, but
+  // mixing two distinct triggers ("did we just sign in?" and "do we
+  // have an interrupted conversion?") obscured both. Splitting keeps
+  // each effect focused on one signal.
+  useEffect(() => {
+    if (status !== 'signed-in' || !session) return;
+    const userId = session.user.id;
+    let cancelled = false;
+    (async () => {
+      const checkpoint = await loadJSON<ConvertCheckpoint | null>(
+        AUTH_STORAGE_KEYS.CONVERT_IN_PROGRESS,
+        null,
+      );
+      if (cancelled || !checkpoint) return;
+      if (checkpoint.userId === userId) {
+        try {
+          await runConvertPush(userId, () => {});
+        } catch {
+          /* leave marker for the next launch to retry */
+        }
+      }
+      // Drop the marker whether it belonged to this user (resume done)
+      // or to a different one (stale entry from a manual sign-in to
+      // another account before resume could run).
+      if (!cancelled) {
+        await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.CONVERT_IN_PROGRESS);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, session]);
 
   // Background re-validation: fires once whenever the network
   // transitions offline → online. Previously this ran every 30s on a
@@ -237,12 +262,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             session.credentials.password,
           );
           if (cancelled) return;
-          await saveJSON(USER_CACHE_KEY, user);
+          await saveJSON(AUTH_STORAGE_KEYS.USER_CACHE, user);
           setSession((prev) => (prev ? { ...prev, user } : prev));
         } catch (err) {
           if (cancelled) return;
           if (isNetworkError(err)) return; // transient — wait for next transition
-          await AsyncStorage.multiRemove([CREDS_KEY, USER_CACHE_KEY]);
+          await AsyncStorage.multiRemove([AUTH_STORAGE_KEYS.CREDS, AUTH_STORAGE_KEYS.USER_CACHE]);
           setSession(null);
           setStatus('signed-out');
         }
@@ -294,8 +319,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // never wipe based on a failed login attempt.
     await maybeWipeOnAccountSwitch(user);
     const credentials = { username, password };
-    await saveJSON(CREDS_KEY, credentials);
-    await saveJSON(USER_CACHE_KEY, user);
+    await saveJSON(AUTH_STORAGE_KEYS.CREDS, credentials);
+    await saveJSON(AUTH_STORAGE_KEYS.USER_CACHE, user);
     setSession({ user, credentials });
     setStatus('signed-in');
   }, []);
@@ -307,18 +332,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // data → wipe before installing the new session.
     await maybeWipeOnAccountSwitch(user);
     const credentials = { username, password };
-    await saveJSON(CREDS_KEY, credentials);
-    await saveJSON(USER_CACHE_KEY, user);
+    await saveJSON(AUTH_STORAGE_KEYS.CREDS, credentials);
+    await saveJSON(AUTH_STORAGE_KEYS.USER_CACHE, user);
     setSession({ user, credentials });
     setStatus('signed-in');
   }, []);
 
   const signOut = useCallback(async () => {
     await AsyncStorage.multiRemove([
-      CREDS_KEY,
-      USER_CACHE_KEY,
-      GUEST_FLAG_KEY,
-      CONVERT_IN_PROGRESS_KEY,
+      AUTH_STORAGE_KEYS.CREDS,
+      AUTH_STORAGE_KEYS.USER_CACHE,
+      AUTH_STORAGE_KEYS.GUEST_FLAG,
+      AUTH_STORAGE_KEYS.CONVERT_IN_PROGRESS,
     ]);
     setSession(null);
     setStatus('signed-out');
@@ -339,7 +364,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       avatar_index: 0,
       created_at: new Date().toISOString(),
     };
-    await AsyncStorage.setItem(GUEST_FLAG_KEY, '1');
+    await AsyncStorage.setItem(AUTH_STORAGE_KEYS.GUEST_FLAG, '1');
     setSession({ user: guestUser, credentials: { username: '', password: '' } });
     setStatus('guest');
   }, []);
@@ -348,10 +373,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (
       username: string,
       password: string,
-      onProgress?: (p: ConvertProgress) => void,
+      // Required — the only caller (GuestProfileScreen) always passes a
+      // progress callback to drive the conversion UI. If a non-UI caller
+      // ever wires up to this it should be explicit about passing a noop.
+      onProgress: (p: ConvertProgress) => void,
     ): Promise<{ ok: true } | { ok: false; reason: string }> => {
-      const report = onProgress ?? (() => {});
-      report({ stage: 'signup', current: 0, total: 1 });
+      onProgress({ stage: 'signup', current: 0, total: 1 });
       try {
         await createUser(username, password);
       } catch (err) {
@@ -363,7 +390,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         return { ok: false, reason: err instanceof Error ? err.message : 'Could not load profile' };
       }
-      report({ stage: 'signup', current: 1, total: 1 });
+      onProgress({ stage: 'signup', current: 1, total: 1 });
 
       // Bypass maybeWipeOnAccountSwitch: the guest's pending data is
       // exactly what we want to promote. Stamp the new user id directly
@@ -380,24 +407,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         username,
         startedAt: new Date().toISOString(),
       };
-      await saveJSON(CONVERT_IN_PROGRESS_KEY, checkpoint);
-      await AsyncStorage.setItem(LAST_USER_ID_KEY, String(user.id));
-      await saveJSON(CREDS_KEY, credentials);
-      await saveJSON(USER_CACHE_KEY, user);
-      await AsyncStorage.removeItem(GUEST_FLAG_KEY);
+      await saveJSON(AUTH_STORAGE_KEYS.CONVERT_IN_PROGRESS, checkpoint);
+      await AsyncStorage.setItem(AUTH_STORAGE_KEYS.LAST_USER_ID, String(user.id));
+      await saveJSON(AUTH_STORAGE_KEYS.CREDS, credentials);
+      await saveJSON(AUTH_STORAGE_KEYS.USER_CACHE, user);
+      await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.GUEST_FLAG);
 
       // Run the sequenced push. Statically imported — Expo / Metro
       // production bundling occasionally tripped on the dynamic
       // `await import()`, and the module is small enough that lazy
       // loading wasn't buying us anything anyway.
-      await runConvertPush(user.id, report);
+      await runConvertPush(user.id, onProgress);
 
       // Marker is only cleared once the push completed — any crash
       // before this line leaves the marker in place for the next launch
       // to resume from.
-      await AsyncStorage.removeItem(CONVERT_IN_PROGRESS_KEY);
+      await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.CONVERT_IN_PROGRESS);
 
-      report({ stage: 'done', current: 1, total: 1 });
+      onProgress({ stage: 'done', current: 1, total: 1 });
       setSession({ user, credentials });
       setStatus('signed-in');
       return { ok: true };
@@ -408,7 +435,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     if (!session) return;
     const user = await fetchUserInfo(session.credentials.username, session.credentials.password);
-    await saveJSON(USER_CACHE_KEY, user);
+    await saveJSON(AUTH_STORAGE_KEYS.USER_CACHE, user);
     setSession({ ...session, user });
   }, [session]);
 

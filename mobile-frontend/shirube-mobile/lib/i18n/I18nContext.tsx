@@ -28,7 +28,10 @@ const STORAGE_KEY = 'shirube_locale';
 const DEFAULT_LOCALE: Locale = 'en';
 
 function isLocale(v: unknown): v is Locale {
-  return v === 'en' || v === 'ja' || v === 'pt';
+  // Derived from the LOCALES list so adding a new locale is a single
+  // edit. Previously this was a hardcoded triple check that would have
+  // silently rejected any newly-added locale until manually updated.
+  return LOCALES.some((l) => l.code === v);
 }
 
 type I18nContextValue = {

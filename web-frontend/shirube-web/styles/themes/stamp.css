@@ -26,8 +26,6 @@ html[data-theme="stamp"] {
   --lgc-accent-soft:   rgba(200, 54, 43, 0.18);
   --lgc-accent-fg:     #EBE2D0;             /* paper on red */
 
-  --lgc-success:       #3B7A40;
-  --lgc-warning:       #B8802A;
   --lgc-error:         #9B2A22;             /* vermillion-deep */
 
   /* ── Shape: surface (cards, panels) ─────────────────────────────────── */

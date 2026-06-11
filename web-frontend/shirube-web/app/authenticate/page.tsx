@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { setStoredAuthUser } from '@/lib/storage/auth';
 
 type Mode = 'login' | 'signup';
 
@@ -236,11 +235,6 @@ export default function AuthenticatePage() {
     // No-op: dummy social auth buttons for v1
   };
 
-  const handleDevBypass = () => {
-    setStoredAuthUser({ id: 0, username: 'dev' });
-    window.location.reload();
-  };
-
   if (loading || user) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -346,15 +340,6 @@ export default function AuthenticatePage() {
              Apple
           </button>
         </div>
-
-        {/* Dev bypass */}
-        <button
-          type="button"
-          onClick={handleDevBypass}
-          className="mt-3 w-full rounded-lg border border-dashed border-lgc-border-strong px-3 py-2.5 text-[13px] text-lgc-fg-muted transition hover:bg-lgc-bg-sunken"
-        >
-          Skip login (dev)
-        </button>
 
         {/* Toggle mode */}
         <div className="mt-auto pt-7 text-center text-[13px] text-lgc-fg-muted">

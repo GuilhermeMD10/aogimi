@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing } from '@/theme/tokens';
+import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { WordResult } from '../types';
 import { JlptChip } from '@/components/ui/JlptChip';
 
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   commonDot: {
     width: 6,
     height: 6,
-    borderRadius: 999,
+    borderRadius: radius.pill,
   },
   reading: {
     fontSize: 13,
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
   },
   chipText: {

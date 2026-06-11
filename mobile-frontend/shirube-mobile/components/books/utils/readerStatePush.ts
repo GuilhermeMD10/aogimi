@@ -117,21 +117,30 @@ export async function pushForBook(book: BookRecord): Promise<{
     }
   }
 
-  // CFI / progress beacon — send if it has advanced past the last
-  // pushed value. The reader's saveLastCfi keeps `lastCfi` fresh
-  // every page turn; `lastCfiPushed` is recorded after a successful
-  // in-session beacon (see flushProgress in ReaderScreen.tsx).
-  if (stored.lastCfi && stored.lastCfi !== stored.lastCfiPushed) {
+  // CFI / progress beacon — send if either the cfi OR the progress
+  // value has advanced past what the backend last confirmed. The
+  // reader's saveLastCfi keeps `lastCfi` fresh every page turn;
+  // saveProgressSnapshot mirrors progress + lastReadAt on book close
+  // and on AppState background. Pushing the stored progress (not
+  // `book.progress`) is what makes the guest-conversion path work:
+  // the synthetic pending BookRecord has progress: <stored or 0>, but
+  // on the very first sync we want the real number from the
+  // per-filename row regardless.
+  const cfiDirty = !!stored.lastCfi && stored.lastCfi !== stored.lastCfiPushed;
+  const progressDirty =
+    stored.lastProgress != null && stored.lastProgress !== stored.lastProgressPushed;
+  if (cfiDirty || progressDirty) {
     try {
       await updateBookProgress(book.id, {
-        cfiPosition: stored.lastCfi,
-        progress: book.progress,
+        cfiPosition: stored.lastCfi ?? book.cfi_position ?? '',
+        progress: stored.lastProgress ?? book.progress,
         spineIndex: book.spine_index,
         totalSpineItems: book.total_spine_items ?? undefined,
       });
       await patchStoredBook(book.filename, (current) => ({
         ...current,
-        lastCfiPushed: stored.lastCfi,
+        lastCfiPushed: stored.lastCfi ?? current.lastCfiPushed,
+        lastProgressPushed: stored.lastProgress ?? current.lastProgressPushed,
       }));
       cfiPushed = true;
     } catch {

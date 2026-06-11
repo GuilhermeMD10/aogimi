@@ -115,27 +115,3 @@ export function useFetchWithAbort<T>(
 
   return { ...state, refresh, silentRefresh };
 }
-
-/**
- * Returns a `begin()` function that yields a fresh AbortController, aborting
- * the previous one. Also aborts on unmount. Use this for *manual* triggers
- * (e.g. `useDictionarySearch.search()`), where the call site decides when
- * a request fires rather than a dep array.
- */
-export function useAbortController(): () => AbortController {
-  const ref = useRef<AbortController | null>(null);
-
-  useEffect(
-    () => () => {
-      ref.current?.abort();
-    },
-    [],
-  );
-
-  return useCallback(() => {
-    ref.current?.abort();
-    const next = new AbortController();
-    ref.current = next;
-    return next;
-  }, []);
-}
