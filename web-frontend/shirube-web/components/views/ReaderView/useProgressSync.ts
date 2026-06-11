@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { updateBookProgress, sendProgressBeacon } from '@/components/books/utils/booksApi';
 import { setReaderProgress } from '@/lib/storage/readerSession';
 import type { ReaderSession } from '@/components/providers/ReaderStateProvider';
@@ -26,7 +26,13 @@ export function useProgressSync(readerSession: ReaderSession | null) {
   const latestProgressRef = useRef<ProgressSnapshot | null>(null);
   const lastSyncedRef = useRef<{ progress: number; cfi: string } | null>(null);
   const readerSessionRef = useRef(readerSession);
-  readerSessionRef.current = readerSession;
+  // useLayoutEffect keeps the ref in sync BEFORE any handler fires in the
+  // same commit cycle — writing the ref during render (which is what the
+  // bare assignment used to do) violates React's "render must be pure"
+  // rule and can let flushProgress observe a half-updated session.
+  useLayoutEffect(() => {
+    readerSessionRef.current = readerSession;
+  }, [readerSession]);
 
   /** Save progress to localStorage on every page turn. No network. */
   const recordProgress = useCallback((snapshot: ProgressSnapshot) => {
@@ -41,7 +47,12 @@ export function useProgressSync(readerSession: ReaderSession | null) {
     });
   }, []);
 
-  /** Flush latest progress to backend via fetch. */
+  /**
+   * Flush latest progress to backend via fetch. Only updates the
+   * dedup ref AFTER the request resolves, so a failed POST will be
+   * retried by the next flush instead of silently leaving the stale
+   * CFI on the server.
+   */
   const flushProgress = useCallback(() => {
     const session = readerSessionRef.current;
     const latest = latestProgressRef.current;
@@ -50,16 +61,30 @@ export function useProgressSync(readerSession: ReaderSession | null) {
     const last = lastSyncedRef.current;
     if (last && last.progress === latest.progress && last.cfi === latest.cfi) return;
 
-    lastSyncedRef.current = { progress: latest.progress, cfi: latest.cfi };
+    const snapshot = { progress: latest.progress, cfi: latest.cfi };
     updateBookProgress(session.backendBookId, {
       cfiPosition: latest.cfi,
       progress: latest.progress,
       spineIndex: latest.spineIndex,
       totalSpineItems: latest.totalSpineItems,
-    }).catch(() => undefined);
+    })
+      .then(() => {
+        lastSyncedRef.current = snapshot;
+      })
+      .catch((err) => {
+        // Don't mark as synced — next flush will retry. Surfaced as a
+        // console warning so a backend outage isn't entirely invisible
+        // during a session.
+        console.warn('[useProgressSync] flushProgress failed', err);
+      });
   }, []);
 
-  /** Flush via sendBeacon (survives page teardown). */
+  /**
+   * Flush via sendBeacon (survives page teardown). sendBeacon returns
+   * false when the browser refuses to enqueue (queue full / payload too
+   * large / disabled). We log when that happens; the page is about to
+   * unload so there's no chance to retry inline.
+   */
   const beaconFlush = useCallback(() => {
     const session = readerSessionRef.current;
     const latest = latestProgressRef.current;
@@ -68,13 +93,19 @@ export function useProgressSync(readerSession: ReaderSession | null) {
     const last = lastSyncedRef.current;
     if (last && last.progress === latest.progress && last.cfi === latest.cfi) return;
 
-    lastSyncedRef.current = { progress: latest.progress, cfi: latest.cfi };
-    sendProgressBeacon(session.backendBookId, {
+    const queued = sendProgressBeacon(session.backendBookId, {
       cfiPosition: latest.cfi,
       progress: latest.progress,
       spineIndex: latest.spineIndex,
       totalSpineItems: latest.totalSpineItems,
     });
+    if (queued) {
+      // Browser accepted the beacon for delivery. Treat as best-effort
+      // pushed; we can't confirm without a response anyway.
+      lastSyncedRef.current = { progress: latest.progress, cfi: latest.cfi };
+    } else {
+      console.warn('[useProgressSync] sendBeacon refused; progress may not persist');
+    }
   }, []);
 
   useEffect(() => {

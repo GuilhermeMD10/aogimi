@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { ReaderStateProvider, useReaderState } from '@/components/providers/ReaderStateProvider';
 import { BubbleProvider, useBubble } from '@/components/providers/BubbleProvider';
 import { DictionaryStateProvider } from '@/components/providers/DictionaryStateProvider';
+import { DecksProvider } from '@/components/providers/DecksProvider';
 import { ShortcutsProvider } from '@/components/providers/ShortcutsProvider';
 import WorkspaceNav from '@/components/WorkspaceNav';
 import ProfileBubble from '@/components/page-bubbles/ProfileBubble';
@@ -20,28 +21,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isAuthPage = pathname === '/authenticate';
 
+  // Pages whose render set depends on the auth-vs-route relationship. We
+  // stash the same predicate the effect uses so the early-return below
+  // doesn't drift from the redirect condition.
+  const needsRedirect = !loading && ((!user && !isAuthPage) || (user && isAuthPage));
+
   useEffect(() => {
     if (loading) return;
-
-    if (!user && !isAuthPage) {
-      router.replace('/authenticate');
-    } else if (user && isAuthPage) {
-      router.replace('/');
-    }
+    if (!user && !isAuthPage) router.replace('/authenticate');
+    else if (user && isAuthPage) router.replace('/');
   }, [user, loading, isAuthPage, router]);
 
-  if (loading) return null;
-  if (!user && !isAuthPage) return null;
-  if (user && isAuthPage) return null;
+  // Block rendering while loading or while the redirect is about to fire.
+  // Avoids a frame of "wrong page for current auth state" before navigation.
+  if (loading || needsRedirect) return null;
 
   return (
     <ShortcutsProvider>
       <ReaderStateProvider>
         <DictionaryStateProvider>
-          <BubbleProvider>
-            <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
-            <ShortcutsCheatsheet />
-          </BubbleProvider>
+          <DecksProvider>
+            <BubbleProvider>
+              <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
+              <ShortcutsCheatsheet />
+            </BubbleProvider>
+          </DecksProvider>
         </DictionaryStateProvider>
       </ReaderStateProvider>
     </ShortcutsProvider>

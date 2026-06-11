@@ -9,30 +9,16 @@
 // key on its own subsequent push.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { CardRecord, LocalCard, PendingOp, SyncState } from '../types';
+import { makeAsyncJsonStore } from '@/lib/storage';
+import type { CardRecord, LocalCard, SyncState } from '../types';
 
 const KEY = 'card_local_state_v1';
 
 type CardMap = Record<string, LocalCard>;
 
-async function readMap(): Promise<CardMap> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === 'object' ? (parsed as CardMap) : {};
-  } catch {
-    return {};
-  }
-}
-
-async function writeMap(map: CardMap): Promise<void> {
-  try {
-    await AsyncStorage.setItem(KEY, JSON.stringify(map));
-  } catch {
-    /* best-effort */
-  }
-}
+const store = makeAsyncJsonStore<CardMap>(KEY);
+const readMap = store.read;
+const writeMap = store.write;
 
 // ── Reads ──────────────────────────────────────────────────────────────────
 
@@ -78,14 +64,6 @@ export async function removeCard(id: string): Promise<void> {
   const map = await readMap();
   if (!(id in map)) return;
   delete map[id];
-  await writeMap(map);
-}
-
-export async function markCardPending(id: string, op: PendingOp): Promise<void> {
-  const map = await readMap();
-  const existing = map[id];
-  if (!existing) return;
-  map[id] = { ...existing, syncState: 'pending', pendingOp: op };
   await writeMap(map);
 }
 

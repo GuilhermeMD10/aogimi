@@ -1,6 +1,7 @@
 import { type ComponentType } from 'react';
 import { Alert, type GestureResponderEvent, Pressable, StyleSheet } from 'react-native';
 import { SyncedIcon, UnsyncedIcon, ImportIcon, type SyncIconProps } from '@/components/icons/sync-icons';
+import { radius } from '@/theme/tokens';
 
 // Visual badge for a sync state. Two shapes:
 //
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 5,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: 1.5,
     alignSelf: 'flex-start',
     boxShadow: '0px 1px 3px rgba(0,0,0,0.2)',

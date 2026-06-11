@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { useColors } from '@/theme/ThemeContext';
-import { fontFamily } from '@/theme/tokens';
+import { fontFamily, radius } from '@/theme/tokens';
 import {
   READER_THEMES,
   type ReaderFont,
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 4,
     paddingHorizontal: 10,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     minWidth: 130,
     justifyContent: 'space-between',
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   seg: {
     flexDirection: 'row',
     padding: 2,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
   },
   segChip: {
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderColor: 'transparent',
   },
   segLabel: { fontSize: 11, letterSpacing: 0.4 },

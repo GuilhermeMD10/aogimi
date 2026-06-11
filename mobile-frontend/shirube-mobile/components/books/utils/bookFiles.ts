@@ -100,9 +100,16 @@ function extOf(filename: string): string {
  *   to the user. Saves all the IO + hash + probe work that would otherwise
  *   run before the match check inevitably rejects on file_hash mismatch.
  */
-export async function importEpub(opts?: {
+/**
+ * Step 1: ask the user to pick a file and resolve a usable filename.
+ * Returns `null` if the user canceled. Throws `ExtensionMismatchError`
+ * when called with `expectedFilename` and the picked file's extension
+ * doesn't match — caller catches and surfaces a clear error before any
+ * IO runs.
+ */
+async function pickSourceFile(opts?: {
   expectedFilename?: string;
-}): Promise<ImportedBook | null> {
+}): Promise<{ source: File; filename: string } | null> {
   const result = await DocumentPicker.getDocumentAsync({
     type: ['application/epub+zip', 'application/pdf', 'application/zip', '*/*'],
     copyToCacheDirectory: true,
@@ -118,8 +125,6 @@ export async function importEpub(opts?: {
   const fallbackExt = asset.mimeType === 'application/pdf' ? 'pdf' : 'epub';
   const filename = asset.name || `book-${Date.now()}.${fallbackExt}`;
 
-  // Locate-flow pre-check: bail before any IO if the picked extension
-  // doesn't match what we're trying to locate.
   if (opts?.expectedFilename) {
     const pickedExt = extOf(filename);
     const expectedExt = extOf(opts.expectedFilename);
@@ -127,20 +132,22 @@ export async function importEpub(opts?: {
       throw new ExtensionMismatchError(pickedExt, expectedExt);
     }
   }
+  return { source: new File(asset.uri), filename };
+}
 
-  const dir = booksDir();
-  const target = new File(dir, filename);
+/**
+ * Step 2: copy the picked file into the documents-dir target slot,
+ * applying the defensive-reimport rule (only matching file_hash keeps
+ * existing per-filename local state; anything weaker → wipe and start
+ * clean). Returns the new file_hash plus a flag indicating whether the
+ * import is a no-op same-bytes re-import.
+ */
+async function commitFileToTarget(
+  source: File,
+  filename: string,
+): Promise<{ target: File; newFileHash: string | null; wasAlreadyPresentSameBytes: boolean }> {
+  const target = new File(booksDir(), filename);
 
-  const source = new File(asset.uri);
-
-  // Defensive re-import guard: if something already exists under this
-  // filename, decide BEFORE overwriting whether the local state
-  // (highlights, lastCfi, cached cover, fingerprint) belongs to the
-  // bytes the user is bringing in. The only guarantee we accept is
-  // matching file_hash — anything weaker (missing fingerprint, hash
-  // failure, hash mismatch) is treated as "different file" and the
-  // per-filename local state is dropped so the new file starts clean
-  // rather than inheriting another book's reader state.
   let newFileHash: string | null = null;
   try {
     const bytes = await source.bytes();
@@ -148,6 +155,7 @@ export async function importEpub(opts?: {
   } catch {
     /* hash computation failed — defensive path below skips the check */
   }
+
   let wasAlreadyPresentSameBytes = false;
   if (target.exists) {
     const oldFileHash = await getStoredFileHash(filename);
@@ -162,85 +170,131 @@ export async function importEpub(opts?: {
   if (newFileHash) {
     await setStoredFileHash(filename, newFileHash);
   }
+  return { target, newFileHash, wasAlreadyPresentSameBytes };
+}
 
-  let title: string;
-  let author: string;
-  let fileHash: string | null = null;
-  let contentHash: string | null = null;
-  let pdfIdOriginal: string | null = null;
-  let pdfIdCurrent: string | null = null;
-  let pageCount: number | null = null;
-  let hasTextLayer: boolean | null = null;
-  let producer: string | null = null;
-  let xmpDocumentId: string | null = null;
-  let xmpOriginalId: string | null = null;
-  // Text-derived + visual fingerprint fields stay null on mobile — no PDF
-  // text extractor and no render-to-grayscale pipeline here. Web populates
-  // them; cross-device matching still works via file_hash + XMP + /ID.
-  const pageHashes: string[] | null = null;
-  const textLength: number | null = null;
-  const detectedDoi: string | null = null;
-  const detectedIsbn: string | null = null;
-  const pagePhashes: string[] | null = null;
-  let dcIdentifier: string | null = null;
-  let language: string | null = null;
-  let publisher: string | null = null;
+type IdentityFields = {
+  title: string;
+  author: string;
+  fileHash: string | null;
+  contentHash: string | null;
+  pdfIdOriginal: string | null;
+  pdfIdCurrent: string | null;
+  pageCount: number | null;
+  hasTextLayer: boolean | null;
+  producer: string | null;
+  xmpDocumentId: string | null;
+  xmpOriginalId: string | null;
+  dcIdentifier: string | null;
+  language: string | null;
+  publisher: string | null;
+};
 
-  if (filename.toLowerCase().endsWith('.pdf')) {
-    // PDFs: sha256 of bytes + /Title + /Producer + /ID[0]/[1] + XMP IDs
-    // from the tail scan. page_count / has_text_layer deferred to phase 3.
+/**
+ * Step 3: derive title/author/identity-hashes from the on-disk file.
+ * Branches on extension — PDF → `probePdfFile`, EPUB → `probeEpubFile`,
+ * everything else → filename heuristics only. Mobile leaves the
+ * text-derived + visual fingerprint fields null (no PDF text extractor
+ * or render-to-grayscale pipeline here).
+ */
+async function extractIdentity(filename: string): Promise<IdentityFields> {
+  const empty: IdentityFields = {
+    title: '',
+    author: '',
+    fileHash: null,
+    contentHash: null,
+    pdfIdOriginal: null,
+    pdfIdCurrent: null,
+    pageCount: null,
+    hasTextLayer: null,
+    producer: null,
+    xmpDocumentId: null,
+    xmpOriginalId: null,
+    dcIdentifier: null,
+    language: null,
+    publisher: null,
+  };
+
+  const lower = filename.toLowerCase();
+  if (lower.endsWith('.pdf')) {
     const { probePdfFile } = await import('./pdfIdentity');
     const probe = await probePdfFile(filename);
-    title = probe.title ?? metadataFromFilename(filename).title;
-    author = '';
-    fileHash = probe.fileHash;
-    pdfIdOriginal = probe.pdfIdOriginal;
-    pdfIdCurrent = probe.pdfIdCurrent;
-    pageCount = probe.pageCount;
-    hasTextLayer = probe.hasTextLayer;
-    producer = probe.producer;
-    xmpDocumentId = probe.xmpDocumentId;
-    xmpOriginalId = probe.xmpOriginalId;
-  } else if (filename.toLowerCase().endsWith('.epub')) {
-    // EPUBs: sha256 of bytes + spine-text hash + OPF metadata.
+    return {
+      ...empty,
+      title: probe.title ?? metadataFromFilename(filename).title,
+      fileHash: probe.fileHash,
+      pdfIdOriginal: probe.pdfIdOriginal,
+      pdfIdCurrent: probe.pdfIdCurrent,
+      pageCount: probe.pageCount,
+      hasTextLayer: probe.hasTextLayer,
+      producer: probe.producer,
+      xmpDocumentId: probe.xmpDocumentId,
+      xmpOriginalId: probe.xmpOriginalId,
+    };
+  }
+  if (lower.endsWith('.epub')) {
     const { probeEpubFile } = await import('./epubIdentity');
     const probe = await probeEpubFile(filename);
     const fallback = metadataFromFilename(filename);
-    title = probe?.title ?? fallback.title;
-    author = probe?.creator ?? fallback.author;
-    fileHash = probe?.fileHash ?? null;
-    contentHash = probe?.contentHash ?? null;
-    dcIdentifier = probe?.dcIdentifier ?? null;
-    language = probe?.language ?? null;
-    publisher = probe?.publisher ?? null;
-  } else {
-    const meta = metadataFromFilename(filename);
-    title = meta.title;
-    author = meta.author;
+    return {
+      ...empty,
+      title: probe?.title ?? fallback.title,
+      author: probe?.creator ?? fallback.author,
+      fileHash: probe?.fileHash ?? null,
+      contentHash: probe?.contentHash ?? null,
+      dcIdentifier: probe?.dcIdentifier ?? null,
+      language: probe?.language ?? null,
+      publisher: probe?.publisher ?? null,
+    };
   }
+  const meta = metadataFromFilename(filename);
+  return { ...empty, title: meta.title, author: meta.author };
+}
 
+export async function importEpub(opts?: {
+  expectedFilename?: string;
+}): Promise<ImportedBook | null> {
+  // 1. Pick + extension-check.
+  const picked = await pickSourceFile(opts);
+  if (!picked) return null;
+
+  // 2. Copy bytes to the target slot, honoring the defensive-reimport
+  //    rule. After this point the on-disk file is the new one.
+  const { target, wasAlreadyPresentSameBytes } = await commitFileToTarget(
+    picked.source,
+    picked.filename,
+  );
+
+  // 3. Re-read the on-disk file for identity + metadata. PDF/EPUB
+  //    branches handle their own probes.
+  const id = await extractIdentity(picked.filename);
+
+  // 4. Sanitize + finalize. Sanitization strips characters Postgres
+  //    can't store (NUL bytes from UTF-16BE PDF /Title fields, etc.)
+  //    so the eventual create POST doesn't reject the row.
   return {
-    filename,
-    title: sanitizeMeta(title) ?? metadataFromFilename(filename).title,
-    author: sanitizeMeta(author) ?? '',
-    fileHash,
-    contentHash,
-    pdfIdOriginal,
-    pdfIdCurrent,
-    pageCount,
-    hasTextLayer,
-    producer: sanitizeMeta(producer),
-    xmpDocumentId,
-    xmpOriginalId,
-    pageHashes,
-    textLength,
-    detectedDoi,
-    detectedIsbn,
-    pagePhashes,
+    filename: picked.filename,
+    title: sanitizeMeta(id.title) ?? metadataFromFilename(picked.filename).title,
+    author: sanitizeMeta(id.author) ?? '',
+    fileHash: id.fileHash,
+    contentHash: id.contentHash,
+    pdfIdOriginal: id.pdfIdOriginal,
+    pdfIdCurrent: id.pdfIdCurrent,
+    pageCount: id.pageCount,
+    hasTextLayer: id.hasTextLayer,
+    producer: sanitizeMeta(id.producer),
+    xmpDocumentId: id.xmpDocumentId,
+    xmpOriginalId: id.xmpOriginalId,
+    // Text-derived + visual fingerprint fields stay null on mobile.
+    pageHashes: null,
+    textLength: null,
+    detectedDoi: null,
+    detectedIsbn: null,
+    pagePhashes: null,
     fingerprintVersion: FINGERPRINT_VERSION,
-    dcIdentifier: sanitizeMeta(dcIdentifier),
-    language: sanitizeMeta(language),
-    publisher: sanitizeMeta(publisher),
+    dcIdentifier: sanitizeMeta(id.dcIdentifier),
+    language: sanitizeMeta(id.language),
+    publisher: sanitizeMeta(id.publisher),
     uri: target.uri,
     wasAlreadyPresentSameBytes,
   };

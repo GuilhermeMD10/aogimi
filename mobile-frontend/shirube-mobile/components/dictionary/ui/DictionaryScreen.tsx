@@ -13,7 +13,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Screen } from '@/components/ui/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, spacing } from '@/theme/tokens';
+import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { SearchResponse, WordDetails, WordResult } from '../types';
 import { FlashcardDrawer, type FlashcardPrefill } from '@/components/decks/ui/FlashcardDrawer';
 import { DictEntry } from './DictEntry';
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: 18,
     paddingVertical: 14,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 12,

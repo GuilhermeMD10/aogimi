@@ -20,7 +20,5 @@ html[data-theme="kanagawa"] {
   --lgc-accent-soft:   #C9D6E4;
   --lgc-accent-fg:     #FFFFFF;
 
-  --lgc-success:       #3B7A40;
-  --lgc-warning:       #B8802A;
   --lgc-error:         #A04040;
 }

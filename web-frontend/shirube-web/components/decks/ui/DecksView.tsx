@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useAuthedUser } from '@/components/providers/useAuthedUser';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
+import { useDecks } from '@/components/providers/DecksProvider';
 import * as api from '../utils/decksApi';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import { DeckList } from './DeckList';
@@ -12,7 +12,7 @@ import {
   PendingCardOverlay,
   type PendingCardFlow,
 } from './PendingCardOverlay';
-import type { CardModel, Deck, DeckSummary, DeckPatch } from '../types';
+import type { CardModel, Deck, DeckPatch } from '../types';
 
 type Screen =
   | { type: 'decks' }
@@ -20,22 +20,24 @@ type Screen =
   | { type: 'study'; deckId: string };
 
 export default function DecksView() {
-  const user = useAuthedUser();
   const [screen, setScreen] = useState<Screen>({ type: 'decks' });
   const [pendingCardFlow, setPendingCardFlow] = useState<PendingCardFlow>(null);
   const { pendingCard, setPendingCard } = useReaderState();
 
-  // ── Deck list ───────────────────────────────────────────────────────────────
-  const { data: deckRecords, refresh: refreshDecks } = useFetchWithAbort(
-    (signal) => api.getUserDecks(user.id, signal),
-    [user.id],
-  );
-  const deckSummaries: DeckSummary[] = (deckRecords ?? []).map((r) => ({
-    id: r.id,
-    name: r.name,
-    description: r.description,
-    card_count: r.card_count,
-  }));
+  // ── Deck list (owned by DecksProvider) ──────────────────────────────────────
+  // The provider holds the list + simple mutations (createDeck, updateDeck,
+  // deleteDeck) so cross-page consumers can read the same state. Per-deck
+  // card data still loads on demand here — only one deck is active at a
+  // time and its cards are the slower payload.
+  const {
+    decks,
+    refresh: refreshDecks,
+    createDeck: providerCreateDeck,
+    updateDeck: providerUpdateDeck,
+    deleteDeck: providerDeleteDeck,
+    bumpCardCount,
+  } = useDecks();
+  const deckSummaries = decks ?? [];
   const fetchDecks = useCallback(() => refreshDecks(), [refreshDecks]);
 
   // ── Active deck + cards ─────────────────────────────────────────────────────
@@ -73,45 +75,60 @@ export default function DecksView() {
   }, [activeDeckData]);
 
   // ── Reader → pending-card hand-off ──────────────────────────────────────────
+  // Guard against React Strict Mode's double-invocation: the effect can
+  // run twice in dev, and the second run would observe the already-cleared
+  // `pendingCard` as null — but mount/cleanup ordering in some cases
+  // could replay the seed. Stash the last-handled object identity so we
+  // never seed the flow twice for the same card. Pattern mirrors the
+  // pending-fields idiom CLAUDE.md prescribes for AppShell.
+  const handledPendingCardRef = useRef<typeof pendingCard | null>(null);
   useEffect(() => {
     if (!pendingCard) return;
-    setPendingCardFlow({ phase: 'select-deck', word: pendingCard.word, initialBack: pendingCard.back, contextSentence: pendingCard.contextSentence });
+    if (handledPendingCardRef.current === pendingCard) return;
+    handledPendingCardRef.current = pendingCard;
+    setPendingCardFlow({
+      phase: 'select-deck',
+      word: pendingCard.word,
+      initialBack: pendingCard.back,
+      contextSentence: pendingCard.contextSentence,
+    });
     setPendingCard(null);
   }, [pendingCard, setPendingCard]);
 
-  // ── Deck mutations ──────────────────────────────────────────────────────────
+  // ── Deck mutations (delegate to provider) ───────────────────────────────────
   const addDeck = useCallback(
     async (name: string, description: string) => {
-      await api.createDeck({ userId: user.id, name, description });
-      await fetchDecks();
+      await providerCreateDeck({ name, description });
     },
-    [user, fetchDecks],
+    [providerCreateDeck],
   );
 
   const updateDeck = useCallback(
     async (deckId: string, patch: DeckPatch) => {
-      await api.updateDeck(deckId, patch);
-      await fetchDecks();
-      // Refresh active deck if it's the one being edited
+      await providerUpdateDeck(deckId, patch);
       if (activeDeck?.id === deckId) {
         setActiveDeck((prev) => (prev ? { ...prev, ...patch } : prev));
       }
     },
-    [fetchDecks, activeDeck?.id],
+    [providerUpdateDeck, activeDeck?.id],
   );
 
   const deleteDeckHandler = useCallback(
     async (deckId: string) => {
-      await api.deleteDeck(deckId);
-      await fetchDecks();
+      await providerDeleteDeck(deckId);
       setScreen((prev) =>
         prev.type !== 'decks' && prev.deckId === deckId ? { type: 'decks' } : prev,
       );
       if (activeDeck?.id === deckId) setActiveDeck(null);
     },
-    [fetchDecks, activeDeck?.id],
+    [providerDeleteDeck, activeDeck?.id],
   );
 
+  // ── Card mutations ──────────────────────────────────────────────────────────
+  // Cards still go through the raw API helper here — the provider only
+  // tracks deck *summaries* (not full card arrays). After a successful
+  // mutation we bump the provider's optimistic `card_count` so the list
+  // and the detail can't drift while the next refetch is in flight.
   const addCard = useCallback(
     async (deckId: string, front: string, back: string) => {
       const cardRecord = await api.createCard(deckId, { front, back });
@@ -124,14 +141,12 @@ export default function DecksView() {
         state: cardRecord.state,
         reviewed_times: cardRecord.reviewed_times,
       };
-      // Update active deck in-place so UI reflects immediately
       setActiveDeck((prev) =>
         prev && prev.id === deckId ? { ...prev, cards: [...prev.cards, card] } : prev,
       );
-      // Refresh list to update card_count
-      await fetchDecks();
+      bumpCardCount(deckId, +1);
     },
-    [fetchDecks],
+    [bumpCardCount],
   );
 
   const deleteCardHandler = useCallback(
@@ -142,9 +157,9 @@ export default function DecksView() {
           ? { ...prev, cards: prev.cards.filter((c) => c.id !== cardId) }
           : prev,
       );
-      await fetchDecks();
+      bumpCardCount(deckId, -1);
     },
-    [fetchDecks],
+    [bumpCardCount],
   );
 
   // ── Nav ────────────────────────────────────────────────────────────────────
@@ -201,13 +216,12 @@ export default function DecksView() {
 
   const createDeckAndUseForPending = useCallback(
     async (name: string) => {
-      const deck = await api.createDeck({ userId: user.id, name });
-      await fetchDecks();
+      const deck = await providerCreateDeck({ name });
       setPendingCardFlow((prev) =>
         prev ? { phase: 'create-card', word: prev.word, deckId: deck.id, initialBack: prev.initialBack, contextSentence: prev.contextSentence } : prev,
       );
     },
-    [user, fetchDecks],
+    [providerCreateDeck],
   );
 
   const submitPendingCard = useCallback(
@@ -215,11 +229,11 @@ export default function DecksView() {
       const flow = pendingCardFlow;
       if (flow?.phase !== 'create-card') return;
       await api.createCard(flow.deckId, { front: flow.word, back, contextSentence });
-      await fetchDecks();
+      bumpCardCount(flow.deckId, +1);
       setPendingCardFlow(null);
       setScreen({ type: 'deck', deckId: flow.deckId });
     },
-    [pendingCardFlow, fetchDecks],
+    [pendingCardFlow, bumpCardCount],
   );
 
   // ── Render ─────────────────────────────────────────────────────────────────

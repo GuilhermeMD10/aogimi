@@ -20,7 +20,5 @@ html[data-theme="sakura"] {
   --lgc-accent-soft:   #F7DCE0;
   --lgc-accent-fg:     #FFFFFF;
 
-  --lgc-success:       #3B7A40;
-  --lgc-warning:       #B8802A;
   --lgc-error:         #A04040;
 }

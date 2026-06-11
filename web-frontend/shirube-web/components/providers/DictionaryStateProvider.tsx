@@ -46,7 +46,17 @@ export function DictionaryStateProvider({ children }: { children: React.ReactNod
     if (saved) {
       if (saved.query) setQuery(saved.query);
       if (saved.result) setResult(saved.result);
-      if (saved.selectedWordId != null) setSelectedWordId(saved.selectedWordId);
+      // Only restore the selected word if it still exists in the
+      // restored result. The persisted id can otherwise point at a
+      // word that's no longer present (corrupted storage, an out-of-
+      // sync write, or a dictionary rebuild that reassigned numeric
+      // ids), causing the detail pane to render the wrong entry.
+      if (saved.selectedWordId != null) {
+        const stillPresent = saved.result?.words?.some(
+          (w) => w.id === saved.selectedWordId,
+        );
+        if (stillPresent) setSelectedWordId(saved.selectedWordId);
+      }
     }
     persistReadyRef.current = true;
   }, []);

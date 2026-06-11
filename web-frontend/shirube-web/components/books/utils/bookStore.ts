@@ -262,6 +262,13 @@ export async function importBook(
     existingRecord?.fileHash && fileHash && existingRecord.fileHash === fileHash,
   );
   if (existingRecord && !sameBytes) {
+    // Same filename, different bytes. The new file_blob will overwrite
+    // the existing entry (same primary key) via the transaction below,
+    // so we only need to drop the per-filename local state here. Warn
+    // so a debug session can see that a stealth replace happened.
+    console.warn(
+      `[bookStore] filename collision: replacing "${file.name}" (different file_hash); local highlights/CFI/bookmarks dropped`,
+    );
     wipeBookLocalState(file.name);
   }
 
@@ -310,11 +317,14 @@ export async function importBook(
   };
 
   const tx = db.transaction([META_STORE, FILES_STORE], 'readwrite');
+  // Await the puts first so a rejection surfaces the actual write error
+  // (e.g. quota exceeded). Including tx.done in the same Promise.all
+  // race meant tx's deferred-abort could win and mask the real cause.
   await Promise.all([
     tx.objectStore(META_STORE).put(record),
     tx.objectStore(FILES_STORE).put(arrayBuffer, record.id),
-    tx.done,
   ]);
+  await tx.done;
 
   // Ask the browser to make our IDB storage durable so it isn't silently
   // evicted under disk pressure. Idempotent — if already granted, this
@@ -643,6 +653,6 @@ export async function deleteBook(id: string): Promise<void> {
   await Promise.all([
     tx.objectStore(META_STORE).delete(id),
     tx.objectStore(FILES_STORE).delete(id),
-    tx.done,
   ]);
+  await tx.done;
 }

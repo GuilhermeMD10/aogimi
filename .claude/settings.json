@@ -48,7 +48,11 @@
       "Bash(git show *)",
       "Bash(curl -fSL -I --retry 2 -o /dev/null -w \"status: %{http_code}\\\\nfinal_url: %{url_effective}\\\\nsize: %{size_download} \\(HEAD, expected 0\\)\\\\ncontent_length: %{header_x_content_length}\\\\n\" https://github.com/GuilhermeMD10/japanese-study-ecosystem/releases/download/dict-2026-05-24-001/dictionary.sqlite.gz)",
       "Bash(tee /tmp/tsc-out.txt)",
-      "Bash(echo \"---exit=$?---\")"
+      "Bash(echo \"---exit=$?---\")",
+      "Bash(bash /tmp/audit_check.sh)",
+      "Bash(grep -rn \"borderRadius:\\\\s*[0-9]\" /Users/guilhermedias/solo-projects/jp-eco/web-frontend/shirube-web/components --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\")",
+      "Bash(grep -nB 1 \"autoCapitalize\" components/profile/ui/GuestProfileScreen.tsx components/decks/ui/FlashcardDrawer.tsx components/dictionary/ui/DictDrawer.tsx components/dictionary/ui/DictEmpty.tsx)",
+      "Bash(perl -i -pe ' *)"
     ],
     "additionalDirectories": [
       "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader",

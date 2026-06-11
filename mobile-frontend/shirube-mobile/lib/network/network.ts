@@ -37,10 +37,14 @@ function deriveOnline(state: NetInfoState): boolean {
   return true;
 }
 
-export function initNetwork(): () => void {
-  if (initialised) return () => undefined;
+// Idempotent — safe to call from any mount; the RN root layout owns the
+// single registration. NetInfo's subscription lives for the lifetime of
+// the app, so no unsubscribe handle is returned (the previous unsubscribe
+// thunk had no caller and made the contract look more flexible than it is).
+export function initNetwork(): void {
+  if (initialised) return;
   initialised = true;
-  return NetInfo.addEventListener((state) => {
+  NetInfo.addEventListener((state) => {
     const next = deriveOnline(state);
     if (next === online) return;
     const wasOffline = !online;

@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { useColors } from '@/theme/ThemeContext';
-import { fontFamily, spacing } from '@/theme/tokens';
+import { fontFamily, radius, spacing } from '@/theme/tokens';
 import type { RecentSearchItem } from '../utils/dictionaryStorage';
 
 type Props = {
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     right: 14,
     width: 32,
     height: 32,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     marginTop: spacing.lg,
     // Subtle elevation — keeps the input bar above the card surface.
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   recentChip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     maxWidth: 180,
   },

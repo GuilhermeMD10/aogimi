@@ -1,6 +1,7 @@
 import { File } from 'expo-file-system';
 import { ExtensionMismatchError, importEpub } from './bookFiles';
 import { matchBooks } from './booksApi';
+import { buildMatchCandidate } from './matchCandidate';
 import { bookFilePath, deleteBookFile } from './bookPaths';
 import { removeEntry, setStoredFileHash } from './bookLocalState';
 
@@ -48,24 +49,7 @@ export async function locateBookFile(
   let matchedId: string | null = null;
   let matchedOtherTitle: string | null = null;
   try {
-    const [result] = await matchBooks(userId, [
-      {
-        file_hash: imported.fileHash,
-        content_hash: imported.contentHash,
-        pdf_id_original: imported.pdfIdOriginal,
-        xmp_original_id: imported.xmpOriginalId,
-        detected_doi: imported.detectedDoi,
-        detected_isbn: imported.detectedIsbn,
-        page_count: imported.pageCount,
-        page_phashes: imported.pagePhashes,
-        metadata: {
-          title: imported.title || imported.filename,
-          author: imported.author,
-          dc_identifier: imported.dcIdentifier,
-          filename: imported.filename,
-        },
-      },
-    ]);
+    const [result] = await matchBooks(userId, [buildMatchCandidate(imported)]);
     // Only file_hash certifies "this IS that book". Weaker match types
     // (pdf_trailer_id, xmp_original_id, doi, isbn, content, metadata)
     // collide between distinct books — same rule the import flow uses.

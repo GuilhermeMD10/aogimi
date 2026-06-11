@@ -4,6 +4,7 @@
 
 import * as Crypto from 'expo-crypto';
 import { createCard, deleteCard, updateCard } from './decksApi';
+import { pushAllByOp } from './syncByOp';
 import type { CardState, LocalCard } from '../types';
 import {
   getCard,
@@ -155,29 +156,6 @@ export async function pushCard(card: LocalCard): Promise<CardPushResult> {
  * pending-create card should resolve in one pass.
  */
 export async function pushAllPendingCards(): Promise<CardSyncSummary> {
-  const summary: CardSyncSummary = { pushed: [], failed: [] };
   const pending = await listPendingCards();
-
-  const byOp = (op: LocalCard['pendingOp']) =>
-    pending.filter((c) => c.pendingOp === op);
-
-  for (const c of byOp('create')) {
-    const result = await pushCard(c);
-    if (result.ok) summary.pushed.push(c.id);
-    else summary.failed.push(c.id);
-  }
-
-  for (const c of byOp('update')) {
-    const result = await pushCard(c);
-    if (result.ok) summary.pushed.push(c.id);
-    else summary.failed.push(c.id);
-  }
-
-  for (const c of byOp('delete')) {
-    const result = await pushCard(c);
-    if (result.ok) summary.pushed.push(c.id);
-    else summary.failed.push(c.id);
-  }
-
-  return summary;
+  return pushAllByOp(pending, pushCard);
 }

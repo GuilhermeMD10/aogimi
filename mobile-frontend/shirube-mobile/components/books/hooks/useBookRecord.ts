@@ -25,11 +25,13 @@ import {
   markSessionPending,
 } from '../utils/syncedBookCache';
 import { getEntry } from '../utils/bookLocalState';
+import { isNewer } from '../utils/timestamps';
 import {
   buildPendingBookRecord,
   filenameFromPendingId,
   isPendingBookId,
 } from '../utils/bookPush';
+import { loadStoredBook } from '@/components/reader/utils/readerStorage';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { isOnlineNow } from '@/lib/network/network';
 import type { BookRecord } from '../types';
@@ -44,14 +46,40 @@ type State = {
   offlineMode: boolean;
 };
 
-function isNewer(a: string | null | undefined, b: string | null | undefined): boolean {
-  if (!a) return false;
-  if (!b) return true;
-  return new Date(a).getTime() > new Date(b).getTime();
-}
-
 function isNetworkError(err: unknown): boolean {
   return err instanceof TypeError;
+}
+
+type PendingResolve =
+  | { status: 'ok'; book: BookRecord }
+  | { status: 'not-found' };
+
+/**
+ * Resolve a pending book id (`pending:<filename>`) by reading the
+ * local pending entry + any persisted reader-state (lastCfi, lastProgress,
+ * lastReadAt) and assembling a synthetic BookRecord.
+ *
+ * Returns `not-found` if the local pending entry is missing — that's
+ * the only failure mode here since there's no backend to consult.
+ */
+async function resolvePendingBook(bookId: string, userId: number): Promise<PendingResolve> {
+  const filename = filenameFromPendingId(bookId);
+  const [entry, stored] = await Promise.all([
+    getEntry(filename),
+    loadStoredBook(filename).catch(() => null),
+  ]);
+  if (!entry || !entry.pendingPayload) return { status: 'not-found' };
+  return {
+    status: 'ok',
+    book: buildPendingBookRecord(
+      filename,
+      entry,
+      userId,
+      stored
+        ? { lastCfi: stored.lastCfi, lastProgress: stored.lastProgress, lastReadAt: stored.lastReadAt }
+        : undefined,
+    ),
+  };
 }
 
 export function useBookRecord(bookId: string): State {
@@ -70,19 +98,18 @@ export function useBookRecord(bookId: string): State {
 
     (async () => {
       // Pending book: no backend record exists yet (offline import, or
-      // guest account that never pushes). Reconstruct the BookRecord
-      // from the local pending entry and run the reader in offlineMode
-      // so it skips all backend pushes.
+      // guest account that never pushes). Reconstructed from the local
+      // pending entry + persisted reader-state via the helper above; the
+      // reader runs in offlineMode so it skips all backend pushes.
       if (isPendingBookId(bookId)) {
-        const filename = filenameFromPendingId(bookId);
-        const entry = await getEntry(filename);
+        const resolved = await resolvePendingBook(bookId, userId);
         if (cancelled) return;
-        if (!entry || !entry.pendingPayload) {
+        if (resolved.status === 'not-found') {
           setError('Book not found locally');
           setLoading(false);
           return;
         }
-        setBook(buildPendingBookRecord(filename, entry, userId));
+        setBook(resolved.book);
         setOfflineMode(true);
         setLoading(false);
         return;

@@ -272,7 +272,3 @@ function CreateCardPhase({
     </>
   );
 }
-
-export function buildPendingCard(flow: { word: string }, back: string): CardModel {
-  return { id: crypto.randomUUID(), front: flow.word, back };
-}

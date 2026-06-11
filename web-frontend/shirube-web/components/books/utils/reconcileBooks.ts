@@ -70,7 +70,10 @@ export type ReconcileSummary = {
  * Idempotent — safe to run multiple times. Re-running after a transient
  * failure will pick up where the last pass left off.
  */
-export async function reconcileBooks(userId: number): Promise<ReconcileSummary> {
+export async function reconcileBooks(
+  userId: number,
+  signal?: AbortSignal,
+): Promise<ReconcileSummary> {
   const summary: ReconcileSummary = {
     staleReplaced: [],
     removed: [],
@@ -82,11 +85,12 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
   //    "wipe everything local" event.
   let remoteBooks: BookProgressRecord[];
   try {
-    remoteBooks = await getUserBooks(userId);
+    remoteBooks = await getUserBooks(userId, signal);
     if (!Array.isArray(remoteBooks)) return summary;
   } catch {
     return summary;
   }
+  if (signal?.aborted) return summary;
   const remoteByFilename = new Map(remoteBooks.map((b) => [b.filename, b]));
 
   // 2. Snapshot local IDB books. If this fails, we have no work to do.
@@ -96,8 +100,13 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
   } catch {
     return summary;
   }
+  if (signal?.aborted) return summary;
 
   for (const local of localBooks) {
+    // Check between each book — the caller may have unmounted while we
+    // were mid-iteration. Aborts here leave any already-completed
+    // operations in place; the next reconcile picks up the rest.
+    if (signal?.aborted) return summary;
     let remote = remoteByFilename.get(local.filename);
     const syncState = effectiveSyncState(local);
 
@@ -178,6 +187,8 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
     }
     // Both null or both equal → no action needed.
   }
+
+  if (signal?.aborted) return summary;
 
   // 3. Sweep orphan localStorage entries. After the per-book pass above,
   //    re-read local books because some may have been wiped.

@@ -1,2 +1,2 @@
-export { PendingCardOverlay, buildPendingCard } from './PendingCardOverlay';
+export { PendingCardOverlay } from './PendingCardOverlay';
 export type { PendingCardOverlayProps, PendingCardFlow } from './PendingCardOverlay';

@@ -20,7 +20,5 @@ html[data-theme="hanami"] {
   --lgc-accent-soft:   rgba(224, 75, 42, 0.18);
   --lgc-accent-fg:     #FFFFFF;
 
-  --lgc-success:       #5AB85A;
-  --lgc-warning:       #E0A030;
   --lgc-error:         #E05050;
 }

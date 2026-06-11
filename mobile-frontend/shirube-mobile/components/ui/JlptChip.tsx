@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useColors, useFonts } from '@/theme/ThemeContext';
 import { createThemedComponent } from '@/theme/createThemedComponent';
+import { radius } from '@/theme/tokens';
 
 export type JlptChipProps = {
   /** JLPT level 1–5 (1 = N1 hardest, 5 = N5 easiest). */
@@ -64,7 +65,7 @@ function DefaultJlptChip({ level, compact, style }: JlptChipProps) {
 
 const defaultStyles = StyleSheet.create({
   pill: {
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 9,
     paddingVertical: 3,

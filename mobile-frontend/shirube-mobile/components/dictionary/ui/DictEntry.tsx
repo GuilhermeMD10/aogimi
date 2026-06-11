@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing } from '@/theme/tokens';
+import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { ExampleSentence, KanjiInfo, WordResult } from '../types';
 import { JlptChip } from '@/components/ui/JlptChip';
 import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   chip: {
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 10,
     paddingVertical: 3,

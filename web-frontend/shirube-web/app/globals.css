@@ -45,8 +45,6 @@
   --color-lgc-accent-soft:   var(--lgc-accent-soft);
   --color-lgc-accent-fg:     var(--lgc-accent-fg);
 
-  --color-lgc-success:       var(--lgc-success);
-  --color-lgc-warning:       var(--lgc-warning);
   --color-lgc-error:         var(--lgc-error);
 
   /* ── shadcn system (wired to Langeco tokens) ──────────────────────── */
@@ -86,11 +84,8 @@
   --color-chart-5: oklch(0.45 0.04 300);
 
   /* ── Typography — alias Tailwind font-* classes onto theme tokens ─── */
-  --font-sans:    var(--lgc-font-ui);
   --font-ui:      var(--lgc-font-ui);
   --font-display: var(--lgc-font-display);
-  --font-serif:   var(--lgc-font-display);
-  --font-reader:  var(--lgc-font-display);
   --font-mono:    var(--lgc-font-mono);
   --font-jp:      var(--lgc-font-jp);
   --font-body:    var(--lgc-font-body);

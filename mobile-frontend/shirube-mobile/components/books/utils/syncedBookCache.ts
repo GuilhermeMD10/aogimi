@@ -16,31 +16,18 @@
 //      reader stops pushing during the session.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { makeAsyncJsonStore } from '@/lib/storage';
 import type { BookRecord } from '../types';
+import { isNewer } from './timestamps';
 
 const CACHE_KEY = 'synced_book_cache_v1';
 const PENDING_KEY = 'session_pending_books_v1';
 
 type CacheMap = Record<string, BookRecord>;
 
-async function readCache(): Promise<CacheMap> {
-  try {
-    const raw = await AsyncStorage.getItem(CACHE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === 'object' ? (parsed as CacheMap) : {};
-  } catch {
-    return {};
-  }
-}
-
-async function writeCache(map: CacheMap): Promise<void> {
-  try {
-    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(map));
-  } catch {
-    /* best-effort */
-  }
-}
+const cacheStore = makeAsyncJsonStore<CacheMap>(CACHE_KEY);
+const readCache = cacheStore.read;
+const writeCache = cacheStore.write;
 
 async function readPendingSet(): Promise<Set<string>> {
   try {
@@ -92,11 +79,6 @@ export async function findCachedBookByFileHash(
   return null;
 }
 
-export async function isSessionPending(id: string): Promise<boolean> {
-  const set = await readPendingSet();
-  return set.has(id);
-}
-
 export async function listSessionPendingIds(): Promise<string[]> {
   return Array.from(await readPendingSet());
 }
@@ -106,18 +88,6 @@ export async function listSessionPendingIds(): Promise<string[]> {
 export async function cacheBook(book: BookRecord): Promise<void> {
   const map = await readCache();
   map[book.id] = book;
-  await writeCache(map);
-}
-
-/**
- * Overwrite the cache with the given list. Used in places where the
- * backend response is the absolute truth — typically not during
- * routine refreshes (use `mergeBackendBooks` for those — it preserves
- * locally-newer state). Kept for callers that explicitly want a wipe.
- */
-export async function cacheBooks(books: BookRecord[]): Promise<void> {
-  const map: CacheMap = {};
-  for (const b of books) map[b.id] = b;
   await writeCache(map);
 }
 
@@ -171,12 +141,6 @@ export async function persistLocalProgress(
     last_read_at: patch.lastReadAt,
   };
   await writeCache(map);
-}
-
-function isNewer(a: string | null | undefined, b: string | null | undefined): boolean {
-  if (!a) return false;
-  if (!b) return true;
-  return new Date(a).getTime() > new Date(b).getTime();
 }
 
 export async function removeCachedBook(id: string): Promise<void> {

@@ -4,10 +4,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
-import { StyleSheet } from 'react-native';
 import { loadJSON, saveJSON } from '@/lib/storage';
 import {
   THEME_NAMES,
@@ -38,16 +38,31 @@ function isValidTheme(v: unknown): v is ThemeName {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [themeName, setThemeNameState] = useState<ThemeName>('default');
+  // Track whether the initial AsyncStorage hydrate has run. Until it
+  // does, we MUST NOT persist `themeName` — otherwise the initial
+  // 'default' would overwrite whatever the user had saved before the
+  // hydrate resolved.
+  const hydratedRef = useRef(false);
 
+  // Hydrate once on mount.
   useEffect(() => {
     loadJSON<ThemeName | null>(STORAGE_KEY, null).then((stored) => {
       if (isValidTheme(stored)) setThemeNameState(stored);
+      hydratedRef.current = true;
     });
   }, []);
 
+  // Persist whenever the user picks a new theme. Separated from
+  // `setThemeName` so the provider doesn't mix UI-state mutation with
+  // I/O side-effects in the same callback — and so the hydrate guard
+  // owns its own concern.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    void saveJSON(STORAGE_KEY, themeName);
+  }, [themeName]);
+
   const setThemeName = useCallback((name: ThemeName) => {
     setThemeNameState(name);
-    saveJSON(STORAGE_KEY, name);
   }, []);
 
   const theme = getTheme(themeName);
@@ -83,13 +98,6 @@ export function useFonts(): ThemeFonts {
 
 export function useShape(): ThemeShape {
   return useTheme().shape;
-}
-
-export function useThemedStyles<T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>>(
-  factory: (colors: ThemeColors) => T,
-): T {
-  const colors = useColors();
-  return useMemo(() => StyleSheet.create(factory(colors)), [colors, factory]);
 }
 
 export type { ThemeColors, Theme, ThemeName, ThemeFonts, ThemeShape } from './tokens';

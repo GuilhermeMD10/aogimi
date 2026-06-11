@@ -21,9 +21,25 @@ export type ReaderSession = {
 };
 
 /**
- * Overlay state for the reader's right-edge bubble. Producers (reader word
- * tap, dictionary "add card" buttons) route through `useReaderActions`,
- * which sets this; `AppShell` reads it to render the bubble.
+ * Overlay state for the reader's right-edge bubble. Two mutually-exclusive
+ * modes share the slot:
+ *
+ * - `'dict'` — bubble shows the dictionary surface. The *content*
+ *   (query, results, selected word) lives in `DictionaryStateProvider`;
+ *   this state only controls visibility. AppShell reads `mode === 'dict'`,
+ *   renders the bubble shell, and the shell reads `useDictionaryState()`
+ *   for the actual rendering.
+ *
+ * - `'addCard'` — bubble shows the "add this word to a deck" form,
+ *   pre-populated with the captured `word`, optional `back`, and
+ *   `contextSentence`. The same payload is also written to `pendingCard`
+ *   so a navigation to /decks can pick it up; both consumers are
+ *   intentional (bubble = inline finish, pendingCard = navigate to
+ *   finish).
+ *
+ * Producers should call `useReaderActions` rather than touching this
+ * state directly — that hook routes the request to the right surface
+ * based on the active page and the sidekick state.
  */
 export type ReaderBubbleState =
   | { mode: 'dict' }

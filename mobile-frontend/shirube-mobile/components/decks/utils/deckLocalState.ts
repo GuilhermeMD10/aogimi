@@ -9,30 +9,16 @@
 // This is the ONLY place that reads/writes the storage key.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { DeckRecord, LocalDeck, PendingOp, SyncState } from '../types';
+import { makeAsyncJsonStore } from '@/lib/storage';
+import type { DeckRecord, LocalDeck, SyncState } from '../types';
 
 const KEY = 'deck_local_state_v1';
 
 type DeckMap = Record<string, LocalDeck>;
 
-async function readMap(): Promise<DeckMap> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === 'object' ? (parsed as DeckMap) : {};
-  } catch {
-    return {};
-  }
-}
-
-async function writeMap(map: DeckMap): Promise<void> {
-  try {
-    await AsyncStorage.setItem(KEY, JSON.stringify(map));
-  } catch {
-    /* quota / serialization — best-effort */
-  }
-}
+const store = makeAsyncJsonStore<DeckMap>(KEY);
+const readMap = store.read;
+const writeMap = store.write;
 
 // ── Reads ──────────────────────────────────────────────────────────────────
 
@@ -66,18 +52,6 @@ export async function removeDeck(id: string): Promise<void> {
   const map = await readMap();
   if (!(id in map)) return;
   delete map[id];
-  await writeMap(map);
-}
-
-/** Mark a synced deck as having an outstanding update or delete that
- *  needs to be pushed. `pendingOp='create'` is unusual here — creates
- *  are normally produced via `setDeck` with `pending` syncState
- *  during the local-first write. */
-export async function markDeckPending(id: string, op: PendingOp): Promise<void> {
-  const map = await readMap();
-  const existing = map[id];
-  if (!existing) return;
-  map[id] = { ...existing, syncState: 'pending', pendingOp: op };
   await writeMap(map);
 }
 

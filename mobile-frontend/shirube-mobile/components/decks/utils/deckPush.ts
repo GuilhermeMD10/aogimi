@@ -18,6 +18,7 @@ import {
   setDeck,
 } from './deckLocalState';
 import { rewriteDeckId } from './cardLocalState';
+import { pushAllByOp } from './syncByOp';
 
 export type DeckPushResult =
   | { ok: true; deckId: string }
@@ -173,29 +174,6 @@ export async function pushDeck(deck: LocalDeck): Promise<DeckPushResult> {
  * the id available before they push.
  */
 export async function pushAllPendingDecks(): Promise<DeckSyncSummary> {
-  const summary: DeckSyncSummary = { pushed: [], failed: [] };
   const pending = await listPendingDecks();
-
-  const byOp = (op: LocalDeck['pendingOp']) =>
-    pending.filter((d) => d.pendingOp === op);
-
-  for (const d of byOp('create')) {
-    const result = await pushDeck(d);
-    if (result.ok) summary.pushed.push(d.id);
-    else summary.failed.push(d.id);
-  }
-
-  for (const d of byOp('update')) {
-    const result = await pushDeck(d);
-    if (result.ok) summary.pushed.push(d.id);
-    else summary.failed.push(d.id);
-  }
-
-  for (const d of byOp('delete')) {
-    const result = await pushDeck(d);
-    if (result.ok) summary.pushed.push(d.id);
-    else summary.failed.push(d.id);
-  }
-
-  return summary;
+  return pushAllByOp(pending, pushDeck);
 }

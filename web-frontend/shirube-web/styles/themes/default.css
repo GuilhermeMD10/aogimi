@@ -25,10 +25,5 @@ html[data-theme="default"] {
   --lgc-accent-fg:     #FFFFFF;
 
   /* Feedback */
-  --lgc-success:       #3B7A40;
-  --lgc-warning:       #B8802A;
   --lgc-error:         #A04040;
-
-  /* shadcn extras */
-  --radius:            0.625rem;
 }

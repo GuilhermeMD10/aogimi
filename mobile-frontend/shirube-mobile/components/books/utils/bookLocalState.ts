@@ -13,30 +13,16 @@
 // Callers should go through `lib/sync/index.ts` re-exports.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { makeAsyncJsonStore } from '@/lib/storage';
 import type { LocalBookEntry, PendingPayload, SyncState } from '../types';
 
 const KEY = 'book_fingerprints_v1';
 
 type EntryMap = Record<string, LocalBookEntry>;
 
-async function readMap(): Promise<EntryMap> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === 'object' ? (parsed as EntryMap) : {};
-  } catch {
-    return {};
-  }
-}
-
-async function writeMap(map: EntryMap): Promise<void> {
-  try {
-    await AsyncStorage.setItem(KEY, JSON.stringify(map));
-  } catch {
-    /* quota / serialization — best-effort */
-  }
-}
+const store = makeAsyncJsonStore<EntryMap>(KEY);
+const readMap = store.read;
+const writeMap = store.write;
 
 // ── Direct accessors ───────────────────────────────────────────────────────
 
@@ -57,11 +43,6 @@ export async function getStoredFileHash(filename: string): Promise<string | null
  */
 export async function readAllEntries(): Promise<EntryMap> {
   return readMap();
-}
-
-export async function listFilenames(): Promise<string[]> {
-  const map = await readMap();
-  return Object.keys(map);
 }
 
 // ── Mutators ───────────────────────────────────────────────────────────────

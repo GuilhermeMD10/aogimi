@@ -1,5 +1,9 @@
-import { API_URL } from '@/lib/api';
+import { apiGet, apiSend, apiSendVoid } from '@/lib/api';
 import type { CardRecord, DeckRecord } from '../types';
+
+// Feature-local API for decks/cards/reviews. Routed through `lib/api`
+// helpers so session-invalidation works uniformly; the file stays
+// scoped to the decks domain.
 
 export async function createDeck(params: {
   userId: number;
@@ -7,84 +11,56 @@ export async function createDeck(params: {
   description?: string;
   bookId?: string;
 }): Promise<DeckRecord> {
-  const res = await fetch(`${API_URL}/api/decks`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed to create deck');
-  return res.json();
+  return apiSend<DeckRecord>('/api/decks', 'POST', params);
 }
 
-export async function getUserDecks(userId: number, signal?: AbortSignal): Promise<DeckRecord[]> {
-  const res = await fetch(`${API_URL}/api/decks/user/${userId}`, { signal });
-  if (!res.ok) throw new Error('Failed to fetch decks');
-  return res.json();
+export async function getUserDecks(
+  userId: number,
+  signal?: AbortSignal,
+): Promise<DeckRecord[]> {
+  return apiGet<DeckRecord[]>(`/api/decks/user/${userId}`, signal);
 }
 
 export async function getDeck(id: string, signal?: AbortSignal): Promise<DeckRecord> {
-  const res = await fetch(`${API_URL}/api/decks/${id}`, { signal });
-  if (!res.ok) throw new Error('Deck not found');
-  return res.json();
+  return apiGet<DeckRecord>(`/api/decks/${id}`, signal);
 }
 
 export async function updateDeck(
   id: string,
   params: { name?: string; description?: string },
 ): Promise<DeckRecord> {
-  const res = await fetch(`${API_URL}/api/decks/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  if (!res.ok) throw new Error('Failed to update deck');
-  return res.json();
+  return apiSend<DeckRecord>(`/api/decks/${id}`, 'PUT', params);
 }
 
 export async function deleteDeck(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/decks/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete deck');
+  return apiSendVoid(`/api/decks/${id}`, 'DELETE');
 }
 
-export async function getDeckCards(deckId: string, signal?: AbortSignal): Promise<CardRecord[]> {
-  const res = await fetch(`${API_URL}/api/decks/${deckId}/cards`, { signal });
-  if (!res.ok) throw new Error('Failed to fetch cards');
-  return res.json();
+export async function getDeckCards(
+  deckId: string,
+  signal?: AbortSignal,
+): Promise<CardRecord[]> {
+  return apiGet<CardRecord[]>(`/api/decks/${deckId}/cards`, signal);
 }
 
 export async function createCard(
   deckId: string,
   params: { front: string; back: string; reading?: string; notes?: string; contextSentence?: string },
 ): Promise<CardRecord> {
-  const res = await fetch(`${API_URL}/api/decks/${deckId}/cards`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed to create card');
-  return res.json();
+  return apiSend<CardRecord>(`/api/decks/${deckId}/cards`, 'POST', params);
 }
 
 export async function updateCard(
   cardId: string,
   params: { front?: string; reading?: string; back?: string; notes?: string; state?: string },
 ): Promise<CardRecord> {
-  const res = await fetch(`${API_URL}/api/decks/cards/${cardId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  if (!res.ok) throw new Error('Failed to update card');
-  return res.json();
+  return apiSend<CardRecord>(`/api/decks/cards/${cardId}`, 'PUT', params);
 }
 
 export async function deleteCard(cardId: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/decks/cards/${cardId}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete card');
+  return apiSendVoid(`/api/decks/cards/${cardId}`, 'DELETE');
 }
 
 export async function reviewCard(cardId: string): Promise<CardRecord> {
-  const res = await fetch(`${API_URL}/api/decks/cards/${cardId}/review`, { method: 'POST' });
-  if (!res.ok) throw new Error('Failed to record review');
-  return res.json();
+  return apiSend<CardRecord>(`/api/decks/cards/${cardId}/review`, 'POST');
 }
