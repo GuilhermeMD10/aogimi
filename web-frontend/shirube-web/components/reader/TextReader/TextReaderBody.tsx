@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import { TocPanel } from '@/components/reader/TocPanel';
 import { AnnotationsPanel } from '@/components/reader/AnnotationsPanel';
 import { DeepLTranslationPopup } from '@/components/DeepLTranslationPopup';
+import { DEEPL_ENABLED } from '@/lib/features/deepl';
 import { THEMES } from '@/components/reader/readerConstants';
 import { TypographyPanel } from '@/components/reader/TypographyPanel';
 import { TextContextMenu } from '@/components/reader/TextContextMenu';
@@ -112,7 +113,16 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
           selectedCfi={selectedCfi}
           epubHighlights={epubHighlights}
           onLookup={() => onLookup(selectedText, contextSentence)}
-          onDeepL={() => setTranslation({ text: selectedText, x: ctxMenu.x, y: ctxMenu.y })}
+          onDeepL={() => {
+            // DeepL is feature-flagged off (see lib/features/deepl.ts).
+            // The context menu also gates its DeepL button so this
+            // callback is unreachable from the UI today — guarded
+            // here as a defense-in-depth match for the popup gate
+            // below.
+            if (DEEPL_ENABLED) {
+              setTranslation({ text: selectedText, x: ctxMenu.x, y: ctxMenu.y });
+            }
+          }}
           onHighlight={applyHighlight}
           onAddCard={() => onAddCard(selectedText, contextSentence)}
           onClose={() => setCtxMenu(null)}
@@ -120,7 +130,10 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
         document.body,
       )}
 
-      {translation && (
+      {/* DeepL popup feature-flagged off (see lib/features/deepl.ts).
+          State, render, and the upstream callback are all gated so
+          re-enabling is a single edit. */}
+      {DEEPL_ENABLED && translation && (
         <DeepLTranslationPopup
           originalText={translation.text}
           position={{ x: translation.x, y: translation.y }}

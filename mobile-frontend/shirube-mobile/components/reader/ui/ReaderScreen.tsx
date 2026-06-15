@@ -46,6 +46,7 @@ import { NovelReader } from './novel/NovelReader';
 import { MangaReader } from './manga/MangaReader';
 import { HighlightPicker } from './HighlightPicker';
 import { DeepLPopup } from './DeepLPopup';
+import { DEEPL_ENABLED } from '@/lib/features/deepl';
 import { NativeSelectionMenu, type NativeMenuKey } from '../utils/native-selection';
 import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle } from '../utils/foliateHtml';
 import { useReaderLayoutPrefs, flowForCombo } from '../utils/readerLayout';
@@ -274,7 +275,12 @@ export function ReaderScreen({ bookId }: Props) {
         return;
       }
       if (key === 'deepl') {
-        setDeepLText(term);
+        // DeepL is feature-flagged off (see lib/features/deepl.ts).
+        // The selection menu also filters this key out, so this branch
+        // shouldn't be reachable today — kept so re-enabling is a
+        // single edit. Guard inside the if matches the popup gate
+        // below.
+        if (DEEPL_ENABLED) setDeepLText(term);
         return;
       }
       if (key === 'highlight' && selection) {
@@ -734,7 +740,12 @@ export function ReaderScreen({ bookId }: Props) {
         onDismiss={() => setFlashcardPrefill(null)}
       />
 
-      <DeepLPopup visible={deepLText !== null} text={deepLText ?? ''} onDismiss={() => setDeepLText(null)} />
+      {/* DeepL popup feature-flagged off (see lib/features/deepl.ts).
+          The popup component, state, and dispatch are all left intact
+          so re-enabling is a single edit. */}
+      {DEEPL_ENABLED && (
+        <DeepLPopup visible={deepLText !== null} text={deepLText ?? ''} onDismiss={() => setDeepLText(null)} />
+      )}
     </SafeAreaView>
   );
 }
