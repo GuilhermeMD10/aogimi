@@ -1,34 +1,31 @@
+// Profile endpoints. Identity is carried by the Authorization header
+// in `lib/api.ts`; helpers here only ship the data they're updating —
+// no usernames or passwords. Login + registration live in
+// `lib/auth/authApi.ts`.
+
 import { apiGet, apiSend, apiSendVoid } from './api';
-import type { AuthUser, ProfileUpdate, UserProfile } from '@/lib/types';
+import type { ProfileUpdate, UserProfile } from '@/lib/types';
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
+// Re-export for backwards-compatible imports across the app.
+export { loginUser, registerUser, logoutUser } from './auth/authApi';
+export type { AuthSuccess } from './auth/authApi';
 
-export function loginUser(username: string, password: string): Promise<AuthUser> {
-  return apiSend<AuthUser>('/api/user/info', 'POST', { username, password });
-}
-
-export function signupUser(username: string, password: string): Promise<AuthUser> {
-  return apiSend<AuthUser>('/api/user/create', 'POST', { username, password });
-}
-
-// ── Profile ──────────────────────────────────────────────────────────────────
+/** Compatibility alias — older code imports `signupUser`. */
+export { registerUser as signupUser } from './auth/authApi';
 
 export function getUserProfile(userId: number, signal?: AbortSignal): Promise<UserProfile> {
-  // Routed through apiGet (not raw fetch) so the api.ts session-invalidation
-  // interceptor catches a 401 USER_NOT_FOUND here too.
   return apiGet<UserProfile>(`/api/user/${userId}`, signal);
 }
 
-export function updateUserProfile(
-  username: string,
-  password: string,
-  updates: ProfileUpdate,
-): Promise<UserProfile> {
-  return apiSend<UserProfile>('/api/user/update', 'POST', { username, password, updates });
+export function updateUserProfile(updates: ProfileUpdate): Promise<UserProfile> {
+  return apiSend<UserProfile>('/api/user', 'PATCH', { updates });
 }
 
-// ── Onboarding ───────────────────────────────────────────────────────────────
+/** Mark onboarding complete for the current (signed-in) user. */
+export function markOnboardingCompleted(): Promise<void> {
+  return apiSendVoid('/api/user/onboarding', 'PUT', { completed: true });
+}
 
-export function markOnboardingCompleted(userId: number): Promise<void> {
-  return apiSendVoid('/api/user/onboarding', 'PUT', { userId, completed: true });
+export function deleteCurrentUser(): Promise<void> {
+  return apiSendVoid('/api/user', 'DELETE');
 }

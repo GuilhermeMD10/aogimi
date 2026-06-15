@@ -1,35 +1,17 @@
-
 const userRepo = require("../repositories/userRepository");
 
+// Whitelist of mutable profile fields. Anything else in the `updates`
+// payload is silently dropped before hitting the DB — keeps clients
+// from accidentally (or deliberately) writing to `id`, `password_hash`,
+// `username`, etc. by stuffing the field into the patch.
+const ALLOWED_UPDATES = new Set([
+  "display_name",
+  "email",
+  "language",
+  "avatar_index",
+  "onboarding_completed",
+]);
 
-//create user with username  and password
-async function createUser(username, password) {
-  try {
-    return await userRepo.create({ username, password });
-  } catch (err) {
-    throw new Error(`userService.createUser failed: ${err.message}`);
-  }
-}
-
-//get user info with username and password
-async function getUserInfo(username, password) {
-  try {
-    return await userRepo.findByUsernameAndPassword(username, password);
-  } catch (err) {
-    throw new Error(`userService.getUserInfo failed: ${err.message}`);
-  }
-}
-
-//update user info with username and password
-async function updateUser(username, password, updates) {
-  try {
-    return await userRepo.updateByUsernameAndPassword(username, password, updates);
-  } catch (err) {
-    throw new Error(`userService.updateUser failed: ${err.message}`);
-  }
-}
-
-//get user profile by id (public fields only)
 async function getProfile(id) {
   try {
     return await userRepo.findById(id);
@@ -38,10 +20,24 @@ async function getProfile(id) {
   }
 }
 
-//delete user with username and password
-async function deleteUser(username, password) {
+async function updateProfile(id, updates) {
+  const filtered = {};
+  for (const [k, v] of Object.entries(updates)) {
+    if (ALLOWED_UPDATES.has(k)) filtered[k] = v;
+  }
+  if (Object.keys(filtered).length === 0) {
+    return await userRepo.findById(id);
+  }
   try {
-    return await userRepo.deleteByUsernameAndPassword(username, password);
+    return await userRepo.updateById(id, filtered);
+  } catch (err) {
+    throw new Error(`userService.updateProfile failed: ${err.message}`);
+  }
+}
+
+async function deleteUser(id) {
+  try {
+    return await userRepo.deleteById(id);
   } catch (err) {
     throw new Error(`userService.deleteUser failed: ${err.message}`);
   }
@@ -55,5 +51,4 @@ async function setOnboardingCompleted(userId, completed) {
   }
 }
 
-module.exports = { createUser, getUserInfo, getProfile, updateUser, deleteUser, setOnboardingCompleted };
-
+module.exports = { getProfile, updateProfile, deleteUser, setOnboardingCompleted };

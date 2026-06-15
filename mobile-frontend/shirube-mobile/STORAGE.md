@@ -23,11 +23,19 @@ outlive a screen.
 
 | Key | What | Owner |
 |---|---|---|
-| `shirube_credentials` | `{ username, password }` for auto-sign-in (cleared on sign-out) | `lib/auth/AuthContext.tsx` |
+| `shirube_access_token` | JWT access token mirror (cold-boot hint; in-memory is the source of truth during a session). Refresh token lives in **expo-secure-store**, NOT here. See [`../../docs/AUTH.md`](../../docs/AUTH.md). | `lib/auth/tokenStore.ts` |
+| `shirube_user_cache` | Cached `UserProfile` so a launch without network keeps the user signed-in instead of bouncing to auth | `lib/auth/AuthContext.tsx` |
 | `reader_prefs` | Reader prefs (font / theme / lineHeight / fontFamily), global per user | `lib/readerPrefs.ts` |
 | `reader_layout`, `reader_direction`, `reader_manga_mode`, `reader_manga_page_dir` | Layout prefs (pages vs scroll, horizontal vs vertical, manga mode + page direction) | `lib/readerLayout.ts` |
-| `reader_book_<urlEncodedFilename>` | Per-book `lastCfi` + `highlights[]` + `bookmarks[]`. **Highlights live only here** — no backend table yet | `lib/readerStorage.ts` |
+| `reader_book_<urlEncodedFilename>` | Per-book `lastCfi`, `lastProgress`, `lastReadAt`, `highlights[]`, `bookmarks[]`. Filename-keyed (user-agnostic) so progress survives sign-up. **Highlights live only here** — no backend table yet | `lib/readerStorage.ts` |
+| `books_filter_available_only_v1` | Library "available-only" filter toggle | `components/books/ui/BooksScreen.tsx` |
 | `dictionary_recent_searches` | Dictionary search history | `lib/storage/dictionary.ts` |
+
+### Secure-store (iOS Keychain / Android Keystore) — separate from AsyncStorage
+
+| Key | What | Owner |
+|---|---|---|
+| `shirube_refresh_token` | Long-lived (30 day) JWT refresh token. NEVER in AsyncStorage — that's plaintext on iOS. See [`../../docs/AUTH.md`](../../docs/AUTH.md). | `lib/auth/tokenStore.ts` |
 
 ## File system (expo-file-system)
 
@@ -75,8 +83,10 @@ session installs.
   optimistic progress patches (`clearLocalProgress()`).
 
 **What gets kept:** `lgc_device_id`, `lgc_device_name`,
-`shirube_theme_name`, and `shirube_credentials` (about to be overwritten
-by the new sign-in anyway).
+`shirube_theme_name`, and the new tokens (`shirube_access_token` /
+`shirube_refresh_token` — about to be overwritten by the new sign-in
+anyway, and the refresh side lives in SecureStore which has its own
+delete path).
 
 ## Single-book delete
 

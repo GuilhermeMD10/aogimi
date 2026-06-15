@@ -83,7 +83,11 @@ web-frontend/langecko-web/
 │   ├── decksApi.ts               Deck + card endpoints
 │   ├── devicesApi.ts             Multi-device sync endpoints
 │   ├── dictApi.ts                Dictionary search + word details
-│   ├── userApi.ts                Login/signup/profile/onboarding
+│   ├── userApi.ts                Profile read/update; re-exports loginUser/registerUser/logoutUser from lib/auth/authApi.ts
+│   ├── auth/
+│   │   ├── authApi.ts            /api/auth/{login,register,logout} (public, no Authorization)
+│   │   ├── tokenStore.ts         Access + refresh token persistence (localStorage)
+│   │   └── wipeUserData.ts       Account-switch wipe
 │   ├── translateApi.ts           DeepL proxy fetch
 │   ├── types/                    Domain types (book, deck, dict, user, device, translate, epubjs)
 │   ├── storage/                  localStorage adapters per concern
@@ -132,7 +136,7 @@ All state is in **React Context providers**, mounted by `AppShell`. Nothing in l
 
 | Provider | What it owns | localStorage key(s) |
 |---|---|---|
-| `AuthProvider` | Current user, login/signup flows | `auth-user` |
+| `AuthProvider` | Current user, login/signup/logout flows. JWT access + refresh tokens via [`lib/auth/tokenStore.ts`](lib/auth/tokenStore.ts); session-invalidation hook in [`lib/api.ts`](lib/api.ts) auto-signs-out on unrecoverable 401. See [`../../docs/AUTH.md`](../../docs/AUTH.md). | `auth_user`, `shirube_access_token`, `shirube_refresh_token` |
 | `ThemeProvider` | Active theme + setter | `app-theme` |
 | `ShortcutsProvider` | Global keydown dispatcher + cheatsheet open state | (in-memory only) |
 | `ReaderStateProvider` | Active book session, sidekick toggle, progress sync (record/flush/beacon on exit), and the three cross-route pending signals (`pendingDictSearch`, `pendingCard`, `pendingBookOpen`) | `reader_progress_<filename>` (one per book) |
@@ -150,6 +154,19 @@ Backend lives at `NEXT_PUBLIC_API_URL` (default `http://localhost:3000`). Full e
 - `apiGet<T>(path, signal?)` — GET → JSON
 - `apiSend<T>(path, method, body?, signal?)` — POST/PUT/PATCH/DELETE → JSON
 - `apiSendVoid(path, method, body?, signal?)` — same, ignores response body
+- `apiSendPublic<T>(...)` — same as `apiSend` but **skips the Authorization
+  header** and the 401 refresh-retry. Use for `/api/auth/*` and anything
+  else that must not carry a bearer token.
+
+**Authorization is injected automatically.** Every authenticated call
+goes through `request()` in `lib/api.ts`, which:
+1. Stamps `Authorization: Bearer <access>` if a token is present.
+2. On 401, calls `/api/auth/refresh` once (single-flight, so concurrent
+   401s share one in-flight refresh) and retries the original request.
+3. If the refresh itself fails 401, clears tokens and fires the
+   session-invalidation hook → `AuthProvider` wipes the stored user.
+
+See [`../../docs/AUTH.md`](../../docs/AUTH.md) for the full token model.
 - `sendProgressBeacon(id, payload)` — uses `navigator.sendBeacon` for fire-and-forget on tab close
 
 All accept an optional `AbortSignal`. Pair with `useEffect` cleanup to cancel in-flight fetches when components unmount.

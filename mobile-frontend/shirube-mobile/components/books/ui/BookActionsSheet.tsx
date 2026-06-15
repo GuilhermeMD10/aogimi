@@ -37,7 +37,7 @@ type Props = {
 export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
   const c = useColors();
   const { user, status } = useAuth();
-  const isGuest = status === 'guest';
+  const cannotSync = status !== 'signed-in';
   const [mode, setMode] = useState<'menu' | 'rename'>('menu');
   const [draftTitle, setDraftTitle] = useState('');
   const [busy, setBusy] = useState(false);
@@ -162,7 +162,7 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
         {mode === 'menu' && (
           <View style={styles.menu}>
             {/* Sync-now is hidden for guests — no account to push to. */}
-            {!isGuest && (
+            {!cannotSync && (
               <ActionRow
                 label="Sync now"
                 onPress={handleSync}

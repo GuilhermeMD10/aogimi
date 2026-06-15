@@ -26,7 +26,7 @@ export function DecksListScreen() {
   const t = useT();
   const router = useRouter();
   const { status } = useAuth();
-  const isGuest = status === 'guest';
+  const cannotSync = status !== 'signed-in';
   const { decks, loading, refreshing, error, refresh, reloadLocal } = useDecks();
   const [newDeckOpen, setNewDeckOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -65,7 +65,7 @@ export function DecksListScreen() {
         <View style={styles.headerActions}>
           {/* Sync-now is hidden for guests — they have no account to
               push to. Conversion happens from the Profile page. */}
-          {!isGuest && (
+          {!cannotSync && (
             <Pressable
               onPress={handleSyncNow}
               disabled={syncing}
