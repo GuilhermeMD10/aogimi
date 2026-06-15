@@ -16,7 +16,6 @@
       "tagline": "単語をタップすると意味が表示され、単語帳に保存して文脈の中で学べます。",
       "signIn": "サインイン",
       "createAccount": "アカウント作成",
-      "continueAsGuest": "アカウントなしで続ける",
       "google": "Google",
       "apple": "Apple"
     },
@@ -106,7 +105,10 @@
     "theme": "テーマ",
     "currentlyReading": "現在読書中",
     "signOut": "サインアウト",
-    "changeAvatar": "アバターを変更"
+    "changeAvatar": "アバターを変更",
+    "signedOut": {
+      "note": "アカウントなしでも読書やデッキの作成は続けられます。データはこの端末に保存されます。後でサインアップすると、端末間で同期できるようになります。"
+    }
   },
   "settings": {
     "title": "設定",

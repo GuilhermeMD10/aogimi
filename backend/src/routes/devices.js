@@ -1,102 +1,108 @@
+// /api/devices/* — per-device book availability tracking.
+//
+// All ownership flows through `req.user.userId`. `userId` in body /
+// query is ignored. Device + availability rows are scoped by user_id
+// at the (deviceId, userId) compound primary key, so a stale-id
+// request from user A targeting user B's device just returns 404.
+
 const { Router } = require("express");
 const deviceService = require("../services/deviceService");
-const { ensureUserExists } = require("../middleware/verifyUser");
+const { deviceOwnedBy, bookOwnedBy } = require("../services/ownership");
 
 const router = Router();
 
-// POST /api/devices — register or update a device
+// POST /api/devices — register or update a device for the calling user.
 router.post("/", async (req, res) => {
-  const { userId, deviceId, name } = req.body;
-  if (!userId || !deviceId) {
-    return res.status(400).json({ error: "userId and deviceId are required" });
-  }
+  const { deviceId, name } = req.body;
+  if (!deviceId) return res.status(400).json({ error: "deviceId is required" });
   try {
-    const device = await deviceService.registerDevice(userId, deviceId, name);
-    res.json(device);
+    const device = await deviceService.registerDevice(req.user.userId, deviceId, name);
+    return res.json(device);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Register failed" });
   }
 });
 
-// GET /api/devices/user/:userId — list all devices for a user
 router.get("/user/:userId", async (req, res) => {
-  if (!(await ensureUserExists(res, req.params.userId))) return;
+  const requested = parseInt(req.params.userId, 10);
+  if (!Number.isFinite(requested) || requested !== req.user.userId) {
+    return res.status(404).json({ error: "Not found" });
+  }
   try {
-    const devices = await deviceService.getUserDevices(parseInt(req.params.userId, 10));
-    res.json(devices);
+    const devices = await deviceService.getUserDevices(req.user.userId);
+    return res.json(devices);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "List failed" });
   }
 });
 
-// PUT /api/devices/:deviceId — rename a device
 router.put("/:deviceId", async (req, res) => {
-  const { userId, name } = req.body;
-  if (!userId || !name) {
-    return res.status(400).json({ error: "userId and name are required" });
+  if (!(await deviceOwnedBy(req.user.userId, req.params.deviceId))) {
+    return res.status(404).json({ error: "Not found" });
   }
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: "name is required" });
   try {
-    const device = await deviceService.renameDevice(req.params.deviceId, userId, name);
-    res.json(device);
+    const device = await deviceService.renameDevice(req.params.deviceId, req.user.userId, name);
+    return res.json(device);
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    return res.status(404).json({ error: "Not found" });
   }
 });
 
-// DELETE /api/devices/:deviceId — remove a device
 router.delete("/:deviceId", async (req, res) => {
-  const { userId } = req.query;
-  if (!userId) {
-    return res.status(400).json({ error: "userId query param is required" });
+  if (!(await deviceOwnedBy(req.user.userId, req.params.deviceId))) {
+    return res.status(404).json({ error: "Not found" });
   }
   try {
-    await deviceService.removeDevice(req.params.deviceId, parseInt(userId, 10));
-    res.json({ message: "Device removed" });
+    await deviceService.removeDevice(req.params.deviceId, req.user.userId);
+    return res.json({ message: "Device removed" });
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    return res.status(404).json({ error: "Not found" });
   }
 });
 
-// POST /api/devices/:deviceId/books/:bookId/available — mark book available on device
+// ── Per-device book availability ────────────────────────────────────────────
+
 router.post("/:deviceId/books/:bookId/available", async (req, res) => {
-  const { userId } = req.body;
-  if (!userId) {
-    return res.status(400).json({ error: "userId is required" });
+  if (!(await deviceOwnedBy(req.user.userId, req.params.deviceId))) {
+    return res.status(404).json({ error: "Not found" });
+  }
+  if (!(await bookOwnedBy(req.user.userId, req.params.bookId))) {
+    return res.status(404).json({ error: "Not found" });
   }
   try {
-    const row = await deviceService.markBookAvailable(userId, req.params.deviceId, req.params.bookId);
-    res.json(row);
+    const row = await deviceService.markBookAvailable(req.user.userId, req.params.deviceId, req.params.bookId);
+    return res.json(row);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Mark failed" });
   }
 });
 
-// DELETE /api/devices/:deviceId/books/:bookId/available — remove book availability
 router.delete("/:deviceId/books/:bookId/available", async (req, res) => {
-  const { userId } = req.query;
-  if (!userId) {
-    return res.status(400).json({ error: "userId query param is required" });
+  if (!(await deviceOwnedBy(req.user.userId, req.params.deviceId))) {
+    return res.status(404).json({ error: "Not found" });
+  }
+  if (!(await bookOwnedBy(req.user.userId, req.params.bookId))) {
+    return res.status(404).json({ error: "Not found" });
   }
   try {
-    await deviceService.removeBookAvailability(parseInt(userId, 10), req.params.deviceId, req.params.bookId);
-    res.json({ message: "Availability removed" });
+    await deviceService.removeBookAvailability(req.user.userId, req.params.deviceId, req.params.bookId);
+    return res.json({ message: "Availability removed" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Remove failed" });
   }
 });
 
-// GET /api/devices/:deviceId/books — get all user books with availability flag
 router.get("/:deviceId/books", async (req, res) => {
-  const { userId } = req.query;
-  if (!userId) {
-    return res.status(400).json({ error: "userId query param is required" });
+  if (!(await deviceOwnedBy(req.user.userId, req.params.deviceId))) {
+    return res.status(404).json({ error: "Not found" });
   }
-  if (!(await ensureUserExists(res, userId))) return;
   try {
-    const books = await deviceService.getDeviceBooks(parseInt(userId, 10), req.params.deviceId);
-    res.json(books);
+    const books = await deviceService.getDeviceBooks(req.user.userId, req.params.deviceId);
+    return res.json(books);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "List failed" });
   }
 });
 

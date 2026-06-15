@@ -31,7 +31,7 @@ export interface OnboardingExplainerProps {
 export default function OnboardingExplainer({ userId, onDismiss }: OnboardingExplainerProps) {
   const handleGotIt = useCallback(async () => {
     clearNeedsOnboarding();
-    try { await markOnboardingCompleted(userId); } catch { /* best-effort */ }
+    try { await markOnboardingCompleted(); } catch { /* best-effort */ }
     onDismiss();
   }, [userId, onDismiss]);
 

@@ -1,148 +1,179 @@
+// /api/books/* — book metadata + reading progress + bookmarks.
+//
+// Mounted under `authenticateJWT`; `req.user.userId` is the only source
+// of truth for who's calling. The `userId` field in request bodies is
+// IGNORED — present-but-ignored is the safe default during the client
+// rollout. Every route that takes a `:id` (or path under it) verifies
+// `bookOwnedBy(req.user.userId, id)` before doing anything; mismatch
+// returns 404 to avoid leaking which book ids exist.
+
 const { Router } = require("express");
 const bookService = require("../services/bookService");
 const bookmarkService = require("../services/bookmarkService");
-const { ensureUserExists } = require("../middleware/verifyUser");
+const { requireUserMatch } = require("../middleware/authorize");
+const { bookOwnedBy, bookmarkOwnedBy } = require("../services/ownership");
 
 const router = Router();
 
-// POST /api/books — register a new book for a user
+// POST /api/books — register a new book for the calling user.
 router.post("/", async (req, res) => {
-  const { userId, filename, title, author, coverColor, fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher } = req.body;
-  if (!userId || !filename || !title) {
-    return res.status(400).json({ error: "userId, filename, and title are required" });
+  const { filename, title, author, coverColor, fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher } = req.body;
+  if (!filename || !title) {
+    return res.status(400).json({ error: "filename and title are required" });
   }
   try {
-    const book = await bookService.createBook(userId, { filename, title, author, coverColor, fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher });
-    res.json(book);
+    const book = await bookService.createBook(req.user.userId, { filename, title, author, coverColor, fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher });
+    return res.json(book);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Create failed" });
   }
 });
 
-// POST /api/books/match — match an array of books by hash/metadata
-// Must be before /:id to avoid "match" being captured as a book ID
+// POST /api/books/match — match candidates against the caller's library.
+// Must be before /:id to avoid "match" being captured as a book id.
 router.post("/match", async (req, res) => {
-  const { userId, books } = req.body;
-  if (!userId || !Array.isArray(books)) {
-    return res.status(400).json({ error: "userId and books array are required" });
+  const { books } = req.body;
+  if (!Array.isArray(books)) {
+    return res.status(400).json({ error: "books array is required" });
   }
-  if (!(await ensureUserExists(res, userId))) return;
   try {
-    const results = await bookService.matchBooks(userId, books);
-    res.json(results);
+    const results = await bookService.matchBooks(req.user.userId, books);
+    return res.json(results);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Match failed" });
   }
 });
 
-// GET /api/books/user/:userId — list all books for a user
-router.get("/user/:userId", async (req, res) => {
-  if (!(await ensureUserExists(res, req.params.userId))) return;
-  try {
-    const books = await bookService.getUserBooks(parseInt(req.params.userId, 10));
-    res.json(books);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// GET /api/books/user/:userId — list books for a user. The token user
+// can only list their own books.
+router.get(
+  "/user/:userId",
+  requireUserMatch({ from: "params", key: "userId" }),
+  async (req, res) => {
+    try {
+      const books = await bookService.getUserBooks(req.user.userId);
+      return res.json(books);
+    } catch (err) {
+      return res.status(500).json({ error: "List failed" });
+    }
+  },
+);
 
-// GET /api/books/:id — get a single book
+// GET /api/books/:id — get a single book (only if it belongs to the caller).
 router.get("/:id", async (req, res) => {
+  if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
+    return res.status(404).json({ error: "Not found" });
+  }
   try {
     const book = await bookService.getBook(req.params.id);
-    if (!book) return res.status(404).json({ error: "Book not found" });
-    res.json(book);
+    if (!book) return res.status(404).json({ error: "Not found" });
+    return res.json(book);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Read failed" });
   }
 });
 
-// PUT/POST /api/books/:id/progress — update reading progress
-// POST supported for navigator.sendBeacon() compatibility
+// PUT/POST /api/books/:id/progress — update reading progress.
 async function handleProgressUpdate(req, res) {
+  if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
+    return res.status(404).json({ error: "Not found" });
+  }
   const { cfiPosition, progress, spineIndex, totalSpineItems } = req.body;
   try {
     const book = await bookService.updateProgress(req.params.id, {
       cfiPosition, progress, spineIndex, totalSpineItems,
     });
-    res.json(book);
+    return res.json(book);
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    return res.status(404).json({ error: "Not found" });
   }
 }
 router.put("/:id/progress", handleProgressUpdate);
 router.post("/:id/progress", handleProgressUpdate);
 
-// PATCH /api/books/:id — update editable book metadata (currently: title)
+// PATCH /api/books/:id — update editable book metadata.
 router.patch("/:id", async (req, res) => {
+  if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
+    return res.status(404).json({ error: "Not found" });
+  }
   const { title } = req.body;
   if (typeof title !== "string" || title.trim().length === 0) {
     return res.status(400).json({ error: "title is required" });
   }
   try {
     const book = await bookService.updateTitle(req.params.id, title.trim());
-    res.json(book);
+    return res.json(book);
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    return res.status(404).json({ error: "Not found" });
   }
 });
 
-// PUT /api/books/:id/identity — update hash/metadata identity fields
+// PUT /api/books/:id/identity — update hash/metadata identity fields.
 router.put("/:id/identity", async (req, res) => {
+  if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
+    return res.status(404).json({ error: "Not found" });
+  }
   const { fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher } = req.body;
   try {
     const book = await bookService.updateIdentity(req.params.id, {
       fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher,
     });
-    res.json(book);
+    return res.json(book);
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    return res.status(404).json({ error: "Not found" });
   }
 });
 
-// DELETE /api/books/:id — delete a book
+// DELETE /api/books/:id
 router.delete("/:id", async (req, res) => {
+  if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
+    return res.status(404).json({ error: "Not found" });
+  }
   try {
     await bookService.deleteBook(req.params.id);
-    res.json({ message: "Book deleted" });
+    return res.json({ message: "Book deleted" });
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    return res.status(404).json({ error: "Not found" });
   }
 });
 
 // ── Bookmarks (nested under book) ───────────────────────────────────────────
 
-// POST /api/books/:id/bookmarks — create bookmark
 router.post("/:id/bookmarks", async (req, res) => {
-  const { cfi, label } = req.body;
-  if (!cfi) {
-    return res.status(400).json({ error: "cfi is required" });
+  if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
+    return res.status(404).json({ error: "Not found" });
   }
+  const { cfi, label } = req.body;
+  if (!cfi) return res.status(400).json({ error: "cfi is required" });
   try {
     const bookmark = await bookmarkService.createBookmark(req.params.id, { cfi, label });
-    res.json(bookmark);
+    return res.json(bookmark);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Create failed" });
   }
 });
 
-// GET /api/books/:id/bookmarks — list bookmarks for a book
 router.get("/:id/bookmarks", async (req, res) => {
+  if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
+    return res.status(404).json({ error: "Not found" });
+  }
   try {
     const bookmarks = await bookmarkService.getBookmarks(req.params.id);
-    res.json(bookmarks);
+    return res.json(bookmarks);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Read failed" });
   }
 });
 
-// DELETE /api/books/bookmarks/:bookmarkId — delete a bookmark
 router.delete("/bookmarks/:bookmarkId", async (req, res) => {
+  if (!(await bookmarkOwnedBy(req.user.userId, req.params.bookmarkId))) {
+    return res.status(404).json({ error: "Not found" });
+  }
   try {
     await bookmarkService.deleteBookmark(req.params.bookmarkId);
-    res.json({ message: "Bookmark deleted" });
+    return res.json({ message: "Bookmark deleted" });
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    return res.status(404).json({ error: "Not found" });
   }
 });
 

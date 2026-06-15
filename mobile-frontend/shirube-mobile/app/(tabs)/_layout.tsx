@@ -1,5 +1,5 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Redirect, Tabs } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { NotchedNavBar } from '@/components/navigation/NotchedNavBar';
@@ -8,11 +8,14 @@ import { NotchedNavBar } from '@/components/navigation/NotchedNavBar';
 //   profile · dictionary · reader · decks · settings.
 // The bar's notch position is computed from `state.index` against that
 // fixed order, so don't reorder these without re-deriving the SLOTS array.
+//
+// Signed-out users render the same tabs — Profile shows the sign-in /
+// sign-up panel for them; everything else operates local-first against
+// the same pending pipeline signed-in users use offline.
 export default function TabsLayout() {
   const { status } = useAuth();
   const t = useT();
 
-  if (status === 'signed-out') return <Redirect href="/(auth)/welcome" />;
   if (status === 'loading') return null;
 
   return (

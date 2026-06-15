@@ -1,157 +1,197 @@
 # Shirube — API Routes
 
-Every endpoint the frontend calls. Edit when routes change.
+Every endpoint the frontend calls. Edit when routes change. See
+[`SCHEMA.md`](./SCHEMA.md) for the underlying tables and
+[`docs/AUTH.md`](../docs/AUTH.md) for the token model.
 
-Base URL: `http://localhost:3000` (configurable via PORT env var).
-CORS: `http://localhost:3001`, `http://localhost:3002` (configurable via CORS_ORIGIN).
+Base URL: `http://localhost:3000` (configurable via `PORT`).
+CORS: `http://localhost:3001` and `:3002` in dev; production sets
+`CORS_ORIGIN`. Native mobile sends no Origin header, so CORS is
+not a factor for it.
 
 ---
 
-## Search
+## Authentication
+
+Every route below the dictionary section requires
+`Authorization: Bearer <jwt>` and returns 401 on missing / invalid /
+expired. Clients auto-refresh once via `/api/auth/refresh` before
+surfacing the 401. See [`docs/AUTH.md`](../docs/AUTH.md).
+
+The `userId` field is **ignored** in request bodies and path params
+where it duplicates the token identity — `req.user.userId` is the only
+source of truth. Routes that take a resource id (`:id` for book, deck,
+card, etc.) cross-check ownership via
+`backend/src/services/ownership.js`; mismatch returns **404** (not 403)
+so the response shape is identical to "doesn't exist", preventing id
+enumeration.
+
+---
+
+## Public — Auth surface
+
+| Method | Path | Body | Response | Rate limit |
+|---|---|---|---|---|
+| POST | `/api/auth/register` | `{ username, password }` | `{ user, accessToken, refreshToken }` (201) | 3/hr/IP |
+| POST | `/api/auth/login` | `{ username, password }` | `{ user, accessToken, refreshToken }` | 5/15min/(IP+username) |
+| POST | `/api/auth/refresh` | `{ refreshToken }` | `{ user, accessToken, refreshToken }` | global only |
+| POST | `/api/auth/logout` | `{ refreshToken }` | `{ ok: true }` (idempotent) | global only |
+
+Errors:
+- 400: zod validation failure or weak password (zxcvbn score < 2)
+- 401: invalid credentials / refresh token
+- 409: `Username already taken` (register only)
+- 429: rate limited
+
+---
+
+## Public — Dictionary (no auth)
+
+### Search
 
 | Method | Path | Body / Params | Response | DB Tables |
-|--------|------|---------------|----------|-----------|
+|---|---|---|---|---|
 | GET | `/api/search?q=食べる` | `q` (required) | Unified search: words, names, kanji | words, kanji, names |
 
----
+### Words
 
-## Words
-
-| Method | Path | Body / Params | Response | DB Tables |
-|--------|------|---------------|----------|-----------|
-| GET | `/api/words/:id` | `id` (word ID) | Single word | words |
-| GET | `/api/words/:id/details` | `id` (word ID) | Word + kanji breakdown (readings as `{ form, pitchAccents }`) + up to 5 example sentences | words, kanji, example_sentences |
-| GET | `/api/words/:id/langs` | `id` (word ID) | All translations across languages | words |
-| GET | `/api/words/meaning?q=eat&lang=eng` | `q` (required), `lang` (optional) | Words by meaning | words |
-| GET | `/api/words/meaning/pos?q=study&pos=suru&lang=eng` | `q`, `pos` (required), `lang` (optional) | Words by meaning + POS | words |
-| GET | `/api/words/pos?pos=noun&lang=eng` | `pos` (required), `lang` (optional) | Words by POS | words |
-| GET | `/api/words/priority?marker=ichi1` | `marker` (required) | Words by priority marker | words |
-| GET | `/api/words/kana-only?limit=50` | `limit` (optional, default 50) | Kana-only words | words |
-| GET | `/api/words/kanji/:kanji?common=true` | `kanji`, `common` (optional) | Words containing kanji | words |
+| Method | Path | Params | Response | DB Tables |
+|---|---|---|---|---|
+| GET | `/api/words/:id` | `id` | Single word | words |
+| GET | `/api/words/:id/details` | `id` | Word + kanji breakdown + readings (with pitchAccents) + ≤ 5 example sentences | words, kanji, example_sentences |
+| GET | `/api/words/:id/langs` | `id` | All translations across languages | words |
+| GET | `/api/words/meaning?q=eat&lang=eng` | `q`, `lang?` | Words by meaning | words |
+| GET | `/api/words/meaning/pos?q=study&pos=suru&lang=eng` | `q`, `pos`, `lang?` | Words by meaning + POS | words |
+| GET | `/api/words/pos?pos=noun&lang=eng` | `pos`, `lang?` | Words by POS | words |
+| GET | `/api/words/priority?marker=ichi1` | `marker` | Words by priority marker | words |
+| GET | `/api/words/kana-only?limit=50` | `limit?` | Kana-only words | words |
+| GET | `/api/words/kanji/:kanji?common=true` | `kanji`, `common?` | Words containing kanji | words |
 | GET | `/api/words/kana/:kana` | `kana` | Words by kana reading | words |
-| GET | `/api/words/kana-prefix/:prefix?limit=20` | `prefix`, `limit` (optional) | Words by kana prefix | words |
+| GET | `/api/words/kana-prefix/:prefix?limit=20` | `prefix`, `limit?` | Words by kana prefix | words |
 
----
+### Kanji
 
-## Kanji
-
-| Method | Path | Body / Params | Response | DB Tables |
-|--------|------|---------------|----------|-----------|
-| GET | `/api/kanji/:literal` | `literal` (single character) | Single kanji | kanji |
-| GET | `/api/kanji?grade=2` | `grade` (1–10 or range "1-6") | Kanji by grade | kanji |
+| Method | Path | Params | Response | DB Tables |
+|---|---|---|---|---|
+| GET | `/api/kanji/:literal` | `literal` | Single kanji | kanji |
+| GET | `/api/kanji?grade=2` | `grade` (int or range "1-6") | Kanji by grade | kanji |
 | GET | `/api/kanji?strokes=9` | `strokes` (int or range "8-12") | Kanji by stroke count | kanji |
 | GET | `/api/kanji?radical=72` | `radical` (int) | Kanji by radical | kanji |
-| GET | `/api/kanji?meaning=water` | `meaning` (string) | Kanji by meaning | kanji |
+| GET | `/api/kanji?meaning=water` | `meaning` | Kanji by meaning | kanji |
 | GET | `/api/kanji?on=ショク` | `on` (katakana) | Kanji by on reading | kanji |
 | GET | `/api/kanji?kun=た.べ` | `kun` (hiragana) | Kanji by kun reading | kanji |
 
----
+### Names
 
-## Names
+| Method | Path | Params | Response | DB Tables |
+|---|---|---|---|---|
+| GET | `/api/names?q=tanaka` | `q` | Search proper-name dictionary | names |
 
-| Method | Path | Body / Params | Response | DB Tables |
-|--------|------|---------------|----------|-----------|
-| GET | `/api/names/kanji/:kanji` | `kanji` | Names by kanji | names |
-| GET | `/api/names/kana/:kana` | `kana` | Names by kana | names |
-| GET | `/api/names/kana-prefix/:prefix?limit=20` | `prefix`, `limit` (optional) | Names by prefix | names |
-| GET | `/api/names/type/:type` | `type` (surname, place, masc, fem) | Names by type | names |
-| GET | `/api/names/meaning?q=yamada` | `q` (required) | Names by meaning | names |
+### Translate (DeepL proxy)
 
----
+| Method | Path | Body | Response |
+|---|---|---|---|
+| POST | `/api/translate` | `{ text, targetLang }` | `{ translated }` |
 
-## Users
-
-Auth is username+password in request body (no tokens yet).
-
-| Method | Path | Body / Params | Response | DB Tables |
-|--------|------|---------------|----------|-----------|
-| POST | `/api/user/create` | `{ username, password }` | `{ id, username }` | users |
-| GET | `/api/user/:id` | `id` (user ID) | Public profile | users |
-| POST | `/api/user/info` | `{ username, password }` | Full profile (display_name, email, language, avatar_index, onboarded_at) | users |
-| POST | `/api/user/update` | `{ username, password, updates }` | Updated profile | users |
-| PUT | `/api/user/onboarding` | `{ userId, completed }` | `{ message }` | users |
-| POST | `/api/user/delete` | `{ username, password }` | `{ message }` | users |
+Disabled when `DEEPL_API_KEY` is not set.
 
 ---
 
-## Books (book_progress)
+## Protected — User profile
 
-| Method | Path | Body / Params | Response | DB Tables |
-|--------|------|---------------|----------|-----------|
-| POST | `/api/books` | `{ userId, filename, title, author, coverColor, fileHash?, contentHash?, pdfIdOriginal?, pdfIdCurrent?, pageCount?, hasTextLayer?, producer?, xmpDocumentId?, xmpOriginalId?, pageHashes?, textLength?, detectedDoi?, detectedIsbn?, pagePhashes?, fingerprintVersion?, dcIdentifier?, language?, publisher? }` | Book record (idempotent on `(userId, filename)`); `fingerprintVersion` defaults to 1 when omitted. | book_progress |
-| POST | `/api/books/match` | `{ userId, books: MatchCandidate[] }` — each: `{ file_hash, content_hash, pdf_id_original, xmp_original_id, detected_doi, detected_isbn, page_count, page_phashes, metadata: { title, author?, dc_identifier?, filename } }`. EPUB candidates leave PDF-only fields null; PDFs without a text layer leave text-derived fields null. Mobile candidates always leave text-derived + `page_phashes` null (no extractors). | `(MatchResult \| null)[]` parallel-indexed; match_type ∈ `file_hash` / `xmp_original_id` / `pdf_trailer_id` / `doi` / `isbn` / `content` / `visual` / `metadata` / `filename` (priority order) | book_progress |
-| GET | `/api/books/user/:userId` | `userId` | All user books, ordered by last_read_at | book_progress |
-| GET | `/api/books/:id` | `id` (UUID) | Single book | book_progress |
-| PUT | `/api/books/:id/progress` | `{ cfiPosition?, progress?, spineIndex?, totalSpineItems? }` | Updated book | book_progress |
-| POST | `/api/books/:id/progress` | Same as PUT — for `navigator.sendBeacon()` / RN `fetch` keepalive | Updated book | book_progress |
-| PATCH | `/api/books/:id` | `{ title }` | Updated book | book_progress |
-| PUT | `/api/books/:id/identity` | `{ fileHash?, contentHash?, pdfIdOriginal?, pdfIdCurrent?, pageCount?, hasTextLayer?, producer?, xmpDocumentId?, xmpOriginalId?, pageHashes?, textLength?, detectedDoi?, detectedIsbn?, pagePhashes?, fingerprintVersion?, dcIdentifier?, language?, publisher? }` — COALESCE on the row, never clobbers a non-null field | Updated book | book_progress |
-| DELETE | `/api/books/:id` | `id` (UUID) | `{ message }` | book_progress, bookmarks, device_books (cascade) |
+Identity is the JWT. Routes that take `:id` in the path verify it
+matches `req.user.userId` via `requireUserMatch`.
 
-### Bookmarks (nested under books)
+| Method | Path | Body | Response | Notes |
+|---|---|---|---|---|
+| GET | `/api/user/:id` | — | `UserProfile` (public columns) | `:id` must match token user |
+| PATCH | `/api/user` | `{ updates: ProfileUpdate }` | `UserProfile` | Allow-listed fields only (display_name, email, language, avatar_index, onboarding_completed) |
+| PUT | `/api/user/onboarding` | `{ completed: boolean }` | `{ message: 'OK' }` | |
+| DELETE | `/api/user` | — | `{ message: 'Account deleted' }` | Revokes all refresh tokens, cascade-deletes everything |
 
-| Method | Path | Body / Params | Response | DB Tables |
-|--------|------|---------------|----------|-----------|
-| POST | `/api/books/:id/bookmarks` | `{ cfi (required), label? }` | Bookmark | bookmarks |
-| GET | `/api/books/:id/bookmarks` | `id` (book UUID) | All bookmarks for book | bookmarks |
-| DELETE | `/api/books/bookmarks/:bookmarkId` | `bookmarkId` (UUID) | `{ message }` | bookmarks |
+`UserProfile` shape:
+```
+{ id, username, display_name, email, language, avatar_index,
+  onboarding_completed, created_at }
+```
+`password_hash` is never returned.
 
 ---
 
-## Devices
+## Protected — Books
 
-Per-browser / per-install identity. The device id is generated client-side
-(`crypto.randomUUID`) on first launch and persisted in localStorage /
-AsyncStorage. The `device_books` rows track which devices have which book
-files locally so the library can show a "not on this device" state.
+| Method | Path | Body | Response | Ownership check |
+|---|---|---|---|---|
+| POST | `/api/books` | `{ filename, title, author?, coverColor?, fileHash?, ...fingerprints }` | `BookProgressRecord` | user is `req.user.userId` |
+| POST | `/api/books/match` | `{ books: BookFingerprint[] }` | `(MatchResult \| null)[]` | scoped to caller |
+| GET | `/api/books/user/:userId` | — | `BookProgressRecord[]` | `:userId` ↔ token user |
+| GET | `/api/books/:id` | — | `BookProgressRecord` | `bookOwnedBy(token, id)` |
+| PUT | `/api/books/:id/progress` | `{ cfiPosition, progress, spineIndex, totalSpineItems }` | `BookProgressRecord` | `bookOwnedBy` |
+| POST | `/api/books/:id/progress` | (same) | (same) | (same) — sendBeacon variant |
+| PATCH | `/api/books/:id` | `{ title }` | `BookProgressRecord` | `bookOwnedBy` |
+| PUT | `/api/books/:id/identity` | `{ ...fingerprints }` | `BookProgressRecord` | `bookOwnedBy` |
+| DELETE | `/api/books/:id` | — | `{ message }` | `bookOwnedBy` |
 
-| Method | Path | Body / Params | Response | DB Tables |
-|--------|------|---------------|----------|-----------|
-| POST | `/api/devices` | `{ userId, deviceId, name? }` | Device record (idempotent — also updates last_seen_at) | devices |
-| GET | `/api/devices/user/:userId` | `userId` | All devices for user, with per-device book_count | devices |
-| PUT | `/api/devices/:deviceId` | `{ userId, name }` | Renamed device | devices |
-| DELETE | `/api/devices/:deviceId?userId={userId}` | `userId` query | `{ message }` | devices, device_books (cascade) |
-| POST | `/api/devices/:deviceId/books/:bookId/available` | `{ userId }` | Availability row | device_books |
-| DELETE | `/api/devices/:deviceId/books/:bookId/available?userId={userId}` | `userId` query | `{ message }` | device_books |
-| GET | `/api/devices/:deviceId/books?userId={userId}` | `userId` query | All user books + `available: boolean` per device | book_progress, device_books |
+### Bookmarks (nested)
 
----
-
-## Decks & Cards
-
-| Method | Path | Body / Params | Response | DB Tables |
-|--------|------|---------------|----------|-----------|
-| POST | `/api/decks` | `{ userId, name, description? }` | Deck | decks |
-| GET | `/api/decks/user/:userId` | `userId` | All user decks | decks |
-| GET | `/api/decks/:id` | `id` (UUID) | Single deck | decks |
-| PUT | `/api/decks/:id` | `{ name?, description? }` | Updated deck | decks |
-| DELETE | `/api/decks/:id` | `id` (UUID) | `{ message }` | decks, cards (cascade) |
-| POST | `/api/decks/:id/cards` | `{ front, back, reading?, notes? }` | Card | cards |
-| GET | `/api/decks/:id/cards` | `id` (deck UUID) | All cards in deck | cards |
-| PUT | `/api/decks/cards/:cardId` | `{ front?, reading?, back?, notes?, state? }` | Updated card | cards |
-| POST | `/api/decks/cards/:cardId/review` | `cardId` | Card with incremented review count | cards |
-| DELETE | `/api/decks/cards/:cardId` | `cardId` | `{ message }` | cards |
+| Method | Path | Body | Response | Ownership check |
+|---|---|---|---|---|
+| POST | `/api/books/:id/bookmarks` | `{ cfi, label? }` | `Bookmark` | `bookOwnedBy` |
+| GET | `/api/books/:id/bookmarks` | — | `Bookmark[]` | `bookOwnedBy` |
+| DELETE | `/api/books/bookmarks/:bookmarkId` | — | `{ message }` | `bookmarkOwnedBy` |
 
 ---
 
-## Translate (DeepL proxy)
+## Protected — Decks + cards
 
-| Method | Path | Body / Params | Response | DB Tables |
-|--------|------|---------------|----------|-----------|
-| POST | `/api/translate` | `{ text (≤5000 chars), target? (default "EN") }` | `{ translatedText, detectedLanguage }` | None (external API) |
+| Method | Path | Body | Response | Ownership check |
+|---|---|---|---|---|
+| POST | `/api/decks` | `{ name, description? }` | `DeckRecord` | user is `req.user.userId` |
+| GET | `/api/decks/user/:userId` | — | `DeckRecord[]` | `:userId` ↔ token user |
+| GET | `/api/decks/:id` | — | `DeckRecord` | `deckOwnedBy` |
+| PUT | `/api/decks/:id` | `{ name?, description? }` | `DeckRecord` | `deckOwnedBy` |
+| DELETE | `/api/decks/:id` | — | `{ message }` | `deckOwnedBy` (cascades to cards) |
+
+### Cards (nested)
+
+| Method | Path | Body | Response | Ownership check |
+|---|---|---|---|---|
+| POST | `/api/decks/:id/cards` | `{ front, reading?, back, notes?, contextSentence? }` | `CardRecord` | `deckOwnedBy(:id)` |
+| GET | `/api/decks/:id/cards` | — | `CardRecord[]` | `deckOwnedBy(:id)` |
+| PUT | `/api/decks/cards/:cardId` | `{ front?, reading?, back?, notes?, state?, contextSentence? }` | `CardRecord` | `cardOwnedBy` |
+| POST | `/api/decks/cards/:cardId/review` | — | `CardRecord` | `cardOwnedBy` |
+| DELETE | `/api/decks/cards/:cardId` | — | `{ message }` | `cardOwnedBy` |
 
 ---
 
-## Frontend sync strategy
+## Protected — Devices
 
-- **Dictionary / kanji / names / translate**: On-demand per user action. No polling.
-- **User auth**: On login/signup and profile edits. No session tokens — credentials sent per request. Account switch on either client wipes local user-scoped storage before installing the new session (see [PROJECT_CONTEXT.md](../web-frontend/shirube-web/PROJECT_CONTEXT.md) / mobile `lib/auth/wipeUserData.ts`).
-- **Book progress**: Local cache on every page turn (web localStorage `reader_progress_<filename>`, mobile AsyncStorage `reader_book_<filename>`). Backend sync debounced ~2s during a session, plus fire-and-forget `sendBeacon` on tab close (web) / `fetch keepalive` on `AppState` background (mobile).
-- **Library import / sync**:
-  1. `POST /api/books/match` first with `{ file_hash, content_hash, pdf_id_original, xmp_original_id, detected_doi, detected_isbn, page_count, page_phashes, metadata }` candidates — backend tries `file_hash → xmp_original_id → pdf_id_original → doi → isbn+page_count(±5%) → content_hash → visual(phash+page_count(±10%)) → dc_identifier → title+author → filename`.
-  2. On match: reuse the existing book id, fire `PUT /api/books/:id/identity` to backfill any missing hash fields.
-  3. On no match: `POST /api/books` to create.
-  4. Always finish with `POST /api/devices/:deviceId/books/:bookId/available` so cross-device library listings know this device has the file.
-- **Decks / cards**: On-demand CRUD. Deck list refreshed after mutations.
+Per-device book availability tracking (which device has the local
+file for which book).
 
-**Total endpoints**: 55 (route handlers; the `/progress` row accepts both PUT and POST, counted twice).
+| Method | Path | Body / Params | Response | Ownership check |
+|---|---|---|---|---|
+| POST | `/api/devices` | `{ deviceId, name? }` | `DeviceRecord` | user is `req.user.userId` |
+| GET | `/api/devices/user/:userId` | — | `DeviceRecord[]` | `:userId` ↔ token user |
+| PUT | `/api/devices/:deviceId` | `{ name }` | `DeviceRecord` | `deviceOwnedBy` |
+| DELETE | `/api/devices/:deviceId` | — | `{ message }` | `deviceOwnedBy` |
+| POST | `/api/devices/:deviceId/books/:bookId/available` | — | `BookAvailability` | `deviceOwnedBy` AND `bookOwnedBy` |
+| DELETE | `/api/devices/:deviceId/books/:bookId/available` | — | `{ message }` | (same) |
+| GET | `/api/devices/:deviceId/books` | — | `BookProgressRecord[]` (with `available` flag) | `deviceOwnedBy` |
+
+---
+
+## Error response shape
+
+All error responses are JSON:
+```
+{ "error": "<message>" }
+```
+
+- 400 — body validation failure (zod) or weak password
+- 401 — missing / invalid / expired token, or wrong credentials on `/auth/login`
+- 403 — token user ≠ path `:userId` (in `requireUserMatch` routes)
+- 404 — resource not found, OR token user doesn't own the resource (id-only routes)
+- 409 — username already taken
+- 429 — rate limited (`Retry-After` header set)
+- 500 — generic; backend never echoes internal messages on the auth surface

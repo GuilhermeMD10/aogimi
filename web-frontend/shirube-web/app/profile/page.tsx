@@ -57,7 +57,7 @@ export default function ProfilePage() {
       setProfile((prev) => (prev ? { ...prev, avatar_index: idx } : prev));
       setStoredAvatarIndex(idx);
       // Backend update — works once the migration runs.
-      updateUserProfile(user.username, '', { avatar_index: idx }).catch(() => { /* backend not ready */ });
+      updateUserProfile({ avatar_index: idx }).catch(() => { /* backend not ready */ });
     },
     [user],
   );

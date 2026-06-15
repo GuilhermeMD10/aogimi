@@ -16,7 +16,6 @@
       "tagline": "Tap any word to see its meaning, save it to flashcards, and study in context.",
       "signIn": "Sign in",
       "createAccount": "Create account",
-      "continueAsGuest": "Continue without account",
       "google": "Google",
       "apple": "Apple"
     },
@@ -106,7 +105,10 @@
     "theme": "Theme",
     "currentlyReading": "Currently reading",
     "signOut": "Sign out",
-    "changeAvatar": "Change avatar"
+    "changeAvatar": "Change avatar",
+    "signedOut": {
+      "note": "You can keep reading and building decks without an account — your data stays on this device. Sign up later to sync it across devices."
+    }
   },
   "settings": {
     "title": "Settings",

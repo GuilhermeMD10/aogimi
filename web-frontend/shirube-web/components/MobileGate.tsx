@@ -3,17 +3,30 @@
 import { useEffect, useState } from 'react';
 import { Smartphone } from 'lucide-react';
 
-// Hard gate: phones don't get the web app. The reading + dictionary +
-// deck UX targets pointer + desktop-class viewports; on a phone the
-// native app is the right surface. We only block phones, not tablets:
-// iPad is reported as Macintosh since iPadOS 13, and Android tablets
-// don't carry "Mobile" in the UA. The distinction comes from the
-// "Mobile" UA token (Android) and the iPhone/iPod literal (iOS).
-function detectPhone(): boolean {
+// Hard gate: only desktops / laptops get the web app. Everything
+// touch-first (phones AND tablets) is redirected to the native app
+// stores. Detection layers, cheapest first:
+//   1. iPhone / iPod / iPad in the UA — definitive.
+//   2. Android in the UA — covers both phones (`Mobile`) and tablets
+//      (no `Mobile` token).
+//   3. iPadOS 13+ masquerades as Macintosh; the give-away is that real
+//      Macs report `maxTouchPoints === 0` (mouse + trackpad only)
+//      whereas the iPad reports ≥ 1. The combination of "claims to be
+//      Macintosh" + "has touch input" is the canonical iPad sniff.
+//   4. Anything else with a real touch screen (Windows tablets,
+//      Chromebooks with detachable screens) — `maxTouchPoints > 0`
+//      combined with `pointer: coarse` is the heuristic.
+function isTabletOrPhone(): boolean {
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent;
-  if (/iPhone|iPod/i.test(ua)) return true;
-  if (/Android/i.test(ua) && /Mobile/i.test(ua)) return true;
+  if (/iPhone|iPod|iPad/i.test(ua)) return true;
+  if (/Android/i.test(ua)) return true;
+  const maxTouch = typeof navigator.maxTouchPoints === 'number' ? navigator.maxTouchPoints : 0;
+  if (/Macintosh/i.test(ua) && maxTouch > 1) return true;
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    if (coarsePointer && maxTouch > 0) return true;
+  }
   return false;
 }
 
@@ -23,15 +36,15 @@ const PLAY_STORE_URL = '#';
 
 export function MobileGate({ children }: { children: React.ReactNode }) {
   // Render children on the server pass — UA detection only happens on
-  // the client. Without this guard, hydration would see "phone? false"
+  // the client. Without this guard, hydration would see "blocked? false"
   // server-side and possibly "true" client-side, mismatching the tree.
-  const [isPhone, setIsPhone] = useState<boolean | null>(null);
+  const [blocked, setBlocked] = useState<boolean | null>(null);
   useEffect(() => {
-    setIsPhone(detectPhone());
+    setBlocked(isTabletOrPhone());
   }, []);
 
-  if (isPhone === null) return <>{children}</>;
-  if (!isPhone) return <>{children}</>;
+  if (blocked === null) return <>{children}</>;
+  if (!blocked) return <>{children}</>;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-lgc-bg px-6 py-10">

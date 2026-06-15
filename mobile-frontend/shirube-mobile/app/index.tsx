@@ -15,8 +15,8 @@ export default function Index() {
     );
   }
 
-  // Guest sessions are valid app-state too — route them straight into
-  // the tabs. Only the explicit signed-out state goes to /welcome.
-  const inApp = status === 'signed-in' || status === 'guest';
-  return <Redirect href={inApp ? '/(tabs)/reader' : '/(auth)/welcome'} />;
+  // Both signed-in and signed-out users land in the tabs. Signed-out
+  // users use the app local-first; the Profile tab is where they can
+  // sign up / sign in to start syncing.
+  return <Redirect href="/(tabs)/reader" />;
 }

@@ -26,7 +26,9 @@ export default function SettingsTab() {
   const t = useT();
   const router = useRouter();
   const { signOut, status } = useAuth();
-  const isGuest = status === 'guest';
+  // Sign-out only meaningful when there's a backend account to leave.
+  // Signed-out users will see sign-up / sign-in on the Profile tab.
+  const isSignedIn = status === 'signed-in';
 
   const handleSignOut = () => {
     Alert.alert(t('profile.signOut'), 'Sign out of this device?', [
@@ -53,10 +55,9 @@ export default function SettingsTab() {
           />
         ))}
 
-        {/* Sign out is hidden for guests — there's no account to sign
-            out of. To leave guest mode they convert (Profile page) or
-            uninstall the app. */}
-        {!isGuest && (
+        {/* Sign out only renders when there's a real account to leave.
+            Signed-out users sign up / sign in via the Profile tab. */}
+        {isSignedIn && (
           <Row
             label={t('profile.signOut')}
             onPress={handleSignOut}

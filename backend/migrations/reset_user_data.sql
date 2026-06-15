@@ -14,6 +14,7 @@ DROP TABLE IF EXISTS cards           CASCADE;
 DROP TABLE IF EXISTS bookmarks       CASCADE;
 DROP TABLE IF EXISTS decks           CASCADE;
 DROP TABLE IF EXISTS book_progress   CASCADE;
+DROP TABLE IF EXISTS refresh_tokens  CASCADE;
 DROP TABLE IF EXISTS users           CASCADE;
 
 -- ── users ───────────────────────────────────────────────────────────────────
@@ -21,14 +22,33 @@ DROP TABLE IF EXISTS users           CASCADE;
 CREATE TABLE users (
   id                    serial       PRIMARY KEY,
   username              text         NOT NULL UNIQUE,
-  password              text         NOT NULL,
-  display_name          text,
+  password_hash         text         NOT NULL,
   email                 text,
+  display_name          text,
   language              text         NOT NULL DEFAULT 'en',
   avatar_index          smallint     NOT NULL DEFAULT 0,
   onboarding_completed  boolean      NOT NULL DEFAULT false,
-  created_at            timestamptz  NOT NULL DEFAULT now()
+  created_at            timestamptz  NOT NULL DEFAULT now(),
+  updated_at            timestamptz  NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX users_email_lower_idx
+  ON users (LOWER(email))
+  WHERE email IS NOT NULL;
+
+-- ── refresh_tokens ──────────────────────────────────────────────────────────
+
+CREATE TABLE refresh_tokens (
+  id          uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     int          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash  text         NOT NULL UNIQUE,
+  expires_at  timestamptz  NOT NULL,
+  revoked_at  timestamptz,
+  created_at  timestamptz  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_refresh_tokens_user_id    ON refresh_tokens (user_id);
+CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens (token_hash);
 
 -- ── book_progress ───────────────────────────────────────────────────────────
 

@@ -28,7 +28,10 @@ export function BooksScreen() {
   const t = useT();
   const router = useRouter();
   const { user, status } = useAuth();
-  const isGuest = status === 'guest';
+  // Hides backend-only affordances (Sync now) for users without an
+  // account — matches the same set the previous `isGuest` flag covered
+  // now that guest mode is gone.
+  const cannotSync = status !== 'signed-in';
   const { books, loading, refreshing, error, refresh, silentRefresh, reloadPending, sessionPendingIds } = useBooks();
   const online = useOnline();
   // Refresh the books list whenever the tab regains focus — e.g. after
@@ -219,7 +222,7 @@ export function BooksScreen() {
           {/* Sync-now is meaningless for guests (no account to push to).
               Hidden entirely; user gets the action by converting to a
               real account from the Profile page. */}
-          {!isGuest && (
+          {!cannotSync && (
             <Pressable
               onPress={online ? handleSyncNow : () => Alert.alert('Offline', 'Connect to the internet to sync.')}
               disabled={syncing || importing}
