@@ -52,7 +52,10 @@
       "Bash(bash /tmp/audit_check.sh)",
       "Bash(grep -rn \"borderRadius:\\\\s*[0-9]\" /Users/guilhermedias/solo-projects/jp-eco/web-frontend/shirube-web/components --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\")",
       "Bash(grep -nB 1 \"autoCapitalize\" components/profile/ui/GuestProfileScreen.tsx components/decks/ui/FlashcardDrawer.tsx components/dictionary/ui/DictDrawer.tsx components/dictionary/ui/DictEmpty.tsx)",
-      "Bash(perl -i -pe ' *)"
+      "Bash(perl -i -pe ' *)",
+      "Bash(node -e \"require\\('./src/app'\\)\")",
+      "Bash(node -e \"require\\('dotenv'\\).config\\(\\); require\\('./src/app'\\); console.log\\('OK app loads with .env'\\);\")",
+      "Bash(node -e \"require\\('dotenv'\\).config\\(\\); const app = require\\('./src/app'\\); const server = app.listen\\(0, \\(\\) => { const port = server.address\\(\\).port; require\\('http'\\).get\\(\\\\`http://localhost:\\\\${port}/api/words/1\\\\`, \\(\\) => { server.close\\(\\); }\\); }\\);\")"
     ],
     "additionalDirectories": [
       "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader",

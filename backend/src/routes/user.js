@@ -1,116 +1,70 @@
+// /api/user/* — profile read/update/delete.
+//
+// Mounted under `authenticateJWT`, so `req.user.userId` is guaranteed
+// present on every handler here. No route accepts a userId in the body
+// or query — the token IS the identity. Where a `:id` path param
+// appears, `requireUserMatch` cross-checks it against `req.user.userId`
+// to prevent token-holder-A from reading or mutating token-holder-B's
+// profile.
 
 const { Router } = require("express");
 const userService = require("../services/userService");
-const { ensureUserExists } = require("../middleware/verifyUser");
+const authService = require("../services/authService");
+const { requireUserMatch } = require("../middleware/authorize");
 
 const router = Router();
 
-// POST /api/user/create
-router.post("/create", async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: "Username and password are required" });
-  }
+// GET /api/user/:id — get a user's public profile. The token owner can
+// only read their own profile; in the future this could be relaxed for
+// public profile pages, but until then keep it locked down.
+router.get("/:id", requireUserMatch({ from: "params", key: "id" }), async (req, res) => {
   try {
-    const user = await userService.createUser(username, password);
-    res.json({ id: user.id, username: user.username });
+    const user = await userService.getProfile(req.user.userId);
+    if (!user) return res.status(404).json({ error: "Not found" });
+    return res.json(user);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Failed to load profile" });
   }
 });
 
-// GET /api/user/:id — get user profile (public fields).
-// Returns 401 USER_NOT_FOUND (not 404) when the user has been deleted,
-// so the web frontend's api.ts interceptor can detect a stale session
-// and trigger the local wipe + sign-out.
-router.get("/:id", async (req, res) => {
-  if (!(await ensureUserExists(res, req.params.id))) return;
+// PATCH /api/user — update editable profile fields (display_name,
+// email, language, avatar_index). Other fields are ignored; the
+// service layer enforces the allow-list.
+router.patch("/", async (req, res) => {
+  const updates = req.body?.updates;
+  if (!updates || typeof updates !== "object") {
+    return res.status(400).json({ error: "updates is required" });
+  }
   try {
-    const user = await userService.getProfile(parseInt(req.params.id, 10));
-    res.json(user);
+    const user = await userService.updateProfile(req.user.userId, updates);
+    return res.json(user);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Update failed" });
   }
 });
 
-// POST /api/user/info
-router.post("/info", async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: "Username and password are required" });
-  }
-  try {
-    const user = await userService.getUserInfo(username, password);
-    if (!user) {
-      return res.status(401).json({ error: "Invalid username or password" });
-    }
-    res.json({
-      id: user.id,
-      username: user.username,
-      display_name: user.display_name,
-      email: user.email,
-      language: user.language,
-      avatar_index: user.avatar_index,
-      created_at: user.created_at,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/user/update
-router.post("/update", async (req, res) => {
-  const { username, password, updates } = req.body;
-  if (!username || !password || !updates) {
-    return res.status(400).json({ error: "Username, password, and updates are required" });
-  }
-  try {
-    const user = await userService.updateUser(username, password, updates);
-    if (!user) {
-      return res.status(401).json({ error: "Invalid username or password" });
-    }
-    res.json({
-      id: user.id,
-      username: user.username,
-      display_name: user.display_name,
-      email: user.email,
-      language: user.language,
-      avatar_index: user.avatar_index,
-      created_at: user.created_at,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// PUT /api/user/onboarding — mark onboarding as completed
+// PUT /api/user/onboarding — mark onboarding complete for the current user.
 router.put("/onboarding", async (req, res) => {
-  const { userId, completed } = req.body;
-  if (!userId) {
-    return res.status(400).json({ error: "userId is required" });
-  }
+  const completed = !!req.body?.completed;
   try {
-    await userService.setOnboardingCompleted(userId, !!completed);
-    res.json({ message: "OK" });
+    await userService.setOnboardingCompleted(req.user.userId, completed);
+    return res.json({ message: "OK" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Update failed" });
   }
 });
 
-// POST /api/user/delete
-router.post("/delete", async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: "Username and password are required" });
-  }
+// DELETE /api/user — delete the calling user's account (cascades to
+// every user-data table via FK). Revokes all refresh tokens so any
+// other open session is invalidated immediately.
+router.delete("/", async (req, res) => {
   try {
-    const success = await userService.deleteUser(username, password);
-    if (!success) {
-      return res.status(401).json({ error: "Invalid username or password" });
-    }
-    res.json({ message: "User deleted successfully" });
+    await authService.revokeAllSessions(req.user.userId);
+    const ok = await userService.deleteUser(req.user.userId);
+    if (!ok) return res.status(404).json({ error: "Not found" });
+    return res.json({ message: "Account deleted" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Delete failed" });
   }
 });
 

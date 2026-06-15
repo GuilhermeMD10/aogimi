@@ -23,7 +23,7 @@ import { DeckCover } from '@/components/decks/ui/DeckCover';
 import { Button } from '@/components/ui/Button';
 import { AvatarPickerSheet } from './AvatarPickerSheet';
 import { ThemePicker } from './ThemePicker';
-import { GuestProfileScreen } from './GuestProfileScreen';
+import { SignedOutProfileScreen } from './SignedOutProfileScreen';
 
 const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const;
 type JlptLevel = (typeof JLPT_LEVELS)[number];
@@ -32,12 +32,12 @@ export function ProfileScreen() {
   const c = useColors();
   const t = useT();
   const router = useRouter();
-  const { user, credentials, signOut, setUser, status } = useAuth();
+  const { user, signOut, setUser, status } = useAuth();
 
-  // Guest sessions get a completely different screen, but the rules of
-  // hooks require unconditional hook order — run every hook below first,
-  // then branch on `status` at the JSX level.
-  const isGuest = status === 'guest';
+  // Signed-out users see a different surface (sign-up / sign-in CTAs)
+  // but rules of hooks require unconditional hook order — run every
+  // hook below first, then branch on `status` at the JSX level.
+  const isSignedOut = status === 'signed-out';
 
   const userId = user?.id;
   const { data, loading } = useFetchWithAbort(
@@ -49,7 +49,7 @@ export function ProfileScreen() {
       return { books, decks };
     },
     [userId],
-    { enabled: !isGuest && userId != null },
+    { enabled: !isSignedOut && userId != null },
   );
   const books = data?.books ?? [];
   const decks = data?.decks ?? [];
@@ -62,12 +62,10 @@ export function ProfileScreen() {
 
   const handleAvatarSelect = useCallback(
     async (idx: number) => {
-      if (!user || !credentials) return;
+      if (!user) return;
       setSavingField('avatar');
       try {
-        const updated = await updateUserProfile(credentials.username, credentials.password, {
-          avatar_index: idx,
-        });
+        const updated = await updateUserProfile({ avatar_index: idx });
         setUser(updated);
       } catch {
         /* surface later if needed */
@@ -75,17 +73,15 @@ export function ProfileScreen() {
         setSavingField(null);
       }
     },
-    [user, credentials, setUser],
+    [user, setUser],
   );
 
   const handleLevelSelect = useCallback(
     async (level: JlptLevel) => {
-      if (!user || !credentials || savingLevel) return;
+      if (!user || savingLevel) return;
       setSavingField('level');
       try {
-        const updated = await updateUserProfile(credentials.username, credentials.password, {
-          language: level,
-        });
+        const updated = await updateUserProfile({ language: level });
         setUser(updated);
       } catch {
         /* ignore */
@@ -93,12 +89,12 @@ export function ProfileScreen() {
         setSavingField(null);
       }
     },
-    [user, credentials, savingLevel, setUser],
+    [user, savingLevel, setUser],
   );
 
   // Branch after all hooks have run. Guest first (no backend fetch
   // needed), then the loading state, then the real profile.
-  if (isGuest) return <GuestProfileScreen />;
+  if (isSignedOut) return <SignedOutProfileScreen />;
   if (loading || !user) {
     return (
       <View style={[styles.root, { backgroundColor: c.bg }]}>

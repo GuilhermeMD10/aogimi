@@ -16,7 +16,6 @@
       "tagline": "Toca em qualquer palavra para ver o seu significado, guardá-la em flashcards e estudá-la em contexto.",
       "signIn": "Iniciar sessão",
       "createAccount": "Criar conta",
-      "continueAsGuest": "Continuar sem conta",
       "google": "Google",
       "apple": "Apple"
     },
@@ -106,7 +105,10 @@
     "theme": "Tema",
     "currentlyReading": "A ler agora",
     "signOut": "Terminar sessão",
-    "changeAvatar": "Mudar avatar"
+    "changeAvatar": "Mudar avatar",
+    "signedOut": {
+      "note": "Podes continuar a ler e a criar baralhos sem conta — os teus dados ficam neste dispositivo. Cria conta mais tarde para sincronizar entre dispositivos."
+    }
   },
   "settings": {
     "title": "Definições",
