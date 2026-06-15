@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { computeMenuPosition, type SelectionRect, type Viewport } from './menuPosition';
+import { DEEPL_ENABLED } from '@/lib/features/deepl';
 
 export type NativeMenuKey = 'dict' | 'card' | 'deepl' | 'highlight' | 'copy';
 
@@ -17,13 +18,19 @@ type Props = {
 type Item =
   | { key: NativeMenuKey; kind: 'text'; label: string }
   | { key: NativeMenuKey; kind: 'swatch'; color: string };
-const ITEMS: Item[] = [
+// DeepL entry filtered out when the feature is disabled (see
+// `lib/features/deepl.ts`). Definition kept inline so re-enabling
+// only requires flipping the flag.
+const ALL_ITEMS: Item[] = [
   { key: 'dict', kind: 'text', label: 'Dict' },
   { key: 'card', kind: 'text', label: 'Card' },
   { key: 'deepl', kind: 'text', label: 'DeepL' },
   { key: 'highlight', kind: 'swatch', color: '#5B9BD5' },
   { key: 'copy', kind: 'text', label: 'Copy' },
 ];
+const ITEMS: Item[] = DEEPL_ENABLED
+  ? ALL_ITEMS
+  : ALL_ITEMS.filter((i) => i.key !== 'deepl');
 
 // Replaces the OS selection bubble. Positioned above the selection by
 // default; flips below when there's no room at the top. Tap outside to
