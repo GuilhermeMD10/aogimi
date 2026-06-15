@@ -4,6 +4,7 @@ import { forwardRef, useLayoutEffect, useRef, useState } from 'react';
 import { Search, Languages, Plus } from 'lucide-react';
 import { HIGHLIGHT_COLORS, type HighlightColor } from '@/components/reader/useBookStorage';
 import type { TextContextMenuProps } from '@/components/reader/TextContextMenu/TextContextMenu';
+import { DEEPL_ENABLED } from '@/lib/features/deepl';
 
 const CTX_BTN =
   'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12.5px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-sunken hover:text-lgc-fg';
@@ -54,8 +55,13 @@ export const TextContextMenu = forwardRef<HTMLDivElement, TextContextMenuProps>(
       >
         <button type="button" onClick={() => { onLookup(); onClose(); }} className={CTX_BTN}><Search size={13} /> Dictionary</button>
         <span className="mx-0.5 h-4 w-px bg-lgc-border" />
-        <button type="button" onClick={() => { onDeepL(); onClose(); }} className={CTX_BTN}><Languages size={13} /> DeepL</button>
-        <span className="mx-0.5 h-4 w-px bg-lgc-border" />
+        {/* DeepL feature-flagged off (see lib/features/deepl.ts). */}
+        {DEEPL_ENABLED && (
+          <>
+            <button type="button" onClick={() => { onDeepL(); onClose(); }} className={CTX_BTN}><Languages size={13} /> DeepL</button>
+            <span className="mx-0.5 h-4 w-px bg-lgc-border" />
+          </>
+        )}
         <div className="flex gap-1 px-1">
           {(['yellow', 'green', 'blue'] as HighlightColor[]).map((c) => {
             const active = selectedCfi ? epubHighlights.find((h) => h.cfi === selectedCfi)?.color === c : false;
