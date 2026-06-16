@@ -3,6 +3,8 @@ helpers
 .next
 .env
 .env.local
+.env.production
+.env.example
 
 android
 ios
@@ -27,3 +29,4 @@ Podfile.lock
 .claude
 .vscode
 docs
+backend/.env
