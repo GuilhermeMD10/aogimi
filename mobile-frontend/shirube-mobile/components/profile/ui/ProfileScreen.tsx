@@ -22,7 +22,8 @@ import { BookCover } from '@/components/books/ui/BookCover';
 import { DeckCover } from '@/components/decks/ui/DeckCover';
 import { Button } from '@/components/ui/Button';
 import { AvatarPickerSheet } from './AvatarPickerSheet';
-import { ThemePicker } from './ThemePicker';
+// Theme picker hidden for v1 — only Default ships. Restore when premium themes land.
+// import { ThemePicker } from './ThemePicker';
 import { SignedOutProfileScreen } from './SignedOutProfileScreen';
 
 const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const;
@@ -217,9 +218,10 @@ export function ProfileScreen() {
             </Row>
           </Section>
 
-          <Section title={t('profile.theme')}>
+          {/* Theme picker hidden for v1 — only Default ships. */}
+          {/* <Section title={t('profile.theme')}>
             <ThemePicker />
-          </Section>
+          </Section> */}
 
           <Section title={t('profile.currentlyReading')} subtitle={`${readingBooks.length} book${readingBooks.length !== 1 ? 's' : ''}`}>
             {readingBooks.length === 0 ? (
