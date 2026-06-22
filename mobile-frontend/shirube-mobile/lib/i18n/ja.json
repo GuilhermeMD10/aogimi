@@ -85,16 +85,77 @@
     "cards": "{count}枚のカード",
     "studyNow": "今すぐ学習",
     "rename": "名前を変更",
-    "delete": "デッキを削除"
+    "delete": "デッキを削除",
+    "studyAllHardest": "全デッキの難しいカードを学習",
+    "studyAllHardestHint": "すべてのデッキから難しいカードを集めます"
   },
   "study": {
     "tapToReveal": "タップして表示",
-    "dontKnow": "わからない",
-    "know": "わかる",
-    "summaryTitle": "お疲れさまでした",
-    "summaryCards": "{reviewed}枚・{pct}%正解",
+    "again": "もう一度",
+    "hard": "難しい",
+    "easy": "簡単",
+    "undo": "戻す",
     "studyAgain": "もう一度学習",
-    "backToDeck": "デッキに戻る"
+    "backToDeck": "デッキに戻る",
+    "finish": {
+      "cardsReviewed": "枚復習",
+      "progression": "進捗",
+      "hardest": "今回の難しいカード"
+    },
+    "changes": {
+      "firstReviewed": "{n}枚 初レビュー",
+      "advanced": "{n}枚「覚えた」に到達",
+      "reachedMastered": "{n}枚「完全に覚えた」に到達",
+      "regressedToSeen": "{n}枚「見たことあり」に戻る",
+      "regressedToLearned": "{n}枚「覚えた」に戻る"
+    },
+    "hardest": {
+      "again": "{n}回ミス"
+    },
+    "state": {
+      "new": "未学習",
+      "seen": "見たことあり",
+      "learned": "覚えた",
+      "mastered": "完全に覚えた"
+    },
+    "mode": {
+      "hardest": "難しい順",
+      "random": "完全にランダム",
+      "oldest_first": "古い順",
+      "oldest_only": "古いカードのみ",
+      "newest_only": "新しいカードのみ",
+      "by_creation": "作成日順"
+    }
+  },
+  "sessionConfig": {
+    "title": "セッション設定",
+    "mode": "モード",
+    "size": "1セッションのカード数",
+    "sizeHint": "{min}〜{max}"
+  },
+  "stats": {
+    "title": "統計",
+    "viewAll": "統計を見る",
+    "tabActivity": "アクティビティ",
+    "tabCards": "カード",
+    "daysStudied": "日間学習",
+    "heatmap": "過去1年",
+    "recent": "過去30日",
+    "distribution": "分布",
+    "total": "合計",
+    "hardestCards": "難しいカード",
+    "noHardest": "まだ苦手なカードはありません",
+    "animal": {
+      "fox": "狐",
+      "snake": "蛇",
+      "bull": "牛",
+      "bear": "熊",
+      "gorilla": "ゴリラ",
+      "wolf": "狼",
+      "tiger": "虎",
+      "dragon": "龍",
+      "leviathan": "リヴァイアサン"
+    }
   },
   "profile": {
     "title": "プロフィール",
@@ -114,5 +175,25 @@
     "title": "設定",
     "help": "ヘルプ",
     "credits": "クレジット"
+  },
+  "studyDisplay": {
+    "title": "学習表示",
+    "sectionPreset": "プリセット",
+    "sectionFront": "表面",
+    "sectionBack": "裏面",
+    "preset": {
+      "easy": "やさしい",
+      "default": "標準",
+      "hard": "難しい",
+      "production": "アウトプット"
+    },
+    "front": {
+      "reading": "読みを表示",
+      "context": "例文を表示（穴埋め）",
+      "deckName": "デッキ名を表示"
+    },
+    "back": {
+      "exampleSentence": "例文を表示"
+    }
   }
 }

@@ -1,7 +1,9 @@
 'use client';
 
-import { Pencil, Settings, Share2 } from 'lucide-react';
+import Link from 'next/link';
+import { BarChart3, Pencil, Settings, Share2 } from 'lucide-react';
 import { KAMON_SET, Kamon } from '@/components/AvatarPickerModal';
+import { AnimalLabel } from './AnimalLabel';
 
 /** Avatar + display name + language/joined chips + share/settings buttons. */
 export function ProfileHeader({
@@ -9,12 +11,15 @@ export function ProfileHeader({
   displayName,
   language,
   joinDate,
+  mastered,
   onEditAvatar,
 }: {
   avatarIndex: number;
   displayName: string;
   language: string | null;
   joinDate: string | null;
+  /** Mastered card count — drives the AnimalLabel chip. */
+  mastered?: number;
   onEditAvatar: () => void;
 }) {
   return (
@@ -60,23 +65,30 @@ export function ProfileHeader({
               日本語 · {language}
             </span>
           )}
+          {mastered !== undefined && <AnimalLabel mastered={mastered} />}
           {joinDate && <span className="lgc-chip text-lgc-fg-muted">Joined {joinDate}</span>}
         </div>
       </div>
 
       <div className="flex gap-1.5 pb-1.5 shrink-0">
+        <Link
+          href="/stats"
+          className="flex items-center gap-1.5 rounded-md border border-lgc-border px-3 py-1.5 text-[13px] text-lgc-fg transition-colors hover:bg-lgc-bg-elev"
+        >
+          <BarChart3 size={13} /> Stats
+        </Link>
         <button
           type="button"
           className="flex items-center gap-1.5 rounded-md border border-lgc-border px-3 py-1.5 text-[13px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev"
         >
           <Share2 size={13} /> Share
         </button>
-        <button
-          type="button"
+        <Link
+          href="/settings"
           className="flex items-center gap-1.5 rounded-md border border-lgc-border px-3 py-1.5 text-[13px] text-lgc-fg transition-colors hover:bg-lgc-bg-elev"
         >
           <Settings size={13} /> Settings
-        </button>
+        </Link>
       </div>
     </div>
   );

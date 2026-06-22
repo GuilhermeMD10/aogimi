@@ -20,6 +20,7 @@ import { DeckGridItem } from './DeckGridItem';
 import { NewDeckSheet } from './NewDeckSheet';
 import { CloudSyncIcon } from '@/components/icons/sync-icons';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { StudyAllHardestButton } from '@/components/study/ui/StudyAllHardestButton';
 
 export function DecksListScreen() {
   const c = useColors();
@@ -63,8 +64,8 @@ export function DecksListScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: c.fg }]}>{t('decks.title')}</Text>
         <View style={styles.headerActions}>
-          {/* Sync-now is hidden for guests — they have no account to
-              push to. Conversion happens from the Profile page. */}
+          {/* Sync-now only matters when there's a backend account to
+              push to. Signed-out users sign up via the Profile tab. */}
           {!cannotSync && (
             <Pressable
               onPress={handleSyncNow}
@@ -127,13 +128,16 @@ export function DecksListScreen() {
           )}
 
           {decks.length > 0 && (
-            <View style={styles.grid}>
-              {decks.map((d) => (
-                <View key={d.id} style={styles.gridItem}>
-                  <DeckGridItem deck={d} onPress={() => openDeck(d)} />
-                </View>
-              ))}
-            </View>
+            <>
+              <StudyAllHardestButton />
+              <View style={styles.grid}>
+                {decks.map((d) => (
+                  <View key={d.id} style={styles.gridItem}>
+                    <DeckGridItem deck={d} onPress={() => openDeck(d)} />
+                  </View>
+                ))}
+              </View>
+            </>
           )}
         </ScrollView>
       )}

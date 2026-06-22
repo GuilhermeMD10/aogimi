@@ -61,6 +61,9 @@ export async function deleteCard(cardId: string): Promise<void> {
   return apiSendVoid(`/api/decks/cards/${cardId}`, 'DELETE');
 }
 
-export async function reviewCard(cardId: string): Promise<CardRecord> {
-  return apiSend<CardRecord>(`/api/decks/cards/${cardId}/review`, 'POST');
+export async function reviewCard(
+  cardId: string,
+  outcome: 'again' | 'hard' | 'easy',
+): Promise<CardRecord> {
+  return apiSend<CardRecord>(`/api/decks/cards/${cardId}/review`, 'POST', { outcome });
 }

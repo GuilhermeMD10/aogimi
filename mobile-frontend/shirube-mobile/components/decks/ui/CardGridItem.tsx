@@ -52,8 +52,12 @@ function chipColors(
     success: string;
   },
 ): { bg: string; fg: string } {
-  if (state === 'learning') return { bg: 'rgba(242, 179, 61, 0.18)', fg: c.warning };
-  if (state === 'mastered') return { bg: 'rgba(59, 122, 64, 0.14)', fg: c.success };
+  // Memory tiers: amber for "warming up", light green once it sticks,
+  // strong green when mastered. New cards use the neutral accent so
+  // they don't visually compete with reviewed cards.
+  if (state === 'mastered') return { bg: 'rgba(59, 122, 64, 0.20)', fg: c.success };
+  if (state === 'learned')  return { bg: 'rgba(59, 122, 64, 0.10)', fg: c.success };
+  if (state === 'seen')     return { bg: 'rgba(242, 179, 61, 0.18)', fg: c.warning };
   return { bg: c.accentSoft, fg: c.fg };
 }
 

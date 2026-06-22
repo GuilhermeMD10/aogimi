@@ -12,6 +12,8 @@ const userRouter      = require("./routes/user");
 const booksRouter     = require("./routes/books");
 const decksRouter     = require("./routes/decks");
 const devicesRouter   = require("./routes/devices");
+const studyRouter     = require("./routes/study");
+const statsRouter     = require("./routes/stats");
 const { authenticateJWT } = require("./middleware/authenticateJWT");
 const { requestLogger } = require("./middleware/requestLogger");
 
@@ -101,5 +103,7 @@ app.use("/api/user",    authenticateJWT, userRouter);
 app.use("/api/books",   authenticateJWT, booksRouter);
 app.use("/api/decks",   authenticateJWT, decksRouter);
 app.use("/api/devices", authenticateJWT, devicesRouter);
+app.use("/api/study",   authenticateJWT, studyRouter);
+app.use("/api/stats",   authenticateJWT, statsRouter);
 
 module.exports = app;

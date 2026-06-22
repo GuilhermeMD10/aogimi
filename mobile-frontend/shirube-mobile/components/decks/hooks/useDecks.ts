@@ -7,12 +7,17 @@ import {
   hydrateFromBackend as hydrateDecksFromBackend,
 } from '../utils/deckLocalState';
 import {
-  getDeckCardCount,
+  getDeckCardStats,
   hydrateFromBackend as hydrateCardsFromBackend,
+  type DeckCardStats,
 } from '../utils/cardLocalState';
 import type { LocalDeck } from '../types';
 
-export type DeckWithCount = LocalDeck & { cardCount: number };
+export type DeckWithCount = LocalDeck & {
+  cardCount: number;
+  /** Per-state breakdown for the deck-list tile + detail header. */
+  stats: DeckCardStats;
+};
 
 /**
  * Decks list hook with local-first semantics. The flow:
@@ -43,17 +48,16 @@ export function useDecks() {
   const readFromLocal = useCallback(async () => {
     const allDecks = await getAllDecks();
     const visible = allDecks.filter((d) => d.pendingOp !== 'delete');
-    // Derive the card count via the same per-deck helper that the
-    // detail page uses. Reading per-deck (instead of iterating all
-    // cards once) guarantees the list and the detail page never
-    // disagree on the same filter logic.
-    const withCounts = await Promise.all(
-      visible.map(async (d) => ({
-        ...d,
-        cardCount: await getDeckCardCount(d.id),
-      })),
+    // One per-deck stats call gives both the total count and the
+    // per-state breakdown — used by the deck tile and the detail
+    // header. The detail page reads the same helper for consistency.
+    const withStats = await Promise.all(
+      visible.map(async (d) => {
+        const stats = await getDeckCardStats(d.id);
+        return { ...d, cardCount: stats.total, stats };
+      }),
     );
-    setDecks(withCounts);
+    setDecks(withStats);
   }, []);
 
   const hydrate = useCallback(async () => {

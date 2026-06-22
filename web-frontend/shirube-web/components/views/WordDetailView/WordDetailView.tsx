@@ -36,7 +36,7 @@ export default function WordDetailView({
   query?: string;
   onBack?: () => void;
   onKanjiSearch?: (char: string) => void;
-  onAddCard?: (word: string, back: string) => void;
+  onAddCard?: (word: string, back: string, contextSentence?: string) => void;
 }) {
   const router = useRouter();
   const { data, loading, error } = useFetchWithAbort<DetailsResponse>(
@@ -108,7 +108,7 @@ function WordBody({
   data: DetailsResponse;
   query?: string;
   onKanjiClick: (char: string) => void;
-  onAddCard?: (word: string, back: string) => void;
+  onAddCard?: (word: string, back: string, contextSentence?: string) => void;
 }) {
   const { word, kanjis } = data;
   const headword = preferredHeadword(word, query);
@@ -125,7 +125,12 @@ function WordBody({
       const cappedMeanings = engMeanings.slice(0, MAX_MEANINGS_ON_CARD);
       parts.push(cappedMeanings.map((m, i) => `${i + 1}. ${m.meaning}`).join('\n'));
     }
-    onAddCard(headword, parts.join('\n'));
+    // Auto-fill context with the first example sentence the dict
+    // already loaded. The caller decides whether to prefer a
+    // reader-provided sentence over this fallback (see DictionaryView
+    // + DictionarySidekick).
+    const contextFallback = data.sentences[0]?.ja;
+    onAddCard(headword, parts.join('\n'), contextFallback);
   };
 
   return (

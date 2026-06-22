@@ -335,6 +335,10 @@ export function ReaderScreen({ bookId }: Props) {
         (q && (w.kanji.includes(q) || w.readings.some((r) => r.form === q))
           ? q
           : w.kanji[0] ?? w.readings[0]?.form) ?? '';
+      // Auto-fill context with the first example sentence the dict
+      // already loaded — saves the user from re-typing one of the
+      // sentences they just saw on the word detail.
+      const contextSentence = details.sentences[0]?.ja ?? '';
       setFlashcardPrefill({
         front,
         reading: w.readings[0]?.form ?? '',
@@ -343,6 +347,7 @@ export function ReaderScreen({ bookId }: Props) {
           .slice(0, 3)
           .map((m) => m.meaning)
           .join('; '),
+        contextSentence,
       });
       setDictTerm(null);
     },
