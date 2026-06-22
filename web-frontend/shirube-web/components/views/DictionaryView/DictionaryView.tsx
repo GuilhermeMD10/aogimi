@@ -74,7 +74,9 @@ export default function DictionaryView() {
         query={query}
         onBack={() => router.back()}
         onKanjiSearch={searchKanji}
-        onAddCard={(word, back) => requestAddCard(word, back, lastContextSentence)}
+        onAddCard={(word, back, ctx) =>
+          requestAddCard(word, back, lastContextSentence || ctx)
+        }
       />
     );
   }

@@ -54,7 +54,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function ShellContent({ isAuthPage, children }: { isAuthPage: boolean; children: React.ReactNode }) {
   const { activeBubble, setActiveBubble, toggleBubble } = useBubble();
-  const { readerBubble, setReaderBubble } = useReaderState();
+  const { readerBubble, setReaderBubble, setPendingCard } = useReaderState();
+
+  // addCard bubble close also clears `pendingCard`. Without this the
+  // decks page would observe the still-set pendingCard on next mount
+  // and re-open the same add-card flow, letting the user duplicate the
+  // card they just created. Both signals are seeded together in
+  // `useReaderActions.requestAddCard`; tearing both down together
+  // keeps them in lockstep.
+  const closeAddCardBubble = () => {
+    setReaderBubble(null);
+    setPendingCard(null);
+  };
 
   return (
     <main className="h-full w-full">
@@ -76,7 +87,7 @@ function ShellContent({ isAuthPage, children }: { isAuthPage: boolean; children:
           word={readerBubble.word}
           back={readerBubble.back}
           contextSentence={readerBubble.contextSentence}
-          onClose={() => setReaderBubble(null)}
+          onClose={closeAddCardBubble}
         />
       ))}
     </main>

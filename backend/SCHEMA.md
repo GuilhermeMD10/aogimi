@@ -7,9 +7,10 @@ must stay in lockstep (any migration touching user-data tables also
 edits the reset script).
 
 The shape below reflects the schema after
-[`021_auth_hardening.sql`](./migrations/021_auth_hardening.sql), the
-clean-slate cutover that introduced `password_hash`, the case-insensitive
-email index, and `refresh_tokens`.
+[`022_card_srs.sql`](./migrations/022_card_srs.sql), which extended
+`cards` with SRS state and added `card_reviews`, `study_days`, and
+`user_study_prefs`. Algorithm lives in
+[`src/services/cardSrsService.js`](./src/services/cardSrsService.js).
 
 ---
 
@@ -151,13 +152,88 @@ identity fingerprints used to match the same book across devices.
 | back | text | NOT NULL | Meaning / translation |
 | notes | text | NOT NULL DEFAULT '' | |
 | context_sentence | text | NOT NULL DEFAULT '' | Optional in-context excerpt |
-| state | text | NOT NULL DEFAULT 'new' | SRS state placeholder |
+| state | text | NOT NULL DEFAULT 'new' | SRS state: `new` \| `seen` \| `learned` \| `mastered` |
 | reviewed_times | int | NOT NULL DEFAULT 0 | Review counter |
+| difficulty | real | NOT NULL DEFAULT 0.30 | SRS: how hard this card is intrinsically, clamped [0.05, 0.95] |
+| stability | real | NOT NULL DEFAULT 2.0 | SRS: days of memory durability, floor 0.1 |
+| last_outcomes | text | NOT NULL DEFAULT '' | Last 5 outcomes encoded `A`/`H`/`E` (Again/Hard/Easy), oldest left |
+| last_reviewed_at | timestamptz | nullable | When the card was last reviewed (null for never-reviewed cards) |
 | created_at | timestamptz | NOT NULL DEFAULT now() | |
 
 **Indexes:**
 - `idx_cards_deck_id ON (deck_id)`
 - `idx_cards_state ON (deck_id, state)`
+- `idx_cards_last_reviewed ON (deck_id, last_reviewed_at)` — for "oldest first" and time-aware ordering
+
+---
+
+## card_reviews
+
+Append-only event log. One row per review submission. Drives stats,
+undo, heatmap, and future algorithm retraining.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| id | uuid | PK, DEFAULT gen_random_uuid() | |
+| card_id | uuid | NOT NULL, FK → cards(id) ON DELETE CASCADE | |
+| user_id | int | NOT NULL, FK → users(id) ON DELETE CASCADE | |
+| reviewed_at | timestamptz | NOT NULL DEFAULT now() | When the user submitted the review |
+| outcome | text | NOT NULL, CHECK IN ('again','hard','easy') | The result the user picked |
+| difficulty_before | real | NOT NULL | Snapshot of card.difficulty pre-update |
+| difficulty_after | real | NOT NULL | Snapshot post-update |
+| stability_before | real | NOT NULL | Snapshot pre-update |
+| stability_after | real | NOT NULL | Snapshot post-update |
+| state_before | text | NOT NULL | Snapshot pre-update |
+| state_after | text | NOT NULL | Snapshot post-update |
+| elapsed_days | real | NOT NULL DEFAULT 0 | Days since the prior review (0 for first review) |
+
+**Indexes:**
+- `idx_card_reviews_user_time ON (user_id, reviewed_at)` — heatmap + reviews-per-day
+- `idx_card_reviews_card ON (card_id, reviewed_at)` — undo + per-card history
+
+---
+
+## study_days
+
+Rollup of "the user studied at least one card on this calendar date".
+Used by the days-studied counter and the heatmap so we don't aggregate
+`card_reviews` on every render.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| user_id | int | NOT NULL, FK → users(id) ON DELETE CASCADE | |
+| studied_on | date | NOT NULL | Calendar date in the user's timezone (UTC for now) |
+| review_count | int | NOT NULL DEFAULT 0 | Number of reviews logged on this date |
+
+**PK:** `(user_id, studied_on)`
+**Indexes:** `idx_study_days_user ON (user_id, studied_on DESC)`
+
+---
+
+## user_study_prefs
+
+Per-user display + filter preferences. One row per user, created lazily
+on first `PUT /api/study/prefs`. JSONB keeps future toggles
+schema-free.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| user_id | int | PK, FK → users(id) ON DELETE CASCADE | |
+| display | jsonb | NOT NULL DEFAULT `{...}` | Front/back content toggles + active preset |
+| deck_overrides | jsonb | NOT NULL DEFAULT `{}` | Map of `{ deckId: { mode, sessionSize } }` |
+| updated_at | timestamptz | NOT NULL DEFAULT now() | |
+
+**`display` shape:**
+```json
+{
+  "preset": "default",           // 'easy' | 'default' | 'hard' | 'production'
+  "front": { "reading": false, "context": true, "jlpt": true, "deckName": true },
+  "back":  { "exampleSentence": true }
+}
+```
+
+**`deck_overrides` shape:** `{ "<deckId>": { "mode": "hardest", "sessionSize": 20 } }` —
+mode is one of `hardest | random | oldest_first | oldest_only | newest_only | by_creation | hardest_all_decks`.
 
 ---
 

@@ -9,13 +9,16 @@ BEGIN;
 -- ── Drop in dependency order ────────────────────────────────────────────────
 
 DROP TABLE IF EXISTS book_availability CASCADE;
-DROP TABLE IF EXISTS devices         CASCADE;
-DROP TABLE IF EXISTS cards           CASCADE;
-DROP TABLE IF EXISTS bookmarks       CASCADE;
-DROP TABLE IF EXISTS decks           CASCADE;
-DROP TABLE IF EXISTS book_progress   CASCADE;
-DROP TABLE IF EXISTS refresh_tokens  CASCADE;
-DROP TABLE IF EXISTS users           CASCADE;
+DROP TABLE IF EXISTS devices           CASCADE;
+DROP TABLE IF EXISTS card_reviews      CASCADE;
+DROP TABLE IF EXISTS study_days        CASCADE;
+DROP TABLE IF EXISTS user_study_prefs  CASCADE;
+DROP TABLE IF EXISTS cards             CASCADE;
+DROP TABLE IF EXISTS bookmarks         CASCADE;
+DROP TABLE IF EXISTS decks             CASCADE;
+DROP TABLE IF EXISTS book_progress     CASCADE;
+DROP TABLE IF EXISTS refresh_tokens    CASCADE;
+DROP TABLE IF EXISTS users             CASCADE;
 
 -- ── users ───────────────────────────────────────────────────────────────────
 
@@ -130,13 +133,58 @@ CREATE TABLE cards (
   back              text         NOT NULL,
   notes             text         NOT NULL DEFAULT '',
   context_sentence  text         NOT NULL DEFAULT '',
-  state             text         NOT NULL DEFAULT 'new',
+  state             text         NOT NULL DEFAULT 'new',           -- new | seen | learned | mastered
   reviewed_times    int          NOT NULL DEFAULT 0,
+  difficulty        real         NOT NULL DEFAULT 0.30,            -- SRS: [0.05, 0.95]
+  stability         real         NOT NULL DEFAULT 2.0,             -- SRS: days, floor 0.1
+  last_outcomes     text         NOT NULL DEFAULT '',              -- last 5: A/H/E encoded
+  last_reviewed_at  timestamptz,
   created_at        timestamptz  NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_cards_deck_id ON cards (deck_id);
-CREATE INDEX idx_cards_state   ON cards (deck_id, state);
+CREATE INDEX idx_cards_deck_id        ON cards (deck_id);
+CREATE INDEX idx_cards_state          ON cards (deck_id, state);
+CREATE INDEX idx_cards_last_reviewed  ON cards (deck_id, last_reviewed_at);
+
+-- ── card_reviews ────────────────────────────────────────────────────────────
+
+CREATE TABLE card_reviews (
+  id                 uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id            uuid          NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+  user_id            int           NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reviewed_at        timestamptz   NOT NULL DEFAULT now(),
+  outcome            text          NOT NULL CHECK (outcome IN ('again','hard','easy')),
+  difficulty_before  real          NOT NULL,
+  difficulty_after   real          NOT NULL,
+  stability_before   real          NOT NULL,
+  stability_after    real          NOT NULL,
+  state_before       text          NOT NULL,
+  state_after        text          NOT NULL,
+  elapsed_days       real          NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_card_reviews_user_time ON card_reviews (user_id, reviewed_at);
+CREATE INDEX idx_card_reviews_card      ON card_reviews (card_id, reviewed_at);
+
+-- ── study_days ──────────────────────────────────────────────────────────────
+
+CREATE TABLE study_days (
+  user_id      int          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  studied_on   date         NOT NULL,
+  review_count int          NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, studied_on)
+);
+
+CREATE INDEX idx_study_days_user ON study_days (user_id, studied_on DESC);
+
+-- ── user_study_prefs ────────────────────────────────────────────────────────
+
+CREATE TABLE user_study_prefs (
+  user_id        int          PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  display        jsonb        NOT NULL DEFAULT '{"preset":"default","front":{"reading":false,"context":true,"jlpt":true,"deckName":true},"back":{"exampleSentence":true}}'::jsonb,
+  deck_overrides jsonb        NOT NULL DEFAULT '{}'::jsonb,
+  updated_at     timestamptz  NOT NULL DEFAULT now()
+);
 
 -- ── devices ─────────────────────────────────────────────────────────────────
 

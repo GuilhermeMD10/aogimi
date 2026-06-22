@@ -19,6 +19,15 @@ module.exports = {
     return result.rows;
   },
 
+  findByDeckIds: async (deckIds) => {
+    if (!deckIds || deckIds.length === 0) return [];
+    const result = await pool.query(
+      `SELECT * FROM cards WHERE deck_id = ANY($1::uuid[]) ORDER BY created_at DESC`,
+      [deckIds]
+    );
+    return result.rows;
+  },
+
   findById: async (id) => {
     const result = await pool.query(
       `SELECT * FROM cards WHERE id = $1`,
@@ -43,10 +52,28 @@ module.exports = {
     return result.rows[0];
   },
 
-  incrementReviewCount: async (id) => {
+  applySrsUpdate: async (id, next) => {
+    // Writes the post-outcome SRS fields. `reviewed_times` is bumped in
+    // the same UPDATE so the legacy column stays consistent with the
+    // event log.
     const result = await pool.query(
-      `UPDATE cards SET reviewed_times = reviewed_times + 1 WHERE id = $1 RETURNING *`,
-      [id]
+      `UPDATE cards
+          SET difficulty       = $2,
+              stability        = $3,
+              last_outcomes    = $4,
+              last_reviewed_at = $5,
+              state            = $6,
+              reviewed_times   = reviewed_times + 1
+        WHERE id = $1
+        RETURNING *`,
+      [
+        id,
+        next.difficulty,
+        next.stability,
+        next.last_outcomes,
+        next.last_reviewed_at,
+        next.state,
+      ],
     );
     return result.rows[0];
   },

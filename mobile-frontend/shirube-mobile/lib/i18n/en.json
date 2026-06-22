@@ -85,16 +85,77 @@
     "cards": "{count} cards",
     "studyNow": "Study now",
     "rename": "Rename",
-    "delete": "Delete deck"
+    "delete": "Delete deck",
+    "studyAllHardest": "Study hardest across all decks",
+    "studyAllHardestHint": "Pulls the hardest cards from every deck"
   },
   "study": {
     "tapToReveal": "Tap to reveal",
-    "dontKnow": "Don't know",
-    "know": "I know it",
-    "summaryTitle": "Nice work",
-    "summaryCards": "{reviewed} cards · {pct}% known",
+    "again": "Again",
+    "hard": "Hard",
+    "easy": "Easy",
+    "undo": "Undo",
     "studyAgain": "Study again",
-    "backToDeck": "Back to deck"
+    "backToDeck": "Back to deck",
+    "finish": {
+      "cardsReviewed": "cards reviewed",
+      "progression": "Progression",
+      "hardest": "Hardest this session"
+    },
+    "changes": {
+      "firstReviewed": "{n} first reviewed",
+      "advanced": "{n} advanced to learned",
+      "reachedMastered": "{n} reached mastered",
+      "regressedToSeen": "{n} regressed to seen",
+      "regressedToLearned": "{n} regressed to learned"
+    },
+    "hardest": {
+      "again": "{n}× missed"
+    },
+    "state": {
+      "new": "new",
+      "seen": "seen",
+      "learned": "learned",
+      "mastered": "mastered"
+    },
+    "mode": {
+      "hardest": "Hardest → New",
+      "random": "Full random",
+      "oldest_first": "Oldest first",
+      "oldest_only": "Oldest only",
+      "newest_only": "New only",
+      "by_creation": "By creation date"
+    }
+  },
+  "sessionConfig": {
+    "title": "Session settings",
+    "mode": "Mode",
+    "size": "Cards per session",
+    "sizeHint": "Between {min} and {max}"
+  },
+  "stats": {
+    "title": "Stats",
+    "viewAll": "View stats",
+    "tabActivity": "Activity",
+    "tabCards": "Cards",
+    "daysStudied": "days studied",
+    "heatmap": "Last year",
+    "recent": "Last 30 days",
+    "distribution": "Distribution",
+    "total": "Total",
+    "hardestCards": "Hardest cards",
+    "noHardest": "Nothing has struggled yet",
+    "animal": {
+      "fox": "Fox",
+      "snake": "Snake",
+      "bull": "Bull",
+      "bear": "Bear",
+      "gorilla": "Gorilla",
+      "wolf": "Wolf",
+      "tiger": "Tiger",
+      "dragon": "Dragon",
+      "leviathan": "Leviathan"
+    }
   },
   "profile": {
     "title": "You",
@@ -114,5 +175,25 @@
     "title": "Settings",
     "help": "Help",
     "credits": "Credits"
+  },
+  "studyDisplay": {
+    "title": "Study display",
+    "sectionPreset": "Preset",
+    "sectionFront": "Front",
+    "sectionBack": "Back",
+    "preset": {
+      "easy": "Easy",
+      "default": "Default",
+      "hard": "Hard",
+      "production": "Production"
+    },
+    "front": {
+      "reading": "Show reading",
+      "context": "Show context (with cloze)",
+      "deckName": "Show deck name"
+    },
+    "back": {
+      "exampleSentence": "Show example sentence"
+    }
   }
 }

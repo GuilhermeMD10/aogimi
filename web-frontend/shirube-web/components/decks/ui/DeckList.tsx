@@ -1,16 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, MoreHorizontal, Layers, Play } from 'lucide-react';
+import Link from 'next/link';
+import { BarChart3, Plus, MoreHorizontal, Layers, Play } from 'lucide-react';
 import type { DeckSummary } from '../types';
 import { DeckForm } from './DeckForm';
 import { deckVisuals } from '../utils/deckVisuals';
+import { StudyAllHardestButton } from '@/components/study/ui/StudyAllHardestButton';
 
 interface DeckListProps {
   decks: DeckSummary[];
   onOpenDeck: (deckId: string) => void;
   onCreateDeck: (name: string, description: string) => void;
   onDeleteDeck: (deckId: string) => void;
+  onStudyAllHardest?: () => void;
 }
 
 export function DeckList({
@@ -18,6 +21,7 @@ export function DeckList({
   onOpenDeck,
   onCreateDeck,
   onDeleteDeck,
+  onStudyAllHardest,
 }: DeckListProps) {
   const [formOpen, setFormOpen] = useState(false);
 
@@ -47,6 +51,13 @@ export function DeckList({
             </div>
           </div>
           <div className="flex gap-1">
+            <Link
+              href="/stats"
+              className="flex items-center gap-1.5 rounded-md border border-lgc-border px-3 py-1.5 text-[13px] font-medium text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev hover:text-lgc-fg"
+            >
+              <BarChart3 size={13} />
+              Stats
+            </Link>
             <button
               type="button"
               onClick={() => setFormOpen((v) => !v)}
@@ -83,16 +94,23 @@ export function DeckList({
             </button>
           </div>
         ) : decks.length > 0 ? (
-          <div className="mt-5 grid grid-cols-1 gap-4.5 @md:grid-cols-2 @3xl:grid-cols-3">
-            {decks.map((deck) => (
-              <DeckCard
-                key={deck.id}
-                deck={deck}
-                onOpen={onOpenDeck}
-                onDelete={onDeleteDeck}
-              />
-            ))}
-          </div>
+          <>
+            {onStudyAllHardest && (
+              <div className="mt-5">
+                <StudyAllHardestButton onPress={onStudyAllHardest} />
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-4.5 @md:grid-cols-2 @3xl:grid-cols-3">
+              {decks.map((deck) => (
+                <DeckCard
+                  key={deck.id}
+                  deck={deck}
+                  onOpen={onOpenDeck}
+                  onDelete={onDeleteDeck}
+                />
+              ))}
+            </div>
+          </>
         ) : null}
       </div>
     </div>

@@ -9,7 +9,7 @@ export interface DeckRecord {
   card_count: number;
 }
 
-export type CardState = 'new' | 'learning' | 'mastered';
+export type CardState = 'new' | 'seen' | 'learned' | 'mastered';
 
 export interface CardRecord {
   id: string;
@@ -21,6 +21,11 @@ export interface CardRecord {
   context_sentence: string;
   state: CardState;
   reviewed_times: number;
+  // SRS columns from migration 022.
+  difficulty: number;
+  stability: number;
+  last_outcomes: string;
+  last_reviewed_at: string | null;
   created_at: string;
 }
 
@@ -40,7 +45,7 @@ export type CardModel = {
   reading?: string;
   notes?: string;
   context_sentence?: string;
-  state?: 'new' | 'learning' | 'mastered';
+  state?: CardState;
   reviewed_times?: number;
 };
 

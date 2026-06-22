@@ -36,6 +36,7 @@ export async function createCardLocal(
     back: string;
     reading?: string;
     notes?: string;
+    contextSentence?: string;
   },
 ): Promise<LocalCard> {
   const now = new Date().toISOString();
@@ -47,8 +48,16 @@ export async function createCardLocal(
     reading: data.reading ?? '',
     back: data.back,
     notes: data.notes ?? '',
+    context_sentence: data.contextSentence ?? '',
     state: 'new',
     reviewed_times: 0,
+    // SRS defaults match the backend column defaults so locally-created
+    // cards behave the same as backend-created ones the moment they're
+    // first reviewed.
+    difficulty: 0.30,
+    stability: 2.0,
+    last_outcomes: '',
+    last_reviewed_at: null,
     created_at: now,
     syncState: 'pending',
     pendingOp: 'create',
@@ -65,6 +74,7 @@ export async function updateCardLocal(
     reading: string;
     back: string;
     notes: string;
+    context_sentence: string;
     state: CardState;
   }>,
 ): Promise<LocalCard | null> {
@@ -120,6 +130,7 @@ export async function pushCard(card: LocalCard): Promise<CardPushResult> {
         reading: card.reading,
         back: card.back,
         notes: card.notes,
+        contextSentence: card.context_sentence,
       });
       const newId = await markCardSynced(card.id, remote);
       return { ok: true, cardId: newId };
@@ -131,6 +142,7 @@ export async function pushCard(card: LocalCard): Promise<CardPushResult> {
         reading: card.reading,
         back: card.back,
         notes: card.notes,
+        contextSentence: card.context_sentence,
         state: card.state,
       });
       await markCardSynced(card.id, remote);

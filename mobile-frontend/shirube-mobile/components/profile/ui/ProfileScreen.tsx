@@ -25,6 +25,8 @@ import { AvatarPickerSheet } from './AvatarPickerSheet';
 // Theme picker hidden for v1 — only Default ships. Restore when premium themes land.
 // import { ThemePicker } from './ThemePicker';
 import { SignedOutProfileScreen } from './SignedOutProfileScreen';
+import { AnimalLabel } from './AnimalLabel';
+import { useStatsCards } from '@/components/stats/hooks/useStatsCards';
 
 const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const;
 type JlptLevel = (typeof JLPT_LEVELS)[number];
@@ -54,6 +56,12 @@ export function ProfileScreen() {
   );
   const books = data?.books ?? [];
   const decks = data?.decks ?? [];
+
+  // Mastered count drives the AnimalLabel chip. Hook always fires
+  // (rules of hooks) — for signed-out users it 401s silently and the
+  // signed-out branch below short-circuits before the chip renders.
+  const { data: cardsStats } = useStatsCards();
+  const masteredCount = cardsStats.byState.mastered;
 
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   // Single busy-field flag — only one profile mutation is ever in flight.
@@ -169,6 +177,7 @@ export function ProfileScreen() {
                 </Text>
               </View>
             )}
+            <AnimalLabel mastered={masteredCount} />
             <View
               style={[styles.chip, { backgroundColor: c.bgSunken, borderColor: 'transparent' }]}
             >
@@ -222,6 +231,16 @@ export function ProfileScreen() {
           {/* <Section title={t('profile.theme')}>
             <ThemePicker />
           </Section> */}
+
+          <Section title={t('stats.title')}>
+            <Pressable
+              onPress={() => router.push('/stats' as never)}
+              style={[styles.statsLink, { backgroundColor: c.bgElev, borderColor: c.border }]}
+            >
+              <Text style={[styles.statsLinkLabel, { color: c.fg }]}>{t('stats.viewAll')}</Text>
+              <Text style={[styles.statsChevron, { color: c.fgMuted }]}>›</Text>
+            </Pressable>
+          </Section>
 
           <Section title={t('profile.currentlyReading')} subtitle={`${readingBooks.length} book${readingBooks.length !== 1 ? 's' : ''}`}>
             {readingBooks.length === 0 ? (
@@ -486,4 +505,14 @@ const styles = StyleSheet.create({
   },
   deckTitle: { fontSize: fontSize.sm + 1, fontWeight: '600' },
   deckDesc: { fontSize: fontSize.xs + 1, marginTop: 2 },
+  statsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  statsLinkLabel: { fontSize: fontSize.md, fontWeight: '500' },
+  statsChevron: { fontSize: 24, lineHeight: 26 },
 });

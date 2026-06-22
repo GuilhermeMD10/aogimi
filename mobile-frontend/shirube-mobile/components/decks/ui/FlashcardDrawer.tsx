@@ -25,6 +25,10 @@ export type FlashcardPrefill = {
   front: string;
   reading: string;
   back: string;
+  /** Auto-filled context sentence (e.g. dict's first example). The
+   *  drawer doesn't currently expose a field for the user to edit it
+   *  inline; it's a pass-through from the caller. */
+  contextSentence?: string;
 };
 
 type Props = {
@@ -118,6 +122,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
         front: front.trim(),
         reading: reading.trim(),
         back: back.trim(),
+        contextSentence: prefill?.contextSentence ?? '',
       });
       onSaved?.();
       resetAndClose();

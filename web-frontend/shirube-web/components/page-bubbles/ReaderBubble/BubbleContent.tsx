@@ -27,8 +27,8 @@ import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';
 // DictionaryStateProvider so the /dictionary page stays in sync.
 type Phase =
   | { type: 'dict' }
-  | { type: 'select-deck'; word: string; back: string }
-  | { type: 'create-card'; word: string; back: string; deckId: string; deckName: string };
+  | { type: 'select-deck'; word: string; back: string; contextSentence?: string }
+  | { type: 'create-card'; word: string; back: string; deckId: string; deckName: string; contextSentence?: string };
 
 export type BubbleContentProps =
   | { mode: 'dict'; onClose: () => void }
@@ -44,7 +44,7 @@ export function BubbleContent(props: BubbleContentProps) {
   const dict = useDictionaryState();
   const [phase, setPhase] = useState<Phase>(
     props.mode === 'addCard'
-      ? { type: 'select-deck', word: props.word, back: props.back }
+      ? { type: 'select-deck', word: props.word, back: props.back, contextSentence: props.contextSentence }
       : { type: 'dict' },
   );
 
@@ -66,7 +66,9 @@ export function BubbleContent(props: BubbleContentProps) {
           wordId={dict.selectedWordId}
           query={dict.query}
           onBack={() => dict.setSelectedWordId(null)}
-          onAddCard={(word, back) => setPhase({ type: 'select-deck', word, back })}
+          onAddCard={(word, back, contextSentence) =>
+            setPhase({ type: 'select-deck', word, back, contextSentence })
+          }
           onKanjiSearch={(char) => { void dict.runSearch(char); }}
           onClose={props.onClose}
         />
@@ -97,6 +99,7 @@ export function BubbleContent(props: BubbleContentProps) {
             type: 'create-card',
             word: phase.word,
             back: phase.back,
+            contextSentence: phase.contextSentence,
             deckId: id,
             deckName: name,
           })
@@ -106,7 +109,11 @@ export function BubbleContent(props: BubbleContentProps) {
     );
   }
 
-  const contextSentence = props.mode === 'addCard' ? props.contextSentence : dict.lastContextSentence;
+  // Prefer the phase-carried context — WordDetailPhase fills it with
+  // the first dict example sentence when no reader context was passed,
+  // so this covers both "added from reader" and "added from dict view"
+  // flows without the dict view leaving the field empty.
+  const contextSentence = phase.contextSentence ?? dict.lastContextSentence;
   return (
     <CreateCardPhase
       word={phase.word}
@@ -115,7 +122,12 @@ export function BubbleContent(props: BubbleContentProps) {
       deckId={phase.deckId}
       deckName={phase.deckName}
       onBack={() =>
-        setPhase({ type: 'select-deck', word: phase.word, back: phase.back })
+        setPhase({
+          type: 'select-deck',
+          word: phase.word,
+          back: phase.back,
+          contextSentence: phase.contextSentence,
+        })
       }
       onCreated={props.onClose}
       onClose={props.onClose}
@@ -251,7 +263,7 @@ function WordDetailPhase({
   wordId: number;
   query?: string;
   onBack: () => void;
-  onAddCard: (word: string, back: string) => void;
+  onAddCard: (word: string, back: string, contextSentence?: string) => void;
   onKanjiSearch: (char: string) => void;
   onClose: () => void;
 }) {
@@ -273,7 +285,11 @@ function WordDetailPhase({
       const cappedMeanings = engMeanings.slice(0, MAX_MEANINGS_ON_CARD);
       parts.push(cappedMeanings.map((m, i) => `${i + 1}. ${m.meaning}`).join('\n'));
     }
-    onAddCard(headword, parts.join('\n'));
+    // Auto-fill context with the first example sentence the dict already
+    // loaded. The caller decides whether to prefer a reader-provided
+    // sentence over this fallback.
+    const contextFallback = data.sentences[0]?.ja;
+    onAddCard(headword, parts.join('\n'), contextFallback);
   };
 
   return (

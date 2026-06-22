@@ -8,7 +8,7 @@ export type DeckRecord = {
   created_at: string;
 };
 
-export type CardState = 'new' | 'learning' | 'mastered';
+export type CardState = 'new' | 'seen' | 'learned' | 'mastered';
 
 export type CardRecord = {
   id: string;
@@ -17,8 +17,16 @@ export type CardRecord = {
   reading: string;
   back: string;
   notes: string;
+  context_sentence: string;
   state: CardState;
   reviewed_times: number;
+  // SRS columns from migration 022. last_reviewed_at is null for
+  // never-reviewed cards; difficulty / stability default to 0.30 / 2.0
+  // on creation.
+  difficulty: number;
+  stability: number;
+  last_outcomes: string;
+  last_reviewed_at: string | null;
   created_at: string;
 };
 

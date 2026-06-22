@@ -55,7 +55,14 @@
       "Bash(perl -i -pe ' *)",
       "Bash(node -e \"require\\('./src/app'\\)\")",
       "Bash(node -e \"require\\('dotenv'\\).config\\(\\); require\\('./src/app'\\); console.log\\('OK app loads with .env'\\);\")",
-      "Bash(node -e \"require\\('dotenv'\\).config\\(\\); const app = require\\('./src/app'\\); const server = app.listen\\(0, \\(\\) => { const port = server.address\\(\\).port; require\\('http'\\).get\\(\\\\`http://localhost:\\\\${port}/api/words/1\\\\`, \\(\\) => { server.close\\(\\); }\\); }\\);\")"
+      "Bash(node -e \"require\\('dotenv'\\).config\\(\\); const app = require\\('./src/app'\\); const server = app.listen\\(0, \\(\\) => { const port = server.address\\(\\).port; require\\('http'\\).get\\(\\\\`http://localhost:\\\\${port}/api/words/1\\\\`, \\(\\) => { server.close\\(\\); }\\); }\\);\")",
+      "Bash(node --check src/services/cardSrsService.js)",
+      "Bash(node --check src/services/cardService.js)",
+      "Bash(node --check src/services/studyService.js)",
+      "Bash(node --check src/services/statsService.js)",
+      "Bash(node --check src/repositories/cardRepository.js)",
+      "Bash(awk '/components\\\\/\\(study|stats\\)/{found=1; print; next} found && /^[[:space:]]+[0-9]+:/{print; next} found{found=0; print}')",
+      "Bash(awk '/components\\\\/\\(decks|profile\\)/{found=1; print; next} found && /^[[:space:]]+[0-9]+:/{print; next} found{found=0; print}')"
     ],
     "additionalDirectories": [
       "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader",
