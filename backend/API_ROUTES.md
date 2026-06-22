@@ -159,8 +159,74 @@ matches `req.user.userId` via `requireUserMatch`.
 | POST | `/api/decks/:id/cards` | `{ front, reading?, back, notes?, contextSentence? }` | `CardRecord` | `deckOwnedBy(:id)` |
 | GET | `/api/decks/:id/cards` | — | `CardRecord[]` | `deckOwnedBy(:id)` |
 | PUT | `/api/decks/cards/:cardId` | `{ front?, reading?, back?, notes?, state?, contextSentence? }` | `CardRecord` | `cardOwnedBy` |
-| POST | `/api/decks/cards/:cardId/review` | — | `CardRecord` | `cardOwnedBy` |
+| POST | `/api/decks/cards/:cardId/review` | `{ outcome: 'again' \| 'hard' \| 'easy' }` | `CardRecord` (with updated SRS columns) | `cardOwnedBy` |
 | DELETE | `/api/decks/cards/:cardId` | — | `{ message }` | `cardOwnedBy` |
+
+Submitting a review applies the SRS algorithm
+([`src/services/cardSrsService.js`](./src/services/cardSrsService.js))
+and atomically updates the card's `difficulty`, `stability`,
+`last_outcomes`, `last_reviewed_at`, and `state`. The same call appends
+an event row to `card_reviews` and bumps the user's `study_days` row
+for today.
+
+`CardRecord` includes the SRS columns: `difficulty`, `stability`,
+`last_outcomes`, `last_reviewed_at`, plus the legacy `notes`,
+`reviewed_times`, etc. State enum: `new | seen | learned | mastered`.
+
+---
+
+## Protected — Study (session + prefs)
+
+| Method | Path | Body | Response | Notes |
+|---|---|---|---|---|
+| POST | `/api/study/session` | `{ scope, deckIds?, mode, limit? }` | `{ cards: CardRecord[] }` | Cards already in display order |
+| GET | `/api/study/prefs` | — | `{ display, deckOverrides }` | Returns defaults when no row exists |
+| PUT | `/api/study/prefs` | `{ display?, deckOverrides? }` | `{ display, deckOverrides }` | Upsert; either field optional |
+
+**Session body**:
+- `scope`: `'all'` (every deck owned by the user) or `'deck'` (the listed deck IDs).
+- `deckIds`: required when `scope === 'deck'`. Unowned IDs are silently dropped.
+- `mode`: one of `hardest` (default) · `random` · `oldest_first` · `oldest_only` · `newest_only` · `by_creation` · `hardest_all_decks`.
+- `limit`: defaults to 20. Capped per session size from `user_study_prefs.deck_overrides` if the client passes that value through.
+
+**Mode semantics**:
+- `hardest` — difficulty + (1−R) fading boost + recent-failure boost + state bias + random jitter, sorted desc.
+- `random` — uniform shuffle, no weighting.
+- `oldest_first` — by `last_reviewed_at` ASC; never-reviewed cards float first.
+- `oldest_only` — filter to cards last reviewed > 7 days ago (or never), then shuffle.
+- `newest_only` — only `state = 'new'`, shuffled.
+- `by_creation` — by `created_at` ASC.
+- `hardest_all_decks` — `hardest` ordering, but pool = every deck the user owns regardless of `scope`.
+
+**Prefs `display` shape** (defaults shown):
+```json
+{
+  "preset": "default",
+  "front": { "reading": false, "context": true, "jlpt": true, "deckName": true },
+  "back":  { "exampleSentence": true }
+}
+```
+
+**Prefs `deckOverrides` shape**:
+```json
+{ "<deckId>": { "mode": "hardest", "sessionSize": 20 } }
+```
+
+---
+
+## Protected — Stats
+
+Read-only aggregations for the global stats screen. All queries scoped
+to the token user.
+
+| Method | Path | Response |
+|---|---|---|
+| GET | `/api/stats/activity` | `{ daysStudied: number, perDay: [{ date: 'YYYY-MM-DD', count: number }] }` |
+| GET | `/api/stats/cards` | `{ byState: { new, seen, learned, mastered }, total: number, hardest: CardRecord[] }` |
+
+- `perDay` covers the last 365 days; only days with ≥ 1 review are listed.
+- `hardest` returns at most 20 cards (sorted by `difficulty` desc, with
+  recent-Again count as a tiebreaker).
 
 ---
 

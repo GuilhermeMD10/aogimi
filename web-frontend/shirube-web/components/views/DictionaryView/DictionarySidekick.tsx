@@ -86,7 +86,9 @@ export function DictionarySidekick({ onClose }: DictionarySidekickProps) {
             query={query}
             onBack={() => setSelectedWordId(null)}
             onKanjiSearch={(char) => { void runSearch(char); }}
-            onAddCard={(word, back) => requestAddCard(word, back, lastContextSentence)}
+            onAddCard={(word, back, ctx) =>
+              requestAddCard(word, back, lastContextSentence || ctx)
+            }
           />
         </div>
       </div>

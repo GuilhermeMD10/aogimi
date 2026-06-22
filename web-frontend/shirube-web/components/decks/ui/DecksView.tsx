@@ -7,7 +7,10 @@ import * as api from '../utils/decksApi';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import { DeckList } from './DeckList';
 import { DeckDetail } from './DeckDetail';
-import { StudyView } from './StudyView';
+import { StudyScreen } from '@/components/study/ui/StudyScreen';
+import { SessionConfigSheet } from '@/components/study/ui/SessionConfigSheet';
+import { useDeckOverrides } from '@/components/study/hooks/useDeckOverrides';
+import type { StudySessionConfig } from '@/components/study/types';
 import {
   PendingCardOverlay,
   type PendingCardFlow,
@@ -17,12 +20,17 @@ import type { CardModel, Deck, DeckPatch } from '../types';
 type Screen =
   | { type: 'decks' }
   | { type: 'deck'; deckId: string }
-  | { type: 'study'; deckId: string };
+  | { type: 'study'; deckId: string }
+  | { type: 'study-all' };
 
 export default function DecksView() {
   const [screen, setScreen] = useState<Screen>({ type: 'decks' });
   const [pendingCardFlow, setPendingCardFlow] = useState<PendingCardFlow>(null);
   const { pendingCard, setPendingCard } = useReaderState();
+  // Per-deck session overrides (mode + sessionSize). Loads from local
+  // cache + backend on mount.
+  const { getFor: getDeckOverride, setFor: setDeckOverride } = useDeckOverrides();
+  const [configOpen, setConfigOpen] = useState(false);
 
   // ── Deck list (owned by DecksProvider) ──────────────────────────────────────
   // The provider holds the list + simple mutations (createDeck, updateDeck,
@@ -41,7 +49,8 @@ export default function DecksView() {
   const fetchDecks = useCallback(() => refreshDecks(), [refreshDecks]);
 
   // ── Active deck + cards ─────────────────────────────────────────────────────
-  const activeDeckId = screen.type === 'decks' ? null : screen.deckId;
+  const activeDeckId =
+    screen.type === 'deck' || screen.type === 'study' ? screen.deckId : null;
   const { data: activeDeckData, loading } = useFetchWithAbort<Deck>(
     async (signal) => {
       const [deckRecord, cards] = await Promise.all([
@@ -117,7 +126,9 @@ export default function DecksView() {
     async (deckId: string) => {
       await providerDeleteDeck(deckId);
       setScreen((prev) =>
-        prev.type !== 'decks' && prev.deckId === deckId ? { type: 'decks' } : prev,
+        (prev.type === 'deck' || prev.type === 'study') && prev.deckId === deckId
+          ? { type: 'decks' }
+          : prev,
       );
       if (activeDeck?.id === deckId) setActiveDeck(null);
     },
@@ -174,14 +185,20 @@ export default function DecksView() {
 
   const startStudy = useCallback(() => {
     setScreen((prev) =>
-      prev.type === 'decks' ? prev : { type: 'study', deckId: prev.deckId },
+      prev.type === 'deck' ? { type: 'study', deckId: prev.deckId } : prev,
     );
   }, []);
 
   const exitStudy = useCallback(() => {
-    setScreen((prev) =>
-      prev.type === 'study' ? { type: 'deck', deckId: prev.deckId } : prev,
-    );
+    setScreen((prev) => {
+      if (prev.type === 'study') return { type: 'deck', deckId: prev.deckId };
+      if (prev.type === 'study-all') return { type: 'decks' };
+      return prev;
+    });
+  }, []);
+
+  const startStudyAllHardest = useCallback(() => {
+    setScreen({ type: 'study-all' });
   }, []);
 
   const editActiveDeck = useCallback(
@@ -248,10 +265,35 @@ export default function DecksView() {
     />
   );
 
-  if (screen.type === 'study' && activeDeck) {
+  if (screen.type === 'study' && activeDeckId) {
+    const override = getDeckOverride(activeDeckId);
+    const spec: StudySessionConfig = {
+      scope: 'deck',
+      deckIds: [activeDeckId],
+      mode: override.mode,
+      limit: override.sessionSize,
+    };
     return (
       <div className="relative h-full min-h-0">
-        <StudyView deck={activeDeck} onExit={exitStudy} />
+        <StudyScreen
+          sessionSpec={spec}
+          title={activeDeck?.name ?? ''}
+          onExit={exitStudy}
+        />
+        {overlay}
+      </div>
+    );
+  }
+
+  if (screen.type === 'study-all') {
+    const spec: StudySessionConfig = {
+      scope: 'all',
+      mode: 'hardest_all_decks',
+      limit: 20,
+    };
+    return (
+      <div className="relative h-full min-h-0">
+        <StudyScreen sessionSpec={spec} onExit={exitStudy} />
         {overlay}
       </div>
     );
@@ -266,15 +308,26 @@ export default function DecksView() {
       );
     }
     if (activeDeck) {
+      const override = getDeckOverride(activeDeck.id);
       return (
         <div className="relative h-full min-h-0">
           <DeckDetail
             deck={activeDeck}
             onBack={goToList}
             onStudy={startStudy}
+            onConfigure={() => setConfigOpen(true)}
             onEditDeck={editActiveDeck}
             onAddCard={addCardToActive}
             onDeleteCard={deleteCardFromActive}
+          />
+          <SessionConfigSheet
+            open={configOpen}
+            onOpenChange={setConfigOpen}
+            initialMode={override.mode}
+            initialSize={override.sessionSize}
+            onSave={(mode, sessionSize) =>
+              setDeckOverride(activeDeck.id, { mode, sessionSize })
+            }
           />
           {overlay}
         </div>
@@ -289,6 +342,7 @@ export default function DecksView() {
         onOpenDeck={goToDetail}
         onCreateDeck={(name, desc) => void addDeck(name, desc)}
         onDeleteDeck={(id) => void deleteDeckHandler(id)}
+        onStudyAllHardest={startStudyAllHardest}
       />
       {overlay}
     </div>

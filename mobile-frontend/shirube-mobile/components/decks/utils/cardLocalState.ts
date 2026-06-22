@@ -42,6 +42,34 @@ export async function getDeckCardCount(deckId: string): Promise<number> {
   return cards.filter((c) => c.pendingOp !== 'delete').length;
 }
 
+export type DeckCardStats = {
+  total: number;
+  new: number;
+  seen: number;
+  learned: number;
+  mastered: number;
+};
+
+const EMPTY_STATS: DeckCardStats = { total: 0, new: 0, seen: 0, learned: 0, mastered: 0 };
+
+/**
+ * Per-state breakdown for a deck. Drives the small state-counts row
+ * shown on the deck tile + detail page. Excludes delete-pending cards
+ * (same filter as `getDeckCardCount`).
+ */
+export async function getDeckCardStats(deckId: string): Promise<DeckCardStats> {
+  const cards = await getCardsByDeckId(deckId);
+  return cards.reduce<DeckCardStats>((acc, c) => {
+    if (c.pendingOp === 'delete') return acc;
+    acc.total += 1;
+    if (c.state === 'new') acc.new += 1;
+    else if (c.state === 'seen') acc.seen += 1;
+    else if (c.state === 'learned') acc.learned += 1;
+    else if (c.state === 'mastered') acc.mastered += 1;
+    return acc;
+  }, { ...EMPTY_STATS });
+}
+
 export async function getCard(id: string): Promise<LocalCard | null> {
   const map = await readMap();
   return map[id] ?? null;
@@ -138,6 +166,60 @@ export async function hydrateFromBackend(
   }
 
   await writeMap(map);
+}
+
+/**
+ * Apply an SRS outcome to a card's local state without touching its
+ * `syncState`/`pendingOp` — review submission is a separate sync
+ * concern from the regular create/update/delete push path. Returns
+ * the merged card, or null if the card isn't in the local store.
+ */
+export async function applyLocalReview(
+  cardId: string,
+  srsUpdate: {
+    difficulty: number;
+    stability: number;
+    last_outcomes: string;
+    last_reviewed_at: string;
+    state: CardRecord['state'];
+  },
+): Promise<LocalCard | null> {
+  const map = await readMap();
+  const existing = map[cardId];
+  if (!existing) return null;
+  const merged: LocalCard = {
+    ...existing,
+    ...srsUpdate,
+    reviewed_times: existing.reviewed_times + 1,
+  };
+  map[cardId] = merged;
+  await writeMap(map);
+  return merged;
+}
+
+/**
+ * Revert a card's local SRS state to a known-prior snapshot. Used by
+ * the in-session Undo button — we keep the previous values in memory
+ * and write them back if the user reverses a review tap.
+ */
+export async function revertLocalReview(
+  cardId: string,
+  prior: {
+    difficulty: number;
+    stability: number;
+    last_outcomes: string;
+    last_reviewed_at: string | null;
+    state: CardRecord['state'];
+    reviewed_times: number;
+  },
+): Promise<LocalCard | null> {
+  const map = await readMap();
+  const existing = map[cardId];
+  if (!existing) return null;
+  const merged: LocalCard = { ...existing, ...prior };
+  map[cardId] = merged;
+  await writeMap(map);
+  return merged;
 }
 
 export async function clearAllCards(): Promise<void> {

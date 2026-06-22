@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -19,6 +19,10 @@ import { DeckCover } from './DeckCover';
 import { CardGridItem } from './CardGridItem';
 import { CardEditSheet } from './CardEditSheet';
 import { useDeckDetail } from '../hooks/useDeckDetail';
+import { StateBreakdown } from '@/components/study/ui/StateBreakdown';
+import { SessionConfigSheet } from '@/components/study/ui/SessionConfigSheet';
+import { useDeckOverrides } from '@/components/study/hooks/useDeckOverrides';
+import type { DeckCardStats } from '../utils/cardLocalState';
 
 type Props = { deckId: string };
 
@@ -29,6 +33,24 @@ export function DeckDetailScreen({ deckId }: Props) {
   const { deck, cards, loading, error, refresh, setCards } = useDeckDetail(deckId);
   const [editingCard, setEditingCard] = useState<LocalCard | null>(null);
   const [addCardOpen, setAddCardOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+  const { getFor, setFor } = useDeckOverrides();
+  const override = getFor(deckId);
+
+  // Derive the per-state breakdown from the cards currently in scope.
+  // useDeckDetail keeps `cards` in sync with the local store, so this
+  // count stays accurate without another AsyncStorage round-trip.
+  const stats: DeckCardStats = useMemo(() => {
+    const acc: DeckCardStats = { total: 0, new: 0, seen: 0, learned: 0, mastered: 0 };
+    for (const card of cards) {
+      acc.total += 1;
+      if (card.state === 'new') acc.new += 1;
+      else if (card.state === 'seen') acc.seen += 1;
+      else if (card.state === 'learned') acc.learned += 1;
+      else if (card.state === 'mastered') acc.mastered += 1;
+    }
+    return acc;
+  }, [cards]);
 
   const onCardSaved = useCallback(
     (saved: LocalCard) => {
@@ -96,6 +118,12 @@ export function DeckDetailScreen({ deckId }: Props) {
           </View>
         </View>
 
+        {stats.total > 0 && (
+          <View style={styles.breakdownRow}>
+            <StateBreakdown stats={stats} variant="expanded" />
+          </View>
+        )}
+
         <View style={styles.actions}>
           <Button
             label={t('decks.studyNow')}
@@ -105,8 +133,16 @@ export function DeckDetailScreen({ deckId }: Props) {
             disabled={cards.length === 0}
           />
           <Pressable
+            onPress={() => setConfigOpen(true)}
+            style={[styles.iconBtn, { backgroundColor: c.bgElev, borderColor: c.borderStrong }]}
+            hitSlop={6}
+            accessibilityLabel={t('sessionConfig.title')}
+          >
+            <Text style={[styles.gear, { color: c.fg }]}>⚙</Text>
+          </Pressable>
+          <Pressable
             onPress={() => setAddCardOpen(true)}
-            style={[styles.addBtn, { backgroundColor: c.bgElev, borderColor: c.borderStrong }]}
+            style={[styles.iconBtn, { backgroundColor: c.bgElev, borderColor: c.borderStrong }]}
             hitSlop={6}
             accessibilityLabel="Add card"
           >
@@ -146,6 +182,17 @@ export function DeckDetailScreen({ deckId }: Props) {
         onSaved={refresh}
         lockedDeckId={deck.id}
       />
+
+      <SessionConfigSheet
+        visible={configOpen}
+        initialMode={override.mode}
+        initialSize={override.sessionSize}
+        onDismiss={() => setConfigOpen(false)}
+        onSave={(mode, sessionSize) => {
+          setFor(deckId, { mode, sessionSize });
+          setConfigOpen(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -183,12 +230,15 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontVariant: ['tabular-nums'],
   },
+  breakdownRow: {
+    marginBottom: spacing.md,
+  },
   actions: {
     flexDirection: 'row',
     gap: 10,
     marginBottom: spacing.xl,
   },
-  addBtn: {
+  iconBtn: {
     width: 48,
     height: 48,
     borderRadius: radius.pill,
@@ -197,6 +247,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   plus: { fontSize: 22, lineHeight: 24, fontWeight: '400' },
+  gear: { fontSize: 20, lineHeight: 24 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

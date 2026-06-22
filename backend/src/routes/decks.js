@@ -122,8 +122,12 @@ router.post("/cards/:cardId/review", async (req, res) => {
   if (!(await cardOwnedBy(req.user.userId, req.params.cardId))) {
     return res.status(404).json({ error: "Not found" });
   }
+  const { outcome } = req.body;
+  if (!["again", "hard", "easy"].includes(outcome)) {
+    return res.status(400).json({ error: "outcome must be 'again', 'hard', or 'easy'" });
+  }
   try {
-    const card = await cardService.reviewCard(req.params.cardId);
+    const card = await cardService.reviewCard(req.user.userId, req.params.cardId, outcome);
     return res.json(card);
   } catch (err) {
     return res.status(404).json({ error: "Not found" });

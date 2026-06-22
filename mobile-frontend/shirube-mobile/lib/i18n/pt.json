@@ -85,16 +85,77 @@
     "cards": "{count} cartões",
     "studyNow": "Estudar agora",
     "rename": "Renomear",
-    "delete": "Eliminar baralho"
+    "delete": "Eliminar baralho",
+    "studyAllHardest": "Estudar os mais difíceis de todos os baralhos",
+    "studyAllHardestHint": "Junta os cartões mais difíceis de cada baralho"
   },
   "study": {
     "tapToReveal": "Toca para revelar",
-    "dontKnow": "Não sei",
-    "know": "Sei",
-    "summaryTitle": "Bom trabalho",
-    "summaryCards": "{reviewed} cartões · {pct}% sabidos",
+    "again": "De novo",
+    "hard": "Difícil",
+    "easy": "Fácil",
+    "undo": "Desfazer",
     "studyAgain": "Estudar de novo",
-    "backToDeck": "Voltar ao baralho"
+    "backToDeck": "Voltar ao baralho",
+    "finish": {
+      "cardsReviewed": "cartões revistos",
+      "progression": "Progressão",
+      "hardest": "Mais difíceis desta sessão"
+    },
+    "changes": {
+      "firstReviewed": "{n} revistos pela primeira vez",
+      "advanced": "{n} avançaram para aprendido",
+      "reachedMastered": "{n} chegaram a dominado",
+      "regressedToSeen": "{n} regrediram para visto",
+      "regressedToLearned": "{n} regrediram para aprendido"
+    },
+    "hardest": {
+      "again": "{n}× errado"
+    },
+    "state": {
+      "new": "novo",
+      "seen": "visto",
+      "learned": "aprendido",
+      "mastered": "dominado"
+    },
+    "mode": {
+      "hardest": "Mais difíceis → Novos",
+      "random": "Totalmente aleatório",
+      "oldest_first": "Mais antigos primeiro",
+      "oldest_only": "Só os mais antigos",
+      "newest_only": "Só os novos",
+      "by_creation": "Por data de criação"
+    }
+  },
+  "sessionConfig": {
+    "title": "Definições da sessão",
+    "mode": "Modo",
+    "size": "Cartões por sessão",
+    "sizeHint": "Entre {min} e {max}"
+  },
+  "stats": {
+    "title": "Estatísticas",
+    "viewAll": "Ver estatísticas",
+    "tabActivity": "Atividade",
+    "tabCards": "Cartões",
+    "daysStudied": "dias estudados",
+    "heatmap": "Último ano",
+    "recent": "Últimos 30 dias",
+    "distribution": "Distribuição",
+    "total": "Total",
+    "hardestCards": "Cartões mais difíceis",
+    "noHardest": "Ainda nada com que estejas a lutar",
+    "animal": {
+      "fox": "Raposa",
+      "snake": "Serpente",
+      "bull": "Touro",
+      "bear": "Urso",
+      "gorilla": "Gorila",
+      "wolf": "Lobo",
+      "tiger": "Tigre",
+      "dragon": "Dragão",
+      "leviathan": "Leviatã"
+    }
   },
   "profile": {
     "title": "Tu",
@@ -114,5 +175,25 @@
     "title": "Definições",
     "help": "Ajuda",
     "credits": "Créditos"
+  },
+  "studyDisplay": {
+    "title": "Visualização de estudo",
+    "sectionPreset": "Predefinição",
+    "sectionFront": "Frente",
+    "sectionBack": "Verso",
+    "preset": {
+      "easy": "Fácil",
+      "default": "Padrão",
+      "hard": "Difícil",
+      "production": "Produção"
+    },
+    "front": {
+      "reading": "Mostrar leitura",
+      "context": "Mostrar contexto (com lacuna)",
+      "deckName": "Mostrar nome do baralho"
+    },
+    "back": {
+      "exampleSentence": "Mostrar frase de exemplo"
+    }
   }
 }

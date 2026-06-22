@@ -60,16 +60,19 @@ export function createCard(
 
 export function updateCard(
   cardId: string,
-  updates: Partial<{ front: string; reading: string; back: string; notes: string; state: CardState }>,
+  updates: Partial<{
+    front: string;
+    reading: string;
+    back: string;
+    notes: string;
+    contextSentence: string;
+    state: CardState;
+  }>,
 ): Promise<CardRecord> {
   return request<CardRecord>(`/api/decks/cards/${cardId}`, {
     method: 'PUT',
     body: JSON.stringify(updates),
   });
-}
-
-export function reviewCard(cardId: string): Promise<CardRecord> {
-  return request<CardRecord>(`/api/decks/cards/${cardId}/review`, { method: 'POST' });
 }
 
 export function deleteCard(cardId: string): Promise<{ message: string }> {

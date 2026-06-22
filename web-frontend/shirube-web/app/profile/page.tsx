@@ -21,6 +21,7 @@ import { DecksSection } from '@/components/profile/DecksSection';
 import { CurrentlyReadingSection } from '@/components/profile/CurrentlyReadingSection';
 // import { ThemeSection } from '@/components/profile/ThemeSection';
 import { ActionsSection } from '@/components/profile/ActionsSection';
+import { useStatsCards } from '@/components/stats/hooks/useStatsCards';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -32,6 +33,10 @@ export default function ProfilePage() {
   const profileQ = useFetchWithAbort<UserProfile>((s) => getUserProfile(user.id, s), [user.id]);
   const booksQ = useFetchWithAbort<BookProgressRecord[]>((s) => getUserBooks(user.id, s), [user.id]);
   const decksQ = useFetchWithAbort<DeckRecord[]>((s) => getUserDecks(user.id, s), [user.id]);
+  // Mastered count for the AnimalLabel chip — silent on failure
+  // (signed-out / offline). Hook always fires; data is harmless when
+  // empty.
+  const { data: cardsStats } = useStatsCards();
 
   // Local mirrors of server data so handlers can do optimistic updates.
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -90,6 +95,7 @@ export default function ProfilePage() {
           displayName={displayName}
           language={language}
           joinDate={joinDate}
+          mastered={cardsStats.byState.mastered}
           onEditAvatar={() => setShowAvatarPicker(true)}
         />
 

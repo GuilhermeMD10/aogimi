@@ -3,6 +3,7 @@ import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius } from '@/theme/tokens';
 import { SyncPill } from '@/components/books/ui/SyncPill';
+import { StateBreakdown } from '@/components/study/ui/StateBreakdown';
 import { DeckCover } from './DeckCover';
 import type { DeckWithCount } from '../hooks/useDecks';
 
@@ -45,6 +46,9 @@ export function DeckGridItem({
         <Text style={[styles.count, { color: c.fgSubtle }]}>
           {t('decks.cards', { count: deck.cardCount })}
         </Text>
+        <View style={styles.breakdownSlot}>
+          <StateBreakdown stats={deck.stats} variant="inline" />
+        </View>
       </View>
     </Pressable>
   );
@@ -67,4 +71,5 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontFamily: fontFamily.ui,
   },
+  breakdownSlot: { marginTop: 2 },
 });
