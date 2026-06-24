@@ -1,0 +1,116 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SHAPE TOKENS — defaults
+   The "shape" axis of the design system: borders, shadows, radii, fonts.
+   These live alongside the color tokens and are read by the shared
+   primitives in styles/primitives.css.
+
+   Themes that need a different shape (Stamp's uneven borders + hard offset
+   shadows, e.g.) override these in their own block. Themes that only swap
+   colors (Sakura, Kanagawa, Hanami) inherit these defaults automatically.
+
+   Adding a new "shape" axis = (1) declare a token here, (2) consume it in
+   primitives.css, (3) override in any theme that needs it.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+:root {
+  /* ── Surface (cards, panels, popovers) ──────────────────────────────── */
+  --lgc-surface-bg:           var(--lgc-bg-elev);
+  --lgc-surface-border-color: var(--lgc-border);
+  --lgc-surface-border-width: 1px;
+  --lgc-surface-border-style: solid;
+  --lgc-surface-radius:       10px;
+  --lgc-surface-shadow:       0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.05);
+
+  /* ── Chip / tag / badge ─────────────────────────────────────────────── */
+  --lgc-chip-bg:              var(--lgc-bg-sunken);
+  --lgc-chip-fg:              var(--lgc-fg-muted);
+  --lgc-chip-border-color:    transparent;
+  --lgc-chip-border-width:    0;
+  --lgc-chip-border-style:    solid;
+  --lgc-chip-radius:          999px;
+  --lgc-chip-padding:         2px 8px;
+  --lgc-chip-font-size:       11px;
+  --lgc-chip-letter-spacing:  0.02em;
+  --lgc-chip-font-weight:     500;
+  --lgc-chip-text-transform:  none;
+
+  /* ── Action button (primary — atomic action affordance) ────────────── */
+  --lgc-button-bg:             var(--lgc-accent);
+  --lgc-button-fg:             var(--lgc-accent-fg);
+  --lgc-button-border-color:   transparent;
+  --lgc-button-border-width:   0;
+  --lgc-button-border-style:   solid;
+  --lgc-button-radius:         6px;
+  --lgc-button-shadow:         none;
+  --lgc-button-letter-spacing: 0;
+  --lgc-button-text-transform: none;
+  --lgc-button-font-size:      14px;
+  --lgc-button-font-weight:    500;
+  --lgc-button-padding:        8px 16px;
+
+  /* ── Action button (secondary — bordered / ghost) ──────────────────── */
+  --lgc-button-secondary-bg:           transparent;
+  --lgc-button-secondary-fg:           var(--lgc-fg);
+  --lgc-button-secondary-border-color: var(--lgc-border);
+  --lgc-button-secondary-border-width: 1px;
+  --lgc-button-secondary-hover-bg:     var(--lgc-accent-soft);
+
+  /* ── Pressable (the "press the stamp" interaction) ──────────────────── */
+  --lgc-press-transform-hover:  none;
+  --lgc-press-shadow-hover:     var(--lgc-surface-shadow);
+  --lgc-press-transform-active: none;
+  --lgc-press-shadow-active:    var(--lgc-surface-shadow);
+
+  /* ── Section label (the kicker text above hero copy) ────────────────── */
+  --lgc-section-label-color:    var(--lgc-accent);
+  --lgc-section-label-tracking: 0.16em;
+  --lgc-section-label-weight:   600;
+
+  /* ── Section head — numbered "01 / 02" prefix + uppercase title ─────── */
+  --lgc-section-num-color:    var(--lgc-fg-subtle);
+  --lgc-section-num-tracking: normal;
+
+  /* ── Toolbar (page-top sticky bars: dictionary search, reader top bar) */
+  --lgc-toolbar-bg:                    color-mix(in oklab, var(--lgc-bg) 85%, transparent);
+  --lgc-toolbar-backdrop-filter:       blur(10px);
+  --lgc-toolbar-button-radius:         6px;
+  --lgc-toolbar-button-tracking:       normal;
+  --lgc-toolbar-button-text-transform: none;
+  --lgc-toolbar-button-font-family:    inherit;
+
+  /* ── Form atoms ───────────────────────────────────────────────────────── */
+  --lgc-input-radius: 8px;
+  --lgc-kbd-radius:   3px;
+
+  /* ── Generic atom radii ───────────────────────────────────────────────── */
+  --lgc-icon-button-radius: 6px;
+  --lgc-pill-radius:        9999px;
+  --lgc-divider-style:      solid;
+
+  /* ── Action button — extra typography axis (joins --lgc-button-* tokens) */
+  --lgc-button-font-family: inherit;
+
+  /* ── Dictionary list rows ─────────────────────────────────────────────── */
+  --lgc-row-reading-color:    var(--lgc-fg-muted);
+  --lgc-row-reading-tracking: normal;
+
+  /* ── Word detail: meaning entry numerals (the "01 / 02" digits) ───────── */
+  --lgc-meaning-num-font:        var(--lgc-font-mono);
+  --lgc-meaning-num-size:        13px;
+  --lgc-meaning-num-weight:      600;
+  --lgc-meaning-num-line-height: normal;
+  --lgc-meaning-num-min-width:   auto;
+  --lgc-meaning-num-padding-top: 2px;
+  --lgc-meaning-padding-bottom:  0;
+
+  /* ── Kanji card meanings title ────────────────────────────────────────── */
+  --lgc-kanji-meanings-color: var(--lgc-fg);
+  --lgc-kanji-meanings-size:  15px;
+
+  /* ── Fonts (theme-overridable family aliases) ───────────────────────── */
+  --lgc-font-display: var(--font-source-serif), Georgia, serif;
+  --lgc-font-ui:      var(--font-inter), system-ui, sans-serif;
+  --lgc-font-mono:    var(--font-geist-mono), ui-monospace, monospace;
+  --lgc-font-body:    var(--lgc-font-ui);
+  --lgc-font-jp:      var(--lgc-font-display);
+}

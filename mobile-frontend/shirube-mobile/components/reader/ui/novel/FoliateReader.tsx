@@ -1,0 +1,288 @@
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import type { SuppressMenuItem } from 'react-native-webview/lib/WebViewTypes';
+import { File } from 'expo-file-system';
+import { bookFilePath } from '@/components/books/utils/bookPaths';
+import {
+  FOLIATE_HTML,
+  type BookType,
+  type EpubTocItem,
+  type FoliateBridgeInbound,
+  type FoliateBridgeOutbound,
+  type HighlightStyle,
+  type ReaderThemeStyle,
+  type ReaderViewMode,
+} from '../../utils/foliateHtml';
+
+// foliate-js WebView wrapper. Sole reader path after the epubjs migration.
+
+export type FoliateReaderHandle = {
+  setStyle: (style: ReaderThemeStyle) => void;
+  setViewMode: (mode: ReaderViewMode) => void;
+  goTo: (cfi: string) => void;
+  goToSpine: (index: number) => void;
+  next: () => void;
+  prev: () => void;
+  addHighlight: (id: string, cfi: string, color: string) => void;
+  removeHighlight: (cfi: string) => void;
+  clearSelection: () => void;
+};
+
+export type ReadyPayload = {
+  toc: EpubTocItem[];
+  bookType: BookType;
+  direction: 'ltr' | 'rtl';
+  spineCount: number;
+};
+
+export type RelocatedPayload = {
+  cfi: string;
+  progress: number;
+  page: number;
+  totalPages: number;
+  spineIndex: number;
+  spineTotal: number;
+  chapterHref?: string;
+  chapterLabel?: string;
+};
+
+export type SelectionPayload = {
+  text: string;
+  cfi: string;
+  pageX: number;
+  pageY: number;
+  rect: { top: number; bottom: number; left: number; right: number };
+};
+
+export type CustomMenuKey = 'dict' | 'card' | 'deepl' | 'highlight' | 'copy';
+export type CustomMenuEvent = { key: CustomMenuKey; selectedText: string };
+
+// OS selection bubble is replaced by NativeSelectionMenu (rendered by the
+// reader screen). We pass `menuItems: []` and exhaustively suppress every
+// stock action so the bubble has nothing to draw.
+const MENU_ITEMS: { key: CustomMenuKey; label: string }[] = [];
+// react-native-webview only exposes this fixed union for suppression. That
+// covers iOS's stock items; on Android the bubble has fewer items by default
+// and an empty menuItems list collapses it.
+const SUPPRESS_MENU_ITEMS: SuppressMenuItem[] = [
+  'cut',
+  'copy',
+  'paste',
+  'replace',
+  'bold',
+  'italic',
+  'underline',
+  'select',
+  'selectAll',
+  'translate',
+  'lookup',
+  'share',
+];
+
+type Props = {
+  filename: string;
+  startCfi?: string | null;
+  initialStyle: ReaderThemeStyle;
+  initialHighlights: HighlightStyle[];
+  bgColor: string;
+  // True once we know the book is fixed-layout (manga). Wraps the WebView
+  // in a static rounded frame in RN — native pinch-zoom then only scales
+  // the page art inside, not the frame itself.
+  manga?: boolean;
+  // Fires whenever the WebView frame's measured size changes. The selection
+  // rect emitted by foliate is in this frame's coordinate space, so the
+  // parent screen needs the same size to clamp the custom selection menu.
+  onViewportLayout?: (size: { width: number; height: number }) => void;
+  onReady?: (payload: ReadyPayload) => void;
+  onRelocated?: (payload: RelocatedPayload) => void;
+  onSelection?: (payload: SelectionPayload) => void;
+  onCustomMenu?: (event: CustomMenuEvent) => void;
+  onError?: (message: string) => void;
+};
+
+export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function FoliateReader(
+  {
+    filename,
+    startCfi,
+    initialStyle,
+    initialHighlights,
+    bgColor,
+    manga,
+    onViewportLayout,
+    onReady,
+    onRelocated,
+    onSelection,
+    onCustomMenu,
+    onError,
+  },
+  ref,
+) {
+  const webviewRef = useRef<WebView | null>(null);
+  const [shellLoaded, setShellLoaded] = useState(false);
+  const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null);
+  const loadedRef = useRef(false);
+
+  const onLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const { width, height } = e.nativeEvent.layout;
+      if (width <= 0 || height <= 0) return;
+      setViewport((prev) => {
+        if (prev && prev.width === width && prev.height === height) return prev;
+        onViewportLayout?.({ width, height });
+        return { width, height };
+      });
+    },
+    [onViewportLayout],
+  );
+
+  const post = useCallback((msg: FoliateBridgeInbound) => {
+    const wv = webviewRef.current;
+    if (!wv) return;
+    const json = JSON.stringify(msg);
+    const safe = JSON.stringify(json);
+    wv.injectJavaScript(
+      `(function(){var m=${safe};` + `document.dispatchEvent(new MessageEvent('message',{data:m}));` + `})();true;`,
+    );
+  }, []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      setStyle: (style) => post({ type: 'setStyle', style }),
+      setViewMode: (mode) => post({ type: 'setViewMode', mode }),
+      goTo: (cfi) => post({ type: 'goToCfi', cfi }),
+      goToSpine: (index) => post({ type: 'goToSpine', index }),
+      next: () => post({ type: 'next' }),
+      prev: () => post({ type: 'prev' }),
+      addHighlight: (id, cfi, color) => post({ type: 'addHighlight', id, cfi, color }),
+      removeHighlight: (cfi) => post({ type: 'removeHighlight', cfi }),
+      clearSelection: () => post({ type: 'clearSelection' }),
+    }),
+    [post],
+  );
+
+  // Wait for both the WebView shell and the first non-zero layout pass before
+  // sending the load message -- foliate paginates against the measured size,
+  // same reasoning as the epubjs path.
+  useEffect(() => {
+    if (!shellLoaded || !viewport || loadedRef.current) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const file = new File(bookFilePath(filename));
+        if (!file.exists) throw new Error('Book file missing on device');
+        const base64 = await file.base64();
+        if (cancelled) return;
+        loadedRef.current = true;
+        post({
+          type: 'load',
+          base64,
+          cfi: startCfi ?? null,
+          style: initialStyle,
+          highlights: initialHighlights,
+          viewport,
+        });
+      } catch (e) {
+        if (!cancelled) onError?.(e instanceof Error ? e.message : 'Failed to open EPUB');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shellLoaded, viewport, filename]);
+
+  // Re-send setSize on subsequent layout changes (rotation, sheet open/close).
+  useEffect(() => {
+    if (!loadedRef.current || !viewport) return;
+    post({ type: 'setSize', width: viewport.width, height: viewport.height });
+  }, [viewport, post]);
+
+  const handleMessage = useCallback(
+    (e: WebViewMessageEvent) => {
+      let msg: FoliateBridgeOutbound;
+      try {
+        msg = JSON.parse(e.nativeEvent.data);
+      } catch {
+        return;
+      }
+      if (msg.type === 'ready')
+        onReady?.({
+          toc: msg.toc,
+          bookType: msg.bookType,
+          direction: msg.direction,
+          spineCount: msg.spineCount,
+        });
+      else if (msg.type === 'error') onError?.(msg.message);
+      else if (msg.type === 'relocated') onRelocated?.(msg);
+      else if (msg.type === 'selection') onSelection?.(msg);
+    },
+    [onReady, onError, onRelocated, onSelection],
+  );
+
+  const handleCustomMenu = useCallback(
+    (e: { nativeEvent: { key: string; label: string; selectedText: string } }) => {
+      const { key, selectedText } = e.nativeEvent;
+      if (key === 'dict' || key === 'card' || key === 'deepl' || key === 'highlight' || key === 'copy') {
+        onCustomMenu?.({ key: key as CustomMenuKey, selectedText });
+      }
+    },
+    [onCustomMenu],
+  );
+
+  return (
+    <View style={[styles.outer, { backgroundColor: bgColor }]}>
+      <View
+        style={[styles.frame, manga ? styles.mangaFrame : null]}
+        onLayout={onLayout}
+      >
+        <WebView
+          ref={webviewRef}
+          originWhitelist={['*']}
+          source={{ html: FOLIATE_HTML }}
+          onLoadEnd={() => setShellLoaded(true)}
+          onMessage={handleMessage}
+          javaScriptEnabled
+          domStorageEnabled
+          allowFileAccess
+          allowFileAccessFromFileURLs
+          allowUniversalAccessFromFileURLs
+          setSupportMultipleWindows={false}
+          scrollEnabled={false}
+          menuItems={MENU_ITEMS}
+          onCustomMenuSelection={handleCustomMenu}
+          suppressMenuItems={SUPPRESS_MENU_ITEMS}
+          style={{ backgroundColor: bgColor }}
+        />
+      </View>
+    </View>
+  );
+});
+
+// The floating ReaderBottomDock (pill at rest) occupies ~y=22..60 from the
+// device bottom. Reserve a bit above that so the last line of text doesn't
+// slide under the pill. The WebView fills the frame View, so shrinking the
+// frame shrinks foliate's pagination viewport accordingly.
+const DOCK_CLEARANCE = 72;
+const MANGA_GUTTER = 5;
+const MANGA_RADIUS = 50;
+
+const styles = StyleSheet.create({
+  // Outer fills the area between the chevron top bar and the bottom dock.
+  // Its background is the bgColor passed in -- for manga that's the shell
+  // color, so the 5px gutter around the frame reads as the manga surround.
+  outer: { flex: 1 },
+  // Frame is what the WebView lives in. For text/novel it just reserves
+  // dock clearance at the bottom; for manga it also pulls in 5px on all
+  // sides + adds a rounded clip. The clip is RN-side, so native pinch-zoom
+  // inside the WebView only scales page art -- the frame stays static.
+  frame: { flex: 1, marginBottom: DOCK_CLEARANCE },
+  mangaFrame: {
+    marginTop: MANGA_GUTTER,
+    marginHorizontal: MANGA_GUTTER,
+    marginBottom: DOCK_CLEARANCE + MANGA_GUTTER,
+    borderRadius: MANGA_RADIUS,
+    overflow: 'hidden',
+  },
+});

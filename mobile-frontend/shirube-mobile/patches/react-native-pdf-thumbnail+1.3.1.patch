@@ -1,0 +1,66 @@
+diff --git a/node_modules/react-native-pdf-thumbnail/android/src/main/java/org/songsterq/pdfthumbnail/PdfThumbnailModule.kt b/node_modules/react-native-pdf-thumbnail/android/src/main/java/org/songsterq/pdfthumbnail/PdfThumbnailModule.kt
+index 921b578..751c032 100644
+--- a/node_modules/react-native-pdf-thumbnail/android/src/main/java/org/songsterq/pdfthumbnail/PdfThumbnailModule.kt
++++ b/node_modules/react-native-pdf-thumbnail/android/src/main/java/org/songsterq/pdfthumbnail/PdfThumbnailModule.kt
+@@ -98,7 +98,7 @@ class PdfThumbnailModule(reactContext: ReactApplicationContext) :
+     currentPage.close()
+ 
+     // Some bitmaps have transparent background which results in a black thumbnail. Add a white background.
+-    val bitmapWhiteBG = Bitmap.createBitmap(bitmap.width, bitmap.height, bitmap.config)
++    val bitmapWhiteBG = Bitmap.createBitmap(bitmap.width, bitmap.height, bitmap.config ?: Bitmap.Config.ARGB_8888)
+     val canvas = Canvas(bitmapWhiteBG)
+     canvas.drawBitmap(bitmap, 0f, 0f, null)
+     bitmap.recycle()
+@@ -123,7 +123,11 @@ class PdfThumbnailModule(reactContext: ReactApplicationContext) :
+   private fun getOutputFilePrefix(filePath: String, page: Int): String {
+     val tokens = filePath.split("/")
+     val originalFilename = tokens[tokens.lastIndex]
+-    val prefix = originalFilename.replace(".", "-")
++    // Long CJK / pathological filenames overflow ENAMETOOLONG when
++    // File.createTempFile appends its random-long suffix. Use a short
++    // stable hash of the filename instead — same uniqueness guarantee,
++    // bounded length, fits any Android filesystem.
++    val prefix = "pdf" + Integer.toHexString(originalFilename.hashCode())
+     val generator = Random()
+     val random = generator.nextInt(Integer.MAX_VALUE)
+     return "$prefix-thumbnail-$page-$random"
+diff --git a/node_modules/react-native-pdf-thumbnail/ios/PdfThumbnail.swift b/node_modules/react-native-pdf-thumbnail/ios/PdfThumbnail.swift
+index 4869aed..abfdb2f 100644
+--- a/node_modules/react-native-pdf-thumbnail/ios/PdfThumbnail.swift
++++ b/node_modules/react-native-pdf-thumbnail/ios/PdfThumbnail.swift
+@@ -9,20 +9,26 @@ class PdfThumbnail: NSObject {
+     }
+     
+     func getOutputFilename(filePath: String, page: Int) -> String {
+-        let components = filePath.components(separatedBy: "/")
+-        var prefix: String
+-        if let origionalFileName = components.last {
+-            prefix = origionalFileName.replacingOccurrences(of: ".", with: "-")
+-        } else {
+-            prefix = "pdf"
+-        }
++        // Percent-encoded CJK filenames (e.g. manga scans with long Japanese
++        // titles) overflow APFS's 255-byte filename limit when used as the
++        // prefix here. `data.write(to:)` then throws and we surface as
++        // "Cannot write image data". A fixed short prefix + the random
++        // suffix is enough to keep tempfiles unique.
+         let random = Int.random(in: 0 ..< Int.max)
+-        return "\(prefix)-thumbnail-\(page)-\(random).jpg"
++        return "pdf-thumbnail-\(page)-\(random).jpg"
+     }
+ 
+     func generatePage(pdfPage: PDFPage, filePath: String, page: Int, quality: Int) -> Dictionary<String, Any>? {
+         let pageRect = pdfPage.bounds(for: .mediaBox)
+-        let image = pdfPage.thumbnail(of: CGSize(width: pageRect.width, height: pageRect.height), for: .mediaBox)
++        // Cap the long edge so a manga-scan PDF (often 4000×6000+) doesn't
++        // try to allocate hundreds of MB of bitmap, fail jpegData() with
++        // nil, and surface as "Cannot write image data". 1024 is plenty
++        // for a cover thumbnail at any tile size we render.
++        let maxDim: CGFloat = 1024
++        let longEdge = max(pageRect.width, pageRect.height)
++        let scale = longEdge > maxDim ? maxDim / longEdge : 1.0
++        let targetSize = CGSize(width: pageRect.width * scale, height: pageRect.height * scale)
++        let image = pdfPage.thumbnail(of: targetSize, for: .mediaBox)
+         let outputFile = getCachesDirectory().appendingPathComponent(getOutputFilename(filePath: filePath, page: page))
+         guard let data = image.jpegData(compressionQuality: CGFloat(quality) / 100) else {
+             return nil

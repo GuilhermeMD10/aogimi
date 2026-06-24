@@ -1,0 +1,144 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   THEME: Stamp — 1930s Japanese postage
+   Vermillion ink on warm cream paper, sumi-black contour, tight crisp edges,
+   "uneven black border" surface treatment with hard offset shadow.
+
+   This is a heavyweight theme — it overrides not just colors but borders,
+   shadows, radii, and font families. The "Editorial Mincho" type pairing
+   from the Stamp DS file is used: Shippori Mincho display + Cormorant
+   Garamond body + DM Mono for tabular/captions.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+html[data-theme="stamp"] {
+  /* ── Palette ────────────────────────────────────────────────────────── */
+  --lgc-bg:            #EBE2D0;             /* paper */
+  --lgc-bg-elev:       #F0E6D2;             /* paper-warm — lifted surface */
+  --lgc-bg-sunken:     #D9CDB6;             /* paper-deep — sunken / track */
+
+  --lgc-fg:            #1A1411;             /* sumi */
+  --lgc-fg-muted:      #3B2F26;             /* sumi-soft */
+  --lgc-fg-subtle:     #6F6358;             /* ash */
+
+  --lgc-border:        #1A1411;             /* sumi as the universal border */
+  --lgc-border-strong: #1A1411;
+
+  --lgc-accent:        #C8362B;             /* vermillion */
+  --lgc-accent-soft:   rgba(200, 54, 43, 0.18);
+  --lgc-accent-fg:     #EBE2D0;             /* paper on red */
+
+  --lgc-error:         #9B2A22;             /* vermillion-deep */
+
+  /* ── Shape: surface (cards, panels) ─────────────────────────────────── */
+  /* The signature "uneven" border + hard offset shadow */
+  --lgc-surface-border-color: var(--lgc-fg);
+  --lgc-surface-border-width: 1.5px 2px 2.5px 1.5px;
+  --lgc-surface-border-style: solid;
+  --lgc-surface-radius:       2px;
+  --lgc-surface-shadow:       3px 3px 0 var(--lgc-fg);
+
+  /* ── Shape: chip / tag ──────────────────────────────────────────────── */
+  --lgc-chip-bg:              var(--lgc-bg);
+  --lgc-chip-fg:              var(--lgc-fg);
+  --lgc-chip-border-color:    var(--lgc-fg);
+  --lgc-chip-border-width:    1.25px;
+  --lgc-chip-border-style:    solid;
+  --lgc-chip-radius:          0;
+  --lgc-chip-padding:         3px 9px;
+  --lgc-chip-font-size:       11px;
+  --lgc-chip-letter-spacing:  0.12em;
+  --lgc-chip-text-transform:  uppercase;
+  --lgc-chip-font-weight:     500;
+
+  /* ── Shape: action button (primary) ─────────────────────────────────── */
+  --lgc-button-bg:            var(--lgc-accent);
+  --lgc-button-fg:            var(--lgc-accent-fg);
+  --lgc-button-border-color:  var(--lgc-fg);
+  --lgc-button-border-width:  1px;
+  --lgc-button-border-style:  solid;
+  --lgc-button-radius:        2px;
+  --lgc-button-shadow:        2px 2px 0 var(--lgc-fg);
+  --lgc-button-letter-spacing: 0.04em;
+  --lgc-button-text-transform: none;
+  --lgc-button-font-size:      13px;
+  --lgc-button-font-weight:    600;
+  --lgc-button-padding:        10px 18px;
+
+  /* ── Shape: action button (secondary) ───────────────────────────────── */
+  --lgc-button-secondary-bg:           var(--lgc-bg);
+  --lgc-button-secondary-fg:           var(--lgc-fg);
+  --lgc-button-secondary-border-color: var(--lgc-fg);
+  --lgc-button-secondary-border-width: 1px;
+  --lgc-button-secondary-hover-bg:     var(--lgc-bg-elev);
+
+  /* ── Shape: pressable interaction ───────────────────────────────────── */
+  --lgc-press-transform-hover:  translate(1px, 1px);
+  --lgc-press-shadow-hover:     1px 1px 0 var(--lgc-fg);
+  --lgc-press-transform-active: translate(2px, 2px);
+  --lgc-press-shadow-active:    0 0 0 var(--lgc-fg);
+
+  /* ── Section label ──────────────────────────────────────────────────── */
+  --lgc-section-label-color:    var(--lgc-accent);
+  --lgc-section-label-tracking: 0.22em;
+  --lgc-section-label-weight:   500;
+
+  /* ── Section head — vermillion mono num span with extra tracking ────── */
+  --lgc-section-num-color:    var(--lgc-accent);
+  --lgc-section-num-tracking: 0.2em;
+
+  /* ── Toolbar — flat paper bg, mono uppercase buttons ────────────────── */
+  --lgc-toolbar-bg:                    var(--lgc-bg-elev);
+  --lgc-toolbar-backdrop-filter:       none;
+  --lgc-toolbar-button-radius:         0;
+  --lgc-toolbar-button-tracking:       0.18em;
+  --lgc-toolbar-button-text-transform: uppercase;
+  --lgc-toolbar-button-font-family:    var(--lgc-font-mono);
+
+  /* ── Form atoms ─────────────────────────────────────────────────────── */
+  --lgc-input-radius: 0;
+  --lgc-kbd-radius:   0;
+
+  /* ── Generic atoms — crisp edges ─────────────────────────────────────── */
+  --lgc-icon-button-radius: 0;
+  --lgc-pill-radius:        0;
+  --lgc-divider-style:      dashed;
+
+  /* ── Action button — display serif on accent fill ───────────────────── */
+  --lgc-button-font-family: var(--lgc-font-display);
+
+  /* ── Dictionary rows — reading is vermillion-tinted ─────────────────── */
+  --lgc-row-reading-color:    var(--lgc-accent);
+  --lgc-row-reading-tracking: 0.04em;
+
+  /* ── Meaning numerals: huge serif digits, not mono ──────────────────── */
+  --lgc-meaning-num-font:        var(--lgc-font-display);
+  --lgc-meaning-num-size:        26px;
+  --lgc-meaning-num-weight:      700;
+  --lgc-meaning-num-line-height: 1;
+  --lgc-meaning-num-min-width:   36px;
+  --lgc-meaning-num-padding-top: 0;
+  --lgc-meaning-padding-bottom:  14px;
+
+  /* ── Kanji card title — vermillion + slightly larger ────────────────── */
+  --lgc-kanji-meanings-color: var(--lgc-accent);
+  --lgc-kanji-meanings-size:  16px;
+
+  /* ── Fonts: Editorial Mincho pairing ────────────────────────────────── */
+  --lgc-font-display: var(--font-shippori-mincho), 'Shippori Mincho', 'Cormorant Garamond', serif;
+  --lgc-font-ui:      var(--font-cormorant), 'Cormorant Garamond', Georgia, serif;
+  --lgc-font-mono:    var(--font-dm-mono), 'DM Mono', ui-monospace, monospace;
+  --lgc-font-body:    var(--lgc-font-ui);
+  --lgc-font-jp:      var(--lgc-font-display);
+
+  /* ── Radii: stamps have crisp edges — flatten the global scale ──────── */
+  /* Overrides every `rounded-*` Tailwind class + every shadcn primitive
+     across the app in one shot. Components only need explicit fixes when
+     they use a hardcoded `borderRadius: <number>` inline style. */
+  --radius:     0.125rem;
+  --radius-sm:  1px;
+  --radius-md:  2px;
+  --radius-lg:  2px;
+  --radius-xl:  3px;
+  --radius-2xl: 4px;
+  --radius-3xl: 6px;
+  --radius-4xl: 8px;
+}
