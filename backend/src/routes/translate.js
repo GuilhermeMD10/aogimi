@@ -26,6 +26,11 @@ const router = Router();
  *     502 — DeepL upstream unreachable or returned an error
  */
 router.post('/', async (req, res) => {
+  // Translation is disabled for now. Remove this guard to re-enable;
+  // the original DeepL proxy logic below is left intact.
+  return res.status(403).json({ error: 'Translation is currently disabled.' });
+
+  // eslint-disable-next-line no-unreachable
   try {
     const { text, target } = req.body ?? {};
     const result = await translateService.translate({ text, target });
