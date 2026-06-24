@@ -48,6 +48,11 @@ const registerLimiter = rateLimit({
 // ── Routes ───────────────────────────────────────────────────────────────
 
 router.post("/register", registerLimiter, async (req, res) => {
+  // Account creation is disabled for now. Remove this guard to re-enable
+  // sign-ups; the original registration logic below is left intact.
+  return res.status(403).json({ error: "Registration is currently disabled." });
+
+  // eslint-disable-next-line no-unreachable
   const body = parseBody(registerSchema, req, res);
   if (!body) return;
 
