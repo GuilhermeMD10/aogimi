@@ -25,6 +25,12 @@ const app = express();
 // if we ever sit behind a chain of proxies.
 app.set("trust proxy", 1);
 
+// Liveness probe — mounted first, before the HTTPS-redirect middleware
+// and rate limiter. Platform healthchecks hit this over plain HTTP
+// inside the private network; if it ran after the redirect we'd respond
+// 308 and the deploy would be marked unhealthy.
+app.get("/healthz", (_, res) => res.status(200).json({ ok: true }));
+
 // Per-request logger. Mounted before everything so CORS rejections,
 // rate-limit 429s, and 401s all show up in the log alongside the
 // normal traffic. Logs the request line only — never bodies, never
@@ -95,8 +101,6 @@ app.use("/api/kanji",     kanjiRouter);
 app.use("/api/names",     namesRouter);
 app.use("/api/translate", translateRouter);
 
-
-app.get('/healthz', (_, res) => res.status(200).json({ ok: true }));
 // ── Protected routes ────────────────────────────────────────────────────────
 // Everything below requires a valid access token. `authenticateJWT`
 // attaches `req.user = { userId, username }`; routes use that as the

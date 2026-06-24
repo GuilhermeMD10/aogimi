@@ -75,7 +75,8 @@
       "Bash(ls -d aogimi-brand-assets web-frontend/* mobile-frontend/*)",
       "Bash(awk -F/ '{print $1\"/\"$2}')",
       "Bash(awk -F/ '{print $1}')",
-      "Bash(awk '{print $1}')"
+      "Bash(awk '{print $1}')",
+      "Bash(node --check src/app.js)"
     ],
     "additionalDirectories": [
       "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader",
