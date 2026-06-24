@@ -1,0 +1,156 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* ── Theme palettes (one file per theme) ───────────────────────────────── */
+@import "../styles/themes/default.css";
+@import "../styles/themes/kanagawa.css";
+@import "../styles/themes/sakura.css";
+@import "../styles/themes/hanami.css";
+@import "../styles/themes/stamp.css";
+
+/* ── Shape tokens — defaults; themes may override ──────────────────────── */
+@import "../styles/shape-defaults.css";
+
+/* ── Shared primitives + utilities ─────────────────────────────────────── */
+@import "../styles/primitives.css";
+@import "../styles/utilities.css";
+
+/* ── Sync-state tokens ─────────────────────────────────────────────────── */
+@import "../styles/sync-tokens.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   DESIGN TOKENS — Tailwind v4 alias layer
+   Maps `--lgc-*` and `--font-*` CSS variables onto Tailwind's color/font
+   namespaces. So `bg-lgc-bg`, `text-lgc-fg-muted`, `font-display`, etc. all
+   work, and per-theme overrides flow through automatically.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+@theme inline {
+  /* ── Langeco color tokens ─────────────────────────────────────────── */
+  --color-lgc-bg:            var(--lgc-bg);
+  --color-lgc-bg-elev:       var(--lgc-bg-elev);
+  --color-lgc-bg-sunken:     var(--lgc-bg-sunken);
+
+  --color-lgc-fg:            var(--lgc-fg);
+  --color-lgc-fg-muted:      var(--lgc-fg-muted);
+  --color-lgc-fg-subtle:     var(--lgc-fg-subtle);
+
+  --color-lgc-border:        var(--lgc-border);
+  --color-lgc-border-strong: var(--lgc-border-strong);
+
+  --color-lgc-accent:        var(--lgc-accent);
+  --color-lgc-accent-soft:   var(--lgc-accent-soft);
+  --color-lgc-accent-fg:     var(--lgc-accent-fg);
+
+  --color-lgc-error:         var(--lgc-error);
+
+  /* ── shadcn system (wired to Langeco tokens) ──────────────────────── */
+  --color-background:                 var(--lgc-bg);
+  --color-foreground:                 var(--lgc-fg);
+  --color-card:                       var(--lgc-bg-elev);
+  --color-card-foreground:            var(--lgc-fg);
+  --color-popover:                    var(--lgc-bg-elev);
+  --color-popover-foreground:         var(--lgc-fg);
+  --color-primary:                    var(--lgc-accent);
+  --color-primary-foreground:         var(--lgc-accent-fg);
+  --color-secondary:                  var(--lgc-bg-sunken);
+  --color-secondary-foreground:       var(--lgc-fg);
+  --color-muted:                      var(--lgc-bg-sunken);
+  --color-muted-foreground:           var(--lgc-fg-muted);
+  --color-accent:                     var(--lgc-accent-soft);
+  --color-accent-foreground:          var(--lgc-fg);
+  --color-destructive:                var(--lgc-error);
+  --color-border:                     var(--lgc-border);
+  --color-input:                      var(--lgc-border-strong);
+  --color-ring:                       var(--lgc-accent);
+
+  /* shadcn sidebar — wired to Langeco */
+  --color-sidebar:                    var(--lgc-bg-sunken);
+  --color-sidebar-foreground:         var(--lgc-fg);
+  --color-sidebar-primary:            var(--lgc-accent);
+  --color-sidebar-primary-foreground: var(--lgc-accent-fg);
+  --color-sidebar-accent:             var(--lgc-bg-elev);
+  --color-sidebar-accent-foreground:  var(--lgc-fg);
+  --color-sidebar-border:             var(--lgc-border);
+  --color-sidebar-ring:               var(--lgc-accent);
+
+  --color-chart-1: oklch(0.65 0.12 25);
+  --color-chart-2: oklch(0.60 0.10 160);
+  --color-chart-3: oklch(0.55 0.08 250);
+  --color-chart-4: oklch(0.50 0.06 85);
+  --color-chart-5: oklch(0.45 0.04 300);
+
+  /* ── Typography — alias Tailwind font-* classes onto theme tokens ─── */
+  --font-ui:      var(--lgc-font-ui);
+  --font-display: var(--lgc-font-display);
+  --font-mono:    var(--lgc-font-mono);
+  --font-jp:      var(--lgc-font-jp);
+  --font-body:    var(--lgc-font-body);
+
+  /* ── Radii ────────────────────────────────────────────────────────── */
+  --radius-sm:  4px;
+  --radius-md:  6px;
+  --radius-lg:  10px;
+  --radius-xl:  14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 22px;
+  --radius-4xl: 26px;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BASE LAYER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  html {
+    font-family: var(--lgc-font-ui);
+  }
+
+  /* Display headings use the serif/display font */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--lgc-font-display);
+  }
+
+  /* UI chrome stays in the UI font */
+  button,
+  input,
+  select,
+  textarea,
+  nav {
+    font-family: var(--lgc-font-ui);
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ── Bubble animations ──────────────────────────────────────────────────── */
+
+@keyframes bubble-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

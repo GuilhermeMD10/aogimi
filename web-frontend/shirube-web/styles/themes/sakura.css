@@ -1,0 +1,24 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   THEME: Sakura — Cherry blossoms in full bloom
+   Soft petal pink, bark ink, leaf green accents.
+   Color-only override; inherits shape defaults.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+html[data-theme="sakura"] {
+  --lgc-bg:            #FBF4F2;
+  --lgc-bg-elev:       #FFFBFA;
+  --lgc-bg-sunken:     #F3E7E5;
+
+  --lgc-fg:            #3E2A2F;
+  --lgc-fg-muted:      #7A5A5F;
+  --lgc-fg-subtle:     #B09599;
+
+  --lgc-border:        rgba(62, 42, 47, 0.08);
+  --lgc-border-strong: rgba(62, 42, 47, 0.16);
+
+  --lgc-accent:        #D47A8C;
+  --lgc-accent-soft:   #F7DCE0;
+  --lgc-accent-fg:     #FFFFFF;
+
+  --lgc-error:         #A04040;
+}
