@@ -23,7 +23,7 @@
 --                      priority 2 (between file_hash and pdf_id_original).
 --
 -- Run manually:
---   psql -d langeco -f migrations/017_pdf_metadata.sql
+--   psql -d aogimi -f migrations/017_pdf_metadata.sql
 
 BEGIN;
 

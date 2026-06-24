@@ -5,7 +5,7 @@
 -- Adds onboarding_completed flag to users.
 --
 -- Run manually:
---   psql -d langeco -f migrations/006_book_identity_and_devices.sql
+--   psql -d aogimi -f migrations/006_book_identity_and_devices.sql
 
 BEGIN;
 

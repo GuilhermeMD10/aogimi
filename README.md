@@ -1,4 +1,4 @@
-# Shirube
+# Aogimi
 
 A Japanese reading + vocabulary ecosystem. Users import EPUBs / PDFs,
 read in-app, look up words against JMdict / KANJIDIC2, and build
@@ -10,8 +10,8 @@ Three independently-deployable parts in this monorepo:
 | Path | What | Stack |
 |---|---|---|
 | [`backend/`](./backend/) | REST API for users, books, decks, devices, dictionary | Node 18+, Express, PostgreSQL |
-| [`web-frontend/shirube-web/`](./web-frontend/shirube-web/) | Next.js App Router web app (desktop / laptop only) | Next 16, React 19, Tailwind v4 |
-| [`mobile-frontend/shirube-mobile/`](./mobile-frontend/shirube-mobile/) | Expo mobile app (iOS, Android) | Expo 55, React Native 0.83 (Fabric) |
+| [`web-frontend/aogimi-web/`](./web-frontend/aogimi-web/) | Next.js App Router web app (desktop / laptop only) | Next 16, React 19, Tailwind v4 |
+| [`mobile-frontend/aogimi-mobile/`](./mobile-frontend/aogimi-mobile/) | Expo mobile app (iOS, Android) | Expo 55, React Native 0.83 (Fabric) |
 
 No workspace tool. Each part has its own `package.json` and
 `node_modules` — `cd` into the one you're working on.
@@ -38,14 +38,14 @@ npm run dev   # listens on $PORT (default 3000)
 
 ```bash
 # 2. Web
-cd web-frontend/shirube-web
+cd web-frontend/aogimi-web
 npm install
 npm run dev   # http://localhost:3001 (or :3002)
 ```
 
 ```bash
 # 3. Mobile
-cd mobile-frontend/shirube-mobile
+cd mobile-frontend/aogimi-mobile
 npm install
 npm start     # Expo Metro; press i / a to launch sim
 ```
@@ -75,20 +75,20 @@ Start here, drill down by topic:
   + auth + ownership rules.
 
 **Web**
-- [`web-frontend/shirube-web/PROJECT_CONTEXT.md`](./web-frontend/shirube-web/PROJECT_CONTEXT.md)
+- [`web-frontend/aogimi-web/PROJECT_CONTEXT.md`](./web-frontend/aogimi-web/PROJECT_CONTEXT.md)
   — primer for new contributors.
-- [`web-frontend/shirube-web/THEMES.md`](./web-frontend/shirube-web/THEMES.md),
-  [`web-frontend/shirube-web/THEME_AUTHORING.md`](./web-frontend/shirube-web/THEME_AUTHORING.md)
+- [`web-frontend/aogimi-web/THEMES.md`](./web-frontend/aogimi-web/THEMES.md),
+  [`web-frontend/aogimi-web/THEME_AUTHORING.md`](./web-frontend/aogimi-web/THEME_AUTHORING.md)
   — theme token system.
-- [`web-frontend/shirube-web/DECISIONS.md`](./web-frontend/shirube-web/DECISIONS.md)
+- [`web-frontend/aogimi-web/DECISIONS.md`](./web-frontend/aogimi-web/DECISIONS.md)
   — scope decisions + deferred work.
 
 **Mobile**
-- [`mobile-frontend/shirube-mobile/README.md`](./mobile-frontend/shirube-mobile/README.md)
+- [`mobile-frontend/aogimi-mobile/README.md`](./mobile-frontend/aogimi-mobile/README.md)
   — setup, build commands, gotchas.
-- [`mobile-frontend/shirube-mobile/STORAGE.md`](./mobile-frontend/shirube-mobile/STORAGE.md)
+- [`mobile-frontend/aogimi-mobile/STORAGE.md`](./mobile-frontend/aogimi-mobile/STORAGE.md)
   — AsyncStorage + filesystem layout.
-- [`mobile-frontend/shirube-mobile/THEMES.md`](./mobile-frontend/shirube-mobile/THEMES.md)
+- [`mobile-frontend/aogimi-mobile/THEMES.md`](./mobile-frontend/aogimi-mobile/THEMES.md)
   — mobile theme system (mirrors web).
 
 **Working with Claude Code agents**
@@ -112,10 +112,10 @@ refresh — see [`docs/AUTH.md`](./docs/AUTH.md).
 
 ## Naming history
 
-The project was called "Langeco" / "langecko" earlier. Some directory
+The project was called "Aogimi" / "langecko" earlier. Some directory
 names, CSS variables (`--lgc-*`), and storage keys still carry that
 prefix — they're stable identifiers we keep for backwards compat with
-local state, not the current branding. The user-facing name is **Shirube**.
+local state, not the current branding. The user-facing name is **Aogimi**.
 
 ---
 

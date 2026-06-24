@@ -16,7 +16,7 @@
 -- a single user's library grew past a few hundred PDFs.
 --
 -- Run manually:
---   psql -d langeco -f migrations/019_pdf_perceptual_hashes.sql
+--   psql -d aogimi -f migrations/019_pdf_perceptual_hashes.sql
 
 BEGIN;
 
