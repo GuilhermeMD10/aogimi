@@ -21,7 +21,8 @@ cp .env.example .env
 ```
 
 Fill in `.env`:
-- `DATABASE_URL` — Neon URL works fine for dev too, or a local Postgres.
+- `DATABASE_URL` — any Postgres connection string. Railway / managed
+  hosts work for dev too, or point at a local Postgres.
 - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` — 64-byte hex strings.
   Generate with `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`.
   Server refuses to start if either is missing or < 32 chars.
@@ -29,14 +30,26 @@ Fill in `.env`:
   defaults to `http://localhost:3001,http://localhost:3002`. Native
   app sends no Origin header → unaffected.
 
-Apply migrations in order:
+Apply migrations:
 
 ```bash
-for f in migrations/0??_*.sql; do psql "$DATABASE_URL" -f "$f"; done
+DATABASE_URL='postgresql://…' ./scripts/migrate.sh
 ```
 
-`011_jlpt_seed.psql` is a `psql` metacommand script (`\copy`) — it has
-to run through `psql -f`, not a generic Postgres client.
+That runs every numbered migration (`000_…` through the latest) in
+order with `ON_ERROR_STOP=on`, so a single SQL failure halts the run
+loudly instead of letting the chain limp through with half the schema.
+
+`011_jlpt_seed.psql` is a `psql` metacommand script (`\copy`) — it
+loads `backend/jlptwordslist/*.csv` relative to the backend directory.
+The runner `cd`s there for you; if you invoke `psql` by hand, make
+sure your working directory is `backend/`.
+
+If you've already applied migrations against this DB and just want the
+chain to be a no-op verification, re-running the script is safe —
+every statement is idempotent (`IF NOT EXISTS`, `IF NOT EXISTS` on
+indexes, etc.) except for the destructive cutover migrations (021,
+reset_user_data).
 
 Run:
 
@@ -90,7 +103,7 @@ src/
 │   ├── bookRepository.js, deckRepository.js, ...
 │
 ├── validation/
-│   └── auth.js             # zod schemas + zxcvbn strength gate
+│   └── auth.js             # zod schemas (username + password rules)
 │
 └── search/
     └── PgSearchIndex.js    # Unified ranking; boosts JLPT-tier words with +50 + jlpt_level*5
@@ -123,22 +136,46 @@ indistinguishable from "doesn't exist", preventing id enumeration. See
 
 ## Migrations
 
-Numbered `.sql` files in `migrations/`, applied manually with `psql -f`.
-**There is no migration runner.** Order matters; apply in lexicographic
-order.
+Numbered `.sql` / `.psql` files in `migrations/`. The shipped runner is
+[`scripts/migrate.sh`](./scripts/migrate.sh); it applies every file in
+order with `ON_ERROR_STOP=on`. Order matters — files are applied
+lexicographically.
 
 Key files:
-- `001_search_refactor.sql` — dictionary search foundation
-- `003_users.sql` — original users table (now superseded)
-- `004_app_entities.sql` — books, decks, cards
-- `006_book_identity_and_devices.sql` — fingerprints + devices
-- `010_jlpt_levels.sql` + `011_jlpt_seed.psql` — JLPT word bucketing
-- `021_auth_hardening.sql` — clean-slate cutover to bcrypt + JWT + email index
+- `000_dict_init.sql` — base dict tables (`words`, `kanji`, `names`,
+  etc.) as CREATE TABLE IF NOT EXISTS. Required for fresh installs so
+  the downstream search-refactor migration finds its tables.
+- `001_search_refactor.sql` — dictionary search columns + indexes.
+- `003_users.sql` — original users table (now superseded by 021).
+- `004_app_entities.sql` — books, decks, cards.
+- `006_book_identity_and_devices.sql` — fingerprints + devices.
+- `010_jlpt_levels.sql` + `011_jlpt_seed.psql` — JLPT word bucketing.
+  011 loads CSVs from `backend/jlptwordslist/` via `\copy`; only works
+  when the runner's cwd is `backend/` (the runner handles this).
+- `021_auth_hardening.sql` — clean-slate cutover to bcrypt + JWT + email index.
+- `022_card_srs.sql` — SRS columns + `card_reviews`/`study_days`/
+  `user_study_prefs`.
+
+**Fresh deploy on a clean DB** (e.g. a new Railway / Render Postgres):
+
+```bash
+# Nuke if anything was previously half-applied:
+psql "$DATABASE_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+
+# Apply everything in order from local (so 011's CSVs resolve):
+DATABASE_URL="$RAILWAY_DATABASE_URL" ./scripts/migrate.sh
+```
+
+The migration chain only creates the dictionary table *schema*. To
+populate dictionary *data* either run the parsers in `helpers/files/`
+against the same `DATABASE_URL`, or `pg_dump --data-only` the dict
+tables from a dev DB and pipe into the target.
 
 **Standing rule:** any migration touching user-data tables also edits
 [`migrations/reset_user_data.sql`](./migrations/reset_user_data.sql) in
-the same change. `reset_user_data.sql` is the master DROP+CREATE used
-to wipe a database back to the current correct schema.
+the same change. That file is the master DROP+CREATE used to wipe a
+database back to the current correct schema (user-data tables only —
+it intentionally leaves dictionary tables alone).
 
 ---
 

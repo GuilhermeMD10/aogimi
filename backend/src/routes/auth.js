@@ -14,7 +14,6 @@ const {
   registerSchema,
   loginSchema,
   refreshSchema,
-  checkPasswordStrength,
   parseBody,
 } = require("../validation/auth");
 
@@ -51,10 +50,6 @@ const registerLimiter = rateLimit({
 router.post("/register", registerLimiter, async (req, res) => {
   const body = parseBody(registerSchema, req, res);
   if (!body) return;
-
-  // zxcvbn lives outside zod because it needs the username for context.
-  const strength = checkPasswordStrength(body.password, body.username);
-  if (!strength.ok) return res.status(400).json({ error: strength.reason });
 
   try {
     const { user, accessToken, refreshToken } = await authService.register(

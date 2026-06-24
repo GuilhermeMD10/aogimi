@@ -62,7 +62,13 @@
       "Bash(node --check src/services/statsService.js)",
       "Bash(node --check src/repositories/cardRepository.js)",
       "Bash(awk '/components\\\\/\\(study|stats\\)/{found=1; print; next} found && /^[[:space:]]+[0-9]+:/{print; next} found{found=0; print}')",
-      "Bash(awk '/components\\\\/\\(decks|profile\\)/{found=1; print; next} found && /^[[:space:]]+[0-9]+:/{print; next} found{found=0; print}')"
+      "Bash(awk '/components\\\\/\\(decks|profile\\)/{found=1; print; next} found && /^[[:space:]]+[0-9]+:/{print; next} found{found=0; print}')",
+      "Bash(node --check src/db.js)",
+      "Bash(chmod +x /Users/guilhermedias/solo-projects/jp-eco/backend/scripts/migrate.sh)",
+      "Bash(bash -n /Users/guilhermedias/solo-projects/jp-eco/backend/scripts/migrate.sh)",
+      "Bash(node --check src/validation/auth.js)",
+      "Bash(node --check src/routes/auth.js)",
+      "Bash(grep -rn \"zxcvbn\\\\|checkPasswordStrength\" src)"
     ],
     "additionalDirectories": [
       "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader",

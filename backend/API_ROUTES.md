@@ -38,7 +38,7 @@ enumeration.
 | POST | `/api/auth/logout` | `{ refreshToken }` | `{ ok: true }` (idempotent) | global only |
 
 Errors:
-- 400: zod validation failure or weak password (zxcvbn score < 2)
+- 400: zod validation failure (username/password format) — passwords must be 8+ chars with at least one non-letter
 - 401: invalid credentials / refresh token
 - 409: `Username already taken` (register only)
 - 429: rate limited
