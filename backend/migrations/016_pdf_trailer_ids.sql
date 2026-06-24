@@ -11,7 +11,7 @@
 -- use case in a later migration. EPUB content_hash is untouched.
 --
 -- Run manually:
---   psql -d langeco -f migrations/016_pdf_trailer_ids.sql
+--   psql -d aogimi -f migrations/016_pdf_trailer_ids.sql
 
 BEGIN;
 

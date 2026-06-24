@@ -2,7 +2,7 @@
 -- Drops everything and recreates with the current correct schema.
 --
 -- Run manually:
---   psql -d langeco -f migrations/reset_user_data.sql
+--   psql -d aogimi -f migrations/reset_user_data.sql
 
 BEGIN;
 
