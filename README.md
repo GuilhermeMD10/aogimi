@@ -20,8 +20,9 @@ No workspace tool. Each part has its own `package.json` and
 
 ## Quick start
 
-**Prereqs:** Node 18+, a Postgres connection string (Neon works
-locally too), and for mobile: Xcode (iOS) or Android Studio + an emulator.
+**Prereqs:** Node 18+, a Postgres connection string (Railway / any
+managed Postgres works, or a local instance), and for mobile: Xcode
+(iOS) or Android Studio + an emulator.
 
 ```bash
 # 1. Backend

@@ -1,15 +1,15 @@
-// Zod schemas + password-strength check for the auth endpoints.
+// Zod schemas for the auth endpoints.
 //
-// Password rules follow NIST 2024 guidance:
-//   - Min 8 chars (no upper cap beyond the bcrypt 72-byte truncation)
-//   - All printable unicode allowed including spaces
-//   - NO composition rules (mixed case / digits / symbols) — they
-//     reduce entropy in practice as users dodge them with `Password1!`
-//   - DO check against a common-password list via zxcvbn (score 0-4;
-//     we reject < 2, which kills the top ~10k common passwords)
+// Password policy:
+//   - Min 8 characters
+//   - At least one non-letter (digit OR symbol) — single composition
+//     rule, kept simple on purpose.
+//   - Silently capped at 72 bytes (bcrypt truncation limit). Two
+//     passwords that differ only past byte 72 would be indistinguishable
+//     to bcrypt, so we reject longer strings outright instead of letting
+//     them through silently.
 
 const { z } = require("zod");
-const zxcvbn = require("zxcvbn");
 
 const usernameSchema = z
   .string()
@@ -17,13 +17,14 @@ const usernameSchema = z
   .max(32, "Username must be at most 32 characters")
   .regex(/^[a-zA-Z0-9_.-]+$/, "Username may contain letters, numbers, '_', '.', '-'");
 
-// 72-byte cap matches bcrypt's silent truncation — refuse longer
-// strings explicitly so two passwords that differ only past byte 72
-// don't end up indistinguishable to bcrypt.
 const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters")
-  .max(72, "Password must be at most 72 characters");
+  .max(72, "Password must be at most 72 characters")
+  // At least one character that's neither a letter nor whitespace —
+  // satisfied by any digit (0-9) or symbol (!@#$ etc.). Spaces alone
+  // don't qualify.
+  .regex(/[^A-Za-z\s]/, "Password must contain at least one number or symbol");
 
 const registerSchema = z.object({
   username: usernameSchema,
@@ -38,23 +39,6 @@ const loginSchema = z.object({
 const refreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
-
-/** Run zxcvbn against the candidate password + the username (so common
- *  variants like "shirubeshirube" or "<username>123" get downscored).
- *  Returns the score (0-4) and a user-facing hint when too weak. */
-function checkPasswordStrength(password, username) {
-  const result = zxcvbn(password, username ? [username] : []);
-  if (result.score < 2) {
-    return {
-      ok: false,
-      reason:
-        result.feedback?.warning ||
-        result.feedback?.suggestions?.[0] ||
-        "Password is too common or guessable",
-    };
-  }
-  return { ok: true };
-}
 
 /** Express helper: validate body against schema, send 400 on failure,
  *  return parsed object on success. Returns null when validation
@@ -74,6 +58,5 @@ module.exports = {
   registerSchema,
   loginSchema,
   refreshSchema,
-  checkPasswordStrength,
   parseBody,
 };
