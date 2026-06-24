@@ -1,0 +1,198 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SHARED PRIMITIVES — Aogimi component classes
+   Lightweight utility classes that map 1:1 to design canvas atoms.
+   They read both color tokens (--lgc-bg, --lgc-fg, …) AND shape tokens
+   (--lgc-surface-*, --lgc-chip-*, …), so themes can re-shape them
+   without re-implementing the class.
+
+   Usage: drop alongside Tailwind classes — `<div className="lgc-card …" />`.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* Card / panel / popover surface */
+.lgc-card {
+  background: var(--lgc-surface-bg);
+  border-style: var(--lgc-surface-border-style);
+  border-color: var(--lgc-surface-border-color);
+  border-width: var(--lgc-surface-border-width);
+  border-radius: var(--lgc-surface-radius);
+  box-shadow: var(--lgc-surface-shadow);
+}
+
+/* Chip / tag / badge */
+.lgc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--lgc-chip-padding);
+  background: var(--lgc-chip-bg);
+  color: var(--lgc-chip-fg);
+  border-style: var(--lgc-chip-border-style);
+  border-color: var(--lgc-chip-border-color);
+  border-width: var(--lgc-chip-border-width);
+  border-radius: var(--lgc-chip-radius);
+  font-size: var(--lgc-chip-font-size);
+  font-weight: var(--lgc-chip-font-weight);
+  letter-spacing: var(--lgc-chip-letter-spacing);
+  text-transform: var(--lgc-chip-text-transform);
+  font-family: var(--lgc-font-mono);
+}
+
+/* Section label — uppercase kicker text used throughout the design */
+.lgc-section-label {
+  font-size: 11px;
+  color: var(--lgc-section-label-color);
+  letter-spacing: var(--lgc-section-label-tracking);
+  text-transform: uppercase;
+  font-weight: var(--lgc-section-label-weight);
+  font-family: var(--lgc-font-mono);
+}
+
+/* Pressable — the "press the stamp" interaction.
+   Pair with .lgc-card or .lgc-button (shape tokens drive its rest state). */
+.lgc-pressable {
+  transition: transform 90ms ease, box-shadow 90ms ease;
+  cursor: pointer;
+}
+.lgc-pressable:hover {
+  transform: var(--lgc-press-transform-hover);
+  box-shadow: var(--lgc-press-shadow-hover);
+}
+.lgc-pressable:active {
+  transform: var(--lgc-press-transform-active);
+  box-shadow: var(--lgc-press-shadow-active);
+}
+
+/* Action button — primary (accent-filled) atomic affordance.
+   Themes that don't override `--lgc-button-*` get a flat accent button.
+   Themes that DO override (Stamp) get the bordered pressable stamp. */
+.lgc-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: var(--lgc-button-padding);
+  font-family: var(--lgc-button-font-family);
+  font-weight: var(--lgc-button-font-weight);
+  font-size: var(--lgc-button-font-size);
+  letter-spacing: var(--lgc-button-letter-spacing);
+  text-transform: var(--lgc-button-text-transform);
+  background: var(--lgc-button-bg);
+  color: var(--lgc-button-fg);
+  border-style: var(--lgc-button-border-style);
+  border-color: var(--lgc-button-border-color);
+  border-width: var(--lgc-button-border-width);
+  border-radius: var(--lgc-button-radius);
+  box-shadow: var(--lgc-button-shadow);
+  cursor: pointer;
+  transition: transform 90ms ease, box-shadow 90ms ease, opacity 120ms ease;
+}
+.lgc-button:hover {
+  transform: var(--lgc-press-transform-hover);
+  box-shadow: var(--lgc-press-shadow-hover);
+}
+.lgc-button:active {
+  transform: var(--lgc-press-transform-active);
+  box-shadow: var(--lgc-press-shadow-active);
+}
+.lgc-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Action button — secondary (bordered / ghost). Shares the primary's
+   geometry tokens (padding, radius, font); diverges on bg/fg/border and
+   has a soft hover-bg instead of a press transform. */
+.lgc-button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: var(--lgc-button-padding);
+  font-family: var(--lgc-button-font-family);
+  font-weight: var(--lgc-button-font-weight);
+  font-size: var(--lgc-button-font-size);
+  letter-spacing: var(--lgc-button-letter-spacing);
+  text-transform: var(--lgc-button-text-transform);
+  background: var(--lgc-button-secondary-bg);
+  color: var(--lgc-button-secondary-fg);
+  border-style: solid;
+  border-color: var(--lgc-button-secondary-border-color);
+  border-width: var(--lgc-button-secondary-border-width);
+  border-radius: var(--lgc-button-radius);
+  cursor: pointer;
+  transition: background 120ms ease, opacity 120ms ease;
+}
+.lgc-button-secondary:hover {
+  background: var(--lgc-button-secondary-hover-bg);
+}
+.lgc-button-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Pane bar — modular workspace ────────────────────────────────────── */
+.lgc-panebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--lgc-bg-sunken);
+  border-bottom: 1px solid var(--lgc-border);
+}
+
+.lgc-panechip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--lgc-fg);
+  cursor: grab;
+  user-select: none;
+  background: var(--lgc-bg-elev);
+  border: 1px solid var(--lgc-border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: transform 120ms, box-shadow 120ms;
+  position: relative;
+}
+.lgc-panechip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+.lgc-panechip:active { cursor: grabbing; }
+
+.lgc-panechip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+
+.lgc-panechip-idx {
+  width: 20px;
+  height: 20px;
+  border-radius: 99px;
+  background: var(--lgc-bg-sunken);
+  color: var(--lgc-fg-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-family: var(--lgc-font-mono);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.lgc-panearrow {
+  color: var(--lgc-fg-subtle);
+  font-size: 14px;
+  user-select: none;
+}
+
+.lgc-panechip-ghost {
+  border: 1px dashed var(--lgc-border-strong) !important;
+  background: transparent !important;
+  opacity: 0.75;
+}

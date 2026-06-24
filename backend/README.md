@@ -1,4 +1,4 @@
-# Shirube — Backend
+# Aogimi — Backend
 
 REST API serving users, books, decks, dictionary search, and per-device
 sync state. Node + Express + PostgreSQL. No ORM — every repository uses

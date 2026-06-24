@@ -1,4 +1,4 @@
-# Shirube — Database Schema
+# Aogimi — Database Schema
 
 Quick reference for every entity. Edit this file when the schema
 changes. The matching DROP+CREATE in

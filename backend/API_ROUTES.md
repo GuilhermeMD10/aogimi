@@ -1,4 +1,4 @@
-# Shirube — API Routes
+# Aogimi — API Routes
 
 Every endpoint the frontend calls. Edit when routes change. See
 [`SCHEMA.md`](./SCHEMA.md) for the underlying tables and
