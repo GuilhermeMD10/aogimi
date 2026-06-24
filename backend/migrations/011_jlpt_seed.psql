@@ -1,0 +1,47 @@
+-- Loads jlptwordslist/n{1..5}.csv into the staging table created by
+-- 010_jlpt_levels.sql. Run from the backend/ directory:
+--
+--   cd backend && psql "$DATABASE_URL" -f migrations/011_jlpt_seed.psql
+--
+-- Re-runnable: TRUNCATEs the staging table first so partial loads from a
+-- previous run get wiped. After this, run 012_jlpt_backfill.sql.
+
+\set ON_ERROR_STOP on
+
+TRUNCATE _jlpt_raw;
+
+CREATE TEMP TABLE _jlpt_tmp (
+  expression text,
+  reading    text,
+  meaning    text,
+  tags       text
+);
+
+\copy _jlpt_tmp FROM 'jlptwordslist/n5.csv' WITH (FORMAT csv, HEADER true)
+INSERT INTO _jlpt_raw (level, expression, reading, meaning, tags)
+SELECT 5, expression, COALESCE(NULLIF(reading, ''), expression), meaning, tags FROM _jlpt_tmp;
+TRUNCATE _jlpt_tmp;
+
+\copy _jlpt_tmp FROM 'jlptwordslist/n4.csv' WITH (FORMAT csv, HEADER true)
+INSERT INTO _jlpt_raw (level, expression, reading, meaning, tags)
+SELECT 4, expression, COALESCE(NULLIF(reading, ''), expression), meaning, tags FROM _jlpt_tmp;
+TRUNCATE _jlpt_tmp;
+
+\copy _jlpt_tmp FROM 'jlptwordslist/n3.csv' WITH (FORMAT csv, HEADER true)
+INSERT INTO _jlpt_raw (level, expression, reading, meaning, tags)
+SELECT 3, expression, COALESCE(NULLIF(reading, ''), expression), meaning, tags FROM _jlpt_tmp;
+TRUNCATE _jlpt_tmp;
+
+\copy _jlpt_tmp FROM 'jlptwordslist/n2.csv' WITH (FORMAT csv, HEADER true)
+INSERT INTO _jlpt_raw (level, expression, reading, meaning, tags)
+SELECT 2, expression, COALESCE(NULLIF(reading, ''), expression), meaning, tags FROM _jlpt_tmp;
+TRUNCATE _jlpt_tmp;
+
+\copy _jlpt_tmp FROM 'jlptwordslist/n1.csv' WITH (FORMAT csv, HEADER true)
+INSERT INTO _jlpt_raw (level, expression, reading, meaning, tags)
+SELECT 1, expression, COALESCE(NULLIF(reading, ''), expression), meaning, tags FROM _jlpt_tmp;
+
+DROP TABLE _jlpt_tmp;
+
+-- Quick sanity check — should print the per-level row count.
+SELECT level, COUNT(*) AS rows FROM _jlpt_raw GROUP BY level ORDER BY level;

@@ -1,0 +1,199 @@
+{
+  "common": {
+    "back": "戻る",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "delete": "削除",
+    "done": "完了",
+    "continue": "続ける",
+    "loading": "読み込み中…",
+    "retry": "もう一度",
+    "error": "エラーが発生しました"
+  },
+  "auth": {
+    "welcome": {
+      "headline": "自信をもって\n日本語を読もう。",
+      "tagline": "単語をタップすると意味が表示され、単語帳に保存して文脈の中で学べます。",
+      "signIn": "サインイン",
+      "createAccount": "アカウント作成",
+      "google": "Google",
+      "apple": "Apple"
+    },
+    "orContinueWith": "他の方法で続ける",
+    "signIn": {
+      "title": "サインイン",
+      "username": "ユーザー名",
+      "password": "パスワード",
+      "submit": "サインイン",
+      "noAccount": "アカウントをお持ちでないですか？",
+      "signUp": "登録",
+      "errorInvalid": "ユーザー名またはパスワードが正しくありません"
+    },
+    "signUp": {
+      "title": "アカウント作成",
+      "username": "ユーザー名",
+      "usernamePlaceholder": "@yourname",
+      "password": "パスワード",
+      "confirmPassword": "パスワード（確認）",
+      "submit": "アカウント作成",
+      "haveAccount": "すでにアカウントをお持ちですか？",
+      "signIn": "サインイン",
+      "errorMismatch": "パスワードが一致しません",
+      "errorTaken": "そのユーザー名は使用されています"
+    },
+    "onboarding": {
+      "syncing": "本を同期しています…",
+      "synced": "{books}冊の本・{decks}個のデッキを同期しました",
+      "noRecords": "まだ同期するデータはありません。読書を始めてコレクションを作りましょう。",
+      "errorOffline": "サーバーに接続できませんでした。あとで再試行してください。",
+      "continue": "続ける",
+      "reconcileTitle": "本をここに取り込む",
+      "reconcileBody": "アカウントには、この端末にファイルがない本が{count}冊あります。今すぐ各EPUBを探すか、後で取り込んでください。",
+      "find": "探す",
+      "found": "見つかりました",
+      "skipAll": "今はスキップ"
+    }
+  },
+  "home": {
+    "title": "リーダー",
+    "continueReading": "読書を続ける",
+    "importEpub": "EPUBを取り込む",
+    "empty": "本がまだありません"
+  },
+  "reader": {
+    "define": "意味",
+    "flashcard": "フラッシュカード",
+    "copy": "コピー",
+    "highlight": "ハイライト",
+    "toolbar": {
+      "size": "サイズ",
+      "lineHeight": "行間",
+      "font": "フォント",
+      "margin": "余白",
+      "vertical": "縦書き"
+    }
+  },
+  "dict": {
+    "title": "辞書",
+    "search": "日本語・ローマ字・英語で検索",
+    "empty": "検索を始めるには入力してください",
+    "addFlashcard": "フラッシュカードに追加"
+  },
+  "decks": {
+    "title": "デッキ",
+    "new": "新しいデッキ",
+    "cards": "{count}枚のカード",
+    "studyNow": "今すぐ学習",
+    "rename": "名前を変更",
+    "delete": "デッキを削除",
+    "studyAllHardest": "全デッキの難しいカードを学習",
+    "studyAllHardestHint": "すべてのデッキから難しいカードを集めます"
+  },
+  "study": {
+    "tapToReveal": "タップして表示",
+    "again": "もう一度",
+    "hard": "難しい",
+    "easy": "簡単",
+    "undo": "戻す",
+    "studyAgain": "もう一度学習",
+    "backToDeck": "デッキに戻る",
+    "finish": {
+      "cardsReviewed": "枚復習",
+      "progression": "進捗",
+      "hardest": "今回の難しいカード"
+    },
+    "changes": {
+      "firstReviewed": "{n}枚 初レビュー",
+      "advanced": "{n}枚「覚えた」に到達",
+      "reachedMastered": "{n}枚「完全に覚えた」に到達",
+      "regressedToSeen": "{n}枚「見たことあり」に戻る",
+      "regressedToLearned": "{n}枚「覚えた」に戻る"
+    },
+    "hardest": {
+      "again": "{n}回ミス"
+    },
+    "state": {
+      "new": "未学習",
+      "seen": "見たことあり",
+      "learned": "覚えた",
+      "mastered": "完全に覚えた"
+    },
+    "mode": {
+      "hardest": "難しい順",
+      "random": "完全にランダム",
+      "oldest_first": "古い順",
+      "oldest_only": "古いカードのみ",
+      "newest_only": "新しいカードのみ",
+      "by_creation": "作成日順"
+    }
+  },
+  "sessionConfig": {
+    "title": "セッション設定",
+    "mode": "モード",
+    "size": "1セッションのカード数",
+    "sizeHint": "{min}〜{max}"
+  },
+  "stats": {
+    "title": "統計",
+    "viewAll": "統計を見る",
+    "tabActivity": "アクティビティ",
+    "tabCards": "カード",
+    "daysStudied": "日間学習",
+    "heatmap": "過去1年",
+    "recent": "過去30日",
+    "distribution": "分布",
+    "total": "合計",
+    "hardestCards": "難しいカード",
+    "noHardest": "まだ苦手なカードはありません",
+    "animal": {
+      "fox": "狐",
+      "snake": "蛇",
+      "bull": "牛",
+      "bear": "熊",
+      "gorilla": "ゴリラ",
+      "wolf": "狼",
+      "tiger": "虎",
+      "dragon": "龍",
+      "leviathan": "リヴァイアサン"
+    }
+  },
+  "profile": {
+    "title": "プロフィール",
+    "editProfile": "プロフィールを編集",
+    "account": "アカウント",
+    "username": "ユーザー名",
+    "language": "言語",
+    "theme": "テーマ",
+    "currentlyReading": "現在読書中",
+    "signOut": "サインアウト",
+    "changeAvatar": "アバターを変更",
+    "signedOut": {
+      "note": "アカウントなしでも読書やデッキの作成は続けられます。データはこの端末に保存されます。後でサインアップすると、端末間で同期できるようになります。"
+    }
+  },
+  "settings": {
+    "title": "設定",
+    "help": "ヘルプ",
+    "credits": "クレジット"
+  },
+  "studyDisplay": {
+    "title": "学習表示",
+    "sectionPreset": "プリセット",
+    "sectionFront": "表面",
+    "sectionBack": "裏面",
+    "preset": {
+      "easy": "やさしい",
+      "default": "標準",
+      "hard": "難しい",
+      "production": "アウトプット"
+    },
+    "front": {
+      "reading": "読みを表示",
+      "context": "例文を表示（穴埋め）",
+      "deckName": "デッキ名を表示"
+    },
+    "back": {
+      "exampleSentence": "例文を表示"
+    }
+  }
+}

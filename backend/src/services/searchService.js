@@ -1,0 +1,406 @@
+const kanjiRepo = require('../repositories/kanjiRepository');
+const nameRepo  = require('../repositories/nameRepository');
+const pool      = require('../db');
+const { index } = require('../search');
+const { deinflect } = require('../search/deinflector');
+const { romajiToKana } = require('../search/romajiToKana');
+
+const SENTENCE_LIMIT = 5;
+
+/**
+ * Unified search endpoint logic.
+ *
+ *   1. Normalize the query (NFKC, trim, lower-case for English).
+ *   2. Detect its shape (single kanji / kanji+kana / kana / romaji).
+ *   3. Route to the ranked search path for that shape.
+ *   4. Hydrate the scored word IDs through the search index.
+ *
+ * The response shape is unchanged from the previous implementation so no
+ * frontend change is required. A new optional `inflection` field is added to
+ * word entries that matched only after deinflection.
+ */
+
+const IS_KANJI  = /\p{Script=Han}/u;
+const IS_KANA   = /^[\p{Script=Hiragana}\p{Script=Katakana}ー]+$/u;
+// Require at least 2 chars so single letters like "a" don't get misrouted
+// away from Japanese particle / kana search.
+const IS_ROMAJI = /^[a-zA-Z][a-zA-Z\s'-]+$/;
+
+const RESULT_LIMIT = 20;
+
+function isSingleKanji(q) { return IS_KANJI.test(q) && [...q].length === 1; }
+function hasKanji(q)      { return IS_KANJI.test(q); }
+
+function normalize(raw) {
+  return raw.trim().normalize('NFKC');
+}
+
+async function search(rawQuery) {
+  if (!rawQuery || !rawQuery.trim()) {
+    throw Object.assign(new Error('Query must not be empty'), { status: 400 });
+  }
+  const q = normalize(rawQuery);
+
+  // ── 1. Single kanji character ───────────────────────────────────────────────
+  if (isSingleKanji(q)) {
+    const [kanjiRow, kanjiWordHits, nameRows] = await Promise.all([
+      kanjiRepo.findByLiteral(q),
+      index.searchByKanjiContaining(q, RESULT_LIMIT),
+      nameRepo.findByKanji(q),
+    ]);
+    const words = await hydrateAndAnnotate(kanjiWordHits);
+    return {
+      type: 'kanji',
+      kanji: kanjiRow ? formatKanji(kanjiRow) : null,
+      words,
+      names: nameRows.map(assembleNameRow),
+    };
+  }
+
+  // ── 2. Kanji-containing word (e.g. 食べる, 食べた) ─────────────────────────
+  if (hasKanji(q)) {
+    return japaneseWithDeinflection(q, 'word');
+  }
+
+  // ── 3. Pure kana ────────────────────────────────────────────────────────────
+  if (IS_KANA.test(q)) {
+    const wordsPromise = japaneseWithDeinflection(q, 'kana');
+
+    const [kanaResult, nameRows, onKanjis, kunKanjis] = await Promise.all([
+      wordsPromise,
+      nameRepo.findByKana(q),
+      kanjiRepo.findByOnReading(q),
+      kanjiRepo.findByKunReading(q),
+    ]);
+
+    // Merge + dedupe kanji hits, sort by grade (nulls last).
+    const kanjiMap = new Map();
+    for (const k of [...onKanjis, ...kunKanjis]) {
+      if (!kanjiMap.has(k.literal)) kanjiMap.set(k.literal, k);
+    }
+    const kanjis = [...kanjiMap.values()]
+      .sort((a, b) => {
+        if (a.grade === null && b.grade === null) return 0;
+        if (a.grade === null) return  1;
+        if (b.grade === null) return -1;
+        return a.grade - b.grade;
+      })
+      .map(formatKanji);
+
+    return {
+      type: 'kana',
+      words: kanaResult.words,
+      names: nameRows.map(assembleNameRow),
+      kanjis,
+    };
+  }
+
+  // ── 4. Romaji / English meaning ─────────────────────────────────────────────
+  if (IS_ROMAJI.test(q)) {
+    const englishQ = q.toLowerCase().replace(/[^\w\s-]/g, '');
+    const kana = romajiToKana(q);
+
+    // Run Japanese (kana) and English searches in parallel when romaji converts
+    const [jpResult, englishHits] = await Promise.all([
+      kana ? japaneseWithDeinflection(kana, 'kana') : Promise.resolve(null),
+      index.searchEnglish(englishQ, RESULT_LIMIT),
+    ]);
+
+    const englishWords = await hydrateAndAnnotate(englishHits);
+
+    // Merge: Japanese matches first, then English, deduplicated
+    if (jpResult && jpResult.words.length > 0) {
+      const seenIds = new Set(jpResult.words.map(w => w.id));
+      const deduped = englishWords.filter(w => !seenIds.has(w.id));
+      const merged = [...jpResult.words, ...deduped].slice(0, RESULT_LIMIT);
+      return { type: 'meaning', words: merged };
+    }
+
+    return { type: 'meaning', words: englishWords };
+  }
+
+  throw Object.assign(
+    new Error('Enter a kanji, kana, or English word.'),
+    { status: 400 },
+  );
+}
+
+/**
+ * Try direct lookup first; fall back to deinflected candidates if nothing
+ * matches. Annotates deinflected hits with their inflection path so the
+ * frontend can show "食べた → 食べる (past)".
+ */
+async function japaneseWithDeinflection(q, kind) {
+  // Direct match — cheap, single indexed lookup.
+  const direct = await index.searchJapaneseForms([q], RESULT_LIMIT);
+  if (direct.length > 0) {
+    return { type: kind, words: await hydrateAndAnnotate(direct) };
+  }
+
+  // No direct hit — try to deinflect.
+  const candidates = deinflect(q);
+  const forms = candidates.map(c => c.base).filter(f => f !== q);
+  if (forms.length === 0) {
+    return { type: kind, words: [] };
+  }
+
+  const hits = await index.searchJapaneseForms(forms, RESULT_LIMIT);
+  const inflectionByForm = new Map(candidates.map(c => [c.base, c.inflections]));
+  const hydrated = await hydrateAndAnnotate(hits, hit => ({
+    from: q,
+    path: inflectionByForm.get(hit.form) || [],
+  }));
+
+  return { type: kind, words: hydrated };
+}
+
+/**
+ * Hydrate scored candidate rows, attach kanji-grade metadata (frontend
+ * display uses it for G1..G6 badges), and attach per-hit inflection data
+ * when provided. Preserves the scoring order supplied by the caller.
+ */
+async function hydrateAndAnnotate(hits, metaFn) {
+  if (hits.length === 0) return [];
+
+  // Deduplicate while preserving first-occurrence order (= highest score).
+  // Map keys are normalized to Number because node-postgres returns bigint
+  // word_id as a string while hydrated rows expose `id` as a Number — without
+  // normalization, the lookups below silently miss.
+  const seen = new Set();
+  const orderedIds = [];
+  const metaById = new Map();
+  const exactSenseById = new Map();
+  for (const h of hits) {
+    const key = Number(h.word_id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    orderedIds.push(h.word_id);
+    if (metaFn) metaById.set(key, metaFn(h));
+    if (h.exact_sense_order != null) {
+      exactSenseById.set(key, h.exact_sense_order);
+    }
+  }
+
+  const rows = await index.hydrate(orderedIds);
+  await annotateKanjiGrades(rows);
+
+  // Sort priorities:
+  //   1. Single-kanji word with an exact whole-meaning match in senses 1–5
+  //      (earlier sense first). Privileges the canonical one-kanji spelling
+  //      of a concept (e.g. 犬 for "dog") over longer compounds that also
+  //      happen to have an exact gloss match.
+  //   2. Any other exact whole-meaning match (gloss_norm = query) within the
+  //      top-10 senses, earlier sense first. Only counts when the query IS
+  //      the meaning — no partial or multi-word matches.
+  //   3. JLPT presence: JLPT-tagged entries before non-JLPT, then higher
+  //      numeric level first (N5 = 5 outranks N1 = 1, since N5 entries are
+  //      more frequently encountered and learners want them surfaced first).
+  //   4. Grade ascending (nulls last).
+  //   5. Primary kanji length, then primary reading length.
+  //   6. Stable fallback preserves upstream SQL score order.
+  rows.sort((a, b) => {
+    const aEx = exactSenseById.get(a.id);
+    const bEx = exactSenseById.get(b.id);
+
+    const aTopKanji = aEx != null && aEx <= 5 && primaryLength(a.kanji) === 1;
+    const bTopKanji = bEx != null && bEx <= 5 && primaryLength(b.kanji) === 1;
+    if (aTopKanji !== bTopKanji) return aTopKanji ? -1 : 1;
+    if (aTopKanji && bTopKanji && aEx !== bEx) return aEx - bEx;
+
+    if (aEx != null && bEx != null) {
+      if (aEx !== bEx) return aEx - bEx;
+    } else if (aEx != null) return -1;
+    else if (bEx != null) return  1;
+
+    const aJlpt = a.jlpt_level ?? null;
+    const bJlpt = b.jlpt_level ?? null;
+    if (aJlpt !== bJlpt) {
+      if (aJlpt == null) return  1;
+      if (bJlpt == null) return -1;
+      return bJlpt - aJlpt;
+    }
+
+    if (a.grade !== b.grade) {
+      if (a.grade == null) return  1;
+      if (b.grade == null) return -1;
+      return a.grade - b.grade;
+    }
+    const aKanjiLen = primaryLength(a.kanji);
+    const bKanjiLen = primaryLength(b.kanji);
+    if (aKanjiLen !== bKanjiLen) return aKanjiLen - bKanjiLen;
+    return primaryLength(a.readings) - primaryLength(b.readings);
+  });
+
+  return rows.map(r => {
+    const meta = metaById.get(r.id);
+    // Strip internal-only priority_score from the public payload.
+    const { priority_score: _p, ...publicRow } = r;
+    return meta ? { ...publicRow, inflection: meta } : publicRow;
+  });
+}
+
+/**
+ * Batch-fetch kanji grades for every unique CJK character across the given
+ * words, then annotate each word with `grade` (min grade of its kanji,
+ * nulls last) and `char_grades` (per-character grade list). One round trip
+ * regardless of word count — no N+1.
+ */
+async function annotateKanjiGrades(words) {
+  const chars = new Set();
+  for (const w of words) {
+    for (const k of w.kanji) {
+      for (const c of [...k]) {
+        if (IS_KANJI.test(c)) chars.add(c);
+      }
+    }
+  }
+  if (chars.size === 0) {
+    for (const w of words) { w.grade = null; w.char_grades = []; }
+    return;
+  }
+
+  const gradeRows = await kanjiRepo.findGradesByLiterals([...chars]);
+  const gradeMap = new Map(gradeRows.map(r => [r.literal, r.grade]));
+
+  for (const w of words) {
+    let min = null;
+    const seen = new Set();
+    w.char_grades = [];
+    for (const k of w.kanji) {
+      for (const c of [...k]) {
+        if (!IS_KANJI.test(c)) continue;
+        const g = gradeMap.get(c) ?? null;
+        if (!seen.has(c)) {
+          seen.add(c);
+          w.char_grades.push({ char: c, grade: g });
+        }
+        if (g != null && (min === null || g < min)) min = g;
+      }
+    }
+    w.grade = min;
+  }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+// Codepoint length of the first entry in a kanji/readings array. Used as a
+// simplicity tiebreaker — Array.from handles surrogate pairs so rare kanji
+// don't get double-counted. Empty arrays return Infinity so kana-only words
+// sort after kanji words of the same grade.
+function primaryLength(arr) {
+  if (!arr || arr.length === 0) return Infinity;
+  return Array.from(arr[0]).length;
+}
+
+function split(value, sep) {
+  return value ? value.split(sep).map(s => s.trim()) : [];
+}
+
+function formatKanji(row) {
+  return {
+    literal: row.literal,
+    grade: row.grade ?? null,
+    jlpt_level: row.jlpt_level ?? null,
+    stroke_count: row.stroke_count,
+    radical: row.radical ?? null,
+    meanings:     split(row.meaning,      ', '),
+    on_readings:  split(row.on_readings,  ', '),
+    kun_readings: split(row.kun_readings, ', '),
+  };
+}
+
+function assembleNameRow(row) {
+  return {
+    id: row.id,
+    kanji: row.kanji ?? null,
+    kana: row.kana,
+    name_type:    split(row.name_type, ','),
+    translations: split(row.meaning,   '; '),
+  };
+}
+
+/**
+ * Fetch the full detail payload for a single word id.
+ *
+ *   {
+ *     word:   hydrated word (same shape search returns),
+ *     kanjis: KanjiInfo[]  — one entry per unique CJK character in the word's
+ *                             kanji forms, in first-occurrence order.
+ *   }
+ *
+ * Reuses the search index's hydrate path so `priority_score` / `is_common`
+ * and the grade annotation stay consistent with the search results. One
+ * round-trip for the word row, one for the kanji rows.
+ */
+async function getDetails(id) {
+  if (!Number.isFinite(id) || id <= 0) {
+    throw Object.assign(new Error('Invalid id'), { status: 400 });
+  }
+
+  const rows = await index.hydrate([id]);
+  if (rows.length === 0) {
+    throw Object.assign(new Error('Word not found'), { status: 404 });
+  }
+  await annotateKanjiGrades(rows);
+
+  const word = rows[0];
+  const { priority_score: _p, ...publicWord } = word;
+
+  // Preserve first-occurrence order so the UI displays kanji left-to-right
+  // following the surface form.
+  const seen = new Set();
+  const chars = [];
+  for (const k of word.kanji) {
+    for (const c of [...k]) {
+      if (IS_KANJI.test(c) && !seen.has(c)) {
+        seen.add(c);
+        chars.push(c);
+      }
+    }
+  }
+
+  const kanjiRows = chars.length
+    ? await kanjiRepo.findByLiterals(chars)
+    : [];
+
+  // Build a lookup map so we can return kanji in first-occurrence order.
+  const kanjiMap = new Map(kanjiRows.map(r => [r.literal, r]));
+  const kanjis = chars
+    .map(c => {
+      const row = kanjiMap.get(c);
+      return row ? formatKanji(row) : { literal: c, grade: null,
+        stroke_count: null, radical: null, meanings: [], on_readings: [], kun_readings: [] };
+    });
+
+  // Example sentences that *contain* any of the word's forms — not just
+  // sentences Kanjium curated for that headword. `contained_forms` is the
+  // union of the curated key plus every <rb>kanji</rb> token extracted from
+  // the sentence's ruby markup at import time (GIN-indexed for fast overlap).
+  const forms = [
+    ...word.kanji,
+    ...word.readings.map((r) => r.form),
+  ].filter(Boolean);
+  let sentences = [];
+  if (forms.length > 0) {
+    const { rows: sRows } = await pool.query(
+      `SELECT id, word_form, ja_plain, ja_ruby, en, grade_label
+         FROM example_sentences
+        WHERE contained_forms && $1::text[]
+        ORDER BY id
+        LIMIT $2`,
+      [forms, SENTENCE_LIMIT],
+    );
+    sentences = sRows.map((r) => ({
+      id: r.id,
+      wordForm: r.word_form,
+      ja: r.ja_plain,
+      jaRuby: r.ja_ruby,
+      en: r.en,
+      gradeLabel: r.grade_label,
+    }));
+  }
+
+  return { word: publicWord, kanjis, sentences };
+}
+
+module.exports = { search, getDetails };

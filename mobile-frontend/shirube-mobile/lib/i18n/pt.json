@@ -1,0 +1,199 @@
+{
+  "common": {
+    "back": "Voltar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "done": "Concluído",
+    "continue": "Continuar",
+    "loading": "A carregar…",
+    "retry": "Tentar novamente",
+    "error": "Algo correu mal"
+  },
+  "auth": {
+    "welcome": {
+      "headline": "Lê japonês\ncom confiança.",
+      "tagline": "Toca em qualquer palavra para ver o seu significado, guardá-la em flashcards e estudá-la em contexto.",
+      "signIn": "Iniciar sessão",
+      "createAccount": "Criar conta",
+      "google": "Google",
+      "apple": "Apple"
+    },
+    "orContinueWith": "ou continuar com",
+    "signIn": {
+      "title": "Iniciar sessão",
+      "username": "Nome de utilizador",
+      "password": "Palavra-passe",
+      "submit": "Iniciar sessão",
+      "noAccount": "Ainda não tens conta?",
+      "signUp": "Registar",
+      "errorInvalid": "Nome de utilizador ou palavra-passe inválidos"
+    },
+    "signUp": {
+      "title": "Criar conta",
+      "username": "Nome de utilizador",
+      "usernamePlaceholder": "@oteunome",
+      "password": "Palavra-passe",
+      "confirmPassword": "Confirmar palavra-passe",
+      "submit": "Criar conta",
+      "haveAccount": "Já tens conta?",
+      "signIn": "Iniciar sessão",
+      "errorMismatch": "As palavras-passe não coincidem",
+      "errorTaken": "Esse nome de utilizador já está em uso"
+    },
+    "onboarding": {
+      "syncing": "A sincronizar os teus livros…",
+      "synced": "Sincronizados {books} livros · {decks} baralhos",
+      "noRecords": "Ainda nada para sincronizar. Começa a ler para construir a tua coleção.",
+      "errorOffline": "Não foi possível contactar o servidor. Podes tentar mais tarde.",
+      "continue": "Continuar",
+      "reconcileTitle": "Trazer os teus livros para aqui",
+      "reconcileBody": "{count} livros da tua conta ainda não têm ficheiro neste dispositivo. Localiza cada EPUB agora ou salta e importa depois.",
+      "find": "Localizar",
+      "found": "Encontrado",
+      "skipAll": "Saltar por agora"
+    }
+  },
+  "home": {
+    "title": "Leitor",
+    "continueReading": "Continuar a leitura",
+    "importEpub": "Importar EPUB",
+    "empty": "Ainda sem livros"
+  },
+  "reader": {
+    "define": "Definir",
+    "flashcard": "Flashcard",
+    "copy": "Copiar",
+    "highlight": "Realçar",
+    "toolbar": {
+      "size": "Tamanho",
+      "lineHeight": "Espaçamento",
+      "font": "Tipo de letra",
+      "margin": "Margem",
+      "vertical": "Vertical"
+    }
+  },
+  "dict": {
+    "title": "Dicionário",
+    "search": "Procura em japonês, romaji ou inglês",
+    "empty": "Começa a escrever para procurar",
+    "addFlashcard": "Adicionar flashcard"
+  },
+  "decks": {
+    "title": "Baralhos",
+    "new": "Novo baralho",
+    "cards": "{count} cartões",
+    "studyNow": "Estudar agora",
+    "rename": "Renomear",
+    "delete": "Eliminar baralho",
+    "studyAllHardest": "Estudar os mais difíceis de todos os baralhos",
+    "studyAllHardestHint": "Junta os cartões mais difíceis de cada baralho"
+  },
+  "study": {
+    "tapToReveal": "Toca para revelar",
+    "again": "De novo",
+    "hard": "Difícil",
+    "easy": "Fácil",
+    "undo": "Desfazer",
+    "studyAgain": "Estudar de novo",
+    "backToDeck": "Voltar ao baralho",
+    "finish": {
+      "cardsReviewed": "cartões revistos",
+      "progression": "Progressão",
+      "hardest": "Mais difíceis desta sessão"
+    },
+    "changes": {
+      "firstReviewed": "{n} revistos pela primeira vez",
+      "advanced": "{n} avançaram para aprendido",
+      "reachedMastered": "{n} chegaram a dominado",
+      "regressedToSeen": "{n} regrediram para visto",
+      "regressedToLearned": "{n} regrediram para aprendido"
+    },
+    "hardest": {
+      "again": "{n}× errado"
+    },
+    "state": {
+      "new": "novo",
+      "seen": "visto",
+      "learned": "aprendido",
+      "mastered": "dominado"
+    },
+    "mode": {
+      "hardest": "Mais difíceis → Novos",
+      "random": "Totalmente aleatório",
+      "oldest_first": "Mais antigos primeiro",
+      "oldest_only": "Só os mais antigos",
+      "newest_only": "Só os novos",
+      "by_creation": "Por data de criação"
+    }
+  },
+  "sessionConfig": {
+    "title": "Definições da sessão",
+    "mode": "Modo",
+    "size": "Cartões por sessão",
+    "sizeHint": "Entre {min} e {max}"
+  },
+  "stats": {
+    "title": "Estatísticas",
+    "viewAll": "Ver estatísticas",
+    "tabActivity": "Atividade",
+    "tabCards": "Cartões",
+    "daysStudied": "dias estudados",
+    "heatmap": "Último ano",
+    "recent": "Últimos 30 dias",
+    "distribution": "Distribuição",
+    "total": "Total",
+    "hardestCards": "Cartões mais difíceis",
+    "noHardest": "Ainda nada com que estejas a lutar",
+    "animal": {
+      "fox": "Raposa",
+      "snake": "Serpente",
+      "bull": "Touro",
+      "bear": "Urso",
+      "gorilla": "Gorila",
+      "wolf": "Lobo",
+      "tiger": "Tigre",
+      "dragon": "Dragão",
+      "leviathan": "Leviatã"
+    }
+  },
+  "profile": {
+    "title": "Tu",
+    "editProfile": "Editar perfil",
+    "account": "Conta",
+    "username": "Nome de utilizador",
+    "language": "Idioma",
+    "theme": "Tema",
+    "currentlyReading": "A ler agora",
+    "signOut": "Terminar sessão",
+    "changeAvatar": "Mudar avatar",
+    "signedOut": {
+      "note": "Podes continuar a ler e a criar baralhos sem conta — os teus dados ficam neste dispositivo. Cria conta mais tarde para sincronizar entre dispositivos."
+    }
+  },
+  "settings": {
+    "title": "Definições",
+    "help": "Ajuda",
+    "credits": "Créditos"
+  },
+  "studyDisplay": {
+    "title": "Visualização de estudo",
+    "sectionPreset": "Predefinição",
+    "sectionFront": "Frente",
+    "sectionBack": "Verso",
+    "preset": {
+      "easy": "Fácil",
+      "default": "Padrão",
+      "hard": "Difícil",
+      "production": "Produção"
+    },
+    "front": {
+      "reading": "Mostrar leitura",
+      "context": "Mostrar contexto (com lacuna)",
+      "deckName": "Mostrar nome do baralho"
+    },
+    "back": {
+      "exampleSentence": "Mostrar frase de exemplo"
+    }
+  }
+}

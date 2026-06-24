@@ -1,0 +1,46 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   UTILITIES — theme-aware decorative bits that aren't full primitives.
+   Reader highlights, vertical Japanese text, custom scrollbar, selection.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* Highlight colors for reader text */
+.hl-1 { background: linear-gradient(transparent 55%, rgba(255, 213, 79, 0.55) 55%); }
+.hl-2 { background: linear-gradient(transparent 55%, rgba(129, 199, 132, 0.45) 55%); }
+.hl-3 { background: linear-gradient(transparent 55%, rgba(244, 143, 177, 0.45) 55%); }
+
+.word-hover {
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 120ms;
+}
+.word-hover:hover { background: var(--lgc-accent-soft); }
+
+/* Vertical Japanese text */
+.vtxt {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-feature-settings: "vert", "vrt2";
+  line-height: 1.9;
+  letter-spacing: 0.04em;
+}
+
+/* Custom scrollbar (opt-in with .lgc-scroll) */
+.lgc-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.lgc-scroll::-webkit-scrollbar-thumb {
+  background: var(--lgc-border-strong);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.lgc-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--lgc-fg-subtle);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+.lgc-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Selection */
+::selection {
+  background: var(--lgc-accent-soft);
+  color: var(--lgc-fg);
+}

@@ -1,0 +1,199 @@
+{
+  "common": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "done": "Done",
+    "continue": "Continue",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "error": "Something went wrong"
+  },
+  "auth": {
+    "welcome": {
+      "headline": "Read Japanese\nwith confidence.",
+      "tagline": "Tap any word to see its meaning, save it to flashcards, and study in context.",
+      "signIn": "Sign in",
+      "createAccount": "Create account",
+      "google": "Google",
+      "apple": "Apple"
+    },
+    "orContinueWith": "or continue with",
+    "signIn": {
+      "title": "Sign in",
+      "username": "Username",
+      "password": "Password",
+      "submit": "Sign in",
+      "noAccount": "No account yet?",
+      "signUp": "Sign up",
+      "errorInvalid": "Invalid username or password"
+    },
+    "signUp": {
+      "title": "Create account",
+      "username": "Username",
+      "usernamePlaceholder": "@yourname",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "submit": "Create account",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "errorMismatch": "Passwords don't match",
+      "errorTaken": "That username is taken"
+    },
+    "onboarding": {
+      "syncing": "Syncing your books…",
+      "synced": "Synced {books} books · {decks} decks",
+      "noRecords": "Nothing to sync yet. Start reading to build your collection.",
+      "errorOffline": "Couldn't reach the server. You can try again later.",
+      "continue": "Continue",
+      "reconcileTitle": "Bring your books here",
+      "reconcileBody": "{count} books from your account don't have a file on this device yet. Find each EPUB now, or skip and import later.",
+      "find": "Find",
+      "found": "Found",
+      "skipAll": "Skip for now"
+    }
+  },
+  "home": {
+    "title": "Reader",
+    "continueReading": "Continue reading",
+    "importEpub": "Import EPUB",
+    "empty": "No books yet"
+  },
+  "reader": {
+    "define": "Define",
+    "flashcard": "Flashcard",
+    "copy": "Copy",
+    "highlight": "Highlight",
+    "toolbar": {
+      "size": "Size",
+      "lineHeight": "Line height",
+      "font": "Font",
+      "margin": "Margin",
+      "vertical": "Vertical"
+    }
+  },
+  "dict": {
+    "title": "Dictionary",
+    "search": "Search Japanese, romaji, or English",
+    "empty": "Start typing to search",
+    "addFlashcard": "Add flashcard"
+  },
+  "decks": {
+    "title": "Decks",
+    "new": "New deck",
+    "cards": "{count} cards",
+    "studyNow": "Study now",
+    "rename": "Rename",
+    "delete": "Delete deck",
+    "studyAllHardest": "Study hardest across all decks",
+    "studyAllHardestHint": "Pulls the hardest cards from every deck"
+  },
+  "study": {
+    "tapToReveal": "Tap to reveal",
+    "again": "Again",
+    "hard": "Hard",
+    "easy": "Easy",
+    "undo": "Undo",
+    "studyAgain": "Study again",
+    "backToDeck": "Back to deck",
+    "finish": {
+      "cardsReviewed": "cards reviewed",
+      "progression": "Progression",
+      "hardest": "Hardest this session"
+    },
+    "changes": {
+      "firstReviewed": "{n} first reviewed",
+      "advanced": "{n} advanced to learned",
+      "reachedMastered": "{n} reached mastered",
+      "regressedToSeen": "{n} regressed to seen",
+      "regressedToLearned": "{n} regressed to learned"
+    },
+    "hardest": {
+      "again": "{n}× missed"
+    },
+    "state": {
+      "new": "new",
+      "seen": "seen",
+      "learned": "learned",
+      "mastered": "mastered"
+    },
+    "mode": {
+      "hardest": "Hardest → New",
+      "random": "Full random",
+      "oldest_first": "Oldest first",
+      "oldest_only": "Oldest only",
+      "newest_only": "New only",
+      "by_creation": "By creation date"
+    }
+  },
+  "sessionConfig": {
+    "title": "Session settings",
+    "mode": "Mode",
+    "size": "Cards per session",
+    "sizeHint": "Between {min} and {max}"
+  },
+  "stats": {
+    "title": "Stats",
+    "viewAll": "View stats",
+    "tabActivity": "Activity",
+    "tabCards": "Cards",
+    "daysStudied": "days studied",
+    "heatmap": "Last year",
+    "recent": "Last 30 days",
+    "distribution": "Distribution",
+    "total": "Total",
+    "hardestCards": "Hardest cards",
+    "noHardest": "Nothing has struggled yet",
+    "animal": {
+      "fox": "Fox",
+      "snake": "Snake",
+      "bull": "Bull",
+      "bear": "Bear",
+      "gorilla": "Gorilla",
+      "wolf": "Wolf",
+      "tiger": "Tiger",
+      "dragon": "Dragon",
+      "leviathan": "Leviathan"
+    }
+  },
+  "profile": {
+    "title": "You",
+    "editProfile": "Edit profile",
+    "account": "Account",
+    "username": "Username",
+    "language": "Language",
+    "theme": "Theme",
+    "currentlyReading": "Currently reading",
+    "signOut": "Sign out",
+    "changeAvatar": "Change avatar",
+    "signedOut": {
+      "note": "You can keep reading and building decks without an account — your data stays on this device. Sign up later to sync it across devices."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "help": "Help",
+    "credits": "Credits"
+  },
+  "studyDisplay": {
+    "title": "Study display",
+    "sectionPreset": "Preset",
+    "sectionFront": "Front",
+    "sectionBack": "Back",
+    "preset": {
+      "easy": "Easy",
+      "default": "Default",
+      "hard": "Hard",
+      "production": "Production"
+    },
+    "front": {
+      "reading": "Show reading",
+      "context": "Show context (with cloze)",
+      "deckName": "Show deck name"
+    },
+    "back": {
+      "exampleSentence": "Show example sentence"
+    }
+  }
+}
