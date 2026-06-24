@@ -18,7 +18,7 @@
 --                     paired with page_count ±5% tolerance.
 --
 -- Run manually:
---   psql -d langeco -f migrations/018_pdf_text_fingerprints.sql
+--   psql -d aogimi -f migrations/018_pdf_text_fingerprints.sql
 
 BEGIN;
 

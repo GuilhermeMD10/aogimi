@@ -1,0 +1,22 @@
+/* Aogimi — Sync-state tokens.
+   Use these for label pills, status icons, dots and any other
+   surface that reflects a book's sync state.
+
+   Mirror of /design synch/sync-states/tokens.css — keep them in sync. */
+
+:root {
+  /* SYNCED — file on device + in cloud, progress in sync */
+  --sync-synced:            #2E9F58;
+  --sync-synced-bg:         rgba(46, 159, 88, 0.14);
+  --sync-synced-border:     rgba(46, 159, 88, 0.40);
+
+  /* UNSYNCED — file on device, not yet pushed to cloud */
+  --sync-unsynced:          #1E3D6B;
+  --sync-unsynced-bg:       rgba(30, 61, 107, 0.12);
+  --sync-unsynced-border:   rgba(30, 61, 107, 0.38);
+
+  /* TO IMPORT — in cloud, no file on this device */
+  --sync-import:            #6B6661;
+  --sync-import-bg:         rgba(26, 25, 24, 0.06);
+  --sync-import-border:     rgba(26, 25, 24, 0.22);
+}
