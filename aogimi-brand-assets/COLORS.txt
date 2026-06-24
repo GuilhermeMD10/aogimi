@@ -1,0 +1,5 @@
+# Aogimi palette
+
+ink     #1A1918   rgb(26, 25, 24)
+paper   #FFFEFB   rgb(255, 254, 251)
+indigo  #1E3D6B   rgb(30, 61, 107)

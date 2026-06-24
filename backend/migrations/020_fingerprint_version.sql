@@ -15,7 +15,7 @@
 -- touch existing rows; only the frontend constant changes.
 --
 -- Run manually:
---   psql -d langeco -f migrations/020_fingerprint_version.sql
+--   psql -d aogimi -f migrations/020_fingerprint_version.sql
 
 BEGIN;
 

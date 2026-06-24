@@ -2,7 +2,7 @@
 --
 -- ⚠️  DESTRUCTIVE — drops user_books and its dependents (bookmarks FK).
 -- Run manually:
---   psql -d langeco -f migrations/005_book_progress.sql
+--   psql -d aogimi -f migrations/005_book_progress.sql
 --
 -- To just nuke the old table without the migration:
 --   DROP TABLE IF EXISTS bookmarks CASCADE;
