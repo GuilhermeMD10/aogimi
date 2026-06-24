@@ -95,6 +95,8 @@ app.use("/api/kanji",     kanjiRouter);
 app.use("/api/names",     namesRouter);
 app.use("/api/translate", translateRouter);
 
+
+app.get('/healthz', (_, res) => res.status(200).json({ ok: true }));
 // ── Protected routes ────────────────────────────────────────────────────────
 // Everything below requires a valid access token. `authenticateJWT`
 // attaches `req.user = { userId, username }`; routes use that as the
