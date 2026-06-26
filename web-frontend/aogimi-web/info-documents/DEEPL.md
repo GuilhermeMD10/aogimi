@@ -29,7 +29,7 @@ to `lib/features/deepl.ts` — flip `DEEPL_ENABLED` to `true`.
 
 ### Backend bridge
 
-- [app/api/translate/route.ts](app/api/translate/route.ts) — Next.js route handler that proxies DeepL Free. Still mounted; no caller currently exercises it.
+- [app/api/translate/route.ts](app/api/translate/route.ts) — Next.js route handler. **Now hard-blocked: it returns 403 immediately.** It was an unauthenticated, un-rate-limited proxy to DeepL using a server-side key (anyone could POST and burn the paid quota), and the feature is off, so it was disabled at the route level. To re-enable, restore the proxy logic from git history **and add auth + per-IP/per-user rate limiting + a text-length cap first**. (The backend translate route is blocked the same way.)
 - [lib/translateApi.ts](lib/translateApi.ts) — client helper that calls the route. Used by `DeepLTranslationPopup` only.
 - [lib/types/translate.ts](lib/types/translate.ts) — request/response types.
 

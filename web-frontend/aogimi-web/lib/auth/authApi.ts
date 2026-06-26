@@ -9,7 +9,10 @@ import type { UserProfile } from '@/lib/types';
 export type AuthSuccess = {
   user: UserProfile;
   accessToken: string;
-  refreshToken: string;
+  // Web clients never receive this — the refresh token is delivered as an
+  // httpOnly cookie. It's present only on the native (no-Origin) transport,
+  // so it's optional in the shared shape.
+  refreshToken?: string;
 };
 
 export function registerUser(username: string, password: string): Promise<AuthSuccess> {
@@ -20,6 +23,16 @@ export function loginUser(username: string, password: string): Promise<AuthSucce
   return apiSendPublic<AuthSuccess>('/api/auth/login', 'POST', { username, password });
 }
 
-export function logoutUser(refreshToken: string): Promise<{ ok: boolean }> {
+/** Revoke the current session. The refresh token rides in the httpOnly
+ *  cookie, so no argument is needed — the backend reads the cookie, revokes
+ *  the row, and clears the cookie. */
+export function logoutUser(): Promise<{ ok: boolean }> {
+  return apiSendPublic<{ ok: boolean }>('/api/auth/logout', 'POST');
+}
+
+/** Migration only: revoke a refresh token left in localStorage by the
+ *  pre-cookie build, by passing it in the logout body (the backend's logout
+ *  reads cookie-or-body). Best-effort; the caller ignores failures. */
+export function revokeLegacyRefreshToken(refreshToken: string): Promise<{ ok: boolean }> {
   return apiSendPublic<{ ok: boolean }>('/api/auth/logout', 'POST', { refreshToken });
 }

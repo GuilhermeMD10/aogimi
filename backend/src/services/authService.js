@@ -117,7 +117,7 @@ async function refresh(refreshToken) {
   }
   let payload;
   try {
-    payload = jwt.verify(refreshToken, REFRESH_SECRET);
+    payload = jwt.verify(refreshToken, REFRESH_SECRET, { algorithms: ["HS256"] });
   } catch {
     const e = new Error("Invalid refresh token");
     e.code = "INVALID_REFRESH";
@@ -150,7 +150,7 @@ async function logout(refreshToken) {
   if (!refreshToken || typeof refreshToken !== "string") return;
   let payload;
   try {
-    payload = jwt.verify(refreshToken, REFRESH_SECRET);
+    payload = jwt.verify(refreshToken, REFRESH_SECRET, { algorithms: ["HS256"] });
   } catch {
     return;
   }

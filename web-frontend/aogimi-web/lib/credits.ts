@@ -79,7 +79,6 @@ export const CREDITS: CreditSection[] = [
       { name: 'foliate-js', license: 'MIT', url: 'https://github.com/johnfactotum/foliate-js' },
       { name: 'pdfjs-dist', license: 'Apache-2.0', owner: 'Mozilla', url: 'https://github.com/mozilla/pdf.js' },
       { name: 'react-pdf', license: 'MIT', url: 'https://github.com/wojtekmaj/react-pdf' },
-      { name: 'pdfreader', license: 'MIT', url: 'https://github.com/adrienjoly/npm-pdfreader' },
       { name: 'jszip', license: 'MIT', url: 'https://stuk.github.io/jszip/' },
     ],
   },

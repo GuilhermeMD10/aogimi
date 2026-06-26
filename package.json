@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "expo-navigation-bar": "^55.0.12",
-    "pg": "^8.21.0"
-  }
-}
