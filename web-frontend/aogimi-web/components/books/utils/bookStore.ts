@@ -282,7 +282,7 @@ export async function importBook(
 
   // Initial sync state is 'pending' — the local write is the source
   // of truth until the backend push below confirms otherwise. If userId
-  // is null (unauthed import, e.g. stamp theme without sign-in), the
+  // is null (unauthed import, signed-out), the
   // book stays pending forever from the local IDB's point of view;
   // that's fine because the unauthed path doesn't use sync.
   const record: BookRecord = {

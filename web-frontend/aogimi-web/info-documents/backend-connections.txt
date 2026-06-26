@@ -10,18 +10,36 @@ Domain types live in lib/types/{book,deck,dict,user,device,translate}.ts.
 
 ==============================================================================
 1. AUTHENTICATION
-   File: components/providers/AuthProvider.tsx, lib/userApi.ts
+   File: components/providers/AuthProvider.tsx, lib/auth/authApi.ts, lib/api.ts
 ==============================================================================
 
-POST /api/user/info
+Token model: "memory + httpOnly cookie" (web). The backend returns the
+access token in the JSON body and sets the refresh token as an httpOnly +
+Secure + SameSite=Lax cookie scoped to /api/auth. All auth calls use
+credentials:'include'. Native clients (no Origin header) get the refresh
+token in the body instead. See ../../docs/AUTH.md.
+
+POST /api/auth/login
   Trigger:   User login (manual)
   Request:   { username, password }
-  Response:  AuthUser  -- { id: number, username: string }
+  Response:  { user: UserProfile, accessToken }   (+ Set-Cookie: refresh)
 
-POST /api/user/create
-  Trigger:   User signup (manual)
+POST /api/auth/register
+  Trigger:   User signup (manual) -- CURRENTLY DISABLED server-side (403)
   Request:   { username, password }
-  Response:  AuthUser
+  Response:  { user: UserProfile, accessToken }   (+ Set-Cookie: refresh)
+
+POST /api/auth/refresh
+  Trigger:   401 refresh-retry (lib/api.ts) + silent session-restore on boot
+  Request:   (no body — refresh token rides in the httpOnly cookie)
+  Response:  { user, accessToken }                (+ rotated Set-Cookie)
+  Notes:     Browser requests are rejected 403 if Origin is not allowlisted
+             (CSRF guard). On 401/403 the cookie is cleared server-side.
+
+POST /api/auth/logout
+  Trigger:   Manual logout
+  Request:   (no body — cookie carries the token)
+  Response:  { ok: true }                         (+ cookie cleared)
 
 
 ==============================================================================
@@ -255,6 +273,14 @@ Client-side storage:
                                  survives logout so the next sign-in can
                                  detect an account switch (see Account
                                  switch wipe below)
+
+    Auth tokens (NOT in localStorage anymore):
+      The refresh token is an httpOnly + Secure + SameSite=Lax cookie
+      (set by the backend, scoped to /api/auth) — unreadable by JS. The
+      access token lives in memory only (lib/auth/tokenStore.ts) and is
+      re-minted on boot by a silent POST /api/auth/refresh. The legacy
+      keys aogimi_access_token / aogimi_refresh_token are purged + revoked
+      on first load by the migration in AuthProvider.
 
     User-scoped (wiped on account switch):
       auth_user                  { id, username } cached for first-paint

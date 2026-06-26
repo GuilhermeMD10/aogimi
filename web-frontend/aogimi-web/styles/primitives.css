@@ -47,7 +47,7 @@
   font-family: var(--lgc-font-mono);
 }
 
-/* Pressable — the "press the stamp" interaction.
+/* Pressable — press-down interaction driven by --lgc-press-* tokens.
    Pair with .lgc-card or .lgc-button (shape tokens drive its rest state). */
 .lgc-pressable {
   transition: transform 90ms ease, box-shadow 90ms ease;
@@ -63,8 +63,7 @@
 }
 
 /* Action button — primary (accent-filled) atomic affordance.
-   Themes that don't override `--lgc-button-*` get a flat accent button.
-   Themes that DO override (Stamp) get the bordered pressable stamp. */
+   Driven by `--lgc-button-*` tokens; defaults to a flat accent button. */
 .lgc-button {
   display: inline-flex;
   align-items: center;

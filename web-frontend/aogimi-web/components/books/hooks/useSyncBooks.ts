@@ -26,8 +26,8 @@ export type PageState = 'loading' | 'restore' | 'library';
  * / rename handlers in the page can update the same store without
  * round-tripping the API.
  *
- * When `user` is null, falls back to a local-only books view (used by
- * the stamp variant which doesn't gate behind useAuthedUser).
+ * When `user` is null, falls back to a local-only books view (the
+ * signed-out, local-first state).
  */
 export function useSyncBooks(user: AuthUser | null) {
   const [pageState, setPageState] = useState<PageState>('loading');
@@ -44,7 +44,7 @@ export function useSyncBooks(user: AuthUser | null) {
         if (cancelled) return;
 
         if (!user) {
-          // Unauthed path (stamp variant): show local-only library.
+          // Unauthed path: show local-only library.
           setBooks(
             localBooks.map((b) => ({
               id: b.id,

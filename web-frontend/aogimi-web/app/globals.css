@@ -2,14 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* ── Theme palettes (one file per theme) ───────────────────────────────── */
+/* ── Color tokens (--lgc-*) ────────────────────────────────────────────── */
 @import "../styles/themes/default.css";
-@import "../styles/themes/kanagawa.css";
-@import "../styles/themes/sakura.css";
-@import "../styles/themes/hanami.css";
-@import "../styles/themes/stamp.css";
 
-/* ── Shape tokens — defaults; themes may override ──────────────────────── */
+/* ── Shape tokens ──────────────────────────────────────────────────────── */
 @import "../styles/shape-defaults.css";
 
 /* ── Shared primitives + utilities ─────────────────────────────────────── */

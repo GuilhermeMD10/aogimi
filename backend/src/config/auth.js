@@ -40,4 +40,27 @@ module.exports = {
    *  `expires_at` row at insert time. Mirrors `REFRESH_EXPIRES_IN`
    *  above and must stay in sync with it. */
   REFRESH_TTL_MS: 30 * 24 * 60 * 60 * 1000,
+
+  // ── Refresh-token cookie (web transport) ────────────────────────────────
+  //
+  // Browser clients carry the refresh token in an httpOnly cookie so it is
+  // unreadable from JS (XSS can't exfiltrate it). Native clients (no Origin
+  // header) keep using the JSON-body transport — see src/routes/auth.js.
+  //
+  // Deployment is same-site: web at aogimi.com / www.aogimi.com, API at
+  // api.aogimi.com (shared registrable domain). That makes SameSite=Lax
+  // sufficient — the cookie is sent on the cross-origin-but-same-site
+  // refresh call — and lets the cookie stay host-only (no Domain), so it is
+  // never shared with other subdomains. The same config works in dev
+  // (localhost:3001 → localhost:3000 is also same-site). Override via env if
+  // the API is ever moved to a different registrable domain (then you need
+  // COOKIE_SAMESITE=none, which forces Secure on).
+  REFRESH_COOKIE_NAME: "aogimi_refresh",
+  REFRESH_COOKIE_PATH: "/api/auth",
+  COOKIE_SAMESITE: (process.env.COOKIE_SAMESITE || "lax").toLowerCase(),
+  COOKIE_SECURE:
+    process.env.COOKIE_SECURE != null
+      ? process.env.COOKIE_SECURE === "true"
+      : process.env.NODE_ENV === "production",
+  COOKIE_DOMAIN: process.env.COOKIE_DOMAIN || undefined,
 };

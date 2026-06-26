@@ -11,10 +11,15 @@ import {
   type StoredAuthUser as User,
 } from '@/lib/storage/auth';
 import { setNeedsOnboarding } from '@/lib/storage/onboarding';
-import { loginUser, registerUser, logoutUser } from '@/lib/auth/authApi';
-import { clearTokens, getRefreshToken, setTokens } from '@/lib/auth/tokenStore';
+import { loginUser, registerUser, logoutUser, revokeLegacyRefreshToken } from '@/lib/auth/authApi';
+import {
+  clearAccessToken,
+  setAccessToken,
+  readLegacyRefreshToken,
+  purgeLegacyTokenStorage,
+} from '@/lib/auth/tokenStore';
 import { wipeUserData } from '@/lib/auth/wipeUserData';
-import { registerSessionInvalidatedHandler } from '@/lib/api';
+import { refreshAccessTokenOnce, registerSessionInvalidatedHandler } from '@/lib/api';
 import { reconcileBooks } from '@/components/books/utils/reconcileBooks';
 
 type AuthContextValue = {
@@ -31,13 +36,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // First-paint sync. The stored user is what we hydrate from — tokens
-  // are persisted alongside it in `tokenStore`. If tokens exist but the
-  // user record is missing (shouldn't happen normally) we still trust
-  // the tokens; the next `request()` call will refresh + populate.
+  // First-paint sync + session restore. The cached `auth_user` gives an
+  // instant optimistic paint. The access token, however, is in-memory only
+  // and gone after a reload — so if we think we're signed in, kick off a
+  // silent /api/auth/refresh to mint a fresh access token from the httpOnly
+  // refresh cookie. A hard 401/403 there fires session-invalidation (which
+  // wipes the user below); a network blip is ignored — the token gets minted
+  // lazily on the first protected request's 401-retry instead.
   useEffect(() => {
-    setUser(getStoredAuthUser());
+    // Migration cleanup: the pre-cookie build left tokens in localStorage.
+    // Revoke any leftover refresh token server-side, then purge the legacy
+    // keys so the long-lived token no longer sits readable on disk.
+    const legacy = readLegacyRefreshToken();
+    if (legacy) revokeLegacyRefreshToken(legacy).catch(() => undefined);
+    purgeLegacyTokenStorage();
+
+    const stored = getStoredAuthUser();
+    setUser(stored);
     setLoading(false);
+    if (stored) void refreshAccessTokenOnce();
   }, []);
 
   // Register the session-invalidation handler. Fires when:
@@ -48,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     return registerSessionInvalidatedHandler(() => {
       void wipeUserData();
-      clearTokens();
+      clearAccessToken();
       clearStoredAuthUser();
       setUser(null);
     });
@@ -90,7 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (username: string, password: string) => {
       const data = await loginUser(username, password);
-      setTokens({ access: data.accessToken, refresh: data.refreshToken });
+      // Refresh token arrived as an httpOnly cookie; only the access token
+      // is ours to hold, and only in memory.
+      setAccessToken(data.accessToken);
       await handleAuthenticated({ id: data.user.id, username: data.user.username });
     },
     [handleAuthenticated],
@@ -99,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = useCallback(
     async (username: string, password: string) => {
       const data = await registerUser(username, password);
-      setTokens({ access: data.accessToken, refresh: data.refreshToken });
+      setAccessToken(data.accessToken);
       await handleAuthenticated({ id: data.user.id, username: data.user.username });
       setNeedsOnboarding();
     },
@@ -107,14 +126,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    // Best-effort server-side revoke. Even if it fails (network, already
-    // revoked, etc.), we still wipe the local state — the user asked to
-    // log out and that intent wins.
-    const refresh = getRefreshToken();
-    if (refresh) {
-      logoutUser(refresh).catch(() => undefined);
-    }
-    clearTokens();
+    // Best-effort server-side revoke. The refresh token rides in the
+    // httpOnly cookie, so logoutUser() needs no argument — the backend reads
+    // the cookie, revokes the row, and clears the cookie. Even if it fails
+    // (network, already revoked), we still wipe local state: the user asked
+    // to log out and that intent wins.
+    logoutUser().catch(() => undefined);
+    clearAccessToken();
     persist(null);
   }, []);
 

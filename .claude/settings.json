@@ -76,7 +76,14 @@
       "Bash(awk -F/ '{print $1\"/\"$2}')",
       "Bash(awk -F/ '{print $1}')",
       "Bash(awk '{print $1}')",
-      "Bash(node --check src/app.js)"
+      "Bash(node --check src/app.js)",
+      "Bash(rg -rn \"\\\\-\\\\-lgc-font-jp\\\\s*:\" styles/)",
+      "Bash(git rm *)",
+      "Bash(echo \"tsc exit: $?\")",
+      "Bash(rg -n \"THEMES\\\\.md|THEME_AUTHORING\\\\.md|themes/index|themes/stamp|useThemedComponent|theme-decorations|ThemeSwitcher|ThemeSection\" web-frontend/aogimi-web/*.md web-frontend/aogimi-web/AGENTS.md CLAUDE.md)",
+      "Bash(ls web-frontend/aogimi-web/AGENTS.md)",
+      "Bash(rg --files)",
+      "Bash(rg \"\\\\.default\\\\.\\(ts|tsx\\)$\")"
     ],
     "additionalDirectories": [
       "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader",

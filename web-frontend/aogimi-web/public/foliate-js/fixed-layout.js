@@ -81,9 +81,17 @@ export class FixedLayout extends HTMLElement {
             display: 'none',
             overflow: 'hidden',
         })
-        // `allow-scripts` is needed for events because of WebKit bug
-        // https://bugs.webkit.org/show_bug.cgi?id=218086
-        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts')
+        // SECURITY (aogimi): EPUB content is untrusted user input loaded from
+        // a blob: URL, which inherits THIS app's origin. `allow-same-origin`
+        // is kept because the paginator reads the iframe's contentDocument to
+        // lay out pages — but `allow-scripts` is intentionally dropped so a
+        // malicious book can't run JS (or inline handlers) in our origin and
+        // read tokens/cookies. The original upstream comment noted scripts
+        // were only enabled for a WebKit event-handling workaround
+        // (https://bugs.webkit.org/show_bug.cgi?id=218086); the security
+        // trade-off wins. If in-content events regress on Safari, the proper
+        // fix is to serve reader content from a separate sandboxed origin.
+        iframe.setAttribute('sandbox', 'allow-same-origin')
         iframe.setAttribute('scrolling', 'no')
         iframe.setAttribute('part', 'filter')
         this.#root.append(element)
