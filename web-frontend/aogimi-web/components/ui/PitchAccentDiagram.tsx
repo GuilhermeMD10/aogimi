@@ -126,7 +126,7 @@ export function PitchAccentDiagram({
                       transform: 'translateX(-50%)',
                       fontSize: moraFontPx,
                       lineHeight: `${moraFontPx + 2}px`,
-                      fontFamily: 'var(--lgc-font-jp, var(--font-shippori-mincho))',
+                      fontFamily: 'var(--lgc-font-jp)',
                     }}
                   >
                     {m}

@@ -1,6 +1,7 @@
 const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const wordsRouter     = require("./routes/words");
 const kanjiRouter     = require("./routes/kanji");
@@ -55,24 +56,38 @@ app.use(helmet());
 // bigger is either a bug or a DoS attempt.
 app.use(express.json({ limit: "10kb" }));
 
+// Parse cookies (no secret — the refresh cookie is a signed JWT already,
+// it doesn't need cookie signing on top). Required so /auth/refresh and
+// /auth/logout can read the httpOnly refresh cookie set on the web client.
+app.use(cookieParser());
+
 // Explicit origin allowlist. Dev defaults cover the Next.js ports;
 // production sets CORS_ORIGIN to the deployed web origin. RN fetch
 // sends no Origin header, so the mobile app is unaffected by CORS.
+// Exposed on app.locals so the auth router can reuse the exact same list
+// for the cookie-refresh CSRF guard (without a circular require on app.js).
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || "http://localhost:3001,http://localhost:3002")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
+const isAllowedOrigin = (origin) =>
+  typeof origin === "string" && origin.length > 0 && ALLOWED_ORIGINS.includes(origin);
+app.locals.isAllowedOrigin = isAllowedOrigin;
 app.use(
   cors({
     origin: (origin, cb) => {
       // No origin = same-origin / curl / native app → allow.
       if (!origin) return cb(null, true);
-      if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+      if (isAllowedOrigin(origin)) return cb(null, true);
       return cb(new Error(`CORS: origin not allowed: ${origin}`));
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Accept", "Content-Type", "Authorization"],
-    credentials: false,
+    // Allow the browser to send the httpOnly refresh cookie on
+    // /auth/refresh and /auth/logout. With a function `origin`, the cors
+    // package reflects the specific request origin (never `*`), which is
+    // required when credentials are enabled.
+    credentials: true,
   }),
 );
 
@@ -111,5 +126,28 @@ app.use("/api/decks",   authenticateJWT, decksRouter);
 app.use("/api/devices", authenticateJWT, devicesRouter);
 app.use("/api/study",   authenticateJWT, studyRouter);
 app.use("/api/stats",   authenticateJWT, statsRouter);
+
+// ── Terminal error handler ────────────────────────────────────────────────
+// Mounted last. Anything that reaches Express's error path (a CORS
+// rejection, a sync throw, an explicit next(err)) is logged server-side and
+// answered with a generic body — never a stack trace, regardless of
+// NODE_ENV. Two known cases get a specific status:
+//   - CORS origin rejection → 403 (not a 500).
+//   - Postgres 22P02 (invalid text representation, e.g. a malformed UUID id)
+//     → 404, matching the "unknown id looks like not-found" design. Most
+//     such cases are already handled in services/ownership.js; this is the
+//     backstop for any other path.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err && typeof err.message === "string" && err.message.startsWith("CORS:")) {
+    return res.status(403).json({ error: "Origin not allowed" });
+  }
+  if (err && err.code === "22P02") {
+    return res.status(404).json({ error: "Not found" });
+  }
+  console.error("[error]", err?.code || "", err?.message || err);
+  return res.status(500).json({ error: "Internal server error" });
+});
 
 module.exports = app;

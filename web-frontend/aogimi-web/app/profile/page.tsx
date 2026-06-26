@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
-// import { useTheme } from '@/components/providers/ThemeProvider';
 import { getUserProfile, updateUserProfile } from '@/lib/userApi';
 import { getUserBooks } from '@/components/books/utils/booksApi';
 import { getUserDecks } from '@/components/decks/utils/decksApi';
@@ -19,7 +18,6 @@ import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { AccountSection } from '@/components/profile/AccountSection';
 import { DecksSection } from '@/components/profile/DecksSection';
 import { CurrentlyReadingSection } from '@/components/profile/CurrentlyReadingSection';
-// import { ThemeSection } from '@/components/profile/ThemeSection';
 import { ActionsSection } from '@/components/profile/ActionsSection';
 import { useStatsCards } from '@/components/stats/hooks/useStatsCards';
 
@@ -27,8 +25,6 @@ export default function ProfilePage() {
   const router = useRouter();
   const user = useAuthedUser();
   const { logout } = useAuth();
-  // Theme picker hidden for v1 — only Default ships. Restore when premium themes land.
-  // const { theme, setTheme } = useTheme();
 
   const profileQ = useFetchWithAbort<UserProfile>((s) => getUserProfile(user.id, s), [user.id]);
   const booksQ = useFetchWithAbort<BookProgressRecord[]>((s) => getUserBooks(user.id, s), [user.id]);
@@ -120,8 +116,6 @@ export default function ProfilePage() {
 
           <div>
             <CurrentlyReadingSection books={readingBooks} />
-            {/* Theme picker hidden for v1 — only Default ships. */}
-            {/* <ThemeSection active={theme} onSelect={setTheme} /> */}
             <ActionsSection
               onShowOnboarding={() => setShowOnboarding(true)}
               onSignOut={handleSignOut}

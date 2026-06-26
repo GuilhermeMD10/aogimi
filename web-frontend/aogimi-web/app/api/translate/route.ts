@@ -2,55 +2,15 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json() as { text?: unknown };
-    const { text } = body;
-
-    if (!text || typeof text !== 'string') {
-      return NextResponse.json({ error: 'Missing or invalid text parameter.' }, { status: 400 });
-    }
-
-    const apiKey = process.env.DEEPL_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'DeepL API key not configured. Set DEEPL_API_KEY in .env.local.' },
-        { status: 500 },
-      );
-    }
-
-    // Free API keys end with ':fx'; Pro keys use the main domain
-    const baseUrl = apiKey.endsWith(':fx')
-      ? 'https://api-free.deepl.com'
-      : 'https://api.deepl.com';
-
-    const response = await fetch(`${baseUrl}/v2/translate`, {
-      method: 'POST',
-      headers: {
-        Authorization: `DeepL-Auth-Key ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ text: [text], target_lang: 'EN' }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      return NextResponse.json(
-        { error: `DeepL API error: ${errText}` },
-        { status: response.status },
-      );
-    }
-
-    const data = await response.json() as {
-      translations: { text: string; detected_source_language: string }[];
-    };
-    const translation = data.translations[0];
-
-    return NextResponse.json({
-      translatedText: translation.text,
-      detectedLanguage: translation.detected_source_language,
-    });
-  } catch {
-    return NextResponse.json({ error: 'Translation failed.' }, { status: 500 });
-  }
+// Translation is disabled. This route was an unauthenticated, un-rate-limited
+// proxy to DeepL using a server-side API key — anyone could POST to it and
+// burn the paid quota. The DeepL feature is currently off behind a flag
+// (lib/features/deepl.ts) and has no caller, so we hard-block the route here
+// rather than leave an abusable proxy mounted. The backend translate route
+// is blocked the same way.
+//
+// To re-enable: restore the proxy logic (see git history) AND add auth +
+// per-IP/per-user rate limiting + a text-length cap before flipping this off.
+export async function POST() {
+  return NextResponse.json({ error: 'Translation is currently disabled.' }, { status: 403 });
 }

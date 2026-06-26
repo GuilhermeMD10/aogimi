@@ -1,7 +1,6 @@
 'use client';
 
 // All ReaderBubble logic that lives INSIDE the outer bubble shell.
-// Theme-agnostic — both default and stamp variants render this inside their own shell.
 
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, Plus, Search, X } from 'lucide-react';

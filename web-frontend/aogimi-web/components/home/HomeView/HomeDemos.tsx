@@ -1,6 +1,6 @@
 'use client';
 
-// Theme-agnostic helpers shared between default and stamp HomeView variants.
+// Presentational helpers for HomeView.
 
 import { Fragment, useEffect, useRef, useState } from 'react';
 import {

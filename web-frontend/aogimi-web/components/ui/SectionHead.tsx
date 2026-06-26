@@ -1,6 +1,5 @@
 // Numbered section divider used by the dictionary panels and word-detail
-// breakdown views. The mono "01 / 02 / …" prefix uses theme-aware tokens —
-// stamp paints it vermillion with extra tracking, default leaves it subtle.
+// breakdown views. The mono "01 / 02 / …" prefix is driven by --lgc-section-* tokens.
 
 export function SectionHead({ num, title }: { num: string; title: string }) {
   return (

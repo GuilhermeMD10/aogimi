@@ -1,57 +1,74 @@
 // Token storage for the web client.
 //
-// localStorage for both access + refresh is the pragmatic choice for a
-// private beta. The XSS attack surface is small (Next.js + React +
-// Tailwind, no untrusted user-supplied HTML rendering anywhere), and
-// the alternative — httpOnly cookies — requires server-side cookie
-// handling that we don't have yet. helmet's CSP defaults add a baseline
-// XSS deterrent.
+// SECURITY MODEL — "memory + httpOnly cookie":
 //
-// If/when we add user-generated HTML (rich-text notes, deck descriptions
-// rendered raw, etc.), the upgrade path is: backend issues a set-cookie
-// on /auth/login carrying the refresh token (httpOnly + secure +
-// sameSite=lax), access tokens stay in memory only, and this module
-// becomes a thin "is there a session?" probe.
-
-const ACCESS_KEY = 'aogimi_access_token';
-const REFRESH_KEY = 'aogimi_refresh_token';
+//   - Refresh token: NEVER touches JavaScript. The backend sets it in an
+//     httpOnly + Secure + SameSite cookie (scoped to /api/auth) on
+//     login/register/refresh, and clears it on logout. Because it's
+//     httpOnly, script — including an XSS payload smuggled in through a
+//     malicious EPUB — literally cannot read it.
+//
+//   - Access token: in-memory only (this module variable). Short-lived
+//     (15 min) and never written to localStorage/sessionStorage, so it
+//     can't be lifted from disk. It's lost on reload and re-minted by a
+//     silent /api/auth/refresh on boot (the httpOnly cookie authorises
+//     that call) — see AuthProvider's session-restore effect.
+//
+// This replaces the previous "both tokens in localStorage" approach, which
+// left the long-lived refresh token readable by any script in the origin.
+// The refresh token now has no JS-reachable representation at all, so there
+// is nothing for this module to persist or clear for it.
 
 let memAccess: string | null = null;
 
-function hasStorage(): boolean {
-  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
-}
-
-export function loadTokens(): { access: string | null; refresh: string | null } {
-  if (!hasStorage()) return { access: null, refresh: null };
-  const access = window.localStorage.getItem(ACCESS_KEY);
-  const refresh = window.localStorage.getItem(REFRESH_KEY);
-  memAccess = access;
-  return { access, refresh };
-}
-
+/** The current in-memory access token, or null if we don't have one yet
+ *  (fresh load before the boot-time refresh, or signed out). */
 export function getAccessToken(): string | null {
-  if (memAccess) return memAccess;
-  if (!hasStorage()) return null;
-  memAccess = window.localStorage.getItem(ACCESS_KEY);
   return memAccess;
 }
 
-export function getRefreshToken(): string | null {
-  if (!hasStorage()) return null;
-  return window.localStorage.getItem(REFRESH_KEY);
+/** Set (or clear, with null) the in-memory access token. Called after
+ *  login/register and after every successful /api/auth/refresh. */
+export function setAccessToken(token: string | null): void {
+  memAccess = token;
 }
 
-export function setTokens(tokens: { access: string; refresh: string }): void {
-  memAccess = tokens.access;
-  if (!hasStorage()) return;
-  window.localStorage.setItem(ACCESS_KEY, tokens.access);
-  window.localStorage.setItem(REFRESH_KEY, tokens.refresh);
-}
-
-export function clearTokens(): void {
+/** Drop the in-memory access token. The refresh token is an httpOnly
+ *  cookie cleared server-side by /api/auth/logout, so there is nothing
+ *  else to wipe here. */
+export function clearAccessToken(): void {
   memAccess = null;
-  if (!hasStorage()) return;
-  window.localStorage.removeItem(ACCESS_KEY);
-  window.localStorage.removeItem(REFRESH_KEY);
+}
+
+// ── Legacy migration ─────────────────────────────────────────────────────
+//
+// The previous build persisted both tokens in localStorage. After this
+// migration those keys are never written or read again — but an existing
+// user still has them on disk, and the leftover refresh token stays valid
+// server-side (~30 days) and readable by any script. We purge them on boot,
+// and (where one is found) revoke it server-side first. Safe to delete this
+// block once the deployed user base has cycled through at least once.
+
+const LEGACY_ACCESS_KEY = 'aogimi_access_token';
+const LEGACY_REFRESH_KEY = 'aogimi_refresh_token';
+
+/** The refresh token left behind by the pre-cookie build, if any. */
+export function readLegacyRefreshToken(): string | null {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    return window.localStorage.getItem(LEGACY_REFRESH_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Remove the pre-cookie token keys from localStorage. Idempotent. */
+export function purgeLegacyTokenStorage(): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    window.localStorage.removeItem(LEGACY_ACCESS_KEY);
+    window.localStorage.removeItem(LEGACY_REFRESH_KEY);
+  } catch {
+    /* private mode / quota — nothing else to do */
+  }
 }

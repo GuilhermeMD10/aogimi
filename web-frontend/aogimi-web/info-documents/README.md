@@ -8,7 +8,6 @@ phones and tablets are redirected to the native app store landing via
 ## Specs you'll want open
 
 - [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md) — primer for new contributors
-- [`THEMES.md`](./THEMES.md), [`THEME_AUTHORING.md`](./THEME_AUTHORING.md) — theme token system
 - [`DECISIONS.md`](./DECISIONS.md) — scope decisions + deferred work
 - [`backend-connections.txt`](./backend-connections.txt) — endpoint catalog (client view)
 - [`../../docs/AUTH.md`](../../docs/AUTH.md) — JWT model, token storage, refresh-retry
@@ -52,13 +51,20 @@ Backend URL is `NEXT_PUBLIC_API_URL`, default `http://localhost:3000`.
 ## Auth in one paragraph
 
 `AuthProvider` ([`components/providers/AuthProvider.tsx`](./components/providers/AuthProvider.tsx))
-owns the session. Login + register call `/api/auth/{login,register}`
-and receive `{ user, accessToken, refreshToken }`. Both tokens go to
-localStorage via [`lib/auth/tokenStore.ts`](./lib/auth/tokenStore.ts);
-the user goes to localStorage as `auth_user` via
-[`lib/storage/auth.ts`](./lib/storage/auth.ts). The session-invalidation
-hook in [`lib/api.ts`](./lib/api.ts) fires on any 401 that survives
-the refresh-retry, wiping tokens + stored user.
+owns the session. Login + register call `/api/auth/{login,register}`.
+Token storage follows the **"memory + httpOnly cookie"** model: the
+backend sets the refresh token as an **httpOnly + Secure + SameSite=Lax
+cookie** (scoped to `/api/auth`, unreadable by JS), and the response body
+carries only `{ user, accessToken }`. The access token lives **in-memory
+only** ([`lib/auth/tokenStore.ts`](./lib/auth/tokenStore.ts)) — never in
+localStorage. On a fresh load, a silent `/api/auth/refresh` (authorised by
+the cookie) re-mints the access token. Only the user record persists, as
+`auth_user` via [`lib/storage/auth.ts`](./lib/storage/auth.ts). The
+session-invalidation hook in [`lib/api.ts`](./lib/api.ts) fires on any
+401/403 that survives the refresh-retry, wiping the in-memory token +
+stored user. (Native clients send no `Origin` header and keep using the
+JSON-body token transport with expo-secure-store — the backend chooses
+the transport per request.)
 
 Full flow: [`../../docs/AUTH.md`](../../docs/AUTH.md).
 

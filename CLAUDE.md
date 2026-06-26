@@ -85,22 +85,17 @@ Full flow + endpoint table: [`docs/AUTH.md`](docs/AUTH.md). Hardening posture + 
 
 When the schema or API changes, update `backend/SCHEMA.md` and `backend/API_ROUTES.md`. The web frontend's `backend-connections.txt` mirrors API_ROUTES from a client perspective and is the inventory for cross-referencing payload shapes.
 
-### Web: theme architecture is the dominant non-obvious pattern
+### Web: design tokens (theming was torn out)
 
-The whole app is themable through three layers stacked over a single `data-theme="<name>"` attribute on `<html>`:
+The multi-theme system on web was **removed** — pending a from-scratch redesign. There is one look, driven by design tokens over two layers:
 
-1. **Color + shape tokens** in `styles/themes/<name>.css` and `styles/shape-defaults.css`. The shape-token surface (`--lgc-surface-*`, `--lgc-button-*`, `--lgc-chip-*`, `--lgc-toolbar-*`, etc.) is what lets Stamp express its identity — hard offset shadows, sumi borders, crisp corners, serif fonts — without forking components.
+1. **Color + shape tokens** in `styles/themes/default.css` (the sole color palette, bound to both `:root` and `html[data-theme="default"]`) and `styles/shape-defaults.css` (`--lgc-surface-*`, `--lgc-button-*`, `--lgc-chip-*`, `--lgc-toolbar-*`, …).
 2. **Primitive classes** that read those tokens: `.lgc-card`, `.lgc-button`, `.lgc-button-secondary`, `.lgc-chip`, `.lgc-section-label` in `styles/primitives.css`. Anywhere a card/button/chip is rendered, use these — not hand-rolled `bg-lgc-bg-elev … border-lgc-border` chains.
-3. **Whole-screen swaps** via the registry in `web-frontend/aogimi-web/themes/index.ts`, resolved by `useThemedComponent` (`web-frontend/aogimi-web/themes/useThemedComponent.ts`). Variants live at `themes/<theme>/<mirror-of-components-path>/<X>.tsx`. **Last resort** — only for screens whose visual *tree* genuinely differs.
 
-The `THEMES` record in `components/providers/ThemeProvider.tsx` is the **single source of truth** for theme keys. `AppTheme = keyof typeof THEMES`. The storage validator, the pre-hydration `<script>` in `app/layout.tsx`, the registry, and `ThemeSwitcher` all derive from it. Adding a theme = one record entry + one CSS file. TypeScript fails the build if anything drifts.
-
-A pre-hydration `<script>` injected in `app/layout.tsx` reads `localStorage.getItem('app-theme')` and sets `data-theme` *before* paint, so there is no flash-of-default-theme on cold load. `ThemeProvider` initialises its `useState` synchronously from `document.documentElement.dataset.theme` so React state matches what's painted.
+When the redesign lands, components should change **colors + minimal CSS only** — there is no per-theme component dispatch, no `themes/` registry, no per-theme decoration atoms, and no theme picker. What's **deliberately kept** as minimal re-attach plumbing: the `data-theme` attribute on `<html>`, the pre-hydration `<script>` in `app/layout.tsx`, the `app-theme` localStorage key, and `ThemeProvider`/`THEMES` (a single `default` entry). A future theme re-attaches by adding a `THEMES` entry + a CSS palette under its own `html[data-theme="…"]` selector.
 
 Full docs:
-- `web-frontend/aogimi-web/PROJECT_CONTEXT.md` — start here, end-to-end overview.
-- `web-frontend/aogimi-web/THEMES.md` — token inventory + per-token consumer list + dispatch decision rule.
-- `web-frontend/aogimi-web/THEME_AUTHORING.md` — step-by-step playbook for adding a theme.
+- `web-frontend/aogimi-web/PROJECT_CONTEXT.md` — start here, end-to-end overview (see the **Theming** section).
 - `web-frontend/aogimi-web/backend-connections.txt` — endpoint catalog + payload shapes the frontend depends on.
 - `web-frontend/aogimi-web/DECISIONS.md` — scope decisions + deferred work.
 
@@ -121,7 +116,7 @@ Currently documented features:
 
 Same three-layer system (`theme/tokens.ts`, `theme/createThemedComponent.tsx`, `themes/index.ts` + `themes/useThemedComponent.ts`). The Stamp theme registers `HomeScreen`, `DictionaryScreen`, `DictEntry`, `BottomTabBar` and uses theme-decoration atoms (`components/theme-decorations/stamp/`).
 
-`mobile-frontend/aogimi-mobile/THEMES.md` is the mobile mirror of the web `THEMES.md`.
+`mobile-frontend/aogimi-mobile/THEMES.md` documents the mobile theme system. (The web theming system has since been removed — see the web section above.)
 
 ### Books: per-device storage + Postgres metadata
 
@@ -143,9 +138,9 @@ Debounced ~2s during a session (web `ReaderStateProvider`), plus fire-and-forget
 
 - **Next.js 16 has breaking changes.** `web-frontend/aogimi-web/AGENTS.md` says: read `node_modules/next/dist/docs/` before writing route code. Conventions don't match training data — heed deprecation notices.
 - **React Native 0.83 + Fabric:** `transform: pressed ? [...] : undefined` between press states gets coerced to `null` and crashes the transform processor (`forEach on null`). Always pass a stable-shape transform array, e.g. `transform: [{ translateX: pressed ? 2 : 0 }, { translateY: pressed ? 2 : 0 }]`.
-- **Hex literals in components are not allowed** except in `JlptChip` (per-level palette, hardcoded by design) and theme decoration atoms. If a surface "doesn't change under stamp", grep it for `#[0-9a-f]{6}` and replace with `--lgc-*` token / `bg-lgc-*` class.
-- **No inline `borderRadius: <px>` on theme-relevant surfaces.** Use `rounded-*` Tailwind classes or `var(--radius-md)`. Pure decoratives (`'50%'`, `999`) are fine.
-- **No inline `if (theme === 'stamp')` branches** in components. Either move the variation into a shape token, or fork via the registry.
+- **Hex literals in components are not allowed** except in `JlptChip` (per-level palette, hardcoded by design); on mobile, theme decoration atoms are also exempt. If a surface should be token-driven, grep it for `#[0-9a-f]{6}` and replace with `--lgc-*` token / `bg-lgc-*` class.
+- **No inline `borderRadius: <px>` on token-relevant surfaces.** Use `rounded-*` Tailwind classes or `var(--radius-md)`. Pure decoratives (`'50%'`, `999`) are fine.
+- **No inline `if (theme === 'stamp')` branches** in components. (Mobile only — web has no per-theme dispatch anymore. On mobile, move the variation into a shape token or fork via the registry.)
 - **`react-hooks/set-state-in-effect`** fires false positives on legitimate "sync from external trigger" effects (see `AppShell.tsx` `pendingDictSearch`/`pendingCard`, `PendingCardOverlay.tsx` phase seed). Block-disabled with explanatory comment where the pattern is correct.
 - **Migrations are manual.** Sequence matters — apply in numbered order. `011_jlpt_seed.psql` is psql-specific because of `\copy`.
 - **Two design canvases vs production**: `web-frontend/aogimi-web/aogimi-DS/` and `components/home/HomeView/HomeDemos.tsx` + `components/library/LibraryDesk.tsx` + `components/views/DictionaryView/{DictionaryQuiet,DictionarySidekick}.tsx` are intentionally pinned reference layouts. They use inline pixel radii on purpose — don't sweep them into the token system without explicit visual review.

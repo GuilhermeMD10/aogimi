@@ -2,7 +2,7 @@
 // Override per-environment with NEXT_PUBLIC_API_URL.
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './auth/tokenStore';
+import { getAccessToken, setAccessToken, clearAccessToken } from './auth/tokenStore';
 
 /** Build a full URL against the backend. Path should start with `/`. */
 export function apiUrl(path: string): string {
@@ -48,29 +48,36 @@ function fireSessionInvalidated(): void {
 
 let refreshInFlight: Promise<string | null> | null = null;
 
-async function refreshAccessTokenOnce(): Promise<string | null> {
+// Refreshes the access token using the httpOnly refresh cookie. The cookie
+// is sent automatically by the browser (credentials: 'include'); we send no
+// body and read no refresh token — JS never sees it. On success the backend
+// rotates the cookie and returns a fresh access token, which we hold in
+// memory. Exported so AuthProvider can reuse it for boot-time session
+// restore (single-flight is shared).
+export async function refreshAccessTokenOnce(): Promise<string | null> {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
-    const refresh = getRefreshToken();
-    if (!refresh) return null;
     try {
       const res = await fetch(apiUrl('/api/auth/refresh'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ refreshToken: refresh }),
+        headers: { Accept: 'application/json' },
+        credentials: 'include',
       });
       if (!res.ok) {
-        if (res.status === 401) {
-          clearTokens();
+        if (res.status === 401 || res.status === 403) {
+          // Refresh cookie missing / revoked / expired — the backend has
+          // already cleared it. Drop the in-memory access token and let
+          // the app fall back to signed-out.
+          clearAccessToken();
           fireSessionInvalidated();
         }
         return null;
       }
-      const body = (await res.json()) as { accessToken: string; refreshToken: string };
-      setTokens({ access: body.accessToken, refresh: body.refreshToken });
+      const body = (await res.json()) as { accessToken: string };
+      setAccessToken(body.accessToken);
       return body.accessToken;
     } catch {
-      // Network error — leave tokens in place, will try again on next call.
+      // Network error — leave state in place, will try again on next call.
       return null;
     } finally {
       refreshInFlight = null;
@@ -102,6 +109,11 @@ async function doFetch(path: string, opts: DoFetchOptions, accessToken: string |
     body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
     signal: opts.signal,
     cache: 'no-store',
+    // Send/receive the httpOnly refresh cookie. It's scoped to /api/auth on
+    // the backend, so it only actually rides on the auth endpoints; here it
+    // also lets login/register responses store the Set-Cookie. Identity for
+    // data endpoints is still the Bearer access token, not the cookie.
+    credentials: 'include',
   });
 }
 
