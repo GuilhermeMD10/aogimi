@@ -17,7 +17,10 @@ function authenticateJWT(req, res, next) {
     return res.status(401).json({ error: "Authentication required" });
   }
   try {
-    const payload = jwt.verify(token, ACCESS_SECRET);
+    // Pin the algorithm. Not exploitable today (HMAC secret + jsonwebtoken
+    // v9 already reject alg:none), but this stops a future regression from
+    // ever accepting a downgraded/none-signed token.
+    const payload = jwt.verify(token, ACCESS_SECRET, { algorithms: ["HS256"] });
     if (typeof payload !== "object" || !payload || typeof payload.userId !== "number") {
       return res.status(401).json({ error: "Invalid token" });
     }

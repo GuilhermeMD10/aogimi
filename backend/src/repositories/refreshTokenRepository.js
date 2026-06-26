@@ -51,4 +51,17 @@ module.exports = {
       [userId],
     );
   },
+
+  /** Hard-delete dead rows: anything expired or revoked can never become
+   *  active again (findActiveByHash filters both out), so it's safe to drop.
+   *  Without this the table grows unbounded — a new row is inserted on every
+   *  login and every rotation. Called by the daily sweep in server.js.
+   *  Returns the number of rows removed. */
+  deleteExpiredAndRevoked: async () => {
+    const result = await pool.query(
+      `DELETE FROM refresh_tokens
+       WHERE expires_at < now() OR revoked_at IS NOT NULL`,
+    );
+    return result.rowCount;
+  },
 };

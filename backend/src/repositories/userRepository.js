@@ -57,6 +57,14 @@ module.exports = {
     const values = [];
     let i = 1;
     for (const [key, value] of Object.entries(updates)) {
+      // Defence-in-depth: `key` is interpolated as a SQL identifier, so it
+      // must never carry attacker-controlled punctuation. The service layer
+      // already filters to an allow-list; this guard means a future caller
+      // that forgets to can't turn this into SQL injection. A real column
+      // name always matches; anything with a space/quote/comma/paren can't.
+      if (!/^[a-z_][a-z0-9_]*$/.test(key)) {
+        throw new Error(`Illegal column name in update: ${key}`);
+      }
       setClauses.push(`${key} = $${i}`);
       values.push(value);
       i++;

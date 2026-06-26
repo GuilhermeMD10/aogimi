@@ -9,48 +9,61 @@
 
 const pool = require("../db");
 
+// Most resource ids are uuid columns. A malformed id (e.g. GET
+// /api/decks/not-a-uuid) makes Postgres throw `22P02 invalid_text_
+// representation`. Because the ownership check runs before the route's
+// try/catch — and Express 4 doesn't catch async rejections — that would
+// otherwise surface as an unhandled rejection (hung request) and a
+// 404-vs-error oracle. Treating a malformed id as "not owned" (→ 404)
+// keeps non-existent and malformed ids indistinguishable from not-owned,
+// which is the whole point of these checks.
+async function ownsBy(sql, params) {
+  try {
+    const r = await pool.query(sql, params);
+    return r.rowCount > 0;
+  } catch (err) {
+    if (err && err.code === "22P02") return false;
+    throw err;
+  }
+}
+
 async function bookOwnedBy(userId, bookId) {
-  const r = await pool.query(
+  return ownsBy(
     "SELECT 1 FROM book_progress WHERE id = $1 AND user_id = $2",
     [bookId, userId],
   );
-  return r.rowCount > 0;
 }
 
 async function deckOwnedBy(userId, deckId) {
-  const r = await pool.query(
+  return ownsBy(
     "SELECT 1 FROM decks WHERE id = $1 AND user_id = $2",
     [deckId, userId],
   );
-  return r.rowCount > 0;
 }
 
 async function cardOwnedBy(userId, cardId) {
-  const r = await pool.query(
+  return ownsBy(
     `SELECT 1 FROM cards c
      JOIN decks d ON d.id = c.deck_id
      WHERE c.id = $1 AND d.user_id = $2`,
     [cardId, userId],
   );
-  return r.rowCount > 0;
 }
 
 async function bookmarkOwnedBy(userId, bookmarkId) {
-  const r = await pool.query(
+  return ownsBy(
     `SELECT 1 FROM bookmarks bm
      JOIN book_progress bp ON bp.id = bm.book_id
      WHERE bm.id = $1 AND bp.user_id = $2`,
     [bookmarkId, userId],
   );
-  return r.rowCount > 0;
 }
 
 async function deviceOwnedBy(userId, deviceId) {
-  const r = await pool.query(
+  return ownsBy(
     "SELECT 1 FROM devices WHERE device_id = $1 AND user_id = $2",
     [deviceId, userId],
   );
-  return r.rowCount > 0;
 }
 
 module.exports = {

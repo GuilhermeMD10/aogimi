@@ -128,7 +128,7 @@ All state is in **React Context providers**, mounted by `AppShell`. Nothing in l
 
 | Provider | What it owns | localStorage key(s) |
 |---|---|---|
-| `AuthProvider` | Current user, login/signup/logout flows. JWT access + refresh tokens via [`lib/auth/tokenStore.ts`](lib/auth/tokenStore.ts); session-invalidation hook in [`lib/api.ts`](lib/api.ts) auto-signs-out on unrecoverable 401. See [`../../docs/AUTH.md`](../../docs/AUTH.md). | `auth_user`, `aogimi_access_token`, `aogimi_refresh_token` |
+| `AuthProvider` | Current user, login/signup/logout flows. **Token storage = "memory + httpOnly cookie"**: the access token lives in-memory only ([`lib/auth/tokenStore.ts`](lib/auth/tokenStore.ts)), the refresh token is an httpOnly cookie set by the backend (never readable by JS). On boot, a silent `/api/auth/refresh` re-mints the access token from the cookie. Session-invalidation hook in [`lib/api.ts`](lib/api.ts) auto-signs-out on unrecoverable 401/403. See [`../../docs/AUTH.md`](../../docs/AUTH.md). | `auth_user` only (tokens are no longer in localStorage) |
 | `ThemeProvider` | Active theme + setter | `app-theme` |
 | `ShortcutsProvider` | Global keydown dispatcher + cheatsheet open state | (in-memory only) |
 | `ReaderStateProvider` | Active book session, sidekick toggle, progress sync (record/flush/beacon on exit), and the three cross-route pending signals (`pendingDictSearch`, `pendingCard`, `pendingBookOpen`) | `reader_progress_<filename>` (one per book) |
