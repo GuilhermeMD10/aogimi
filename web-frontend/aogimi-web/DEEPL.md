@@ -17,8 +17,7 @@ to `lib/features/deepl.ts` — flip `DEEPL_ENABLED` to `true`.
 
 ### Context-menu access points
 
-- [components/reader/TextContextMenu/TextContextMenu.tsx](components/reader/TextContextMenu/TextContextMenu.tsx) — default reader's selection menu. The DeepL button + its surrounding divider are wrapped in `{DEEPL_ENABLED && (...)}`. Type signature (`onDeepL: () => void`) and prop wiring are intact.
-- [themes/stamp/reader/TextContextMenu.tsx](themes/stamp/reader/TextContextMenu.tsx) — Stamp theme's variant of the same menu. Same gate.
+- [components/reader/TextContextMenu/index.tsx](components/reader/TextContextMenu/index.tsx) — the reader's selection menu. The DeepL button + its surrounding divider are wrapped in `{DEEPL_ENABLED && (...)}`. Type signature (`onDeepL: () => void`) and prop wiring are intact.
 
 ### Mount + dispatch
 

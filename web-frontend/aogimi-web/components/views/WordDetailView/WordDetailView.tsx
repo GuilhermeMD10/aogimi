@@ -5,8 +5,6 @@ import { ArrowLeft, Plus, Volume2, Star } from 'lucide-react';
 import { InfoRow } from '@/components/ui/InfoRow';
 import { JlptChip } from '@/components/ui/JlptChip';
 import { SectionHead } from '@/components/ui/SectionHead';
-import { ThemedDecoration } from '@/components/theme-decorations/ThemedDecoration';
-import { Postmark } from '@/components/theme-decorations/stamp/Postmark';
 import { getWordDetails } from '@/lib/dictApi';
 import type { DetailsResponse } from '@/lib/types';
 import { MAX_MEANINGS_ON_CARD } from '@/components/decks/utils/cardLimits';
@@ -81,13 +79,6 @@ export default function WordDetailView({
 
       <div className="lgc-scroll flex-1 overflow-auto">
         <div className="relative mx-auto max-w-215 px-4 pb-10 pt-5 @md:px-8 @md:pb-16 @md:pt-7">
-          {/* Stamp-only postmark decoration in the top-right corner. */}
-          <ThemedDecoration theme="stamp">
-            <div aria-hidden className="pointer-events-none hidden @md:block">
-              <Postmark size={86} rotate={-8} />
-            </div>
-          </ThemedDecoration>
-
           {loading && <p className="text-sm text-lgc-fg-muted">Loading&hellip;</p>}
           {error && <p className="text-sm text-lgc-error">{error}</p>}
           {data && (

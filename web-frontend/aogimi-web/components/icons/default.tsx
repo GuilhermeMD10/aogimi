@@ -1,7 +1,5 @@
 /**
- * Default icon set — lucide-react icons mapped to canonical IconNames.
- * This is the fallback that every theme inherits from when it doesn't
- * provide its own override.
+ * Icon set — lucide-react icons mapped to canonical IconNames.
  */
 
 import {
@@ -9,21 +7,15 @@ import {
   BookOpen,
   Bookmark,
   Check,
-  Flower,
   Home,
   Languages,
   Layers,
-  Lightbulb,
-  Mail,
   Minus,
-  Mountain,
   PenSquare,
   Plus,
   Search,
   Settings,
-  Stamp,
   Star,
-  Sun,
   Trash2,
   User,
   Volume2,
@@ -55,11 +47,4 @@ export const defaultIcons: Record<IconName, IconComponent> = {
   volume: Volume2,
   star: Star,
   languages: Languages,
-  // Decorative / brand
-  mail: Mail,
-  stamp: Stamp,
-  lantern: Lightbulb,
-  mountain: Mountain,
-  sun: Sun,
-  crest: Flower,
 };

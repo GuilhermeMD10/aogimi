@@ -7,9 +7,8 @@
 //   <ContinuePanel>     hero for the most-recently-read book (skipped when none)
 //   grid of <BookCard>  every other book (excludes the hero)
 //
-// All colors come from CSS tokens so themes (default + hanami at minimum) just
-// work. No JLPT level or cover patterns yet — those columns are not in the
-// backend.
+// All colors come from CSS tokens so a future re-skin just works. No JLPT
+// level or cover patterns yet — those columns are not in the backend.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {

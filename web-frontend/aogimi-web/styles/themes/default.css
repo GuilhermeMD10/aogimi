@@ -1,6 +1,7 @@
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   THEME: Default — clean, neutral, minimal
-   Free tier; the only theme that ships in v1.
+   COLOR TOKENS — clean, neutral, minimal.
+   The sole palette today. Bound to both :root and html[data-theme="default"]
+   so a future theme can attach its palette under its own selector.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 :root,

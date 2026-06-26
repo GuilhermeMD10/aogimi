@@ -1,7 +1,6 @@
 'use client';
 
-// Shared avatar primitives used by AvatarPickerModal (default + stamp variants)
-// and by the profile page itself.
+// Shared avatar primitives used by AvatarPickerModal and the profile page.
 
 export const KAMON_SET = [
   { k: '波', label: 'nami · wave' },

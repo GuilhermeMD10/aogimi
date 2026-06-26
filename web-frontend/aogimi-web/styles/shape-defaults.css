@@ -4,9 +4,9 @@
    These live alongside the color tokens and are read by the shared
    primitives in styles/primitives.css.
 
-   Themes that need a different shape (Stamp's uneven borders + hard offset
-   shadows, e.g.) override these in their own block. Themes that only swap
-   colors (Sakura, Kanagawa, Hanami) inherit these defaults automatically.
+   A future theme that needs a different shape (uneven borders, hard offset
+   shadows, etc.) can override these in its own block; a theme that only
+   swaps colors inherits these defaults automatically.
 
    Adding a new "shape" axis = (1) declare a token here, (2) consume it in
    primitives.css, (3) override in any theme that needs it.
