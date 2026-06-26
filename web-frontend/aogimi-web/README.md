@@ -8,7 +8,6 @@ phones and tablets are redirected to the native app store landing via
 ## Specs you'll want open
 
 - [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md) — primer for new contributors
-- [`THEMES.md`](./THEMES.md), [`THEME_AUTHORING.md`](./THEME_AUTHORING.md) — theme token system
 - [`DECISIONS.md`](./DECISIONS.md) — scope decisions + deferred work
 - [`backend-connections.txt`](./backend-connections.txt) — endpoint catalog (client view)
 - [`../../docs/AUTH.md`](../../docs/AUTH.md) — JWT model, token storage, refresh-retry

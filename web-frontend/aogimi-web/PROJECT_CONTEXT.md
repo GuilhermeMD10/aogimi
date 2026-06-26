@@ -1,6 +1,6 @@
 # Aogimi Web — Project Context
 
-A primer for new contributors and agents. Read this first; specialised docs ([THEMES.md](THEMES.md), [THEME_AUTHORING.md](THEME_AUTHORING.md), [DECISIONS.md](DECISIONS.md), [backend-connections.txt](backend-connections.txt)) drill into specific surfaces.
+A primer for new contributors and agents. Read this first; specialised docs ([DECISIONS.md](DECISIONS.md), [backend-connections.txt](backend-connections.txt)) drill into specific surfaces.
 
 ---
 
@@ -58,22 +58,16 @@ web-frontend/langecko-web/
 │   ├── page-bubbles/             Floating overlays (Profile, Reader)
 │   ├── onboarding/               First-run explainer
 │   ├── profile/                  Profile page sections
-│   ├── icons/                    Theme-aware icon sets (Stamp has a few overrides)
+│   ├── icons/                    Icon set (lucide-react, mapped to canonical IconNames)
 │   ├── ui/                       shadcn primitives (button, sheet, sidebar, …)
-│   ├── theme-decorations/        Stamp-specific atoms (HankoSeal, Postmark, …) + ThemedDecoration
 │   ├── DeepLTranslationPopup/    Reader text translation
 │   ├── AvatarPickerModal/        Profile avatar grid
 │   ├── OnboardingExplainerModal/ Auth-flow explainer wrapper
 │   └── providers/                Auth, Reader state, Bubble routing, Dictionary, Theme
 │
-├── themes/                       Theme registry + per-theme whole-screen swaps
-│   ├── index.ts                  ThemeComponentMap + themeComponentRegistry
-│   ├── useThemedComponent.ts     Resolver hook
-│   └── stamp/                    Stamp's screen variants (mirrors components/ paths)
-│
-├── styles/                       Theme-system CSS
-│   ├── themes/                   One file per theme: default.css, kanagawa.css, sakura.css, hanami.css, stamp.css
-│   ├── shape-defaults.css        Default values for shape tokens (themes inherit unless they override)
+├── styles/                       Design-token CSS
+│   ├── themes/                   default.css — the sole color-token palette
+│   ├── shape-defaults.css        Shape tokens (borders, shadows, radii, fonts)
 │   ├── primitives.css            .lgc-card, .lgc-button, .lgc-button-secondary, .lgc-chip, .lgc-section-label, …
 │   └── utilities.css             Reader highlights, vertical text, custom scrollbar, selection
 │
@@ -116,17 +110,15 @@ web-frontend/langecko-web/
 
 ---
 
-## Theme system in 30 seconds
+## Theming
 
-Three layers, single attribute.
+**The multi-theme system was torn out** — pending a from-scratch redesign. Today there is exactly one look, driven entirely by design tokens:
 
-1. **`<html data-theme="…">`** — flipped at runtime by `ThemeProvider.setTheme()` and persisted to localStorage.
-2. **`--lgc-*` color tokens** + optional shape-token overrides (`--lgc-surface-*`, `--lgc-button-*`, `--lgc-chip-*`, `--lgc-toolbar-*`, `--lgc-meaning-num-*`, …) declared per theme in `styles/themes/<name>.css`. Inherited from `styles/shape-defaults.css` otherwise.
-3. **Optional whole-screen swaps** via `themes/index.ts` registry — only when the visual *tree* genuinely diverges (Stamp's home/reader/bubble layouts).
+1. **`--lgc-*` color tokens** in `styles/themes/default.css` (bound to both `:root` and `html[data-theme="default"]`).
+2. **Shape tokens** (`--lgc-surface-*`, `--lgc-button-*`, `--lgc-chip-*`, `--lgc-toolbar-*`, `--lgc-meaning-num-*`, …) in `styles/shape-defaults.css`.
+3. **Primitive classes** (`.lgc-card`, `.lgc-button`, `.lgc-chip`, `.lgc-section-label`, …) in `styles/primitives.css` read those tokens. Build on these, not hand-rolled `bg-lgc-* border-lgc-*` chains.
 
-Single source of truth: the `THEMES` record in `components/providers/ThemeProvider.tsx`. `AppTheme = keyof typeof THEMES`. The registry, the storage validator, the pre-hydration script, and `ThemeSwitcher` all derive from it. **You can't add a theme without TypeScript forcing every related file to be in sync.**
-
-For the full inventory and how-to, read [THEMES.md](THEMES.md) and [THEME_AUTHORING.md](THEME_AUTHORING.md).
+The `data-theme` attribute, the pre-hydration `<script>`, the `app-theme` localStorage key, and `ThemeProvider`/`THEMES` (single `default` entry) are deliberately **kept** as minimal plumbing, so a future theme re-attaches by adding a `THEMES` entry + a CSS palette under its own `html[data-theme="…"]` selector — without rebuilding the bootstrap. There is no theme picker, no per-theme component dispatch, and no per-theme decoration atoms anymore.
 
 ---
 
@@ -224,10 +216,8 @@ A typed registry + cheatsheet. One source of truth for every shortcut in the app
 - **`'use client'` everywhere a component uses hooks**. RSC opportunities exist (static layout shells) but haven't been pursued.
 - **Domain types live in `lib/types/`**; `lib/<x>Api.ts` only contains fetch helpers.
 - **`lib/util/cn.ts`** is the Tailwind class merger. shadcn's `components.json` aliases `utils` to `@/lib/util/cn` — this means new shadcn-generated code uses the right path.
-- **No hex literals in components.** Two acceptable exceptions: `JlptChip`'s per-level palette (5 hardcoded colors by design) and theme decoration atoms in `components/theme-decorations/<theme>/` (theme-bound by definition).
-- **No inline `borderRadius: <pixel>` on theme-relevant surfaces.** Use Tailwind `rounded-*` (which reads `--radius-*`) or `style={{ borderRadius: 'var(--radius-md)' }}`. Pure decorative shapes (`'50%'`, `999`) are fine.
-- **No `if (theme === 'stamp')` inside components.** Either move the variation to a shape token (`--lgc-…`) or fork via the registry.
-- **Edits to `THEMES` cascade.** Add an entry → TypeScript forces a registry slot, the storage validator includes it, the pre-hydration script's allow-list extends, the picker shows it.
+- **No hex literals in components.** One acceptable exception: `JlptChip`'s per-level palette (5 hardcoded colors by design). Everything else reads `--lgc-*` tokens.
+- **No inline `borderRadius: <pixel>` on token-relevant surfaces.** Use Tailwind `rounded-*` (which reads `--radius-*`) or `style={{ borderRadius: 'var(--radius-md)' }}`. Pure decorative shapes (`'50%'`, `999`) are fine.
 - **Document new features in the Features section above.** When a new app-level feature lands (something a user can name — "shortcuts", "highlights sync", "deck import", …), add a subsection: what it is, entry-point files, where state lives, any non-obvious behaviour. Keep entries terse; deep details belong in the source.
 
 ---
@@ -236,12 +226,10 @@ A typed registry + cheatsheet. One source of truth for every shortcut in the app
 
 | Concern | Files |
 |---|---|
-| **Theme tokens** | `styles/themes/*.css`, `styles/shape-defaults.css` |
-| **Theme primitives** | `styles/primitives.css` (`.lgc-card`, `.lgc-button`, `.lgc-button-secondary`, `.lgc-chip`, …) |
-| **Theme dispatch** | `themes/index.ts` (registry), `themes/useThemedComponent.ts` (hook), `components/<X>/index.tsx` (resolvers) |
-| **Theme decorations** | `components/theme-decorations/<theme>/*.tsx`, `<ThemedDecoration>` |
+| **Design tokens** | `styles/themes/default.css` (colors), `styles/shape-defaults.css` (shape) |
+| **Token primitives** | `styles/primitives.css` (`.lgc-card`, `.lgc-button`, `.lgc-button-secondary`, `.lgc-chip`, …) |
 | **Auth flow** | `components/providers/AuthProvider.tsx`, `app/authenticate/page.tsx`, `lib/userApi.ts` |
-| **Reader chrome** | `components/reader/*` (default), `themes/stamp/reader/*` (stamp), `components/views/ReaderView/*` |
+| **Reader chrome** | `components/reader/*`, `components/views/ReaderView/*` |
 | **Library / book sync** | `components/library/*`, `components/views/ReaderView/*`, `lib/booksApi.ts`, `lib/devicesApi.ts`, `lib/bookStore.ts`, `lib/epubIdentity.ts` |
 | **Dictionary** | `app/dictionary/page.tsx`, `components/views/DictionaryView/*`, `components/views/WordDetailView/*`, `lib/dictApi.ts`, `components/providers/DictionaryStateProvider.tsx` |
 | **Decks / study** | `app/decks/page.tsx`, `components/views/cards/*`, `lib/decksApi.ts` |
@@ -255,11 +243,9 @@ A typed registry + cheatsheet. One source of truth for every shortcut in the app
 | Task | Start at |
 |---|---|
 | Change a primary button's look across the whole app | [styles/primitives.css](styles/primitives.css) `.lgc-button` + tokens in [styles/shape-defaults.css](styles/shape-defaults.css) |
-| Add a new theme | Read [THEME_AUTHORING.md](THEME_AUTHORING.md). Edit `THEMES` in [components/providers/ThemeProvider.tsx](components/providers/ThemeProvider.tsx), drop a CSS file in [styles/themes/](styles/themes/), import in [app/globals.css](app/globals.css), register `{}` in [themes/index.ts](themes/index.ts). |
+| Change a color across the whole app | Edit the `--lgc-*` token in [styles/themes/default.css](styles/themes/default.css). |
 | Wire a new backend endpoint | Add types in [lib/types/](lib/types/), fetch helper in `lib/<domain>Api.ts`, update [backend-connections.txt](backend-connections.txt). |
 | Add a new page route | New folder under `app/`, add `page.tsx`. Auth-gated routes hide naturally — `AppShell` redirects when there's no user. |
-| Add a new themed screen | Read [THEME_AUTHORING.md](THEME_AUTHORING.md) "When you actually need to override a screen". |
-| Debug "the theme didn't change here" | Grep the file for hex literals, inline `borderRadius`/`boxShadow`, hand-rolled `bg-lgc-bg-elev … border-lgc-border` chains where it should be `lgc-card`. |
 | Cancel an in-flight fetch | Pass an `AbortSignal` to the API call; clean up in `useEffect`. |
 
 ---
@@ -289,8 +275,6 @@ In practice that means: when in doubt about App Router, server components, route
 
 ## Reference docs
 
-- [THEMES.md](THEMES.md) — token inventory + per-token consumer list + dispatch decision rule
-- [THEME_AUTHORING.md](THEME_AUTHORING.md) — step-by-step for adding a new theme
 - [backend-connections.txt](backend-connections.txt) — endpoint catalog + payload shapes
 - [DECISIONS.md](DECISIONS.md) — scope & deferred work
 - [AGENTS.md](AGENTS.md) — Next.js version warning

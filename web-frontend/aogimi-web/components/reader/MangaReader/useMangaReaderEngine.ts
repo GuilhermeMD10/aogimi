@@ -1,7 +1,6 @@
 'use client';
 
-// All MangaReader state, refs, effects, and navigation handlers — theme-agnostic.
-// Consumed by both default and stamp variants; each variant owns only its top-bar JSX.
+// All MangaReader state, refs, effects, and navigation handlers.
 //
 // Engine is foliate-js: <foliate-view> with the foliate-fxl renderer for
 // fixed-layout EPUBs. Page = spine item, navigated via view.prev/view.next.
