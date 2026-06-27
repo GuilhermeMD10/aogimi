@@ -10,12 +10,9 @@ import { makeBookFromBlob } from '@/lib/foliate';
 
 type Props = {
   fileUrl: string;
-  filename: string;
   bookTitle: string;
-  initialCfi?: string;
   onLookup: (word: string, contextSentence?: string) => void;
   onAddCard: (word: string, contextSentence?: string) => void;
-  onProgressChange?: (progress: number, cfi: string) => void;
   onBack: () => void;
   /** Whether the dictionary sidekick is currently docked. Reader toolbars use
    * this to render the toggle in its active state. */
@@ -34,12 +31,9 @@ type ReaderType = 'text' | 'novel' | 'manga';
 
 export function EpubReader({
   fileUrl,
-  filename,
   bookTitle,
-  initialCfi,
   onLookup,
   onAddCard,
-  onProgressChange,
   onBack,
   sidekickOpen,
   onToggleSidekick,
@@ -109,8 +103,8 @@ export function EpubReader({
   // ── Render the appropriate reader ───────────────────────────────────────
 
   const shared = {
-    blob, filename, bookTitle, initialCfi,
-    onLookup, onAddCard, onProgressChange, onBack,
+    blob, bookTitle,
+    onLookup, onAddCard, onBack,
     sidekickOpen, onToggleSidekick,
   };
 

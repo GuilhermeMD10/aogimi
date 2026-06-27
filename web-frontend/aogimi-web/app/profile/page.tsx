@@ -9,7 +9,6 @@ import { getUserBooks } from '@/components/books/utils/booksApi';
 import { getUserDecks } from '@/components/decks/utils/decksApi';
 import type { BookProgressRecord, UserProfile } from '@/lib/types';
 import type { DeckRecord } from '@/components/decks/types';
-import { setStoredAvatarIndex } from '@/lib/storage/avatar';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
 import AvatarPickerModal from '@/components/AvatarPickerModal';
@@ -57,11 +56,10 @@ export default function ProfilePage() {
   const handleAvatarSelect = useCallback(
     (idx: number) => {
       setProfile((prev) => (prev ? { ...prev, avatar_index: idx } : prev));
-      setStoredAvatarIndex(idx);
-      // Backend update — works once the migration runs.
+      // Backend is the source of truth for the avatar; optimistic update above.
       updateUserProfile({ avatar_index: idx }).catch(() => { /* backend not ready */ });
     },
-    [user],
+    [],
   );
 
   const handleSignOut = useCallback(() => {

@@ -2,7 +2,6 @@
 
 import { useCallback } from 'react';
 import { BookOpen, Cloud, HardDrive, RefreshCw } from 'lucide-react';
-import { clearNeedsOnboarding } from '@/lib/storage/onboarding';
 import { markOnboardingCompleted } from '@/lib/userApi';
 
 const POINTS = [
@@ -13,8 +12,8 @@ const POINTS = [
   },
   {
     icon: Cloud,
-    title: 'Progress syncs automatically',
-    body: 'Your reading position, highlights, and vocabulary sync to the cloud so you can pick up on any device.',
+    title: 'Your library syncs automatically',
+    body: 'Your books and vocabulary decks sync to the cloud so they’re available on any device.',
   },
   {
     icon: RefreshCw,
@@ -30,10 +29,9 @@ export interface OnboardingExplainerProps {
 
 export default function OnboardingExplainer({ userId, onDismiss }: OnboardingExplainerProps) {
   const handleGotIt = useCallback(async () => {
-    clearNeedsOnboarding();
     try { await markOnboardingCompleted(); } catch { /* best-effort */ }
     onDismiss();
-  }, [userId, onDismiss]);
+  }, [onDismiss]);
 
   return (
     <div className="flex min-h-full items-center justify-center p-8">
@@ -50,7 +48,7 @@ export default function OnboardingExplainer({ userId, onDismiss }: OnboardingExp
         <h1
           className="mb-1.5 text-center font-medium tracking-tight text-lgc-fg font-display"
         >
-          Your progress syncs. Your files stay yours.
+          Your library syncs. Your files stay yours.
         </h1>
         <p className="mb-8 text-center text-[13px] text-lgc-fg-muted">
           Here’s how Aogimi handles your books.

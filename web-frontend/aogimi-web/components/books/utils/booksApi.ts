@@ -1,4 +1,4 @@
-import { API_URL, apiGet, apiSend, apiSendVoid } from '@/lib/api';
+import { apiGet, apiSend, apiSendVoid } from '@/lib/api';
 import type { EpubIdentity } from '@/lib/epubIdentity';
 import type {
   BookProgressRecord,
@@ -52,26 +52,17 @@ export async function getBookRecord(id: string): Promise<BookProgressRecord> {
   return apiGet<BookProgressRecord>(`/api/books/${id}`);
 }
 
+/**
+ * Update a book's stored progress. Reading *position* is no longer tracked;
+ * the only remaining caller is the explicit "mark finished" action (sends
+ * `{ progress: 100 }`). Kept generic since the backend endpoint accepts the
+ * full progress payload.
+ */
 export async function updateBookProgress(
   id: string,
   params: ProgressPayload,
 ): Promise<BookProgressRecord> {
   return apiSend<BookProgressRecord>(`/api/books/${id}/progress`, 'PUT', params);
-}
-
-/**
- * Fire-and-forget progress sync via sendBeacon. Survives page unload /
- * tab close — the browser guarantees delivery if it accepts the beacon.
- * Returns the beacon's enqueue result so the caller can log a warning
- * when the browser refused (queue full / payload too large / disabled
- * by user agent settings). Stays as a raw `navigator.sendBeacon` call
- * because no `fetch` wrapper applies — beacons have their own delivery
- * semantics and no response to parse.
- */
-export function sendProgressBeacon(id: string, params: ProgressPayload): boolean {
-  const url = `${API_URL}/api/books/${id}/progress`;
-  const body = new Blob([JSON.stringify(params)], { type: 'application/json' });
-  return navigator.sendBeacon(url, body);
 }
 
 export async function deleteBookRecord(id: string): Promise<void> {

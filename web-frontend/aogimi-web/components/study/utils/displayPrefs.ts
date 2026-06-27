@@ -1,16 +1,13 @@
-// Display preference persistence — same shape as mobile, localStorage
-// instead of AsyncStorage. Backend sync via /api/study/prefs.
+// Display preferences. The backend (/api/study/prefs) is the source of
+// truth — there is no client-side cache.
 
 import { apiGet, apiSend } from '@/lib/api';
-import { getJSON, setJSON } from '@/lib/storage/_helpers';
 import type {
   BackPrefs,
   DisplayPrefs,
   FrontPrefs,
   Preset,
 } from '../types';
-
-const STORAGE_KEY = 'study_display_prefs_v1';
 
 export const DEFAULT_PREFS: DisplayPrefs = {
   preset: 'default',
@@ -39,14 +36,6 @@ export const PRESETS: Record<Preset, { front: FrontPrefs; back: BackPrefs }> = {
 
 export function presetPrefs(preset: Preset): DisplayPrefs {
   return { preset, ...PRESETS[preset] };
-}
-
-export function loadLocal(): DisplayPrefs {
-  return getJSON<DisplayPrefs>(STORAGE_KEY) ?? DEFAULT_PREFS;
-}
-
-export function saveLocal(prefs: DisplayPrefs): void {
-  setJSON(STORAGE_KEY, prefs);
 }
 
 type PrefsPayload = {

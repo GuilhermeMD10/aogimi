@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Geist_Mono, Inter, Source_Serif_4 } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/components/providers/AuthProvider';
-import { ThemeProvider, THEMES } from '@/components/providers/ThemeProvider';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { AppShell } from '@/components/AppShell';
 import { MobileGate } from '@/components/MobileGate';
 
@@ -44,13 +44,6 @@ export const metadata: Metadata = {
   },
 };
 
-// Pre-hydration script: synchronously applies the persisted theme to <html>
-// before the browser paints, eliminating the flash-of-default-theme. The
-// allow-list is generated at build time from the THEMES registry so a new
-// theme automatically starts being valid here too.
-const VALID_THEMES = JSON.stringify(Object.keys(THEMES));
-const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('app-theme');var v=${VALID_THEMES};if(t&&v.indexOf(t)>-1)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -63,9 +56,6 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${inter.variable} ${sourceSerif.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body className="h-full">
         <MobileGate>
           <ThemeProvider>

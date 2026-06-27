@@ -1,7 +1,6 @@
 'use client';
 
 import { createContext, useCallback, useContext, useState } from 'react';
-import { setStoredTheme } from '@/lib/storage/theme';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -11,13 +10,12 @@ export type ThemeMeta = {
 
 /** Single source of truth for which themes exist.
  *  - `AppTheme` is derived from this record's keys.
- *  - `lib/storage/theme.ts` validates against this record.
- *  - `app/layout.tsx` builds its pre-hydration allow-list from this record.
  *
- *  The visual theming system was torn out; only `default` ships today. The
- *  `data-theme` attribute + storage plumbing is kept so a future theme can
- *  re-attach by adding an entry here (and a matching CSS palette) without
- *  rebuilding the bootstrap. */
+ *  The visual theming system was torn out; only `default` ships today, and
+ *  theme selection is no longer persisted client-side (a future redesign will
+ *  store the chosen theme on the backend). The `data-theme` attribute on
+ *  <html> is kept so a future theme can re-attach by adding an entry here and
+ *  a matching CSS palette. */
 export const THEMES = {
   default: { label: 'Default' },
 } as const satisfies Record<string, ThemeMeta>;
@@ -56,7 +54,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = useCallback((next: AppTheme) => {
     setThemeState(next);
     document.documentElement.setAttribute('data-theme', next);
-    setStoredTheme(next);
+    // Not persisted — theme resets to the default on reload until backend-
+    // backed theme storage lands.
   }, []);
 
   return (

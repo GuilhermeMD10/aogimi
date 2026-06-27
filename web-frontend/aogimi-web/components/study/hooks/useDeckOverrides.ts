@@ -4,16 +4,15 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   EMPTY_OVERRIDES,
   fetchRemote,
-  loadLocal,
   pushRemote,
   resolveOverride,
-  saveLocal,
   type DeckOverride,
   type DeckOverrides,
 } from '../utils/deckOverrides';
 
-// Same surface as mobile's useDeckOverrides — local-first load,
-// optimistic setters, fire-and-forget remote push.
+// Backend is the source of truth (no client cache). Optimistic setters
+// fire-and-forget the push; overrides resolve to defaults until the fetch
+// resolves.
 
 export function useDeckOverrides() {
   const [overrides, setOverrides] = useState<DeckOverrides>(EMPTY_OVERRIDES);
@@ -23,21 +22,15 @@ export function useDeckOverrides() {
     let cancelled = false;
     const controller = new AbortController();
 
-    // Mount-time hydration from localStorage — see the matching
-    // disable in useStudyDisplayPrefs.ts for context.
-    const local = loadLocal();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOverrides(local);
-    setLoading(false);
-
     (async () => {
       try {
         const remote = await fetchRemote(controller.signal);
         if (cancelled) return;
         setOverrides(remote);
-        saveLocal(remote);
       } catch {
-        /* signed-out / offline — local stays */
+        /* signed-out / offline — defaults stay */
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
 
@@ -55,7 +48,6 @@ export function useDeckOverrides() {
   const setFor = useCallback((deckId: string, value: DeckOverride) => {
     setOverrides((prev) => {
       const next = { ...prev, [deckId]: value };
-      saveLocal(next);
       pushRemote(next).catch(() => {});
       return next;
     });
@@ -66,7 +58,6 @@ export function useDeckOverrides() {
       if (!(deckId in prev)) return prev;
       const next = { ...prev };
       delete next[deckId];
-      saveLocal(next);
       pushRemote(next).catch(() => {});
       return next;
     });
