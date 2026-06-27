@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
@@ -12,33 +12,21 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-type ProgressSnapshot = {
-  progress: number;
-  cfi: string;
-  spineIndex: number;
-  totalSpineItems: number;
-};
-
 export type PdfReaderProps = {
   fileUrl: string;
   bookTitle?: string;
-  /** "page-N" string from a previous session. */
-  initialCfi?: string;
-  onProgressChange?: (snapshot: ProgressSnapshot) => void;
   onBack: () => void;
 };
 
 /**
  * Minimal PDF reader. Loads the document with pdf.js directly, renders each
- * page to its own `<canvas>` stacked vertically, and reports the currently-
- * visible page via IntersectionObserver. No selection, dictionary, or
- * highlights — just open + scroll + remember position.
+ * page to its own `<canvas>` stacked vertically, and tracks the currently-
+ * visible page via IntersectionObserver for the page counter. No selection,
+ * dictionary, highlights, or position persistence — just open + scroll.
  */
 export function PdfReaderClient({
   fileUrl,
   bookTitle,
-  initialCfi,
-  onProgressChange,
   onBack,
 }: PdfReaderProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -47,8 +35,7 @@ export function PdfReaderClient({
   const [numPages, setNumPages] = useState(0);
   const [containerWidth, setContainerWidth] = useState(900);
   const [error, setError] = useState<string | null>(null);
-  const restoredRef = useRef(false);
-  const lastReportedPageRef = useRef(0);
+  const [currentPage, setCurrentPage] = useState(0);
 
   // Resize observer — fit each page width to the container, capped for
   // readability on very wide screens.
@@ -86,25 +73,7 @@ export function PdfReaderClient({
     };
   }, [fileUrl]);
 
-  // Restore initial page once pages are mounted.
-  useEffect(() => {
-    if (restoredRef.current || numPages === 0 || !initialCfi) {
-      if (numPages > 0) restoredRef.current = true;
-      return;
-    }
-    const m = /^page-(\d+)$/.exec(initialCfi);
-    if (!m) {
-      restoredRef.current = true;
-      return;
-    }
-    const target = Math.max(1, Math.min(numPages, parseInt(m[1]!, 10)));
-    requestAnimationFrame(() => {
-      pageRefs.current.get(target)?.scrollIntoView({ block: 'start' });
-      restoredRef.current = true;
-    });
-  }, [numPages, initialCfi]);
-
-  // Track most-visible page → emit progress.
+  // Track most-visible page → drive the page counter.
   useEffect(() => {
     if (numPages === 0) return;
     const visible = new Map<number, number>();
@@ -124,21 +93,13 @@ export function PdfReaderClient({
             bestPage = p;
           }
         }
-        if (bestPage > 0 && bestPage !== lastReportedPageRef.current) {
-          lastReportedPageRef.current = bestPage;
-          onProgressChange?.({
-            progress: Math.round((bestPage / numPages) * 100),
-            cfi: `page-${bestPage}`,
-            spineIndex: bestPage,
-            totalSpineItems: numPages,
-          });
-        }
+        if (bestPage > 0) setCurrentPage(bestPage);
       },
       { threshold: [0.25, 0.5, 0.75] },
     );
     for (const [, node] of pageRefs.current) if (node) io.observe(node);
     return () => io.disconnect();
-  }, [numPages, onProgressChange]);
+  }, [numPages]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -156,8 +117,8 @@ export function PdfReaderClient({
           </div>
         )}
         <div className="ml-auto text-[11px] text-lgc-fg-subtle font-mono">
-          {lastReportedPageRef.current > 0 && numPages > 0
-            ? `${lastReportedPageRef.current} / ${numPages}`
+          {currentPage > 0 && numPages > 0
+            ? `${currentPage} / ${numPages}`
             : numPages > 0
               ? `${numPages} pages`
               : ''}

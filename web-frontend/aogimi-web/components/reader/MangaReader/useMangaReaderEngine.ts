@@ -11,7 +11,6 @@
 // a future pass.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useBookStorage } from '@/components/reader/useBookStorage';
 import type { NavItem } from '@/components/reader/TocPanel';
 import {
   createFoliateView,
@@ -22,32 +21,19 @@ import {
 } from '@/lib/foliate';
 
 export type ViewMode = 'single' | 'double' | 'scroll';
-export type Panel = 'toc' | 'bookmarks' | null;
+export type Panel = 'toc' | null;
 
 export interface UseMangaReaderEngineParams {
   blob: Blob;
-  filename: string;
-  initialCfi?: string;
-  onProgressChange?: (progress: number, cfi: string) => void;
 }
 
-export function useMangaReaderEngine({
-  blob,
-  filename,
-  initialCfi,
-  onProgressChange,
-}: UseMangaReaderEngineParams) {
-  const { lastCfi, epubBookmarks, saveLastCfi, addEpubBookmark, removeEpubBookmark } =
-    useBookStorage(filename);
-
+export function useMangaReaderEngine({ blob }: UseMangaReaderEngineParams) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<FoliateViewElement | null>(null);
-  const progressCbRef = useRef(onProgressChange);
-  progressCbRef.current = onProgressChange;
 
-  const startCfi = useRef(initialCfi ?? lastCfi ?? undefined);
+  // Within-session page restore when switching view modes (single↔double↔
+  // scroll). Not persisted — just keeps your place across the layout toggle.
   const restorePageRef = useRef<number | null>(null);
-  const cfiRef = useRef('');
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,8 +83,6 @@ export function useMangaReaderEngine({
           if (dead) return;
           const detail = (ev as CustomEvent<FoliateRelocateDetail>).detail;
           if (!detail) return;
-          const cfi = detail.cfi ?? '';
-          if (cfi) { cfiRef.current = cfi; saveLastCfi(cfi); }
 
           // For fixed-layout, each spine item is one page; foliate reports
           // the active section index on relocate.
@@ -106,21 +90,14 @@ export function useMangaReaderEngine({
           const pg = idx + 1;
           currentPageRef.current = pg;
           setCurrentPage(pg);
-
-          const total = spineTotalRef.current;
-          const pct = total > 0 ? Math.round((pg / total) * 100) : 0;
-          if (cfi) progressCbRef.current?.(pct, cfi);
         });
 
-        // ── Restore position ────────────────────────────────────────────
+        // ── Restore page across a view-mode switch ──────────────────────
         const restorePage = restorePageRef.current;
         restorePageRef.current = null;
         if (restorePage !== null && restorePage > 0 && restorePage <= sections.length) {
           const href = sections[restorePage - 1]?.href;
           if (href) { try { await view.goTo(href); } catch { /* fall through */ } }
-        } else if (startCfi.current) {
-          try { await view.goTo(startCfi.current); }
-          catch { /* invalid stored CFI — book starts at first page */ }
         }
         if (dead) return;
 
@@ -142,7 +119,6 @@ export function useMangaReaderEngine({
         try { view.remove(); } catch { /* already detached */ }
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blob]);
 
   // ── Navigation ──────────────────────────────────────────────────────────
@@ -177,20 +153,11 @@ export function useMangaReaderEngine({
     [goToSpine, viewMode],
   );
 
-  const addBookmark = useCallback(() => {
-    const pg = currentPageRef.current;
-    const total = spineTotalRef.current;
-    const cfi = cfiRef.current || `epubcfi(/6/${(pg - 1) * 2 + 2})`;
-    addEpubBookmark({ cfi, label: `Page ${pg}/${total}` });
-  }, [addEpubBookmark]);
-
   // ── Keyboard ────────────────────────────────────────────────────────────
   const advanceRef = useRef(advancePage);
   const goBackRef = useRef(goBackPage);
-  const bmRef = useRef(addBookmark);
   advanceRef.current = advancePage;
   goBackRef.current = goBackPage;
-  bmRef.current = addBookmark;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -199,7 +166,6 @@ export function useMangaReaderEngine({
       switch (e.key) {
         case 'ArrowLeft': case 'ArrowDown': advanceRef.current(); break;
         case 'ArrowRight': case 'ArrowUp': goBackRef.current(); break;
-        case 'b': case 'B': bmRef.current(); break;
       }
     };
     window.addEventListener('keydown', onKey);
@@ -228,10 +194,6 @@ export function useMangaReaderEngine({
     advancePage,
     goBackPage,
     goToPage,
-    addBookmark,
-    // bookmarks (from useBookStorage)
-    epubBookmarks,
-    removeEpubBookmark,
   };
 }
 

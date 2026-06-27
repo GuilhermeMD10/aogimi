@@ -5,8 +5,6 @@ import {
   ChevronLeft,
   ChevronRight,
   List,
-  BookmarkPlus,
-  Highlighter,
   Search,
 } from 'lucide-react';
 import { ICON_BTN, ICON_BTN_ON } from '@/components/reader/readerConstants';
@@ -16,12 +14,11 @@ import { MangaReaderBody } from './MangaReaderBody';
 
 export type MangaReaderProps = {
   blob: Blob;
-  filename: string;
   bookTitle: string;
-  initialCfi?: string;
+  // Accepted for interface parity with the other readers (EpubReader spreads a
+  // shared prop bag), but the fixed-layout manga view has no text selection.
   onLookup: (word: string, contextSentence?: string) => void;
   onAddCard: (word: string, contextSentence?: string) => void;
-  onProgressChange?: (progress: number, cfi: string) => void;
   onBack: () => void;
   sidekickOpen?: boolean;
   onToggleSidekick?: () => void;
@@ -40,15 +37,12 @@ const MODE_BTN_OFF = 'bg-lgc-bg-sunken text-lgc-fg-muted hover:text-lgc-fg';
 
 export function MangaReader({
   blob,
-  filename,
   bookTitle,
-  initialCfi,
-  onProgressChange,
   onBack,
   sidekickOpen = false,
   onToggleSidekick,
 }: MangaReaderProps) {
-  const engine = useMangaReaderEngine({ blob, filename, initialCfi, onProgressChange });
+  const engine = useMangaReaderEngine({ blob });
   const {
     currentPage,
     currentPageRef,
@@ -62,7 +56,6 @@ export function MangaReader({
     advancePage,
     goBackPage,
     goToPage,
-    addBookmark,
     restorePageRef,
   } = engine;
 
@@ -114,8 +107,6 @@ export function MangaReader({
           <span className="mx-1 h-4 w-px bg-lgc-border" />
 
           <button type="button" className={`${ICON_BTN} ${panel === 'toc' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'toc' ? null : 'toc'))} title="Table of contents"><List size={14} /></button>
-          <button type="button" className={`${ICON_BTN} ${panel === 'bookmarks' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'bookmarks' ? null : 'bookmarks'))} title="Bookmarks"><Highlighter size={14} /></button>
-          <button type="button" className={ICON_BTN} onClick={addBookmark} title="Add bookmark (B)"><BookmarkPlus size={14} /></button>
 
           {onToggleSidekick && (
             <>

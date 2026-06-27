@@ -9,6 +9,7 @@ export interface UserProfile {
   email: string | null;
   language: string | null;
   avatar_index: number | null;
+  onboarding_completed: boolean;
   created_at: string;
 }
 

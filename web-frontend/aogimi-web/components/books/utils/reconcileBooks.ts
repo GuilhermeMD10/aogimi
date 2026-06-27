@@ -19,9 +19,6 @@
 //               file_hash-only auto-attach guard the +-button import does.
 //             • if registration succeeds, re-evaluate file_hash match
 //             • if registration fails (network), keep local for next pass
-//   3. Sweep orphan localStorage `reader_book_<filename>` /
-//      `reader_progress_<filename>` entries whose owning book is no
-//      longer in IDB.
 //
 // What we do NOT do here:
 //   - Touch backend records that aren't in local IDB. The library UI
@@ -44,7 +41,6 @@ import {
   getUserBooks,
   updateBookIdentity as apiUpdateBookIdentity,
 } from './booksApi';
-import { wipeBookLocalState } from '@/lib/auth/wipeBookLocalState';
 import { effectiveSyncState, pushAllPending, type SyncSummary } from '@/lib/sync';
 import type { BookProgressRecord } from '@/lib/types';
 
@@ -53,10 +49,6 @@ export type ReconcileSummary = {
    *  differed from the local fileHash — the user re-uploaded different
    *  bytes under the same filename on another device. */
   staleReplaced: string[];
-  /** Filenames whose local state was wiped because the backend lost the
-   *  record AND a registration retry failed/returned no match. Likely
-   *  user-deleted on another device. */
-  removed: string[];
   /** Filenames that existed only locally; reconcile successfully re-
    *  registered them on the backend. */
   syncedUp: string[];
@@ -76,7 +68,6 @@ export async function reconcileBooks(
 ): Promise<ReconcileSummary> {
   const summary: ReconcileSummary = {
     staleReplaced: [],
-    removed: [],
     syncedUp: [],
   };
 
@@ -188,19 +179,6 @@ export async function reconcileBooks(
     // Both null or both equal → no action needed.
   }
 
-  if (signal?.aborted) return summary;
-
-  // 3. Sweep orphan localStorage entries. After the per-book pass above,
-  //    re-read local books because some may have been wiped.
-  let remaining: BookRecord[];
-  try {
-    remaining = await getAllBooks();
-  } catch {
-    return summary;
-  }
-  const remainingFilenames = new Set(remaining.map((b) => b.filename));
-  cleanupOrphanLocalStorage(remainingFilenames, summary);
-
   return summary;
 }
 
@@ -214,42 +192,11 @@ export async function syncPending(userId: number): Promise<SyncSummary> {
 }
 
 async function wipeLocalEverything(filename: string): Promise<void> {
-  // Drop IDB book + raw file blob.
+  // Drop IDB book + raw file blob. (No per-book localStorage state remains.)
   try {
     await deleteLocalBook(filename);
   } catch {
     /* */
   }
-  // Drop localStorage keys (reader_book_<filename>, reader_progress_<filename>).
-  wipeBookLocalState(filename);
 }
 
-function cleanupOrphanLocalStorage(
-  validFilenames: ReadonlySet<string>,
-  summary: ReconcileSummary,
-): void {
-  if (typeof window === 'undefined') return;
-  const PREFIXES = ['reader_book_', 'reader_progress_'] as const;
-  try {
-    const toRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      for (const prefix of PREFIXES) {
-        if (key.startsWith(prefix)) {
-          const filename = key.slice(prefix.length);
-          if (!validFilenames.has(filename)) toRemove.push(key);
-          break;
-        }
-      }
-    }
-    for (const key of toRemove) {
-      localStorage.removeItem(key);
-      // Track each unique filename once.
-      const filename = key.replace(/^reader_(book|progress)_/, '');
-      if (!summary.removed.includes(filename)) summary.removed.push(filename);
-    }
-  } catch {
-    /* private mode / quota — best-effort */
-  }
-}

@@ -8,16 +8,13 @@ import type { BookRecord } from '@/components/books/utils/bookStore';
 //   - the dictionary sidekick toggle
 //   - the pending flashcard hand-off to /decks
 //   - the auto-open-book signal for cross-route shortcuts
-// Progress sync (refs, flush, beacon, exit listeners) moved into
-// `components/views/ReaderView/useProgressSync.ts` since only `ReaderView`
-// and its children consumed it. Dict/card pending fields collapsed into
-// `useReaderActions` — see that file.
+// Reading-position / progress sync was removed entirely — position is no
+// longer tracked on the client or the server. Dict/card pending fields
+// collapsed into `useReaderActions` — see that file.
 
 export type ReaderSession = {
   activeBook: BookRecord;
   fileUrl: string;
-  backendBookId: string | null;
-  backendCfi: string | null;
 };
 
 /**

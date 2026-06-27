@@ -1,7 +1,7 @@
 'use client';
 
 import { Minus, Plus, X } from 'lucide-react';
-import type { ReaderPrefs } from '@/components/reader/useBookStorage';
+import type { ReaderPrefs } from '@/components/reader/useReaderPrefs';
 import { THEMES, ICON_BTN } from '@/components/reader/readerConstants';
 
 const TYPO_LABEL = 'mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-lgc-fg-muted';
