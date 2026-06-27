@@ -92,7 +92,7 @@ The multi-theme system on web was **removed** — pending a from-scratch redesig
 1. **Color + shape tokens** in `styles/themes/default.css` (the sole color palette, bound to both `:root` and `html[data-theme="default"]`) and `styles/shape-defaults.css` (`--lgc-surface-*`, `--lgc-button-*`, `--lgc-chip-*`, `--lgc-toolbar-*`, …).
 2. **Primitive classes** that read those tokens: `.lgc-card`, `.lgc-button`, `.lgc-button-secondary`, `.lgc-chip`, `.lgc-section-label` in `styles/primitives.css`. Anywhere a card/button/chip is rendered, use these — not hand-rolled `bg-lgc-bg-elev … border-lgc-border` chains.
 
-When the redesign lands, components should change **colors + minimal CSS only** — there is no per-theme component dispatch, no `themes/` registry, no per-theme decoration atoms, and no theme picker. What's **deliberately kept** as minimal re-attach plumbing: the `data-theme` attribute on `<html>`, the pre-hydration `<script>` in `app/layout.tsx`, the `app-theme` localStorage key, and `ThemeProvider`/`THEMES` (a single `default` entry). A future theme re-attaches by adding a `THEMES` entry + a CSS palette under its own `html[data-theme="…"]` selector.
+When the redesign lands, components should change **colors + minimal CSS only** — there is no per-theme component dispatch, no `themes/` registry, no per-theme decoration atoms, and no theme picker. What's **deliberately kept** as minimal re-attach plumbing: the `data-theme="default"` attribute on `<html>` and `ThemeProvider`/`THEMES` (a single `default` entry). Theme selection is **no longer persisted client-side** — the `app-theme` localStorage key and the `app/layout.tsx` pre-hydration script were removed in the client-storage simplification (see DECISIONS.md); a future redesign will store the chosen theme on the backend. A future theme re-attaches by adding a `THEMES` entry + a CSS palette under its own `html[data-theme="…"]` selector.
 
 Full docs:
 - `web-frontend/aogimi-web/PROJECT_CONTEXT.md` — start here, end-to-end overview (see the **Theming** section).
@@ -120,7 +120,9 @@ Same three-layer system (`theme/tokens.ts`, `theme/createThemedComponent.tsx`, `
 
 ### Books: per-device storage + Postgres metadata
 
-EPUB/PDF blobs never go to Postgres. They live in IndexedDB (web) or `expo-file-system documents/books/` (mobile). The backend stores **only metadata + reading progress** in `book_progress` rows.
+EPUB/PDF blobs never go to Postgres. On web they live in a **single IndexedDB database `aogimi`** (`components/books/utils/booksDb.ts` is the sole connection factory; stores: `metadata`, `files` blobs, `handles` for the File System Access directory handle). On mobile they live in `expo-file-system documents/books/`. The backend stores **only metadata** in `book_progress` rows — reading *position* is no longer tracked anywhere (see DECISIONS.md; the `progress` column is now touched only by the explicit "mark finished" action).
+
+The `aogimi` DB merged two former databases (`aogimi-books` + `aogimi-fs`); `booksDb.getDb()` runs a one-time, idempotent copy-then-delete migration from them on first open.
 
 Library mount on the web reconciles all three storage layers (`components/library/RestoreLibrary.tsx`):
 1. Load local IndexedDB book records.
@@ -130,9 +132,9 @@ Library mount on the web reconciles all three storage layers (`components/librar
 5. Backfill identity (`PUT /api/books/{id}/identity`) for matched-but-stale rows.
 6. Mark availability per device (`POST /api/devices/{deviceId}/books/{bookId}/available`).
 
-### Reading progress sync
+### Reading progress / position
 
-Debounced ~2s during a session (web `ReaderStateProvider`), plus fire-and-forget `navigator.sendBeacon` on tab close. Failures swallowed silently — non-critical.
+**Removed.** Reading position (CFI / page / scroll) is no longer persisted on the client or synced to the backend — the reader opens every book at the start. The debounced sync + `navigator.sendBeacon` tab-close path and the per-book localStorage state are gone (see DECISIONS.md, client-storage simplification). Reader typography prefs are in-memory only (reset per open) pending backend-backed storage.
 
 ## Gotchas
 

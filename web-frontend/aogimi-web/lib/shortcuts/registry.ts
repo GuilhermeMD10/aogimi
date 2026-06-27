@@ -46,21 +46,6 @@ export const SHORTCUTS = [
 
   // ── Reader ───────────────────────────────────────────────────────────
   {
-    id: 'reader:highlight-yellow',
-    keys: [{ key: 'h', alt: true }],
-    scope: 'reader',
-    description: 'Highlight the current selection (yellow)',
-    group: 'Reader · Annotations',
-  },
-  {
-    id: 'reader:bookmark',
-    // Pre-existing binding — kept on the plain key for back-compat.
-    keys: [{ key: 'b' }],
-    scope: 'reader',
-    description: 'Bookmark the current page',
-    group: 'Reader · Annotations',
-  },
-  {
     id: 'reader:tts-toggle',
     // Pre-existing binding — kept on the plain key for back-compat.
     keys: [{ key: 't' }],

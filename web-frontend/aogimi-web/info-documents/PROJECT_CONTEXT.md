@@ -6,7 +6,7 @@ A primer for new contributors and agents. Read this first; specialised docs ([DE
 
 ## What this is
 
-Aogimi is a **Japanese reading + vocabulary app**. Users import EPUBs / PDFs, read in-app, look up words against JMdict / KANJIDIC2, and build flashcard decks for spaced study. Reading progress, decks, and devices sync to a Postgres backend; the actual book files live per-device (IndexedDB) and are reconciled by hash on demand.
+Aogimi is a **Japanese reading + vocabulary app**. Users import EPUBs / PDFs, read in-app, look up words against JMdict / KANJIDIC2, and build flashcard decks for spaced study. Decks, devices, and profile/study settings sync to a Postgres backend; the actual book files live per-device (IndexedDB) and are reconciled by hash on demand. Books always open at the start — reading position is not tracked (the backend `book_progress.progress` column is written only by the explicit "mark finished" action).
 
 The app ships as a single Next.js client. There's a separate Expo mobile app (`mobile-frontend/langecko-mobile`) that mirrors the same backend; this doc is **web-only**.
 
@@ -22,7 +22,7 @@ The app ships as a single Next.js client. There's a separate Expo mobile app (`m
 | Icons | `lucide-react` |
 | EPUB | `epubjs` |
 | PDF | `pdfjs-dist` + `react-pdf` (server-side parsing via `pdfreader` in an API route) |
-| Storage | localStorage (auth, prefs) + IndexedDB via `idb` (book blobs) |
+| Storage | localStorage (auth user, dictionary state, device id) + single `aogimi` IndexedDB via `idb` (book blobs + metadata + FS directory handle) |
 | Bundle helpers | `clsx`, `tailwind-merge`, `tw-animate-css`, `class-variance-authority` |
 
 No state library (Redux/Zustand/Jotai). State lives in **React Context providers**.
@@ -36,7 +36,7 @@ No CSS-in-JS. Themed surfaces use either Tailwind classes that resolve to `--lgc
 ```
 web-frontend/langecko-web/
 ├── app/                          Next.js App Router routes + global CSS
-│   ├── layout.tsx                Root layout: fonts, pre-hydration theme script, providers
+│   ├── layout.tsx                Root layout: fonts, providers (data-theme="default" on <html>)
 │   ├── page.tsx                  / (landing/redirect)
 │   ├── globals.css               Imports theme files + primitives + utilities; declares Tailwind @theme aliases
 │   ├── authenticate/page.tsx     /authenticate (login/signup)
@@ -69,7 +69,7 @@ web-frontend/langecko-web/
 │   ├── themes/                   default.css — the sole color-token palette
 │   ├── shape-defaults.css        Shape tokens (borders, shadows, radii, fonts)
 │   ├── primitives.css            .lgc-card, .lgc-button, .lgc-button-secondary, .lgc-chip, .lgc-section-label, …
-│   └── utilities.css             Reader highlights, vertical text, custom scrollbar, selection
+│   └── utilities.css             Vertical text, custom scrollbar, selection
 │
 ├── lib/                          Domain logic, no React
 │   ├── api.ts                    apiUrl, apiGet, apiSend, apiSendVoid, fetchJson
@@ -87,9 +87,8 @@ web-frontend/langecko-web/
 │   ├── storage/                  localStorage adapters per concern
 │   ├── config/                   limits.ts, deckVisuals.ts
 │   ├── util/                     cn (Tailwind class merge), deviceName
-│   ├── bookStore.ts              IndexedDB wrapper for local book blobs
 │   ├── epubIdentity.ts           Hashing + metadata extraction for EPUB matching
-│   ├── fsAccess.ts               File System Access API helpers
+│   ├── fsAccess.ts               File System Access API helpers (uses the shared `aogimi` IDB handles store)
 │   └── japanese.ts               Tiny utilities (kana classifiers, etc.)
 │
 ├── hooks/use-mobile.ts           Width-based mobile breakpoint detector
@@ -102,8 +101,8 @@ web-frontend/langecko-web/
 ## Run-of-show: a request hits the app
 
 1. Browser loads `/` → Next.js renders `app/layout.tsx` (RSC) → root `<html>` ships with `data-theme="default"`.
-2. Pre-hydration `<script>` (top of `<head>`) reads `localStorage.getItem('app-theme')` and overwrites `data-theme` *before* paint. No flash.
-3. React hydrates. `ThemeProvider` initialises `useState` from `document.documentElement.dataset.theme` synchronously, so React state matches what's painted.
+2. There is only the `default` theme, so `data-theme` is never rewritten — no pre-hydration script, no `app-theme` key.
+3. React hydrates. `ThemeProvider` exposes the single `default` theme (no persistence).
 4. `AuthProvider` reads `auth-user` from localStorage; if absent and not on `/authenticate`, `AppShell` redirects.
 5. `ReaderStateProvider`, `DictionaryStateProvider`, `BubbleProvider` mount.
 6. The current route's component renders inside `AppShell`, alongside the floating `WorkspaceNav` and any active page-bubble (Profile / Reader).
@@ -118,7 +117,7 @@ web-frontend/langecko-web/
 2. **Shape tokens** (`--lgc-surface-*`, `--lgc-button-*`, `--lgc-chip-*`, `--lgc-toolbar-*`, `--lgc-meaning-num-*`, …) in `styles/shape-defaults.css`.
 3. **Primitive classes** (`.lgc-card`, `.lgc-button`, `.lgc-chip`, `.lgc-section-label`, …) in `styles/primitives.css` read those tokens. Build on these, not hand-rolled `bg-lgc-* border-lgc-*` chains.
 
-The `data-theme` attribute, the pre-hydration `<script>`, the `app-theme` localStorage key, and `ThemeProvider`/`THEMES` (single `default` entry) are deliberately **kept** as minimal plumbing, so a future theme re-attaches by adding a `THEMES` entry + a CSS palette under its own `html[data-theme="…"]` selector — without rebuilding the bootstrap. There is no theme picker, no per-theme component dispatch, and no per-theme decoration atoms anymore.
+The `data-theme="default"` attribute on `<html>` and `ThemeProvider`/`THEMES` (single `default` entry) are deliberately **kept** as minimal plumbing, so a future theme re-attaches by adding a `THEMES` entry + a CSS palette under its own `html[data-theme="…"]` selector. The theme is no longer persisted anywhere — the `app-theme` localStorage key and the pre-hydration `<script>` are **gone**, and `ThemeProvider` doesn't write the choice (backend-backed theme storage is deferred). There is no theme picker, no per-theme component dispatch, and no per-theme decoration atoms anymore.
 
 ---
 
@@ -129,10 +128,10 @@ All state is in **React Context providers**, mounted by `AppShell`. Nothing in l
 | Provider | What it owns | localStorage key(s) |
 |---|---|---|
 | `AuthProvider` | Current user, login/signup/logout flows. **Token storage = "memory + httpOnly cookie"**: the access token lives in-memory only ([`lib/auth/tokenStore.ts`](lib/auth/tokenStore.ts)), the refresh token is an httpOnly cookie set by the backend (never readable by JS). On boot, a silent `/api/auth/refresh` re-mints the access token from the cookie. Session-invalidation hook in [`lib/api.ts`](lib/api.ts) auto-signs-out on unrecoverable 401/403. See [`../../docs/AUTH.md`](../../docs/AUTH.md). | `auth_user` only (tokens are no longer in localStorage) |
-| `ThemeProvider` | Active theme + setter | `app-theme` |
+| `ThemeProvider` | The single `default` theme (no setter that persists; kept as plumbing for a future redesign) | (none — no longer persisted) |
 | `ShortcutsProvider` | Global keydown dispatcher + cheatsheet open state | (in-memory only) |
-| `ReaderStateProvider` | Active book session, sidekick toggle, progress sync (record/flush/beacon on exit), and the three cross-route pending signals (`pendingDictSearch`, `pendingCard`, `pendingBookOpen`) | `reader_progress_<filename>` (one per book) |
-| `DictionaryStateProvider` | Search query/results, recent searches, active word | `dictionary-state` |
+| `ReaderStateProvider` | Active book session (`{ activeBook, fileUrl }`), sidekick toggle, and the three cross-route pending signals (`pendingDictSearch`, `pendingCard`, `pendingBookOpen`). No progress sync — books open at the start and reading position is not tracked. | (none) |
+| `DictionaryStateProvider` | Search query/results, recent searches, active word | `dictionary_state`, `dictionary_recent_searches` |
 | `BubbleProvider` | Which page-bubble (Profile/Reader) is active | (in-memory only) |
 
 The reader/dictionary/bubbles talk via **transient pending fields**: when the reader wants to look up a word, it sets `pendingDictSearch` on `ReaderStateProvider`; `AppShell` watches it, dispatches `dict.runSearch()`, then nulls the field. Same shape for `pendingCard`. Both effects guard against double-fire with a `useRef` of "last seen" — see [components/AppShell.tsx](components/AppShell.tsx).
@@ -159,7 +158,6 @@ goes through `request()` in `lib/api.ts`, which:
    session-invalidation hook → `AuthProvider` wipes the stored user.
 
 See [`../../docs/AUTH.md`](../../docs/AUTH.md) for the full token model.
-- `sendProgressBeacon(id, payload)` — uses `navigator.sendBeacon` for fire-and-forget on tab close
 
 All accept an optional `AbortSignal`. Pair with `useEffect` cleanup to cancel in-flight fetches when components unmount.
 
@@ -174,9 +172,9 @@ Server-only proxies live under `app/api/`:
 
 | Where | What | Notes |
 |---|---|---|
-| **Backend (Postgres)** | Users, books metadata + reading progress, decks, cards, devices, JMdict/KANJIDIC2 | Everything that should sync across devices |
-| **IndexedDB** (`aogimi-books`) | EPUB / PDF blobs + per-file metadata | Per-device — files don't leave the browser |
-| **localStorage** | Auth user, theme, reader session, dictionary state, avatar, onboarding flag, device-id, reader prefs | Per-device, low-stakes |
+| **Backend (Postgres)** | Users (incl. `onboarding_completed`, avatar, study display prefs + deck overrides), books metadata + "finished" flag, decks, cards, devices, JMdict/KANJIDIC2 | Everything that should sync across devices; single source of truth for settings (no local cache) |
+| **IndexedDB** (`aogimi`) | EPUB / PDF blobs (`files`) + per-file metadata (`metadata`) + FS Access directory handle (`handles`) | Per-device — files don't leave the browser. Single DB; the old `aogimi-books` + `aogimi-fs` DBs were merged (one-time copy-then-delete migration in `components/books/utils/booksDb.ts`). |
+| **localStorage** | `auth_user`, `dictionary_state`, `dictionary_recent_searches`, device-id (`lgc_device_id`) | Per-device, low-stakes. No theme / reader / study / avatar / onboarding keys anymore. |
 
 Library mount reconciles all three: load local IndexedDB → register device → fetch backend records → call `POST /api/books/match` to resolve unidentified local files against existing user books → backfill identity (`PUT /api/books/{id}/identity`) where needed → call `POST /api/devices/{deviceId}/books/{bookId}/available` for files present locally. See [components/library/RestoreLibrary.tsx](components/library/RestoreLibrary.tsx) for the reconciliation flow.
 
@@ -193,7 +191,7 @@ A typed registry + cheatsheet. One source of truth for every shortcut in the app
 - **Registry**: [lib/shortcuts/registry.ts](lib/shortcuts/registry.ts). Each entry is `{ id, keys, scope, description, group }`. `keys` accepts multiple bindings per id (so `→ / ↓` for "next page" is one entry, not two). `ShortcutId` is a literal-union derived from the array — calling `useShortcut('does-not-exist', …)` is a compile error.
 - **Matcher / formatter**: [lib/shortcuts/match.ts](lib/shortcuts/match.ts). `defMatches(e, def)` for the dispatcher, `formatDef(def)` for the cheatsheet UI (turns `{ alt:true, key:'h' }` into `Alt + H`, arrow keys into `→ ↓` glyphs).
 - **Runtime**: [components/providers/ShortcutsProvider.tsx](components/providers/ShortcutsProvider.tsx). One `keydown` listener at the app root. Skips all shortcuts when the event target is `<input>` / `<textarea>` / `<select>` / `[contenteditable]`. Handler refs are kept fresh via `useLayoutEffect` so passing a new closure on every render doesn't re-bind.
-- **Hook**: `useShortcut(id, handler, enabled?)` from `@/components/providers/ShortcutsProvider`. Returns nothing. Handler may return `false` to opt out of `preventDefault` (useful when a shortcut is conditional — e.g. `reader:highlight-yellow` is a no-op without a selection and shouldn't suppress the browser default).
+- **Hook**: `useShortcut(id, handler, enabled?)` from `@/components/providers/ShortcutsProvider`. Returns nothing. Handler may return `false` to opt out of `preventDefault` (useful when a shortcut is conditional and shouldn't suppress the browser default).
 - **Cheatsheet**: [components/ui/ShortcutsCheatsheet.tsx](components/ui/ShortcutsCheatsheet.tsx). Modal opened by `Shift + ?`, closed by `Esc` or backdrop click. Reads the registry, groups by `def.group`, renders one row per definition. Themable through `.lgc-card`.
 
 **Currently registered shortcuts** (see registry for canonical list):
@@ -201,8 +199,6 @@ A typed registry + cheatsheet. One source of truth for every shortcut in the app
 | ID | Keys | Scope | Action |
 |---|---|---|---|
 | `global:show-cheatsheet` | `Shift + ?` | global | Toggle the cheatsheet modal |
-| `reader:highlight-yellow` | `Alt + H` | reader | Apply yellow highlight to the current selection (toggle on re-press) |
-| `reader:bookmark` | `B` | reader | Bookmark current page (pre-existing) |
 | `reader:tts-toggle` | `T` | reader | Toggle text-to-speech (pre-existing) |
 | `reader:page-next` | `→` / `↓` | reader | Next page |
 | `reader:page-prev` | `←` / `↑` | reader | Previous page |
@@ -230,7 +226,7 @@ A typed registry + cheatsheet. One source of truth for every shortcut in the app
 | **Token primitives** | `styles/primitives.css` (`.lgc-card`, `.lgc-button`, `.lgc-button-secondary`, `.lgc-chip`, …) |
 | **Auth flow** | `components/providers/AuthProvider.tsx`, `app/authenticate/page.tsx`, `lib/userApi.ts` |
 | **Reader chrome** | `components/reader/*`, `components/views/ReaderView/*` |
-| **Library / book sync** | `components/library/*`, `components/views/ReaderView/*`, `lib/booksApi.ts`, `lib/devicesApi.ts`, `lib/bookStore.ts`, `lib/epubIdentity.ts` |
+| **Library / book sync** | `components/library/*`, `components/views/ReaderView/*`, `lib/booksApi.ts`, `lib/devicesApi.ts`, `components/books/utils/booksDb.ts` (sole `aogimi` IDB factory), `lib/epubIdentity.ts` |
 | **Dictionary** | `app/dictionary/page.tsx`, `components/views/DictionaryView/*`, `components/views/WordDetailView/*`, `lib/dictApi.ts`, `components/providers/DictionaryStateProvider.tsx` |
 | **Decks / study** | `app/decks/page.tsx`, `components/views/cards/*`, `lib/decksApi.ts` |
 | **Reader bubbles (overlays)** | `components/page-bubbles/*`, `components/providers/BubbleProvider.tsx` |
@@ -254,8 +250,10 @@ A typed registry + cheatsheet. One source of truth for every shortcut in the app
 
 Tracked in [DECISIONS.md](DECISIONS.md). Highlights:
 
-- Reading-position persistence currently localStorage-per-device; eventual move to Postgres `user_books`.
-- Highlights / bookmarks / annotations not yet synced.
+- Reading-position persistence removed entirely — books always open at the start; only the explicit "mark finished" action writes `book_progress.progress`. Resume-where-you-left-off is deferred.
+- Highlights / bookmarks / annotations removed entirely (UI, storage, and foliate wiring) — not currently a feature.
+- Backend-backed theme storage deferred (theme is the single `default`, not persisted).
+- Backend-backed reader typography prefs deferred (in-memory only, reset each time a book opens).
 - PDF reader is parse-only, no real reader UI.
 - Anki `.apkg` export.
 - "Up next" library section.

@@ -15,31 +15,35 @@ const API_ORIGIN = (() => {
 // needs 'unsafe-eval' and websocket connect-src, and relaxing those in dev
 // keeps the policy honest about what production actually ships.
 //
-// Notes on the allowances (don't tighten without testing the reader):
-//   - script-src keeps 'unsafe-inline' because Next injects inline bootstrap
-//     scripts and app/layout.tsx ships a tiny inline theme-init script.
-//     Locking this to nonces needs request-time middleware (deferred); the
-//     principal XSS vector — untrusted EPUB content — is already contained
-//     at the iframe-sandbox level (foliate-js no longer gets allow-scripts),
-//     and auth tokens are no longer in localStorage.
-//   - img-src/font-src allow data: + blob: — EPUB cover images are data:
-//     URLs and foliate renders embedded resources from blob:.
-//   - frame-src/worker-src allow blob: — foliate loads book sections into
-//     blob: iframes and pdf.js spins up a blob: worker.
-//   - connect-src is 'self' + the backend origin.
+// The reader is the dominant constraint here: foliate renders each EPUB
+// section into a `blob:` iframe that INHERITS this CSP, and pdf.js loads its
+// document + worker from `blob:` URLs. So the reader-facing fetch/style/font/
+// script/img/frame/worker directives must all permit `blob:` (and `data:`),
+// or book content silently fails to load. Don't strip `blob:`/`data:` from
+// these without re-testing both readers in a production build.
+//
+// What still holds after those allowances: default-src 'self', object-src
+// 'none', base-uri 'self', form-action 'self', frame-ancestors 'none', and a
+// connect-src limited to self + the API + blob: — so even a script running in
+// an EPUB iframe can't exfiltrate to an arbitrary remote origin via fetch.
+// (The token-theft vector is closed separately: no tokens live in JS.)
+//
+// script-src keeps 'unsafe-inline' for Next's inline bootstrap + the inline
+// theme-init script in app/layout.tsx; tightening to nonces needs request-time
+// middleware (deferred).
 const PROD_CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' blob:",
+  "style-src 'self' 'unsafe-inline' blob:",
   "img-src 'self' data: blob:",
-  "font-src 'self' data:",
+  "font-src 'self' data: blob:",
   "frame-src 'self' blob:",
   "worker-src 'self' blob:",
-  `connect-src 'self' ${API_ORIGIN}`,
+  `connect-src 'self' blob: ${API_ORIGIN}`,
   "manifest-src 'self'",
 ].join("; ");
 

@@ -1,10 +1,9 @@
 'use client';
 
-// Renders everything below the MangaReader top bar — TOC + bookmarks panels +
-// EPUB viewport. Theme-agnostic; both variants compose this with their own top bar.
+// Renders everything below the MangaReader top bar — TOC panel + EPUB viewport.
+// Theme-agnostic; both variants compose this with their own top bar.
 
 import { TocPanel } from '@/components/reader/TocPanel';
-import { AnnotationsPanel } from '@/components/reader/AnnotationsPanel';
 import type { MangaReaderEngine } from './useMangaReaderEngine';
 
 export function MangaReaderBody({ engine }: { engine: MangaReaderEngine }) {
@@ -17,8 +16,6 @@ export function MangaReaderBody({ engine }: { engine: MangaReaderEngine }) {
     toc,
     panel,
     setPanel,
-    epubBookmarks,
-    removeEpubBookmark,
   } = engine;
 
   return (
@@ -53,24 +50,6 @@ export function MangaReaderBody({ engine }: { engine: MangaReaderEngine }) {
             <TocPanel
               items={toc}
               onNavigate={(href) => { void viewRef.current?.goTo(href); setPanel(null); }}
-              onClose={() => setPanel(null)}
-            />
-          </div>
-        )}
-
-        {/* Floating bookmarks — top-right overlay. */}
-        {panel === 'bookmarks' && (
-          <div
-            className="absolute right-3 top-2 z-30 flex w-72 flex-col overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg-elev shadow-xl"
-            style={{ maxHeight: 'calc(100% - 16px)' }}
-          >
-            <AnnotationsPanel
-              epubHighlights={[]}
-              epubBookmarks={epubBookmarks}
-              onJumpEpubHighlight={() => {}}
-              onDeleteEpubHighlight={() => {}}
-              onJumpEpubBookmark={(b) => { void viewRef.current?.goTo(b.cfi); setPanel(null); }}
-              onDeleteEpubBookmark={removeEpubBookmark}
               onClose={() => setPanel(null)}
             />
           </div>

@@ -10,7 +10,6 @@ import {
   setStoredAuthUser,
   type StoredAuthUser as User,
 } from '@/lib/storage/auth';
-import { setNeedsOnboarding } from '@/lib/storage/onboarding';
 import { loginUser, registerUser, logoutUser, revokeLegacyRefreshToken } from '@/lib/auth/authApi';
 import {
   clearAccessToken,
@@ -120,7 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await registerUser(username, password);
       setAccessToken(data.accessToken);
       await handleAuthenticated({ id: data.user.id, username: data.user.username });
-      setNeedsOnboarding();
+      // New accounts default to onboarding_completed=false on the backend, so
+      // the reader's onboarding gate shows the explainer on first landing.
     },
     [handleAuthenticated],
   );

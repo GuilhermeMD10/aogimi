@@ -58,12 +58,12 @@ export default function HelpView({ onBack }: HelpViewProps) {
           <P>
             To look up a word, select it with your cursor (or finger on
             touch). A small action bar appears with shortcuts for
-            Dictionary, Card, DeepL, Highlight, and Copy.
+            Dictionary and Card.
           </P>
           <P>
-            The bottom dock has chapter navigation, bookmarks, and
-            typography settings. Click the workspace nav at the bottom
-            to leave the reader.
+            The bottom dock has chapter navigation and typography
+            settings. Click the workspace nav at the bottom to leave
+            the reader.
           </P>
         </Section>
 
@@ -88,8 +88,7 @@ export default function HelpView({ onBack }: HelpViewProps) {
 
         <Section heading="How sync works">
           <P>
-            Your books, highlights, bookmarks, and reading positions are
-            saved to your account. Each device keeps a local copy and
+            Your books are saved to your account. Each device keeps a local copy and
             pushes changes to the backend opportunistically when it's
             online. If you import a book while offline, it stays on this
             device — marked as unsynced — until the next sync round.

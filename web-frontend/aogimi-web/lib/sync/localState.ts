@@ -1,46 +1,25 @@
 // Storage layer for the per-book local sync state on web.
 //
-// Reads/writes the `syncState` field directly on the IDB BookRecord
-// row. Opens its own connection to the same `aogimi-books` database
-// to avoid a circular import with `bookStore.importBook` (which calls
-// into this module to mark pending/synced during import).
+// Reads/writes the `syncState` field directly on the IDB BookRecord row,
+// using the shared `aogimi` database connection from booksDb (the connection
+// factory is a leaf module, so importing it here doesn't create a cycle with
+// bookStore.importBook, which calls into this module during import).
 //
 // Forward-compat: legacy rows without `syncState` are treated as
 // `'synced'` — they came from imports that successfully pushed to the
 // backend before the marker existed.
 
-import { openDB, type IDBPDatabase } from 'idb';
+import { getDb, META_STORE } from '@/components/books/utils/booksDb';
 import type { SyncState } from './types';
 
-// Same DB / store as bookStore.ts. Keep these in sync if bookStore
-// ever bumps its version.
-const DB_NAME = 'aogimi-books';
-const DB_VERSION = 1;
-const META_STORE = 'metadata';
-
 // Minimum shape this module needs to read from IDB. The full
-// BookRecord lives in lib/bookStore.ts; we only touch syncState +
-// id here.
+// BookRecord lives in components/books/utils/bookStore.ts; we only touch
+// syncState + id here.
 type StoredBook = {
   id: string;
   filename: string;
   syncState?: SyncState;
 };
-
-let dbPromise: Promise<IDBPDatabase> | null = null;
-
-function getDb(): Promise<IDBPDatabase> {
-  if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(META_STORE)) {
-          db.createObjectStore(META_STORE, { keyPath: 'id' });
-        }
-      },
-    });
-  }
-  return dbPromise;
-}
 
 export function effectiveSyncState(book: StoredBook): SyncState {
   return book.syncState ?? 'synced';
