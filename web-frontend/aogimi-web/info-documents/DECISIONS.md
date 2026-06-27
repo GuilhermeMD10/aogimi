@@ -43,3 +43,41 @@
 - [ ] Reading stats section
 - [ ] More menu actions (delete book, export, etc.)
 - [ ] Export flashcard decks to Anki (.apkg format)
+
+---
+
+## Client-storage simplification (DONE — 2026-06)
+
+Stripped client-side state down to "blobs + a single sync'd library." Rationale:
+local-first per-device state had drifted from the backend source of truth and
+added maintenance surface for features that weren't being used.
+
+**Removed entirely**
+- **Highlights & bookmarks** — UI, foliate annotation wiring, storage, shortcuts.
+- **Reading position** — `lastCfi`/`lastPage`, the `reader_progress_*` snapshot,
+  the debounced + `sendBeacon` backend sync, and backend-CFI restore. Books now
+  always open at the start. (Backend `book_progress.progress` column kept;
+  written only by the explicit "mark finished" action.)
+- **Config caches in localStorage** — `app-theme`, per-book reader prefs
+  (`reader_book_*`), `study_display_prefs_v1`, `study_deck_overrides_v1`,
+  `lgc_avatar_index`. Study/deck prefs + avatar now read the backend as the
+  single source of truth (no local cache).
+
+**Kept**
+- Dictionary caches (`dictionary_state`, `dictionary_recent_searches`).
+- Backend book **metadata** sync + library reconciliation + device registration.
+- Book blobs stay local; no offline reading mode.
+
+**Changed**
+- **Onboarding** gate now reads the backend `users.onboarding_completed` flag
+  (the endpoint + column already existed) instead of `lgc_needs_onboarding`.
+- **IndexedDB merged** — `aogimi-books` + `aogimi-fs` → a single `aogimi` DB
+  (`components/books/utils/booksDb.ts`), with a one-time, idempotent
+  copy-then-delete migration that preserves imported book blobs and the FS
+  directory handle.
+
+**Newly deferred (replaces the old per-device storage TODOs above)**
+- [ ] Backend-backed **reader typography prefs** (currently in-memory, reset per
+  book open).
+- [ ] Backend-backed **theme** selection (currently always `default`, not
+  persisted).

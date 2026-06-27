@@ -110,7 +110,7 @@ export function useShortcuts(): Ctx {
  * doesn't tear down / re-register the binding. Pass `enabled = false` to
  * temporarily disable without unmounting (e.g. while a modal is open).
  *
- *   useShortcut('reader:highlight-yellow', () => applyHighlight('yellow'));
+ *   useShortcut('reader:page-next', () => onRightBtn());
  */
 export function useShortcut(
   id: ShortcutId,

@@ -1,6 +1,6 @@
 AOGIMI WEB FRONTEND — BACKEND CONNECTION INVENTORY
 =====================================================
-Last reviewed: 2026-05-20
+Last reviewed: 2026-06-27
 
 Base URL: NEXT_PUBLIC_API_URL (default: http://localhost:3000)
 HTTP helpers live in lib/api.ts (apiUrl, apiGet, apiSend, apiSendVoid).
@@ -48,7 +48,12 @@ POST /api/auth/logout
 ==============================================================================
 
 GET /api/user/{userId}
-  Trigger:   Profile page mount (once)
+  Trigger:   Profile page mount + onboarding gate (getUserProfile). The
+             onboarding modal now gates on the backend onboarding_completed
+             flag in this payload — there is no lgc_needs_onboarding
+             localStorage flag anymore. Also the single source of truth for
+             avatar_index and study display prefs / deck overrides (no local
+             cache).
   Response:  UserProfile
 
 POST /api/user/update
@@ -57,9 +62,11 @@ POST /api/user/update
   Response:  UserProfile
 
 PUT /api/user/onboarding
-  Trigger:   First-run explainer dismissal (once per user)
-  Request:   { userId, completed: true }
+  Trigger:   First-run explainer dismissal ("Got it" button, once per user)
+  Request:   { completed: true }
   Response:  void
+  Notes:     Sets users.onboarding_completed; the gate reads that flag back
+             via GET /api/user/{id}. Endpoint/column pre-existed, unchanged.
 
 UserProfile shape:
   { id, username, display_name, email, language, avatar_index, created_at }
@@ -85,14 +92,13 @@ GET /api/books/{id}
   Response:  BookProgressRecord
 
 PUT /api/books/{id}/progress
-  Trigger:   Reader page turn / chapter change
-  Frequency: Debounced — first fire immediate, subsequent ~2s
-  Request:   ProgressPayload  -- { cfiPosition?, progress?, spineIndex?, totalSpineItems? }
+  Trigger:   "Mark finished" action only (manual). The client no longer
+             auto-syncs reading position — books always open at the start.
+  Request:   ProgressPayload  -- { progress: 100 }
   Response:  BookProgressRecord
-
-PUT /api/books/{id}/progress  (sendBeacon path)
-  Trigger:   Page unload / tab close — fire-and-forget via sendProgressBeacon()
-  Notes:     Browser guarantees delivery even if the tab dies. No response read.
+  Notes:     Endpoint still accepts the full ProgressPayload shape, but the
+             web client only sends { progress: 100 } via updateBookProgress.
+             No debounce, no sendBeacon, no CFI restore.
 
 PATCH /api/books/{id}
   Trigger:   In-place book title rename (manual)
@@ -241,11 +247,11 @@ POST /api/translate                    (app/api/translate/route.ts)
 7. SYNC & PERSISTENCE PATTERNS
 ==============================================================================
 
-Reading-progress sync:
-  - Local:    Immediate save to ReaderStateProvider state (in-memory).
-  - Backend:  First put immediate; subsequent puts debounced ~2s.
-  - On unload: sendBeacon(PUT /api/books/{id}/progress) — fire-and-forget.
-  - Failures silently swallowed (non-critical).
+Reading-position sync:
+  - REMOVED. No CFI/page tracking, no debounced ~2s put, no sendBeacon on
+    unload, no backend-CFI restore. Books always open at the start.
+  - The only write to book_progress.progress is the explicit "mark finished"
+    action (PUT /api/books/{id}/progress with { progress: 100 }).
 
 Library / device sync (library page mount):
   1. Load local IndexedDB records.
@@ -266,9 +272,6 @@ Client-side storage:
     Device-scoped (kept across account switches):
       lgc_device_id              per-browser device UUID, sent with every
                                  /api/devices call
-      app-theme                  active theme name; read by the pre-hydration
-                                 <script> in app/layout.tsx to avoid
-                                 flash-of-default-theme
       lgc_last_user_id           the last user id that owned local data;
                                  survives logout so the next sign-in can
                                  detect an account switch (see Account
@@ -286,35 +289,45 @@ Client-side storage:
       auth_user                  { id, username } cached for first-paint
                                  (replaced by the new user on sign-in,
                                  cleared on logout)
-      lgc_avatar_index           profile avatar palette choice
-      lgc_needs_onboarding       first-run explainer flag
       dictionary_state           sticky dictionary view state
       dictionary_recent_searches recent search history
-      reader_book_<filename>     per-book highlights + bookmarks + lastCfi
-                                 + per-book reader prefs (uri-encoded
-                                 filename). HIGHLIGHTS LIVE ONLY HERE —
-                                 there is no backend table yet.
-      reader_progress_<filename> per-book progress recovery snapshot
-                                 (every page turn; backend is canonical)
 
-  IndexedDB databases:
+    REMOVED localStorage keys (no longer written/read):
+      app-theme                  theme not persisted (single `default`);
+                                 pre-hydration <script> also gone
+      lgc_avatar_index           avatar now read from backend (avatar_index
+                                 on UserProfile) — single source of truth
+      lgc_needs_onboarding       gate now reads users.onboarding_completed
+                                 (GET /api/user/{id})
+      study_display_prefs_v1     study display prefs now backend-backed
+      study_deck_overrides_v1    deck overrides now backend-backed
+      reader_book_<filename>     highlights + bookmarks + per-book reader
+                                 prefs removed; reader typography prefs are
+                                 in-memory only (reset each book open)
+      reader_progress_<filename> reading-position tracking removed;
+                                 books always open at the start
 
-    aogimi-books (v1) — user-scoped, wiped on account switch
-      metadata store (keyPath 'id')
-        Full local BookRecord per imported book: title, author, filename,
-        coverColor, hasCover, coverImage (base64 data URL), fileHash,
-        contentHash, dcIdentifier, language, publisher, importedAt,
-        fileSize.
-      files store (keyed by id)
-        Raw .epub / .pdf ArrayBuffer. This is the only place the actual
-        book content lives — backend stores metadata only.
+  IndexedDB — single database `aogimi`
+  (sole connection factory: components/books/utils/booksDb.ts):
 
-    File System Access API handles (separate IDB, see lib/fsAccess.ts)
-      handles store
-        FileSystemDirectoryHandle the user picked as their "library
-        folder". Survives sessions because IndexedDB persists
-        structured-clone handles. Optional UX nicety; kept across
-        account switches (it's a folder, not user data).
+    The old `aogimi-books` and `aogimi-fs` databases were MERGED into one
+    `aogimi` DB. A one-time, idempotent copy-then-delete migration runs on
+    first open and preserves imported book blobs + the directory handle.
+
+    metadata store (keyPath 'id') — user-scoped, wiped on account switch
+      Full local BookRecord per imported book: title, author, filename,
+      coverColor, hasCover, coverImage (base64 data URL), fileHash,
+      contentHash, dcIdentifier, language, publisher, importedAt,
+      fileSize.
+    files store (blobs, out-of-line key) — user-scoped, wiped on account switch
+      Raw .epub / .pdf ArrayBuffer. This is the only place the actual
+      book content lives — backend stores metadata only.
+    handles store (out-of-line key, see lib/fsAccess.ts)
+      FileSystemDirectoryHandle the user picked as their "library
+      folder". Survives sessions because IndexedDB persists
+      structured-clone handles. Optional UX nicety; kept across
+      account switches (it's a folder, not user data) — only metadata +
+      files are cleared on wipe.
 
   In-memory caches (lost on reload, never persisted):
     Dictionary search/word results
@@ -325,12 +338,16 @@ Account-switch wipe:
             against lgc_last_user_id (NOT auth_user — that key is cleared
             on logout and would miss the typical sign-out → sign-in flow).
             On mismatch, lib/auth/wipeUserData.ts runs before persist().
-  Wipes:    Every user-scoped key listed above + the aogimi-books IDB
-            (deleteDatabase + cached connection reset).
+  Wipes:    dictionary_state + dictionary_recent_searches, plus the `aogimi`
+            IDB `metadata` + `files` stores (the `handles` directory handle
+            is kept — it's a folder, not user data). See
+            lib/auth/wipeUserData.ts.
   Single book delete:
-            lib/books/deleteBook.ts owns the per-book cleanup
-            (backend row + IDB metadata + IDB file blob + the two
-            localStorage entries). Used by the library trash button.
+            components/books/utils/deleteBook.ts owns the per-book cleanup
+            (backend book_progress row + IDB metadata + IDB file blob). No
+            longer touches localStorage (the per-book reader_book /
+            reader_progress entries were removed). Used by the library
+            trash button.
 
 
 ==============================================================================
@@ -346,7 +363,6 @@ External APIs:              1  (DeepL translation)
 Frequency:
   On page mount (auto):     GET /api/books/user, /api/decks/user, /api/user,
                             /api/devices/user, /api/devices/{id}/books
-  Debounced (~2s):          PUT /api/books/{id}/progress
-  On unload (beacon):       PUT /api/books/{id}/progress
-  On user action only:      Everything else.
+  On user action only:      Everything else, including PUT /api/books/{id}/progress
+                            ("mark finished" only — no debounce, no beacon).
   No polling, no WebSockets.

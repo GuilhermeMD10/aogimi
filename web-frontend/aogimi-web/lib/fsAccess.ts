@@ -1,4 +1,4 @@
-import { openDB } from 'idb';
+import { getDb, HANDLES_STORE } from '@/components/books/utils/booksDb';
 
 // ── Feature detection ────────────────────────────────────────────────────────
 
@@ -8,28 +8,16 @@ export function supportsDirectoryPicker(): boolean {
 }
 
 // ── Directory handle persistence (IndexedDB) ─────────────────────────────────
+// The handle lives in the shared `aogimi` DB's `handles` store (see booksDb).
 
-const FS_DB_NAME = 'aogimi-fs';
-const FS_DB_VERSION = 1;
-const HANDLES_STORE = 'handles';
 const DIR_KEY = 'library-dir';
-
-function getFsDb() {
-  return openDB(FS_DB_NAME, FS_DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(HANDLES_STORE)) {
-        db.createObjectStore(HANDLES_STORE);
-      }
-    },
-  });
-}
 
 /** Show the directory picker and persist the handle for later reconnection. */
 export async function pickDirectory(): Promise<FileSystemDirectoryHandle | null> {
   if (!supportsDirectoryPicker()) return null;
   try {
     const handle = await (window as any).showDirectoryPicker({ mode: 'read' });
-    const db = await getFsDb();
+    const db = await getDb();
     await db.put(HANDLES_STORE, handle, DIR_KEY);
     return handle;
   } catch {
@@ -41,7 +29,7 @@ export async function pickDirectory(): Promise<FileSystemDirectoryHandle | null>
 /** Get the previously-persisted directory handle (if any). */
 export async function getPersistedDirectory(): Promise<FileSystemDirectoryHandle | null> {
   try {
-    const db = await getFsDb();
+    const db = await getDb();
     const handle = await db.get(HANDLES_STORE, DIR_KEY);
     return handle ?? null;
   } catch {
@@ -66,7 +54,7 @@ export async function verifyPermission(
 /** Remove the persisted directory handle. */
 export async function clearPersistedDirectory(): Promise<void> {
   try {
-    const db = await getFsDb();
+    const db = await getDb();
     await db.delete(HANDLES_STORE, DIR_KEY);
   } catch {
     // ignore

@@ -2,7 +2,6 @@
 
 import { forwardRef, useLayoutEffect, useRef, useState } from 'react';
 import { Search, Languages, Plus } from 'lucide-react';
-import { HIGHLIGHT_COLORS, type HighlightColor, type EpubHighlight } from '@/components/reader/useBookStorage';
 import { DEEPL_ENABLED } from '@/lib/features/deepl';
 
 const CTX_BTN =
@@ -13,18 +12,14 @@ const EDGE_PAD = 8;
 export type TextContextMenuProps = {
   x: number;
   y: number;
-  selectedText: string;
-  selectedCfi: string | null;
-  epubHighlights: EpubHighlight[];
   onLookup: () => void;
   onDeepL: () => void;
-  onHighlight: (color: HighlightColor) => void;
   onAddCard: () => void;
   onClose: () => void;
 };
 
 export const TextContextMenu = forwardRef<HTMLDivElement, TextContextMenuProps>(
-  function TextContextMenu({ x, y, selectedCfi, epubHighlights, onLookup, onDeepL, onHighlight, onAddCard, onClose }, ref) {
+  function TextContextMenu({ x, y, onLookup, onDeepL, onAddCard, onClose }, ref) {
     const innerRef = useRef<HTMLDivElement>(null);
     const [pos, setPos] = useState({ left: x, top: y });
 
@@ -63,29 +58,14 @@ export const TextContextMenu = forwardRef<HTMLDivElement, TextContextMenuProps>(
         className="flex items-center gap-0.5 rounded-lg border border-lgc-border-strong bg-lgc-bg-elev p-1.5 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.25)]"
       >
         <button type="button" onClick={() => { onLookup(); onClose(); }} className={CTX_BTN}><Search size={13} /> Dictionary</button>
-        <span className="mx-0.5 h-4 w-px bg-lgc-border" />
         {/* DeepL feature-flagged off (see lib/features/deepl.ts). Button +
             divider both gated so the menu collapses cleanly. */}
         {DEEPL_ENABLED && (
           <>
-            <button type="button" onClick={() => { onDeepL(); onClose(); }} className={CTX_BTN}><Languages size={13} /> DeepL</button>
             <span className="mx-0.5 h-4 w-px bg-lgc-border" />
+            <button type="button" onClick={() => { onDeepL(); onClose(); }} className={CTX_BTN}><Languages size={13} /> DeepL</button>
           </>
         )}
-        <div className="flex gap-1 px-1">
-          {(['yellow', 'green', 'blue'] as HighlightColor[]).map((c) => {
-            const active = selectedCfi ? epubHighlights.find((h) => h.cfi === selectedCfi)?.color === c : false;
-            return (
-              <button
-                key={c} type="button"
-                onClick={() => { onHighlight(c); onClose(); }}
-                className={`h-4.5 w-4.5 rounded-[3px] transition-transform hover:scale-110 ${active ? 'ring-2 ring-lgc-fg ring-offset-1' : ''}`}
-                style={{ background: HIGHLIGHT_COLORS[c] }}
-                title={active ? `Remove ${c}` : c}
-              />
-            );
-          })}
-        </div>
         <span className="mx-0.5 h-4 w-px bg-lgc-border" />
         <button type="button" onClick={() => { onAddCard(); onClose(); }} className={`${CTX_BTN} text-lgc-accent`}><Plus size={13} /> Flashcard</button>
       </div>

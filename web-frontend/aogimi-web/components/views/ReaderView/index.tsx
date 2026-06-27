@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { EpubReader } from '@/components/reader/EpubReader';
 import { PdfReader } from '@/components/reader/PdfReader';
@@ -14,13 +14,12 @@ import { reconcileBooks, syncPending } from '@/components/books/utils/reconcileB
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
 import { useReaderActions } from '@/components/providers/useReaderActions';
-import { useProgressSync } from './useProgressSync';
 import type { Book } from '@/components/books/types';
 import { BooksDesk } from '@/components/books/ui/BooksDesk';
 import RestoreBooks from '@/components/books/ui/RestoreBooks';
 import FsAccessBanner from '@/components/books/ui/FsAccessBanner';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
-import { getNeedsOnboarding } from '@/lib/storage/onboarding';
+import { getUserProfile } from '@/lib/userApi';
 import { useSyncBooks } from '@/components/books/hooks/useSyncBooks';
 
 export default function ReaderView() {
@@ -35,7 +34,6 @@ export default function ReaderView() {
     setSidekickOpen,
   } = useReaderState();
   const { requestDictLookup, requestAddCard } = useReaderActions();
-  const { recordProgress, flushProgress } = useProgressSync(readerSession);
 
   const { pageState, setPageState, books, setBooks, remoteBooks, error, setError } = useSyncBooks(user);
   const [importing, setImporting] = useState(false);
@@ -51,22 +49,6 @@ export default function ReaderView() {
 
   const [loading, setLoading] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
-  // Live progress override for the book currently (or most recently) open
-  // in the reader. The reader updates this on every page turn; the library
-  // tile merges it over the server-returned progress so the % is correct
-  // the moment we render the library view. Sticky for the session — next
-  // mount of the page (or login change) clears it via useSyncBooks
-  // re-running, which is good enough; same trade-off mobile picked.
-  const [activeProgress, setActiveProgress] = useState<{ filename: string; progress: number } | null>(null);
-
-  // Library tile reads from this. Memoised so the array identity is stable
-  // across re-renders when neither input changed — keeps BooksDesk from
-  // re-keying tiles every time something unrelated (e.g. importing toggle)
-  // re-renders the parent.
-  const displayBooks = useMemo(() => {
-    if (!activeProgress) return books;
-    return books.map((b) => (b.filename === activeProgress.filename ? { ...b, progress: activeProgress.progress } : b));
-  }, [books, activeProgress]);
 
   useEffect(() => {
     if (readerSession?.fileUrl) {
@@ -74,9 +56,16 @@ export default function ReaderView() {
     }
   }, [readerSession?.fileUrl]);
 
+  // Onboarding is gated on the backend `onboarding_completed` flag (set by
+  // the modal's "Got it" via markOnboardingCompleted). New accounts default
+  // to false, so they see it once; it then follows the user across devices.
   useEffect(() => {
-    if (getNeedsOnboarding()) setShowOnboarding(true);
-  }, []);
+    const controller = new AbortController();
+    getUserProfile(user.id, controller.signal)
+      .then((p) => { if (!p.onboarding_completed) setShowOnboarding(true); })
+      .catch(() => { /* signed-out / offline — skip the gate */ });
+    return () => controller.abort();
+  }, [user.id]);
 
   const handleSyncNow = useCallback(async () => {
     if (syncing) return;
@@ -91,7 +80,6 @@ export default function ReaderView() {
 
       const total =
         reconcileSummary.staleReplaced.length +
-        reconcileSummary.removed.length +
         reconcileSummary.syncedUp.length +
         pushSummary.pushed.length +
         pushSummary.failed.length;
@@ -99,9 +87,6 @@ export default function ReaderView() {
         setNotice('Library is up to date.');
       } else {
         const parts: string[] = [];
-        if (reconcileSummary.removed.length > 0) {
-          parts.push(`${reconcileSummary.removed.length} removed (deleted on another device)`);
-        }
         if (reconcileSummary.staleReplaced.length > 0) {
           parts.push(`${reconcileSummary.staleReplaced.length} replaced — re-locate to view the new bytes`);
         }
@@ -116,9 +101,6 @@ export default function ReaderView() {
         }
         setNotice(`Synced: ${parts.join(' · ')}.`);
       }
-      // Clear the active progress override so the next render reads
-      // fresh data on its own (useSyncBooks owns the merged list).
-      setActiveProgress(null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(`Sync failed: ${msg}`);
@@ -294,23 +276,16 @@ export default function ReaderView() {
         const session: ReaderSession = {
           activeBook: book,
           fileUrl: url,
-          backendBookId: null,
-          backendCfi: null,
         };
         setReaderSession(session);
         setLoading(false);
 
+        // Ensure the book is registered on the backend (metadata only — no
+        // reading position is tracked). Best-effort; backend may be offline.
         try {
           const remote = await getUserBooks(user.id);
           const match = remote.find((b) => b.filename === book.filename);
-          if (match) {
-            setReaderSession((prev) =>
-              prev ? { ...prev, backendBookId: match.id, backendCfi: match.cfi_position } : prev,
-            );
-          } else {
-            const created = await ensureBackendBook(book, user.id);
-            setReaderSession((prev) => (prev ? { ...prev, backendBookId: created.id } : prev));
-          }
+          if (!match) await ensureBackendBook(book, user.id);
         } catch {
           /* backend unavailable */
         }
@@ -339,8 +314,6 @@ export default function ReaderView() {
   }, [pendingBookOpen, books, pageState, readerSession, openBook, setPendingBookOpen]);
 
   const goBack = useCallback(() => {
-    flushProgress();
-
     if (blobUrlRef.current) {
       URL.revokeObjectURL(blobUrlRef.current);
       blobUrlRef.current = null;
@@ -361,16 +334,7 @@ export default function ReaderView() {
         });
       })
       .catch(() => {});
-  }, [flushProgress, setReaderSession, setBooks, setError]);
-
-  const handleProgressChange = useCallback(
-    (progress: number, cfi: string) => {
-      const filename = readerSession?.activeBook.filename;
-      if (filename) setActiveProgress({ filename, progress });
-      recordProgress({ progress, cfi, spineIndex: 0, totalSpineItems: 0 });
-    },
-    [recordProgress, readerSession?.activeBook.filename],
-  );
+  }, [setReaderSession, setBooks, setError]);
 
   const handleLookup = useCallback(
     (word: string, contextSentence?: string) => {
@@ -437,19 +401,14 @@ export default function ReaderView() {
             <PdfReader
               fileUrl={readerSession.fileUrl}
               bookTitle={readerSession.activeBook.title}
-              initialCfi={readerSession.backendCfi ?? undefined}
-              onProgressChange={recordProgress}
               onBack={goBack}
             />
           ) : (
             <EpubReader
               fileUrl={readerSession.fileUrl}
-              filename={readerSession.activeBook.filename}
               bookTitle={readerSession.activeBook.title}
-              initialCfi={readerSession.backendCfi ?? undefined}
               onLookup={handleLookup}
               onAddCard={handleAddCard}
-              onProgressChange={handleProgressChange}
               onBack={goBack}
               sidekickOpen={sidekickOpen}
               onToggleSidekick={toggleSidekick}
@@ -505,7 +464,7 @@ export default function ReaderView() {
         <div className="flex h-full items-center justify-center text-sm text-lgc-fg-muted">Loading library…</div>
       ) : (
         <BooksDesk
-          books={displayBooks}
+          books={books}
           importing={importing}
           onOpen={(book) => (book.available ? openBook(book.id) : handleLocateClick(book.id))}
           onImport={() => fileInputRef.current?.click()}
@@ -544,8 +503,7 @@ export default function ReaderView() {
               Are you sure you want to delete <strong className="text-lgc-fg">{deletingBook.title}</strong>?
             </p>
             <p className="mb-5 text-[12px] text-lgc-fg-subtle">
-              This will permanently remove all reading progress, bookmarks, and the local file from this device. This
-              action cannot be undone.
+              This will permanently remove this book and its local file from this device. This action cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
               <button

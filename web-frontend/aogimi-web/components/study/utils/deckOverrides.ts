@@ -1,10 +1,8 @@
-// Per-deck session overrides — mirror of mobile, localStorage-backed.
+// Per-deck session overrides. The backend (/api/study/prefs) is the source
+// of truth — there is no client-side cache.
 
 import { apiGet, apiSend } from '@/lib/api';
-import { getJSON, setJSON } from '@/lib/storage/_helpers';
 import type { DisplayPrefs, StudyMode } from '../types';
-
-const STORAGE_KEY = 'study_deck_overrides_v1';
 
 export const DEFAULT_MODE: StudyMode = 'hardest';
 export const DEFAULT_SESSION_SIZE = 20;
@@ -17,14 +15,6 @@ export type DeckOverride = {
 export type DeckOverrides = Record<string, DeckOverride>;
 
 export const EMPTY_OVERRIDES: DeckOverrides = {};
-
-export function loadLocal(): DeckOverrides {
-  return getJSON<DeckOverrides>(STORAGE_KEY) ?? EMPTY_OVERRIDES;
-}
-
-export function saveLocal(overrides: DeckOverrides): void {
-  setJSON(STORAGE_KEY, overrides);
-}
 
 type PrefsPayload = {
   display: DisplayPrefs;

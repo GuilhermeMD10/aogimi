@@ -1,11 +1,10 @@
 'use client';
 
 // Renders everything below the TextReader top bar — TOC + viewport + typography
-// panel + annotations panel + context menu portal + DeepL popup. Theme-agnostic.
+// panel + context menu portal + DeepL popup. Theme-agnostic.
 
 import { createPortal } from 'react-dom';
 import { TocPanel } from '@/components/reader/TocPanel';
-import { AnnotationsPanel } from '@/components/reader/AnnotationsPanel';
 import { DeepLTranslationPopup } from '@/components/DeepLTranslationPopup';
 import { DEEPL_ENABLED } from '@/lib/features/deepl';
 import { THEMES } from '@/components/reader/readerConstants';
@@ -34,18 +33,12 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
     setShowTypo,
     selectedText,
     contextSentence,
-    selectedCfi,
     ctxMenu,
     setCtxMenu,
     translation,
     setTranslation,
     prefs,
     savePrefs,
-    epubHighlights,
-    epubBookmarks,
-    applyHighlight,
-    deleteHighlight,
-    removeEpubBookmark,
   } = engine;
 
   const theme = THEMES[prefs.theme];
@@ -78,24 +71,6 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
             </div>
           )}
 
-          {/* Floating annotations (bookmarks + highlights) — top-right. */}
-          {panel === 'annotations' && (
-            <div
-              className="absolute right-3 top-2 z-30 flex w-72 flex-col overflow-hidden rounded-xl border border-lgc-border-strong bg-lgc-bg-elev shadow-xl"
-              style={{ maxHeight: 'calc(100% - 16px)' }}
-            >
-              <AnnotationsPanel
-                epubHighlights={epubHighlights}
-                epubBookmarks={epubBookmarks}
-                onJumpEpubHighlight={(h) => { void viewRef.current?.goTo(h.cfi); setPanel(null); }}
-                onDeleteEpubHighlight={deleteHighlight}
-                onJumpEpubBookmark={(b) => { void viewRef.current?.goTo(b.cfi); setPanel(null); }}
-                onDeleteEpubBookmark={removeEpubBookmark}
-                onClose={() => setPanel(null)}
-              />
-            </div>
-          )}
-
           {showTypo && (
             <div ref={typoPanelRef} className="absolute right-3 top-2 z-40">
               <TypographyPanel prefs={prefs} onSavePrefs={savePrefs} onClose={() => setShowTypo(false)} />
@@ -109,9 +84,6 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
           ref={ctxMenuRef}
           x={ctxMenu.x}
           y={ctxMenu.y}
-          selectedText={selectedText}
-          selectedCfi={selectedCfi}
-          epubHighlights={epubHighlights}
           onLookup={() => onLookup(selectedText, contextSentence)}
           onDeepL={() => {
             // DeepL is feature-flagged off (see lib/features/deepl.ts).
@@ -123,7 +95,6 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
               setTranslation({ text: selectedText, x: ctxMenu.x, y: ctxMenu.y });
             }
           }}
-          onHighlight={applyHighlight}
           onAddCard={() => onAddCard(selectedText, contextSentence)}
           onClose={() => setCtxMenu(null)}
         />,

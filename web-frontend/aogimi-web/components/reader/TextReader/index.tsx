@@ -8,8 +8,6 @@ import {
   Type,
   Volume2,
   VolumeX,
-  Highlighter,
-  BookmarkPlus,
   Search,
 } from 'lucide-react';
 import { THEMES, ICON_BTN, ICON_BTN_ON } from '@/components/reader/readerConstants';
@@ -19,13 +17,10 @@ import { TextReaderBody } from './TextReaderBody';
 
 export type TextReaderProps = {
   blob: Blob;
-  filename: string;
   bookTitle: string;
-  initialCfi?: string;
   rtl?: boolean;
   onLookup: (word: string, contextSentence?: string) => void;
   onAddCard: (word: string, contextSentence?: string) => void;
-  onProgressChange?: (progress: number, cfi: string) => void;
   onBack: () => void;
   sidekickOpen?: boolean;
   onToggleSidekick?: () => void;
@@ -33,18 +28,15 @@ export type TextReaderProps = {
 
 export function TextReader({
   blob,
-  filename,
   bookTitle,
-  initialCfi,
   rtl = false,
   onLookup,
   onAddCard,
-  onProgressChange,
   onBack,
   sidekickOpen = false,
   onToggleSidekick,
 }: TextReaderProps) {
-  const engine = useTextReaderEngine({ blob, filename, initialCfi, rtl, onProgressChange });
+  const engine = useTextReaderEngine({ blob, rtl });
   const {
     chapterLabel,
     globalPage,
@@ -60,7 +52,6 @@ export function TextReader({
     onRightBtn,
     goToPage,
     toggleTts,
-    addBookmark,
     prefs,
   } = engine;
 
@@ -118,8 +109,6 @@ export function TextReader({
           <span className="mx-1 h-4 w-px bg-lgc-border" />
 
           <button type="button" className={`${ICON_BTN} ${panel === 'toc' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'toc' ? null : 'toc'))} title="Table of contents"><List size={14} /></button>
-          <button type="button" className={`${ICON_BTN} ${panel === 'annotations' ? ICON_BTN_ON : ''}`} onClick={() => setPanel((p) => (p === 'annotations' ? null : 'annotations'))} title="Bookmarks & highlights"><Highlighter size={14} /></button>
-          <button type="button" className={ICON_BTN} onClick={addBookmark} title="Add bookmark (B)"><BookmarkPlus size={14} /></button>
 
           <span className="mx-1 h-4 w-px bg-lgc-border" />
 

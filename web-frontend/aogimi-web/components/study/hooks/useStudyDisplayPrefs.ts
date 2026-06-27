@@ -4,15 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   DEFAULT_PREFS,
   fetchRemote,
-  loadLocal,
   presetPrefs,
   pushRemote,
-  saveLocal,
 } from '../utils/displayPrefs';
 import type { BackPrefs, DisplayPrefs, FrontPrefs, Preset } from '../types';
 
-// Same surface as mobile — hook with optimistic setters; backend wins
-// across devices, local cache renders immediately.
+// Backend is the source of truth (no client cache). Optimistic setters
+// fire-and-forget the push; the UI shows defaults until the fetch resolves.
 
 export function useStudyDisplayPrefs() {
   const [prefs, setPrefs] = useState<DisplayPrefs>(DEFAULT_PREFS);
@@ -22,23 +20,15 @@ export function useStudyDisplayPrefs() {
     let cancelled = false;
     const controller = new AbortController();
 
-    // Local cache first so the UI never paints defaults. Setting state
-    // synchronously inside the effect is intentional — we're hydrating
-    // from localStorage on mount, which the lint rule's heuristic
-    // can't tell apart from a render loop.
-    const local = loadLocal();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPrefs(local);
-    setLoading(false);
-
     (async () => {
       try {
         const remote = await fetchRemote(controller.signal);
         if (cancelled) return;
         setPrefs(remote.display);
-        saveLocal(remote.display);
       } catch {
-        /* signed-out / offline — local stays */
+        /* signed-out / offline — defaults stay */
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
 
@@ -51,7 +41,6 @@ export function useStudyDisplayPrefs() {
   const setPreset = useCallback((preset: Preset) => {
     const next = presetPrefs(preset);
     setPrefs(next);
-    saveLocal(next);
     pushRemote(next).catch(() => {});
   }, []);
 
@@ -61,7 +50,6 @@ export function useStudyDisplayPrefs() {
         ...prev,
         front: { ...prev.front, [key]: !prev.front[key] },
       };
-      saveLocal(next);
       pushRemote(next).catch(() => {});
       return next;
     });
@@ -73,7 +61,6 @@ export function useStudyDisplayPrefs() {
         ...prev,
         back: { ...prev.back, [key]: !prev.back[key] },
       };
-      saveLocal(next);
       pushRemote(next).catch(() => {});
       return next;
     });

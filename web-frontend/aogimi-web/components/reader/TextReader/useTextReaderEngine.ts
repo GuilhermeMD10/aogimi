@@ -2,15 +2,10 @@
 
 // All TextReader state, refs, effects, and handlers — theme-agnostic.
 // Engine is foliate-js: <foliate-view> custom element, view.open(blob),
-// view.goTo(cfi|href), relocate / load / draw-annotation events.
+// view.goTo(cfi|href), relocate / load events.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  FONT_STACKS,
-  HIGHLIGHT_COLORS,
-  useBookStorage,
-  type HighlightColor,
-} from '@/components/reader/useBookStorage';
+import { FONT_STACKS, useReaderPrefs } from '@/components/reader/useReaderPrefs';
 import type { NavItem } from '@/components/reader/TocPanel';
 import { THEMES } from '@/components/reader/readerConstants';
 import {
@@ -19,7 +14,6 @@ import {
   loadFoliate,
   type FoliateRelocateDetail,
   type FoliateLoadDetail,
-  type FoliateDrawAnnotationDetail,
   type FoliateViewElement,
 } from '@/lib/foliate';
 import { useShortcut } from '@/components/providers/ShortcutsProvider';
@@ -122,52 +116,27 @@ function buildThemeCss({ bg, fg, fontFamilyStack, fontSizePct, lineSpacing, vert
   return common + verticalRules;
 }
 
-export type Panel = 'toc' | 'annotations' | null;
+export type Panel = 'toc' | null;
 
 export interface UseTextReaderEngineParams {
   blob: Blob;
-  filename: string;
-  initialCfi?: string;
   rtl?: boolean;
-  onProgressChange?: (progress: number, cfi: string) => void;
 }
 
 export function useTextReaderEngine({
   blob,
-  filename,
-  initialCfi,
   rtl = false,
-  onProgressChange,
 }: UseTextReaderEngineParams) {
-  const {
-    lastCfi,
-    epubHighlights,
-    epubBookmarks,
-    prefs,
-    saveLastCfi,
-    savePrefs,
-    addEpubHighlight,
-    removeEpubHighlight,
-    updateEpubHighlightColor,
-    addEpubBookmark,
-    removeEpubBookmark,
-  } = useBookStorage(filename);
+  const { prefs, savePrefs } = useReaderPrefs();
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<FoliateViewElement | null>(null);
-  const cfiRef = useRef('');
-  const progressCbRef = useRef(onProgressChange);
-  progressCbRef.current = onProgressChange;
-
-  const startCfi = useRef(initialCfi ?? lastCfi ?? undefined);
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [percent, setPercent] = useState(0);
   const [chapterLabel, setChapterLabel] = useState('');
 
-  const globalPageRef = useRef(0);
   const [globalPage, setGlobalPage] = useState(0);
   const [totalLocations, setTotalLocations] = useState(0);
 
@@ -179,14 +148,11 @@ export function useTextReaderEngine({
 
   const [selectedText, setSelectedText] = useState('');
   const [contextSentence, setContextSentence] = useState<string | undefined>(undefined);
-  const [selectedCfi, setSelectedCfi] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [translation, setTranslation] = useState<{ text: string; x: number; y: number } | null>(null);
 
   const ctxMenuRef = useRef<HTMLDivElement>(null);
   const typoPanelRef = useRef<HTMLDivElement>(null);
-  const highlightsRef = useRef(epubHighlights);
-  highlightsRef.current = epubHighlights;
 
   // Chapter docs reached so far — selectionchange handlers are attached on
   // load and we don't want to double-bind if a chapter re-fires the event.
@@ -197,10 +163,6 @@ export function useTextReaderEngine({
   // long after this component unmounts.
   const docsRef = useRef<Map<number, { doc: Document; cleanup: () => void }>>(new Map());
   const currentChapterIndexRef = useRef(0);
-
-  // Highlight metadata indexed by CFI so draw-annotation knows what color to
-  // paint. Mirrors mobile's highlightInfo Map.
-  const highlightInfoRef = useRef<Map<string, { id: string; color: HighlightColor }>>(new Map());
 
   // ── Apply prefs to the renderer (style CSS) ───────────────────────────
   const applyTheme = useCallback(() => {
@@ -259,7 +221,6 @@ export function useTextReaderEngine({
         if (spineTotal > 0) {
           setTotalLocations(spineTotal);
           setGlobalPage(1);
-          globalPageRef.current = 1;
         }
 
         // ── Listeners ───────────────────────────────────────────────────
@@ -267,27 +228,17 @@ export function useTextReaderEngine({
           if (dead) return;
           const detail = (ev as CustomEvent<FoliateRelocateDetail>).detail;
           if (!detail) return;
-          const cfi = detail.cfi ?? '';
-          if (cfi) { cfiRef.current = cfi; saveLastCfi(cfi); }
-
-          const pct = Math.round((detail.fraction ?? 0) * 100);
-          setPercent(pct);
 
           // Prefer foliate's location counter when available (it auto-computes
           // page-equivalents from text size). Fall back to spine index.
           const loc = detail.location;
           if (loc && loc.total > 0) {
             const pg = Math.max(1, Math.min(loc.total, (loc.current ?? 0) + 1));
-            globalPageRef.current = pg;
             setGlobalPage(pg);
             setTotalLocations(loc.total);
           } else if (typeof detail.index === 'number') {
-            const pg = detail.index + 1;
-            globalPageRef.current = pg;
-            setGlobalPage(pg);
+            setGlobalPage(detail.index + 1);
           }
-
-          if (cfi) progressCbRef.current?.(pct, cfi);
 
           // tocItem is resolved by foliate from the current range, so we get
           // a chapter label without scanning the TOC manually.
@@ -300,20 +251,6 @@ export function useTextReaderEngine({
           if (!detail || !detail.doc) return;
           currentChapterIndexRef.current = detail.index;
           attachChapterListeners(detail.doc, detail.index);
-        });
-
-        view.addEventListener('draw-annotation', (ev) => {
-          const detail = (ev as CustomEvent<FoliateDrawAnnotationDetail>).detail;
-          if (!detail) return;
-          const info = highlightInfoRef.current.get(detail.annotation.value);
-          const colorKey: HighlightColor = (info?.color ?? 'yellow');
-          const fill = HIGHLIGHT_COLORS[colorKey];
-          const Overlayer = window.__foliate?.Overlayer;
-          if (Overlayer && typeof Overlayer.highlight === 'function') {
-            try {
-              detail.draw(Overlayer.highlight, { color: fill });
-            } catch { /* drawing fail; non-fatal */ }
-          }
         });
 
         // ── Renderer attributes (paginated flow, animated nav, margins) ─
@@ -329,23 +266,10 @@ export function useTextReaderEngine({
           } catch { /* attribute set fail; non-fatal */ }
         }
         applyThemeRef.current();
-
-        // ── Restore CFI ─────────────────────────────────────────────────
-        if (startCfi.current) {
-          try { await view.goTo(startCfi.current); }
-          catch { /* invalid stored CFI — leave at book start */ }
-        }
         if (dead) return;
 
         // ── TOC ─────────────────────────────────────────────────────────
         setToc(flattenFoliateToc(view.book.toc));
-
-        // ── Replay stored highlights ────────────────────────────────────
-        for (const h of highlightsRef.current) {
-          highlightInfoRef.current.set(h.cfi, { id: h.id, color: h.color });
-          try { void view.addAnnotation({ value: h.cfi, color: h.color, id: h.id }); }
-          catch { /* stale CFI */ }
-        }
 
         setReady(true);
       } catch (err) {
@@ -375,22 +299,16 @@ export function useTextReaderEngine({
             const sel = doc.defaultView?.getSelection();
             if (!sel || sel.rangeCount === 0) {
               setSelectedText('');
-              setSelectedCfi(null);
               setContextSentence(undefined);
               return;
             }
             const text = cleanSelectionText(sel);
             if (!text) {
               setSelectedText('');
-              setSelectedCfi(null);
               setContextSentence(undefined);
               return;
             }
-            let cfi = '';
-            try { cfi = viewRef.current?.getCFI(index, sel.getRangeAt(0)) ?? ''; }
-            catch { /* keep blank */ }
             setSelectedText(text);
-            setSelectedCfi(cfi || null);
             setContextSentence(extractSentenceFromSelection(sel));
           } catch { /* ignore */ }
         });
@@ -399,15 +317,10 @@ export function useTextReaderEngine({
       const onContextMenu = (e: MouseEvent) => {
         const sel = doc.defaultView?.getSelection();
         const text = sel ? cleanSelectionText(sel) : '';
-        if (!text) { setSelectedCfi(null); return; }
+        if (!text) return;
         e.preventDefault();
-        try {
-          const range = sel?.getRangeAt(0);
-          const cfi = range ? (viewRef.current?.getCFI(index, range) ?? '') : '';
-          setSelectedText(text);
-          setSelectedCfi(cfi || null);
-          setContextSentence(sel ? extractSentenceFromSelection(sel) : undefined);
-        } catch { /* ignore */ }
+        setSelectedText(text);
+        setContextSentence(sel ? extractSentenceFromSelection(sel) : undefined);
         // Translate iframe-relative coords to window coords. The chapter
         // iframe sits inside foliate's shadow root, but we know its
         // containing <foliate-view> is positioned absolutely over the
@@ -489,52 +402,6 @@ export function useTextReaderEngine({
     setIsSpeaking(true);
   }, [isSpeaking]);
 
-  // ── Bookmarks ─────────────────────────────────────────────────────────
-  const addBookmark = useCallback(() => {
-    const cfi = cfiRef.current;
-    if (!cfi) return;
-    addEpubBookmark({ cfi, label: `Page ${globalPageRef.current}/${totalLocations} · ${percent}%` });
-  }, [totalLocations, percent, addEpubBookmark]);
-
-  // ── Highlights ────────────────────────────────────────────────────────
-  const applyHighlight = useCallback(
-    (color: HighlightColor) => {
-      const view = viewRef.current;
-      if (!view || !selectedText || !selectedCfi) return;
-
-      const existing = epubHighlights.find((h) => h.cfi === selectedCfi);
-      if (existing) {
-        try { view.deleteAnnotation({ value: existing.cfi }); } catch { /* ok */ }
-        highlightInfoRef.current.delete(existing.cfi);
-        if (existing.color === color) {
-          removeEpubHighlight(existing.id);
-        } else {
-          updateEpubHighlightColor(existing.id, color);
-          highlightInfoRef.current.set(selectedCfi, { id: existing.id, color });
-          try { void view.addAnnotation({ value: selectedCfi, color, id: existing.id }); } catch { /* ok */ }
-        }
-        return;
-      }
-
-      const h = addEpubHighlight({ cfi: selectedCfi, text: selectedText, color, note: '' });
-      highlightInfoRef.current.set(selectedCfi, { id: h.id, color });
-      try { void view.addAnnotation({ value: selectedCfi, color, id: h.id }); } catch { /* ok */ }
-    },
-    [selectedText, selectedCfi, epubHighlights, addEpubHighlight, removeEpubHighlight, updateEpubHighlightColor],
-  );
-
-  const deleteHighlight = useCallback(
-    (id: string) => {
-      const h = epubHighlights.find((x) => x.id === id);
-      if (h) {
-        try { viewRef.current?.deleteAnnotation({ value: h.cfi }); } catch { /* ok */ }
-        highlightInfoRef.current.delete(h.cfi);
-      }
-      removeEpubHighlight(id);
-    },
-    [epubHighlights, removeEpubHighlight],
-  );
-
   // ── Keyboard ──────────────────────────────────────────────────────────
   // Bindings live in `lib/shortcuts/registry.ts`; the global keydown listener
   // is mounted by ShortcutsProvider. `useShortcut` captures the handler in a
@@ -542,11 +409,6 @@ export function useTextReaderEngine({
   useShortcut('reader:page-next', () => { onRightBtn(); });
   useShortcut('reader:page-prev', () => { onLeftBtn(); });
   useShortcut('reader:tts-toggle', () => { toggleTts(); });
-  useShortcut('reader:bookmark', () => { addBookmark(); });
-  useShortcut('reader:highlight-yellow', () => {
-    if (!selectedText || !selectedCfi) return false;
-    applyHighlight('yellow');
-  });
 
   // ── Close context menu on outside click / scroll ──────────────────────
   useEffect(() => {
@@ -609,7 +471,6 @@ export function useTextReaderEngine({
     isSpeaking,
     selectedText,
     contextSentence,
-    selectedCfi,
     ctxMenu,
     setCtxMenu,
     translation,
@@ -622,13 +483,6 @@ export function useTextReaderEngine({
     onRightBtn,
     goToPage,
     toggleTts,
-    addBookmark,
-    // highlights
-    epubHighlights,
-    epubBookmarks,
-    applyHighlight,
-    deleteHighlight,
-    removeEpubBookmark,
     // RTL flag passes through
     rtl,
   };

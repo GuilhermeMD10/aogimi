@@ -1,4 +1,5 @@
-import { openDB, type IDBPDatabase } from 'idb';
+import { getDb, META_STORE, FILES_STORE } from './booksDb';
+export { wipeBookDatabase } from './booksDb';
 import {
   registerBook as apiRegisterBook,
   getUserBooks,
@@ -8,7 +9,6 @@ import {
 import type { BookProgressRecord } from '@/lib/types';
 import { computeEpubIdentity, extractEpubData, type EpubData } from '@/lib/epubIdentity';
 import { computePdfIdentity, extractPdfData } from '@/lib/pdfIdentity';
-import { wipeBookLocalState } from '@/lib/auth/wipeBookLocalState';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,62 +73,11 @@ export interface BookRecord {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const DB_NAME = 'aogimi-books';
-const DB_VERSION = 1;
-const META_STORE = 'metadata';
-const FILES_STORE = 'files';
-
 /** Fallback cover colors assigned round-robin on import */
 const COVER_PALETTE = [
   '#6B5A45', '#2E5D4E', '#8E3B36', '#263B5C',
   '#4A4038', '#7A5330', '#3B5249', '#5C4033',
 ];
-
-// ── DB init ──────────────────────────────────────────────────────────────────
-
-let dbPromise: Promise<IDBPDatabase> | null = null;
-
-/**
- * Delete the entire aogimi-books IndexedDB database and drop the cached
- * connection. Used by the account-switch wipe so books from the previous
- * user don't leak into the new account's library. Best-effort; failures
- * resolve quietly so a `blocked` state (another tab holding a handle) does
- * not break sign-in.
- */
-export async function wipeBookDatabase(): Promise<void> {
-  if (dbPromise) {
-    try {
-      const db = await dbPromise;
-      db.close();
-    } catch {
-      /* already closed */
-    }
-    dbPromise = null;
-  }
-  if (typeof indexedDB === 'undefined') return;
-  await new Promise<void>((resolve) => {
-    const req = indexedDB.deleteDatabase(DB_NAME);
-    req.onsuccess = () => resolve();
-    req.onerror = () => resolve();
-    req.onblocked = () => resolve();
-  });
-}
-
-function getDb() {
-  if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(META_STORE)) {
-          db.createObjectStore(META_STORE, { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains(FILES_STORE)) {
-          db.createObjectStore(FILES_STORE);
-        }
-      },
-    });
-  }
-  return dbPromise;
-}
 
 // ── Storage durability ───────────────────────────────────────────────────────
 
@@ -263,13 +212,11 @@ export async function importBook(
   );
   if (existingRecord && !sameBytes) {
     // Same filename, different bytes. The new file_blob will overwrite
-    // the existing entry (same primary key) via the transaction below,
-    // so we only need to drop the per-filename local state here. Warn
-    // so a debug session can see that a stealth replace happened.
+    // the existing entry (same primary key) via the transaction below.
+    // Warn so a debug session can see that a stealth replace happened.
     console.warn(
-      `[bookStore] filename collision: replacing "${file.name}" (different file_hash); local highlights/CFI/bookmarks dropped`,
+      `[bookStore] filename collision: replacing "${file.name}" (different file_hash)`,
     );
-    wipeBookLocalState(file.name);
   }
 
   // Assign a cover color from the palette based on current book count.
