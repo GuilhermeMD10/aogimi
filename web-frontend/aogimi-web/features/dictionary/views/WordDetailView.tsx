@@ -5,7 +5,7 @@ import { ArrowLeft, Plus, Volume2, Star } from 'lucide-react';
 import { InfoRow } from '@/shared/ui/InfoRow';
 import { JlptChip } from '@/shared/ui/JlptChip';
 import { SectionHead } from '@/shared/ui/SectionHead';
-import { getWordDetails } from '@/lib/dictApi';
+import { getWordDetails } from '../lib/dictApi';
 import type { DetailsResponse } from '@/lib/types';
 import { MAX_MEANINGS_ON_CARD } from '@/components/decks/utils/cardLimits';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';

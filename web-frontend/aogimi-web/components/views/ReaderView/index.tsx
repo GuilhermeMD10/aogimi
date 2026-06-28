@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { EpubReader } from '@/components/reader/EpubReader';
 import { PdfReader } from '@/components/reader/PdfReader';
-import { DictionarySidekick } from '@/components/views/DictionaryView/DictionarySidekick';
+import { DictionarySidekick } from '@/features/dictionary';
 import { getAllBooks, getBookFile, ensureBackendBook, renameBook as renameLocalBook } from '@/components/books/utils/bookStore';
 import { getUserBooks, updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/components/books/utils/booksApi';
 import { deleteBookEverywhere } from '@/components/books/utils/deleteBook';

@@ -1,4 +1,4 @@
-import { apiGet } from './api';
+import { apiGet } from '@/lib/api';
 import type { DetailsResponse, SearchResponse } from '@/lib/types';
 
 export function searchDictionary(q: string, signal?: AbortSignal): Promise<SearchResponse> {

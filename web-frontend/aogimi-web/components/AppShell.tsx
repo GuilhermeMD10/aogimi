@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ReaderStateProvider, useReaderState } from '@/components/providers/ReaderStateProvider';
-import { DictionaryStateProvider } from '@/components/providers/DictionaryStateProvider';
+import { DictionaryStateProvider } from '@/features/dictionary';
 import { DecksProvider } from '@/components/providers/DecksProvider';
 import WorkspaceNav from '@/components/WorkspaceNav';
 import ReaderBubble from '@/components/page-bubbles/ReaderBubble';

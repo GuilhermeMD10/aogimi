@@ -11,11 +11,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Search, X } from 'lucide-react';
-import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
+import { useDictionaryState } from '../providers/DictionaryStateProvider';
 import { useReaderActions } from '@/components/providers/useReaderActions';
-import WordDetailView, { preferredHeadword } from '@/components/views/WordDetailView';
+import WordDetailView, { preferredHeadword } from './WordDetailView';
 import type { WordResult } from '@/lib/types';
-import { getRecentSearches, type RecentSearchItem } from '@/lib/storage/dictionary';
+import { getRecentSearches, type RecentSearchItem } from '../lib/storage';
 
 export type DictionarySidekickProps = {
   onClose: () => void;

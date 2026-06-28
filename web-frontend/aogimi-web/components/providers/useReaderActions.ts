@@ -3,7 +3,7 @@
 import { useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { useReaderState } from './ReaderStateProvider';
-import { useDictionaryState } from './DictionaryStateProvider';
+import { useDictionaryState } from '@/features/dictionary/providers/DictionaryStateProvider';
 
 // Routes where the dictionary surface is *always* visible; lookups skip the
 // floating bubble and just feed the visible surface. `/reader` is conditional
