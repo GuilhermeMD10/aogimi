@@ -1,1 +1,0 @@
-export { DeepLTranslationPopup } from './DeepLTranslationPopup';

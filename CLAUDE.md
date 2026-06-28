@@ -110,7 +110,7 @@ Domain types are in `lib/types/` (NOT in `lib/<x>Api.ts` files — those only ex
 Documented in the **Features** section of `web-frontend/aogimi-web/PROJECT_CONTEXT.md`. When a new app-level feature lands (something a user can name — "shortcuts", "highlights sync", "deck import", …), add a subsection there: what it is, entry-point files, where state lives, any non-obvious behaviour. Keep entries terse; deep details belong in the source.
 
 Currently documented features:
-- **Keyboard shortcuts** — typed registry in `lib/shortcuts/registry.ts`, runtime in `components/providers/ShortcutsProvider.tsx`, cheatsheet modal opened by `Shift + ?`. Consumers subscribe via `useShortcut(id, fn)`.
+- _(none — the keyboard-shortcuts feature was removed.)_
 
 ### Mobile: mirrors the web theme pattern
 

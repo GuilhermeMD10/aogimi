@@ -26,7 +26,3 @@ export type {
   UserProfile,
   ProfileUpdate,
 } from './user';
-
-export type {
-  TranslationResult,
-} from './translate';

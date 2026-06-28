@@ -16,7 +16,6 @@ import {
   type FoliateLoadDetail,
   type FoliateViewElement,
 } from '@/lib/foliate';
-import { useShortcut } from '@/components/providers/ShortcutsProvider';
 
 // ── Ruby / reading stripping ────────────────────────────────────────────────
 
@@ -171,7 +170,6 @@ export function useTextReaderEngine({
   const [selectedText, setSelectedText] = useState('');
   const [contextSentence, setContextSentence] = useState<string | undefined>(undefined);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
-  const [translation, setTranslation] = useState<{ text: string; x: number; y: number } | null>(null);
 
   const ctxMenuRef = useRef<HTMLDivElement>(null);
   const typoPanelRef = useRef<HTMLDivElement>(null);
@@ -443,14 +441,6 @@ export function useTextReaderEngine({
     setIsSpeaking(true);
   }, [isSpeaking]);
 
-  // ── Keyboard ──────────────────────────────────────────────────────────
-  // Bindings live in `lib/shortcuts/registry.ts`; the global keydown listener
-  // is mounted by ShortcutsProvider. `useShortcut` captures the handler in a
-  // ref so passing a new closure on every render doesn't re-bind.
-  useShortcut('reader:page-next', () => { onRightBtn(); });
-  useShortcut('reader:page-prev', () => { onLeftBtn(); });
-  useShortcut('reader:tts-toggle', () => { toggleTts(); });
-
   // ── Close context menu on outside click / scroll ──────────────────────
   useEffect(() => {
     if (!ctxMenu) return;
@@ -514,8 +504,6 @@ export function useTextReaderEngine({
     contextSentence,
     ctxMenu,
     setCtxMenu,
-    translation,
-    setTranslation,
     // prefs (for typography panel)
     prefs,
     savePrefs,

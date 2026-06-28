@@ -5,7 +5,7 @@ Last reviewed: 2026-06-27
 Base URL: NEXT_PUBLIC_API_URL (default: http://localhost:3000)
 HTTP helpers live in lib/api.ts (apiUrl, apiGet, apiSend, apiSendVoid).
 Both apiSend and apiSendVoid accept an optional AbortSignal.
-Domain types live in lib/types/{book,deck,dict,user,device,translate}.ts.
+Domain types live in lib/types/{book,deck,dict,user,device}.ts.
 
 
 ==============================================================================
@@ -237,11 +237,7 @@ KanjiInfo shape:
 6. INTERNAL NEXT.JS API ROUTES (server-side proxies)
 ==============================================================================
 
-POST /api/translate                    (app/api/translate/route.ts)
-  Trigger:   Text selection in reader → DeepL popup (manual)
-  Request:   { text }
-  Response:  { translatedText, detectedLanguage }
-  Proxies:   DeepL free tier (api-free.deepl.com/v2/translate)
+(none — there are no internal Next.js API routes.)
 
 
 ==============================================================================
@@ -364,8 +360,8 @@ SUMMARY
 Total backend endpoints:   28
   GET:     8   POST:   8   PUT:    7   PATCH:  1   DELETE: 4
 
-Internal API routes:        2  (translate proxy, pdf-reader)
-External APIs:              1  (DeepL translation)
+Internal API routes:        0  (none)
+External APIs:              0  (none)
 
 Frequency:
   On page mount (auto):     GET /api/books/user, /api/decks/user, /api/user,
