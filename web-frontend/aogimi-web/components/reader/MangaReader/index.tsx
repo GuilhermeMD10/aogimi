@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { ICON_BTN, ICON_BTN_ON } from '@/components/reader/readerConstants';
 import { ReaderProgressBar } from '@/components/reader/ReaderProgressBar';
-import { useMangaReaderEngine, type ViewMode } from './useMangaReaderEngine';
+import { useMangaReaderEngine, type ViewMode, type MangaRelocateSnapshot } from './useMangaReaderEngine';
 import { MangaReaderBody } from './MangaReaderBody';
 
 export type MangaReaderProps = {
@@ -22,6 +22,12 @@ export type MangaReaderProps = {
   onBack: () => void;
   sidekickOpen?: boolean;
   onToggleSidekick?: () => void;
+  /** CFI restore is not used for fixed-layout; manga restores by spine index. */
+  initialCfi?: string | null;
+  /** Spine index to restore to on open. */
+  initialSpineIndex?: number | null;
+  /** Position callback for progress sync, fired on every page turn. */
+  onRelocate?: (snapshot: MangaRelocateSnapshot) => void;
 };
 
 const VIEW_MODES: { key: ViewMode; label: string }[] = [
@@ -41,8 +47,10 @@ export function MangaReader({
   onBack,
   sidekickOpen = false,
   onToggleSidekick,
+  initialSpineIndex,
+  onRelocate,
 }: MangaReaderProps) {
-  const engine = useMangaReaderEngine({ blob });
+  const engine = useMangaReaderEngine({ blob, initialSpineIndex, onRelocate });
   const {
     currentPage,
     currentPageRef,

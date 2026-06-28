@@ -8,6 +8,15 @@ import { makeBookFromBlob } from '@/lib/foliate';
 
 // ── Props (same interface as before — nothing changes for consumers) ─────────
 
+/** Position snapshot forwarded from whichever sub-reader is active, consumed
+ *  by `useProgressSync`. Same shape across all reader types. */
+export type ReaderRelocateSnapshot = {
+  cfi: string;
+  progress: number;
+  spineIndex: number;
+  totalSpineItems: number;
+};
+
 type Props = {
   fileUrl: string;
   bookTitle: string;
@@ -19,6 +28,12 @@ type Props = {
   sidekickOpen?: boolean;
   /** Toggle the sidekick visibility from the reader toolbar. */
   onToggleSidekick?: () => void;
+  /** CFI to restore to on open (flowing EPUBs). */
+  initialCfi?: string | null;
+  /** Spine index to restore to on open (fixed-layout / manga EPUBs). */
+  initialSpineIndex?: number | null;
+  /** Position callback for progress sync, fired on every page turn. */
+  onRelocate?: (snapshot: ReaderRelocateSnapshot) => void;
 };
 
 type ReaderType = 'text' | 'novel' | 'manga';
@@ -37,6 +52,9 @@ export function EpubReader({
   onBack,
   sidekickOpen,
   onToggleSidekick,
+  initialCfi,
+  initialSpineIndex,
+  onRelocate,
 }: Props) {
   const [blob, setBlob] = useState<Blob | null>(null);
   const [readerType, setReaderType] = useState<ReaderType | null>(null);
@@ -106,6 +124,7 @@ export function EpubReader({
     blob, bookTitle,
     onLookup, onAddCard, onBack,
     sidekickOpen, onToggleSidekick,
+    initialCfi, initialSpineIndex, onRelocate,
   };
 
   switch (readerType) {

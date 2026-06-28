@@ -6,6 +6,7 @@
 
 import { deleteBook as deleteLocalBook } from './bookStore';
 import { deleteBookRecord } from './booksApi';
+import { clearReaderProgress } from '@/lib/storage/readerSession';
 import type { Book } from '../types';
 
 /**
@@ -13,6 +14,8 @@ import type { Book } from '../types';
  *   1. Backend `book_progress` row (and the cascading device availability
  *      the API drops with it).
  *   2. IndexedDB `metadata` + `files` rows in the books DB.
+ *   3. The localStorage reading-position snapshot, so a later re-import of
+ *      the same filename doesn't resume from a stale position.
  *
  * Each step is best-effort and independent — a failure in one does not
  * prevent the others. Step 2 is a no-op on books that never lived here
@@ -24,4 +27,5 @@ export async function deleteBookEverywhere(book: Book): Promise<void> {
     await deleteBookRecord(book.backendId).catch(() => undefined);
   }
   await deleteLocalBook(book.id).catch(() => undefined);
+  clearReaderProgress(book.filename);
 }

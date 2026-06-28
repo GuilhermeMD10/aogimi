@@ -8,13 +8,21 @@ import type { BookRecord } from '@/components/books/utils/bookStore';
 //   - the dictionary sidekick toggle
 //   - the pending flashcard hand-off to /decks
 //   - the auto-open-book signal for cross-route shortcuts
-// Reading-position / progress sync was removed entirely — position is no
-// longer tracked on the client or the server. Dict/card pending fields
-// collapsed into `useReaderActions` — see that file.
+// Reading-position sync lives in `ReaderView/useProgressSync`; the session
+// just carries the backend id + the restore anchor it resolved on open.
+// Dict/card pending fields collapsed into `useReaderActions` — see that file.
 
 export type ReaderSession = {
   activeBook: BookRecord;
   fileUrl: string;
+  /** Backend `book_progress` id, resolved on open. Absent when the backend
+   *  was unreachable at open time — the session then reads/writes position
+   *  to localStorage only (no cross-device sync this session). */
+  backendBookId?: string;
+  /** CFI to restore to on open (flowing EPUBs). Null = open at the start. */
+  initialCfi?: string | null;
+  /** Spine index to restore to on open (fixed-layout / manga EPUBs). */
+  initialSpineIndex?: number | null;
 };
 
 /**
