@@ -6,7 +6,7 @@ A primer for new contributors and agents. Read this first; specialised docs ([DE
 
 ## What this is
 
-Aogimi is a **Japanese reading + vocabulary app**. Users import EPUBs / PDFs, read in-app, look up words against JMdict / KANJIDIC2, and build flashcard decks for spaced study. Decks, devices, and profile/study settings sync to a Postgres backend; the actual book files live per-device (IndexedDB) and are reconciled by hash on demand. Books always open at the start — reading position is not tracked (the backend `book_progress.progress` column is written only by the explicit "mark finished" action).
+Aogimi is a **Japanese reading + vocabulary app**. Users import EPUBs / PDFs, read in-app, look up words against JMdict / KANJIDIC2, and build flashcard decks for spaced study. Decks, devices, and profile/study settings sync to a Postgres backend; the actual book files live per-device (IndexedDB) and are reconciled by hash on demand. EPUB reading position is buffered in localStorage on every page turn and flushed to the backend `book_progress` row periodically + on exit, so books resume where you left off (across devices); see the Reader section. PDF position is not tracked yet.
 
 The app ships as a single Next.js client. There's a separate Expo mobile app (`mobile-frontend/langecko-mobile`) that mirrors the same backend; this doc is **web-only**.
 
@@ -130,7 +130,7 @@ All state is in **React Context providers**, mounted by `AppShell`. Nothing in l
 | `AuthProvider` | Current user, login/signup/logout flows. **Token storage = "memory + httpOnly cookie"**: the access token lives in-memory only ([`lib/auth/tokenStore.ts`](lib/auth/tokenStore.ts)), the refresh token is an httpOnly cookie set by the backend (never readable by JS). On boot, a silent `/api/auth/refresh` re-mints the access token from the cookie. Session-invalidation hook in [`lib/api.ts`](lib/api.ts) auto-signs-out on unrecoverable 401/403. See [`../../docs/AUTH.md`](../../docs/AUTH.md). | `auth_user` only (tokens are no longer in localStorage) |
 | `ThemeProvider` | The single `default` theme (no setter that persists; kept as plumbing for a future redesign) | (none — no longer persisted) |
 | `ShortcutsProvider` | Global keydown dispatcher + cheatsheet open state | (in-memory only) |
-| `ReaderStateProvider` | Active book session (`{ activeBook, fileUrl }`), sidekick toggle, and the three cross-route pending signals (`pendingDictSearch`, `pendingCard`, `pendingBookOpen`). No progress sync — books open at the start and reading position is not tracked. | (none) |
+| `ReaderStateProvider` | Active book session (`{ activeBook, fileUrl, backendBookId?, initialCfi?, initialSpineIndex? }`), sidekick toggle, and the three cross-route pending signals (`pendingDictSearch`, `pendingCard`, `pendingBookOpen`). Reading-position sync itself lives in `ReaderView/useProgressSync` (the session just carries the backend id + restore anchor). | (none) |
 | `DictionaryStateProvider` | Search query/results, recent searches, active word | `dictionary_state`, `dictionary_recent_searches` |
 | `BubbleProvider` | Which page-bubble (Profile/Reader) is active | (in-memory only) |
 
@@ -250,7 +250,7 @@ A typed registry + cheatsheet. One source of truth for every shortcut in the app
 
 Tracked in [DECISIONS.md](DECISIONS.md). Highlights:
 
-- Reading-position persistence removed entirely — books always open at the start; only the explicit "mark finished" action writes `book_progress.progress`. Resume-where-you-left-off is deferred.
+- Reading-position persistence is **EPUB-only** (localStorage buffer + periodic/exit backend flush via `useProgressSync`); resume-where-you-left-off works across devices. PDF position is deferred (no backend column yet).
 - Highlights / bookmarks / annotations removed entirely (UI, storage, and foliate wiring) — not currently a feature.
 - Backend-backed theme storage deferred (theme is the single `default`, not persisted).
 - Backend-backed reader typography prefs deferred (in-memory only, reset each time a book opens).

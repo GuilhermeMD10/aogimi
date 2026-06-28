@@ -120,7 +120,7 @@ Same three-layer system (`theme/tokens.ts`, `theme/createThemedComponent.tsx`, `
 
 ### Books: per-device storage + Postgres metadata
 
-EPUB/PDF blobs never go to Postgres. On web they live in a **single IndexedDB database `aogimi`** (`components/books/utils/booksDb.ts` is the sole connection factory; stores: `metadata`, `files` blobs, `handles` for the File System Access directory handle). On mobile they live in `expo-file-system documents/books/`. The backend stores **only metadata** in `book_progress` rows — reading *position* is no longer tracked anywhere (see DECISIONS.md; the `progress` column is now touched only by the explicit "mark finished" action).
+EPUB/PDF blobs never go to Postgres. On web they live in a **single IndexedDB database `aogimi`** (`components/books/utils/booksDb.ts` is the sole connection factory; stores: `metadata`, `files` blobs, `handles` for the File System Access directory handle). On mobile they live in `expo-file-system documents/books/`. The backend stores **metadata + reading position** in `book_progress` rows (EPUB CFI / spine index / percent) — see *Reading progress / position* below and DECISIONS.md.
 
 The `aogimi` DB merged two former databases (`aogimi-books` + `aogimi-fs`); `booksDb.getDb()` runs a one-time, idempotent copy-then-delete migration from them on first open.
 
@@ -134,7 +134,12 @@ Library mount on the web reconciles all three storage layers (`components/librar
 
 ### Reading progress / position
 
-**Removed.** Reading position (CFI / page / scroll) is no longer persisted on the client or synced to the backend — the reader opens every book at the start. The debounced sync + `navigator.sendBeacon` tab-close path and the per-book localStorage state are gone (see DECISIONS.md, client-storage simplification). Reader typography prefs are in-memory only (reset per open) pending backend-backed storage.
+**Backend-buffered, EPUB only.** Position is captured from foliate's `relocate` event in the reader engines and persisted in two tiers (rationale in DECISIONS.md — deliberately *not* a per-turn backend write):
+
+- **localStorage** (`lib/storage/readerSession.ts`, key `reader_progress_<filename>`) is written on every page turn — cheap, no network, the per-device buffer / source of truth between flushes.
+- **The backend** (`book_progress.cfi_position` / `spine_index` / `progress` via `PUT/POST /api/books/:id/progress`) is flushed only **periodically** (~60s backstop), **on exit** (`visibilitychange:hidden` / `pagehide` via a keepalive POST — `fetch(keepalive)`, *not* `sendBeacon`, so it carries the in-memory Bearer token), and **on unmount** (normal fetch — "Back to library" is an SPA nav that fires no unload event).
+
+`components/views/ReaderView/useProgressSync.ts` owns the wiring; readers forward position via an `onRelocate` prop. On open, `ReaderView` resolves the restore anchor as the **newer** of the localStorage snapshot and the backend row (same device ⇒ local; switched device ⇒ backend) and the engine does a one-shot `goTo`. The first relocate of a session only **seeds the dedup baseline**, so opening a book never writes back the restored position — a manual "mark finished" (`{ progress: 100 }`) sticks until the user actually turns a page. PDF position is **not** tracked yet (no backend column). Reader typography prefs remain in-memory only (reset per open) pending backend-backed storage.
 
 ## Gotchas
 

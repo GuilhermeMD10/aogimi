@@ -58,6 +58,8 @@ added maintenance surface for features that weren't being used.
   the debounced + `sendBeacon` backend sync, and backend-CFI restore. Books now
   always open at the start. (Backend `book_progress.progress` column kept;
   written only by the explicit "mark finished" action.)
+  **[Partially superseded — EPUB reading-position sync was re-added; see
+  "Reading-position sync (re-added)" below.]**
 - **Config caches in localStorage** — `app-theme`, per-book reader prefs
   (`reader_book_*`), `study_display_prefs_v1`, `study_deck_overrides_v1`,
   `lgc_avatar_index`. Study/deck prefs + avatar now read the backend as the
@@ -81,3 +83,41 @@ added maintenance surface for features that weren't being used.
   book open).
 - [ ] Backend-backed **theme** selection (currently always `default`, not
   persisted).
+
+---
+
+## Reading-position sync (re-added — 2026-06)
+
+Resume-where-you-left-off was brought back for **EPUB** (PDF deferred).
+Deliberately *not* the naive "POST on every page turn" — it buffers locally and
+flushes sparingly to keep backend write load low.
+
+**How it works**
+- Position is captured from foliate's `relocate` event in the reader engines and
+  forwarded up via an `onRelocate` prop.
+- **localStorage** (`lib/storage/readerSession.ts`, `reader_progress_<filename>`)
+  is written every page turn — cheap, no network; the per-device buffer.
+- **Backend** (`book_progress.cfi_position` / `spine_index` / `progress`) is
+  flushed only periodically (~60s backstop), on exit (`visibilitychange:hidden` /
+  `pagehide` via a keepalive POST), and on unmount ("Back to library", which
+  fires no unload event). `components/views/ReaderView/useProgressSync.ts` owns
+  this; dedup'd, so a stationary reader posts nothing.
+- On open, `ReaderView` resolves the restore anchor as the **newer** of the
+  localStorage snapshot and the backend row (newer-wins → same device uses local,
+  switched device uses backend); the engine does a one-shot `goTo`.
+
+**Decisions**
+- **Keepalive POST, not `sendBeacon`.** The old beacon couldn't set the
+  `Authorization` header; now that data endpoints require the in-memory Bearer
+  token, `fetch(keepalive)` is the only exit-safe transport that authenticates.
+- **First-relocate-seeds-only.** The first relocate of a session (initial load +
+  the restore `goTo` echo) only seeds the dedup baseline and is never flushed, so
+  opening a book can't overwrite stored progress. This makes "mark finished"
+  (`{ progress: 100 }`) sticky until the user actually turns a page.
+- **localStorage stays the buffer** despite the simplification favouring the
+  backend as source of truth — here it's a write-buffer + crash-safety net, while
+  the backend remains the cross-device source. Position only — no
+  highlights/bookmarks came back.
+
+**Still deferred**
+- [ ] PDF reading position (needs a `page` / scroll column on `book_progress`).
