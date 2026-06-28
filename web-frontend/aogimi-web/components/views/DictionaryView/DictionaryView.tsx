@@ -12,9 +12,9 @@ import {
   RecentColumn,
   TipsRow,
 } from '@/components/views/DictionaryView/DictionaryQuiet';
-import { InfoRow } from '@/components/ui/InfoRow';
-import { JlptChip } from '@/components/ui/JlptChip';
-import { SectionHead } from '@/components/ui/SectionHead';
+import { InfoRow } from '@/shared/ui/InfoRow';
+import { JlptChip } from '@/shared/ui/JlptChip';
+import { SectionHead } from '@/shared/ui/SectionHead';
 import type { KanjiInfo, WordResult } from '@/lib/types';
 
 // /dictionary surface. The hero (kicker + title + subhead + big focused

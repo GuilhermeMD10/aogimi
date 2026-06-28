@@ -6,7 +6,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet';
+} from '@/shared/ui/sheet';
 import type { StudyMode } from '../types';
 
 // Per-deck session config — mirror of mobile SessionConfigSheet.

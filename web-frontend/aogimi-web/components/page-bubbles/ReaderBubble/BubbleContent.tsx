@@ -16,11 +16,11 @@ import type {
   SearchResponse,
   WordResult,
 } from '@/lib/types';
-import { InfoRow } from '@/components/ui/InfoRow';
-import { SectionHead } from '@/components/ui/SectionHead';
+import { InfoRow } from '@/shared/ui/InfoRow';
+import { SectionHead } from '@/shared/ui/SectionHead';
 import { MAX_MEANINGS_ON_CARD } from '@/components/decks/utils/cardLimits';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
-import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';
+import { PitchAccentDiagram } from '@/shared/ui/PitchAccentDiagram';
 
 // Local (bubble-only) UI flow. Dictionary state itself lives in the
 // DictionaryStateProvider so the /dictionary page stays in sync.

@@ -1,4 +1,4 @@
-import type { IconName } from '@/components/icons';
+import type { IconName } from '@/shared/icons';
 
 // ── Nav items ───────────────────────────────────────────────────────────────
 

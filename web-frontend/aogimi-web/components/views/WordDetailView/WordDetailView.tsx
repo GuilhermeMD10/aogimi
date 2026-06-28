@@ -2,14 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Volume2, Star } from 'lucide-react';
-import { InfoRow } from '@/components/ui/InfoRow';
-import { JlptChip } from '@/components/ui/JlptChip';
-import { SectionHead } from '@/components/ui/SectionHead';
+import { InfoRow } from '@/shared/ui/InfoRow';
+import { JlptChip } from '@/shared/ui/JlptChip';
+import { SectionHead } from '@/shared/ui/SectionHead';
 import { getWordDetails } from '@/lib/dictApi';
 import type { DetailsResponse } from '@/lib/types';
 import { MAX_MEANINGS_ON_CARD } from '@/components/decks/utils/cardLimits';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
-import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';
+import { PitchAccentDiagram } from '@/shared/ui/PitchAccentDiagram';
 
 // If the user's query matches one of the entry's kanji or reading forms exactly,
 // surface that form instead of the dict's "primary" common kanji.
