@@ -1,7 +1,7 @@
 'use client';
 
 import { SectionCard } from '@/shared/ui/SectionCard';
-import type { BookProgressRecord } from '@/lib/types';
+import type { BookProgressRecord } from '@/features/books/types';
 
 export function CurrentlyReadingSection({ books }: { books: BookProgressRecord[] }) {
   return (

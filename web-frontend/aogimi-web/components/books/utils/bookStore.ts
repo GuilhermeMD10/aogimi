@@ -6,7 +6,7 @@ import {
   updateBookIdentity as apiUpdateBookIdentity,
   updateBookTitle as apiUpdateBookTitle,
 } from './booksApi';
-import type { BookProgressRecord } from '@/lib/types';
+import type { BookProgressRecord } from '@/features/books/types';
 import { computeEpubIdentity, extractEpubData, type EpubData } from '@/lib/epubIdentity';
 import { computePdfIdentity, extractPdfData } from '@/lib/pdfIdentity';
 

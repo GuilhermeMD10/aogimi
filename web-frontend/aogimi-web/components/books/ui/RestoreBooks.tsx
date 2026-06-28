@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { BookOpen, CheckCircle2, CloudOff } from 'lucide-react';
 import { locateAndAttachFile } from '../utils/locateAndAttachFile';
-import type { BookProgressRecord } from '@/lib/types';
+import type { BookProgressRecord } from '@/features/books/types';
 import type { Book } from '../types';
 
 export default function RestoreBooks({

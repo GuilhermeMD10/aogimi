@@ -14,7 +14,7 @@ import { ChevronRight, Search, X } from 'lucide-react';
 import { useDictionaryState } from '../providers/DictionaryStateProvider';
 import { useReaderActions } from '@/components/providers/useReaderActions';
 import WordDetailView, { preferredHeadword } from './WordDetailView';
-import type { WordResult } from '@/lib/types';
+import type { WordResult } from '../types';
 import { getRecentSearches, type RecentSearchItem } from '../lib/storage';
 
 export type DictionarySidekickProps = {

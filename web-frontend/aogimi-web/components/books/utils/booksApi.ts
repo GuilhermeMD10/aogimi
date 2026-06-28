@@ -5,7 +5,7 @@ import type {
   MatchCandidate,
   MatchResult,
   ProgressPayload,
-} from '@/lib/types';
+} from '@/features/books/types';
 
 // All helpers route through `lib/api` so a 401 with `USER_NOT_FOUND` from
 // any books call automatically participates in session invalidation —

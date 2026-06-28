@@ -4,7 +4,7 @@
 // `lib/auth/authApi.ts`.
 
 import { apiGet, apiSend, apiSendVoid } from './api';
-import type { ProfileUpdate, UserProfile } from '@/lib/types';
+import type { ProfileUpdate, UserProfile } from '@/features/profile/types';
 
 // Re-export for backwards-compatible imports across the app.
 export { loginUser, registerUser, logoutUser } from './auth/authApi';
