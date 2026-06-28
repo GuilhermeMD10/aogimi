@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useState } from 'react';
-import type { BookRecord } from '@/components/books/utils/bookStore';
+import type { BookRecord } from '@/features/books';
 
 // What's left in this provider is genuinely cross-cutting:
 //   - the active reader session + bubble overlay

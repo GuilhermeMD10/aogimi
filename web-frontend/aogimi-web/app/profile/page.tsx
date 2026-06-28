@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { getUserProfile, updateUserProfile } from '@/lib/userApi';
-import { getUserBooks } from '@/components/books/utils/booksApi';
+import { getUserBooks } from '@/features/books';
 import { getUserDecks } from '@/components/decks/utils/decksApi';
 import type { BookProgressRecord } from '@/features/books/types';
 import type { UserProfile } from '@/features/profile/types';

@@ -6,7 +6,7 @@
 
 import { deleteBook as deleteLocalBook } from './bookStore';
 import { deleteBookRecord } from './booksApi';
-import { clearReaderProgress } from '@/lib/storage/readerSession';
+import { clearReaderProgress } from './readerSession';
 import type { Book } from '../types';
 
 /**

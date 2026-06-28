@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { BookOpen, Search, Layers, ChevronRight, User, type LucideIcon } from 'lucide-react';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
-import { getUserBooks } from '@/components/books/utils/booksApi';
+import { getUserBooks } from '@/features/books';
 import type { BookProgressRecord } from '@/features/books/types';
 import {
   CoverMini,
