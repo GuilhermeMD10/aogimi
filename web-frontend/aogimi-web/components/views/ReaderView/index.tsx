@@ -17,7 +17,7 @@ import { useReaderActions } from '@/components/providers/useReaderActions';
 import { useProgressSync } from './useProgressSync';
 import { getReaderProgress } from '@/lib/storage/readerSession';
 import type { Book } from '@/components/books/types';
-import type { BookProgressRecord } from '@/lib/types';
+import type { BookProgressRecord } from '@/features/books/types';
 import { BooksDesk } from '@/components/books/ui/BooksDesk';
 import RestoreBooks from '@/components/books/ui/RestoreBooks';
 import FsAccessBanner from '@/components/books/ui/FsAccessBanner';

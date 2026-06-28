@@ -13,7 +13,7 @@ import type {
   KanjiInfo,
   SearchResponse,
   WordResult,
-} from '@/lib/types';
+} from '@/features/dictionary/types';
 import { InfoRow } from '@/shared/ui/InfoRow';
 import { SectionHead } from '@/shared/ui/SectionHead';
 import { MAX_MEANINGS_ON_CARD } from '@/components/decks/utils/cardLimits';

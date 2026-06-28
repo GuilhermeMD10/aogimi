@@ -6,7 +6,7 @@ import { BookOpen, Search, Layers, ChevronRight, User, type LucideIcon } from 'l
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
 import { getUserBooks } from '@/components/books/utils/booksApi';
-import type { BookProgressRecord } from '@/lib/types';
+import type { BookProgressRecord } from '@/features/books/types';
 import {
   CoverMini,
   DictEntry,

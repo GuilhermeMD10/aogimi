@@ -1,5 +1,5 @@
 import { apiGet } from '@/lib/api';
-import type { DetailsResponse, SearchResponse } from '@/lib/types';
+import type { DetailsResponse, SearchResponse } from '../types';
 
 export function searchDictionary(q: string, signal?: AbortSignal): Promise<SearchResponse> {
   return apiGet<SearchResponse>(`/api/search?q=${encodeURIComponent(q)}`, signal);

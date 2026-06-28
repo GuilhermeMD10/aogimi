@@ -2,7 +2,7 @@ import { importBook, type BookRecord } from './bookStore';
 import { computeEpubIdentity } from '@/lib/epubIdentity';
 import { computePdfIdentity } from '@/lib/pdfIdentity';
 import { matchBooks } from './booksApi';
-import type { MatchType } from '@/lib/types';
+import type { MatchType } from '@/features/books/types';
 
 const MAX_EPUB_SIZE = 50 * 1024 * 1024;
 const MAX_PDF_SIZE = 500 * 1024 * 1024;

@@ -6,8 +6,8 @@ import {
   syncLocalBooksToBackend,
   backfillBookIdentity,
 } from '../utils/bookStore';
-import type { BookProgressRecord } from '@/lib/types';
-import type { AuthUser } from '@/lib/types/user';
+import type { BookProgressRecord } from '@/features/books/types';
+import type { AuthUser } from '@/features/auth/types';
 import type { Book } from '../types';
 
 export type PageState = 'loading' | 'restore' | 'library';

@@ -4,7 +4,7 @@
 // the wrong password", not "your session is dead".
 
 import { apiSendPublic } from '../api';
-import type { UserProfile } from '@/lib/types';
+import type { UserProfile } from '@/features/profile/types';
 
 export type AuthSuccess = {
   user: UserProfile;

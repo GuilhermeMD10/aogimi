@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { searchDictionary } from '../lib/dictApi';
-import type { SearchResponse } from '@/lib/types';
+import type { SearchResponse } from '../types';
 import { getDictionaryState, pushRecentSearch, setDictionaryState } from '../lib/storage';
 
 // Single source of truth for the dictionary surface — query, results, the

@@ -1,7 +1,3 @@
-import type { StoredAuthUser } from '@/lib/storage/auth';
-
-export type AuthUser = StoredAuthUser;
-
 export interface UserProfile {
   id: number;
   username: string;

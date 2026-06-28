@@ -15,7 +15,7 @@ import {
 import { InfoRow } from '@/shared/ui/InfoRow';
 import { JlptChip } from '@/shared/ui/JlptChip';
 import { SectionHead } from '@/shared/ui/SectionHead';
-import type { KanjiInfo, WordResult } from '@/lib/types';
+import type { KanjiInfo, WordResult } from '../types';
 
 // /dictionary surface. The hero (kicker + title + subhead + big focused
 // search) is always rendered at the top so the search bar stays put across

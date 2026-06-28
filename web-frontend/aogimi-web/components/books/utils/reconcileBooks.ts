@@ -42,7 +42,7 @@ import {
   updateBookIdentity as apiUpdateBookIdentity,
 } from './booksApi';
 import { effectiveSyncState, pushAllPending, type SyncSummary } from '@/lib/sync';
-import type { BookProgressRecord } from '@/lib/types';
+import type { BookProgressRecord } from '@/features/books/types';
 
 export type ReconcileSummary = {
   /** Filenames whose local state was wiped because the backend file_hash

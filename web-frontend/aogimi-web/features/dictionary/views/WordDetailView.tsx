@@ -6,7 +6,7 @@ import { InfoRow } from '@/shared/ui/InfoRow';
 import { JlptChip } from '@/shared/ui/JlptChip';
 import { SectionHead } from '@/shared/ui/SectionHead';
 import { getWordDetails } from '../lib/dictApi';
-import type { DetailsResponse } from '@/lib/types';
+import type { DetailsResponse } from '../types';
 import { MAX_MEANINGS_ON_CARD } from '@/components/decks/utils/cardLimits';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import { PitchAccentDiagram } from '@/shared/ui/PitchAccentDiagram';
