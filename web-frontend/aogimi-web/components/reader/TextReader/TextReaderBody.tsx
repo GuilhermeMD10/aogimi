@@ -1,12 +1,10 @@
 'use client';
 
 // Renders everything below the TextReader top bar — TOC + viewport + typography
-// panel + context menu portal + DeepL popup. Theme-agnostic.
+// panel + context menu portal. Theme-agnostic.
 
 import { createPortal } from 'react-dom';
 import { TocPanel } from '@/components/reader/TocPanel';
-import { DeepLTranslationPopup } from '@/components/DeepLTranslationPopup';
-import { DEEPL_ENABLED } from '@/lib/features/deepl';
 import { THEMES } from '@/components/reader/readerConstants';
 import { TypographyPanel } from '@/components/reader/TypographyPanel';
 import { TextContextMenu } from '@/components/reader/TextContextMenu';
@@ -35,8 +33,6 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
     contextSentence,
     ctxMenu,
     setCtxMenu,
-    translation,
-    setTranslation,
     prefs,
     savePrefs,
   } = engine;
@@ -85,31 +81,10 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
           x={ctxMenu.x}
           y={ctxMenu.y}
           onLookup={() => onLookup(selectedText, contextSentence)}
-          onDeepL={() => {
-            // DeepL is feature-flagged off (see lib/features/deepl.ts).
-            // The context menu also gates its DeepL button so this
-            // callback is unreachable from the UI today — guarded
-            // here as a defense-in-depth match for the popup gate
-            // below.
-            if (DEEPL_ENABLED) {
-              setTranslation({ text: selectedText, x: ctxMenu.x, y: ctxMenu.y });
-            }
-          }}
           onAddCard={() => onAddCard(selectedText, contextSentence)}
           onClose={() => setCtxMenu(null)}
         />,
         document.body,
-      )}
-
-      {/* DeepL popup feature-flagged off (see lib/features/deepl.ts).
-          State, render, and the upstream callback are all gated so
-          re-enabling is a single edit. */}
-      {DEEPL_ENABLED && translation && (
-        <DeepLTranslationPopup
-          originalText={translation.text}
-          position={{ x: translation.x, y: translation.y }}
-          onClose={() => setTranslation(null)}
-        />
       )}
     </>
   );

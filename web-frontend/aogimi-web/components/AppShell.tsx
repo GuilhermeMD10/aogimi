@@ -7,12 +7,10 @@ import { ReaderStateProvider, useReaderState } from '@/components/providers/Read
 import { BubbleProvider, useBubble } from '@/components/providers/BubbleProvider';
 import { DictionaryStateProvider } from '@/components/providers/DictionaryStateProvider';
 import { DecksProvider } from '@/components/providers/DecksProvider';
-import { ShortcutsProvider } from '@/components/providers/ShortcutsProvider';
 import WorkspaceNav from '@/components/WorkspaceNav';
 import ProfileBubble from '@/components/page-bubbles/ProfileBubble';
 import SettingsBubble from '@/components/page-bubbles/SettingsBubble';
 import ReaderBubble from '@/components/page-bubbles/ReaderBubble';
-import { ShortcutsCheatsheet } from '@/components/ui/ShortcutsCheatsheet';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -37,18 +35,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (loading || needsRedirect) return null;
 
   return (
-    <ShortcutsProvider>
-      <ReaderStateProvider>
-        <DictionaryStateProvider>
-          <DecksProvider>
-            <BubbleProvider>
-              <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
-              <ShortcutsCheatsheet />
-            </BubbleProvider>
-          </DecksProvider>
-        </DictionaryStateProvider>
-      </ReaderStateProvider>
-    </ShortcutsProvider>
+    <ReaderStateProvider>
+      <DictionaryStateProvider>
+        <DecksProvider>
+          <BubbleProvider>
+            <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
+          </BubbleProvider>
+        </DecksProvider>
+      </DictionaryStateProvider>
+    </ReaderStateProvider>
   );
 }
 

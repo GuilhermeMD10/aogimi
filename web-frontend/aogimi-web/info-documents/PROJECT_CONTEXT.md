@@ -44,8 +44,7 @@ web-frontend/langecko-web/
 │   ├── dictionary/page.tsx       /dictionary
 │   ├── decks/page.tsx            /decks
 │   ├── profile/page.tsx          /profile
-│   ├── word/[id]/page.tsx        /word/<id> (deep link to a dictionary entry)
-│   └── api/                      Server routes (DeepL proxy, PDF reader, dictionary index)
+│   └── word/[id]/page.tsx        /word/<id> (deep link to a dictionary entry)
 │
 ├── components/                   Default-theme components + theme infra
 │   ├── AppShell.tsx              Auth gate, providers, bubble routing
@@ -60,7 +59,6 @@ web-frontend/langecko-web/
 │   ├── profile/                  Profile page sections
 │   ├── icons/                    Icon set (lucide-react, mapped to canonical IconNames)
 │   ├── ui/                       shadcn primitives (button, sheet, sidebar, …)
-│   ├── DeepLTranslationPopup/    Reader text translation
 │   ├── AvatarPickerModal/        Profile avatar grid
 │   ├── OnboardingExplainerModal/ Auth-flow explainer wrapper
 │   └── providers/                Auth, Reader state, Bubble routing, Dictionary, Theme
@@ -82,8 +80,7 @@ web-frontend/langecko-web/
 │   │   ├── authApi.ts            /api/auth/{login,register,logout} (public, no Authorization)
 │   │   ├── tokenStore.ts         Access + refresh token persistence (localStorage)
 │   │   └── wipeUserData.ts       Account-switch wipe
-│   ├── translateApi.ts           DeepL proxy fetch
-│   ├── types/                    Domain types (book, deck, dict, user, device, translate, epubjs)
+│   ├── types/                    Domain types (book, deck, dict, user, device, epubjs)
 │   ├── storage/                  localStorage adapters per concern
 │   ├── config/                   limits.ts, deckVisuals.ts
 │   ├── util/                     cn (Tailwind class merge), deviceName
@@ -129,7 +126,6 @@ All state is in **React Context providers**, mounted by `AppShell`. Nothing in l
 |---|---|---|
 | `AuthProvider` | Current user, login/signup/logout flows. **Token storage = "memory + httpOnly cookie"**: the access token lives in-memory only ([`lib/auth/tokenStore.ts`](lib/auth/tokenStore.ts)), the refresh token is an httpOnly cookie set by the backend (never readable by JS). On boot, a silent `/api/auth/refresh` re-mints the access token from the cookie. Session-invalidation hook in [`lib/api.ts`](lib/api.ts) auto-signs-out on unrecoverable 401/403. See [`../../docs/AUTH.md`](../../docs/AUTH.md). | `auth_user` only (tokens are no longer in localStorage) |
 | `ThemeProvider` | The single `default` theme (no setter that persists; kept as plumbing for a future redesign) | (none — no longer persisted) |
-| `ShortcutsProvider` | Global keydown dispatcher + cheatsheet open state | (in-memory only) |
 | `ReaderStateProvider` | Active book session (`{ activeBook, fileUrl, backendBookId?, initialCfi?, initialSpineIndex? }`), sidekick toggle, and the three cross-route pending signals (`pendingDictSearch`, `pendingCard`, `pendingBookOpen`). Reading-position sync itself lives in `ReaderView/useProgressSync` (the session just carries the backend id + restore anchor). | (none) |
 | `DictionaryStateProvider` | Search query/results, recent searches, active word | `dictionary_state`, `dictionary_recent_searches` |
 | `BubbleProvider` | Which page-bubble (Profile/Reader) is active | (in-memory only) |
@@ -161,10 +157,7 @@ See [`../../docs/AUTH.md`](../../docs/AUTH.md) for the full token model.
 
 All accept an optional `AbortSignal`. Pair with `useEffect` cleanup to cancel in-flight fetches when components unmount.
 
-Server-only proxies live under `app/api/`:
-- `/api/translate` — DeepL passthrough
-- `/api/pdf-reader` — server-side PDF text extraction
-- `/api/dictionary` — local dictionary index endpoint
+There are no server-only Next.js API routes — every data call goes straight to the backend API.
 
 ---
 
@@ -184,26 +177,7 @@ Library mount reconciles all three: load local IndexedDB → register device →
 
 App-level features that ride on top of the architecture above. Document new features here as they land — describe what the feature is, the entry points, where state lives, and any non-obvious behaviour. Keep entries terse; details belong in the source.
 
-### Keyboard shortcuts
-
-A typed registry + cheatsheet. One source of truth for every shortcut in the app; adding a new shortcut is one row + one `useShortcut()` call.
-
-- **Registry**: [lib/shortcuts/registry.ts](lib/shortcuts/registry.ts). Each entry is `{ id, keys, scope, description, group }`. `keys` accepts multiple bindings per id (so `→ / ↓` for "next page" is one entry, not two). `ShortcutId` is a literal-union derived from the array — calling `useShortcut('does-not-exist', …)` is a compile error.
-- **Matcher / formatter**: [lib/shortcuts/match.ts](lib/shortcuts/match.ts). `defMatches(e, def)` for the dispatcher, `formatDef(def)` for the cheatsheet UI (turns `{ alt:true, key:'h' }` into `Alt + H`, arrow keys into `→ ↓` glyphs).
-- **Runtime**: [components/providers/ShortcutsProvider.tsx](components/providers/ShortcutsProvider.tsx). One `keydown` listener at the app root. Skips all shortcuts when the event target is `<input>` / `<textarea>` / `<select>` / `[contenteditable]`. Handler refs are kept fresh via `useLayoutEffect` so passing a new closure on every render doesn't re-bind.
-- **Hook**: `useShortcut(id, handler, enabled?)` from `@/components/providers/ShortcutsProvider`. Returns nothing. Handler may return `false` to opt out of `preventDefault` (useful when a shortcut is conditional and shouldn't suppress the browser default).
-- **Cheatsheet**: [components/ui/ShortcutsCheatsheet.tsx](components/ui/ShortcutsCheatsheet.tsx). Modal opened by `Shift + ?`, closed by `Esc` or backdrop click. Reads the registry, groups by `def.group`, renders one row per definition. Themable through `.lgc-card`.
-
-**Currently registered shortcuts** (see registry for canonical list):
-
-| ID | Keys | Scope | Action |
-|---|---|---|---|
-| `global:show-cheatsheet` | `Shift + ?` | global | Toggle the cheatsheet modal |
-| `reader:tts-toggle` | `T` | reader | Toggle text-to-speech (pre-existing) |
-| `reader:page-next` | `→` / `↓` | reader | Next page |
-| `reader:page-prev` | `←` / `↑` | reader | Previous page |
-
-**Adding a new shortcut**: append to `SHORTCUTS` in the registry; call `useShortcut('your-id', () => …)` in the component that owns the action. The cheatsheet picks it up automatically. Convention is `Alt + <key>` for newly-introduced bindings (existing plain-key bindings kept for back-compat).
+_No app-level features are currently documented._
 
 ---
 
