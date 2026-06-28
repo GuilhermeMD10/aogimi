@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import CreditsView from '@/components/views/CreditsView/CreditsView';
+import { CreditsView } from '@/features/settings';
 
 // Standalone /credits route. The bubble flow swaps to CreditsView inside
 // itself rather than navigating here; this route is for deep links.

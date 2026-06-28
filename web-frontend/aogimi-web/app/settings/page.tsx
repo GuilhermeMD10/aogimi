@@ -1,10 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import SettingsView from '@/components/views/SettingsView/SettingsView';
+import { SettingsView } from '@/features/settings';
 
 // Standalone /settings route. The bubble flow renders SettingsView
-// directly (see components/page-bubbles/SettingsBubble) so the user
+// directly (see features/settings/settings-bubble) so the user
 // stays in the bubble; this route is here for deep-link reachability.
 export default function SettingsPage() {
   const router = useRouter();

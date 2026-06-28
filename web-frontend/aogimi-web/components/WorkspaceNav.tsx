@@ -4,9 +4,7 @@ import * as React from 'react';
 import { useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Icon, type IconName } from '@/shared/icons';
-import { BUBBLE_ITEMS, NAV_ITEMS, type BubbleKey } from './WorkspaceNav.types';
-
-export type { BubbleKey } from './WorkspaceNav.types';
+import { NAV_ITEMS, SECONDARY_NAV_ITEMS } from './WorkspaceNav.types';
 
 // ── Per-item brand colors ───────────────────────────────────────────────────
 
@@ -19,16 +17,11 @@ const ITEM_COLORS: Record<string, string> = {
   settings: '#999999',
 };
 
-type WorkspaceNavProps = {
-  activeBubble: BubbleKey | null;
-  onToggleBubble: (key: BubbleKey) => void;
-};
-
 /**
  * Bottom workspace nav — translucent glass pill, soft tooltip, per-item brand
  * colors on icons + active dots. Owns the router/pathname state.
  */
-export default function WorkspaceNav({ activeBubble, onToggleBubble }: WorkspaceNavProps) {
+export default function WorkspaceNav() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -86,15 +79,15 @@ export default function WorkspaceNav({ activeBubble, onToggleBubble }: Workspace
           onClick={onHomeClick}
         />
 
-        {BUBBLE_ITEMS.map((item) => (
+        {SECONDARY_NAV_ITEMS.map((item) => (
           <NavItem
             key={item.key}
             icon={item.icon}
             label={item.label}
             color={ITEM_COLORS[item.key]}
-            active={activeBubble === item.key}
+            active={pathname === item.path}
             activeDotOffset={-7}
-            onClick={() => onToggleBubble(item.key)}
+            onClick={() => onNavClick(item.path)}
           />
         ))}
       </nav>
