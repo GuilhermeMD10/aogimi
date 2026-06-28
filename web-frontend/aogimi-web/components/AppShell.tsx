@@ -7,7 +7,7 @@ import { ReaderStateProvider, useReaderState } from '@/components/providers/Read
 import { DictionaryStateProvider } from '@/features/dictionary';
 import { DecksProvider } from '@/components/providers/DecksProvider';
 import WorkspaceNav from '@/components/WorkspaceNav';
-import ReaderBubble from '@/components/page-bubbles/ReaderBubble';
+import { ReaderBubble } from '@/features/books';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();

@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TextReader } from '@/components/reader/TextReader';
-import { NovelReader } from '@/components/reader/NovelReader';
-import { MangaReader } from '@/components/reader/MangaReader';
-import { makeBookFromBlob } from '@/lib/foliate';
+import { TextReader } from '@/features/books/reader/components/TextReader';
+import { NovelReader } from '@/features/books/reader/components/NovelReader';
+import { MangaReader } from '@/features/books/reader/components/MangaReader';
+import { makeBookFromBlob } from '@/features/books/reader/lib/foliate';
 
 // ── Props (same interface as before — nothing changes for consumers) ─────────
 

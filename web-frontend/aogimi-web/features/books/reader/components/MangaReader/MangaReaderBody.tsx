@@ -3,7 +3,7 @@
 // Renders everything below the MangaReader top bar — TOC panel + EPUB viewport.
 // Theme-agnostic; both variants compose this with their own top bar.
 
-import { TocPanel } from '@/components/reader/TocPanel';
+import { TocPanel } from '@/features/books/reader/components/TocPanel';
 import type { MangaReaderEngine } from './useMangaReaderEngine';
 
 export function MangaReaderBody({ engine }: { engine: MangaReaderEngine }) {

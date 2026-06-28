@@ -4,10 +4,10 @@
 // panel + context menu portal. Theme-agnostic.
 
 import { createPortal } from 'react-dom';
-import { TocPanel } from '@/components/reader/TocPanel';
-import { THEMES } from '@/components/reader/readerConstants';
-import { TypographyPanel } from '@/components/reader/TypographyPanel';
-import { TextContextMenu } from '@/components/reader/TextContextMenu';
+import { TocPanel } from '@/features/books/reader/components/TocPanel';
+import { THEMES } from '@/features/books/reader/lib/readerConstants';
+import { TypographyPanel } from '@/features/books/reader/components/TypographyPanel';
+import { TextContextMenu } from '@/features/books/reader/components/TextContextMenu';
 import type { TextReaderEngine } from './useTextReaderEngine';
 
 interface TextReaderBodyProps {

@@ -1,4 +1,4 @@
-import type { ReaderPrefs } from '@/components/reader/useReaderPrefs';
+import type { ReaderPrefs } from '@/features/books/reader/hooks/useReaderPrefs';
 
 // ── Theme config ────────────────────────────────────────────────────────────
 

@@ -6,7 +6,7 @@ import {
   supportsDirectoryPicker,
   getPersistedDirectory,
   verifyPermission,
-} from '../lib/fsAccess';
+} from '@/features/books/lib/fsAccess';
 
 /**
  * Banner shown when a persisted directory handle exists but permission

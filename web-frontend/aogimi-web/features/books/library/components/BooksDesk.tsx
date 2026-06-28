@@ -22,7 +22,7 @@ import {
   BookOpen,
   ArrowUpDown,
 } from 'lucide-react';
-import type { Book } from '../types';
+import type { Book } from '@/features/books/types';
 import { useBookRowEditing } from '../hooks/useBookRowEditing';
 import { SyncPill, type SyncPillState } from './SyncPill';
 

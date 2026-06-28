@@ -1,6 +1,6 @@
 'use client';
 
-import { TextReader, type TextReaderProps } from '@/components/reader/TextReader';
+import { TextReader, type TextReaderProps } from '@/features/books/reader/components/TextReader';
 
 type Props = Omit<TextReaderProps, 'rtl'>;
 

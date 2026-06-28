@@ -7,8 +7,8 @@ import {
   List,
   Search,
 } from 'lucide-react';
-import { ICON_BTN, ICON_BTN_ON } from '@/components/reader/readerConstants';
-import { ReaderProgressBar } from '@/components/reader/ReaderProgressBar';
+import { ICON_BTN, ICON_BTN_ON } from '@/features/books/reader/lib/readerConstants';
+import { ReaderProgressBar } from '@/shared/ui/ReaderProgressBar';
 import { useMangaReaderEngine, type ViewMode, type MangaRelocateSnapshot } from './useMangaReaderEngine';
 import { MangaReaderBody } from './MangaReaderBody';
 

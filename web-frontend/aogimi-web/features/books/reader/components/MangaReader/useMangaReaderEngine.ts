@@ -11,14 +11,14 @@
 // a future pass.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { NavItem } from '@/components/reader/TocPanel';
+import type { NavItem } from '@/features/books/reader/components/TocPanel';
 import {
   createFoliateView,
   flattenFoliateToc,
   loadFoliate,
   type FoliateRelocateDetail,
   type FoliateViewElement,
-} from '@/lib/foliate';
+} from '@/features/books/reader/lib/foliate';
 
 export type ViewMode = 'single' | 'double' | 'scroll';
 export type Panel = 'toc' | null;
