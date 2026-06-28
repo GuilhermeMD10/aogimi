@@ -10,8 +10,8 @@ import {
   VolumeX,
   Search,
 } from 'lucide-react';
-import { THEMES, ICON_BTN, ICON_BTN_ON } from '@/components/reader/readerConstants';
-import { ReaderProgressBar } from '@/components/reader/ReaderProgressBar';
+import { THEMES, ICON_BTN, ICON_BTN_ON } from '@/features/books/reader/lib/readerConstants';
+import { ReaderProgressBar } from '@/shared/ui/ReaderProgressBar';
 import { useTextReaderEngine, type TextRelocateSnapshot } from './useTextReaderEngine';
 import { TextReaderBody } from './TextReaderBody';
 

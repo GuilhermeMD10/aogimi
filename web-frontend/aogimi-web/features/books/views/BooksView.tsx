@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
-import { EpubReader } from '@/components/reader/EpubReader';
-import { PdfReader } from '@/components/reader/PdfReader';
+import { EpubReader, PdfReader } from '@/features/books/reader';
 import { DictionarySidekick } from '@/features/dictionary';
 import { getAllBooks, getBookFile, ensureBackendBook, renameBook as renameLocalBook } from '@/features/books/lib/bookStore';
 import { getUserBooks, updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/features/books/lib/booksApi';
@@ -18,14 +17,12 @@ import { useProgressSync } from './useProgressSync';
 import { getReaderProgress } from '@/features/books/lib/readerSession';
 import type { Book } from '@/features/books/types';
 import type { BookProgressRecord } from '@/features/books/types';
-import { BooksDesk } from '@/features/books/components/BooksDesk';
-import RestoreBooks from '@/features/books/components/RestoreBooks';
-import FsAccessBanner from '@/features/books/components/FsAccessBanner';
+import { BooksDesk, RestoreBooks, FsAccessBanner } from '@/features/books/library';
 import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
 import { getUserProfile } from '@/lib/userApi';
 import { useSyncBooks } from '@/features/books/hooks/useSyncBooks';
 
-export default function ReaderView() {
+export default function BooksView() {
   const user = useAuthedUser();
   const {
     readerSession,

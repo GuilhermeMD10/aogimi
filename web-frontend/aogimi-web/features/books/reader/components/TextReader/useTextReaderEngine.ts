@@ -5,9 +5,9 @@
 // view.goTo(cfi|href), relocate / load events.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FONT_STACKS, useReaderPrefs } from '@/components/reader/useReaderPrefs';
-import type { NavItem } from '@/components/reader/TocPanel';
-import { THEMES } from '@/components/reader/readerConstants';
+import { FONT_STACKS, useReaderPrefs } from '@/features/books/reader/hooks/useReaderPrefs';
+import type { NavItem } from '@/features/books/reader/components/TocPanel';
+import { THEMES } from '@/features/books/reader/lib/readerConstants';
 import {
   createFoliateView,
   flattenFoliateToc,
@@ -15,7 +15,7 @@ import {
   type FoliateRelocateDetail,
   type FoliateLoadDetail,
   type FoliateViewElement,
-} from '@/lib/foliate';
+} from '@/features/books/reader/lib/foliate';
 
 // ── Ruby / reading stripping ────────────────────────────────────────────────
 

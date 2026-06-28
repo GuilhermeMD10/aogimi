@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { ReaderProgressBar } from '@/components/reader/ReaderProgressBar';
+import { ReaderProgressBar } from '@/shared/ui/ReaderProgressBar';
 import { X } from 'lucide-react';
 import { useStudySession } from '../hooks/useStudySession';
 import { useStudyDisplayPrefs } from '../hooks/useStudyDisplayPrefs';

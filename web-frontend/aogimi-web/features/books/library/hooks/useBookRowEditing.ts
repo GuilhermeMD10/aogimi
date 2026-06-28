@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Book } from '../types';
+import type { Book } from '@/features/books/types';
 
 /**
  * Shared editing/menu state for a single book row tile. HeroBookRow and
