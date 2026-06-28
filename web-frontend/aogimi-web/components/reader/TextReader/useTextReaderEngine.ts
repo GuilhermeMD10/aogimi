@@ -118,19 +118,41 @@ function buildThemeCss({ bg, fg, fontFamilyStack, fontSizePct, lineSpacing, vert
 
 export type Panel = 'toc' | null;
 
+/** Position snapshot emitted on every relocate (page turn). Mirrors the
+ *  `ProgressSnapshot` consumed by `useProgressSync`. */
+export interface TextRelocateSnapshot {
+  cfi: string;
+  progress: number;
+  spineIndex: number;
+  totalSpineItems: number;
+}
+
 export interface UseTextReaderEngineParams {
   blob: Blob;
   rtl?: boolean;
+  /** CFI to restore to once the book is open. Null/undefined = open at start. */
+  initialCfi?: string | null;
+  /** Called on every relocate with the current position. */
+  onRelocate?: (snapshot: TextRelocateSnapshot) => void;
 }
 
 export function useTextReaderEngine({
   blob,
   rtl = false,
+  initialCfi,
+  onRelocate,
 }: UseTextReaderEngineParams) {
   const { prefs, savePrefs } = useReaderPrefs();
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<FoliateViewElement | null>(null);
+
+  // Relocate handler can change between renders; the init effect reads the
+  // latest via this ref so it doesn't need to re-run (and re-open the book).
+  const onRelocateRef = useRef(onRelocate);
+  useEffect(() => { onRelocateRef.current = onRelocate; }, [onRelocate]);
+  // Captured once and consumed at open; restore is a one-shot on book load.
+  const initialCfiRef = useRef(initialCfi);
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -243,6 +265,16 @@ export function useTextReaderEngine({
           // tocItem is resolved by foliate from the current range, so we get
           // a chapter label without scanning the TOC manually.
           setChapterLabel(detail.tocItem?.label ?? '');
+
+          // Forward the position for progress sync. `fraction` is the
+          // whole-book reading fraction (0–1); `index` is the spine item.
+          const frac = typeof detail.fraction === 'number' ? detail.fraction : 0;
+          onRelocateRef.current?.({
+            cfi: detail.cfi ?? '',
+            progress: Math.max(0, Math.min(100, Math.round(frac * 100))),
+            spineIndex: typeof detail.index === 'number' ? detail.index : 0,
+            totalSpineItems: spineTotal,
+          });
         });
 
         view.addEventListener('load', (ev) => {
@@ -270,6 +302,15 @@ export function useTextReaderEngine({
 
         // ── TOC ─────────────────────────────────────────────────────────
         setToc(flattenFoliateToc(view.book.toc));
+
+        // ── Restore saved position (one-shot) ───────────────────────────
+        // The relocate this triggers only seeds the sync baseline (see
+        // useProgressSync), so it never writes back the restored position.
+        const restoreCfi = initialCfiRef.current;
+        if (restoreCfi) {
+          try { await view.goTo(restoreCfi); } catch { /* stale/invalid CFI — stay at start */ }
+          if (dead) return;
+        }
 
         setReady(true);
       } catch (err) {

@@ -14,7 +14,10 @@ import { reconcileBooks, syncPending } from '@/components/books/utils/reconcileB
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
 import { useReaderActions } from '@/components/providers/useReaderActions';
+import { useProgressSync } from './useProgressSync';
+import { getReaderProgress } from '@/lib/storage/readerSession';
 import type { Book } from '@/components/books/types';
+import type { BookProgressRecord } from '@/lib/types';
 import { BooksDesk } from '@/components/books/ui/BooksDesk';
 import RestoreBooks from '@/components/books/ui/RestoreBooks';
 import FsAccessBanner from '@/components/books/ui/FsAccessBanner';
@@ -34,6 +37,11 @@ export default function ReaderView() {
     setSidekickOpen,
   } = useReaderState();
   const { requestDictLookup, requestAddCard } = useReaderActions();
+
+  // Reading-position persistence for the active session. `recordProgress` is
+  // handed to the reader and fired on every page turn; the hook buffers it to
+  // localStorage and flushes to the backend periodically / on exit.
+  const { recordProgress } = useProgressSync(readerSession);
 
   const { pageState, setPageState, books, setBooks, remoteBooks, error, setError } = useSyncBooks(user);
   const [importing, setImporting] = useState(false);
@@ -273,22 +281,36 @@ export default function ReaderView() {
         const url = URL.createObjectURL(new Blob([arrayBuffer], { type: mime }));
         blobUrlRef.current = url;
 
-        const session: ReaderSession = {
-          activeBook: book,
-          fileUrl: url,
-        };
-        setReaderSession(session);
-        setLoading(false);
-
-        // Ensure the book is registered on the backend (metadata only — no
-        // reading position is tracked). Best-effort; backend may be offline.
+        // Resolve the backend book id + ensure registration. Best-effort —
+        // if the backend is unreachable the session opens local-only (no id
+        // ⇒ useProgressSync writes localStorage but doesn't sync this run).
+        let backendRecord: BookProgressRecord | undefined;
         try {
           const remote = await getUserBooks(user.id);
-          const match = remote.find((b) => b.filename === book.filename);
-          if (!match) await ensureBackendBook(book, user.id);
+          backendRecord = remote.find((b) => b.filename === book.filename);
+          if (!backendRecord) backendRecord = await ensureBackendBook(book, user.id);
         } catch {
           /* backend unavailable */
         }
+
+        // Restore anchor: take the newer of the local snapshot and the backend
+        // row (same device ⇒ local; switched device ⇒ backend). Manga carries
+        // no CFI, so spine index is the fallback the fixed-layout reader uses.
+        const local = getReaderProgress(book.filename);
+        const backendUpdatedAt = backendRecord?.last_read_at ? Date.parse(backendRecord.last_read_at) : 0;
+        const useLocal = local != null && local.updatedAt >= backendUpdatedAt;
+        const initialCfi = useLocal ? (local!.cfi || null) : (backendRecord?.cfi_position ?? null);
+        const initialSpineIndex = useLocal ? (local!.spineIndex ?? null) : (backendRecord?.spine_index ?? null);
+
+        const session: ReaderSession = {
+          activeBook: book,
+          fileUrl: url,
+          backendBookId: backendRecord?.id,
+          initialCfi,
+          initialSpineIndex,
+        };
+        setReaderSession(session);
+        setLoading(false);
       } catch {
         setError('Failed to load book');
         setLoading(false);
@@ -412,6 +434,9 @@ export default function ReaderView() {
               onBack={goBack}
               sidekickOpen={sidekickOpen}
               onToggleSidekick={toggleSidekick}
+              initialCfi={readerSession.initialCfi}
+              initialSpineIndex={readerSession.initialSpineIndex}
+              onRelocate={recordProgress}
             />
           )}
         </div>

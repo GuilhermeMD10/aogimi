@@ -1,4 +1,4 @@
-import { apiGet, apiSend, apiSendVoid } from '@/lib/api';
+import { apiGet, apiSend, apiSendKeepalive, apiSendVoid } from '@/lib/api';
 import type { EpubIdentity } from '@/lib/epubIdentity';
 import type {
   BookProgressRecord,
@@ -53,16 +53,26 @@ export async function getBookRecord(id: string): Promise<BookProgressRecord> {
 }
 
 /**
- * Update a book's stored progress. Reading *position* is no longer tracked;
- * the only remaining caller is the explicit "mark finished" action (sends
- * `{ progress: 100 }`). Kept generic since the backend endpoint accepts the
- * full progress payload.
+ * Update a book's stored progress (reading position + percent). Used by the
+ * reader's periodic / on-unmount flush and by the explicit "mark finished"
+ * action (`{ progress: 100 }`). The backend COALESCEs omitted fields, so a
+ * partial payload preserves the rest of the row.
  */
 export async function updateBookProgress(
   id: string,
   params: ProgressPayload,
 ): Promise<BookProgressRecord> {
   return apiSend<BookProgressRecord>(`/api/books/${id}/progress`, 'PUT', params);
+}
+
+/**
+ * Exit-path variant of {@link updateBookProgress}: a keepalive POST that
+ * survives tab close / app backgrounding. Fire-and-forget — see
+ * `apiSendKeepalive`. Returns whether the request was fired (false when there
+ * was no in-memory token to authenticate with).
+ */
+export function sendProgressKeepalive(id: string, params: ProgressPayload): boolean {
+  return apiSendKeepalive(`/api/books/${id}/progress`, params);
 }
 
 export async function deleteBookRecord(id: string): Promise<void> {

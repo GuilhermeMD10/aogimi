@@ -208,3 +208,38 @@ export function apiSendPublic<T>(
 ): Promise<T> {
   return request<T>(path, { method, body, signal, skipAuth: true });
 }
+
+/**
+ * Fire-and-forget POST that survives page teardown via `fetch(keepalive)`.
+ * This is the exit-flush primitive: unlike `navigator.sendBeacon` it can set
+ * the `Authorization` header, so it works with our in-memory Bearer access
+ * token on protected endpoints (sendBeacon can't, which is why a raw beacon
+ * would silently 401 now that data endpoints require the bearer).
+ *
+ * No refresh-retry — on `visibilitychange`/`pagehide` there's no time for a
+ * round-trip. If the in-memory token is missing/expired the write is dropped;
+ * callers treat this as best-effort and rely on the periodic flush + the
+ * localStorage snapshot as the durable fallback. Returns `false` when there's
+ * no token to send (nothing was attempted), `true` once the request is fired.
+ * The keepalive body cap is 64KB — irrelevant for a CFI payload.
+ */
+export function apiSendKeepalive(path: string, body: unknown): boolean {
+  const token = getAccessToken();
+  if (!token) return false;
+  try {
+    void fetch(apiUrl(path), {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+      credentials: 'include',
+      keepalive: true,
+    }).catch(() => { /* page is unloading; nothing to recover */ });
+    return true;
+  } catch {
+    return false;
+  }
+}
