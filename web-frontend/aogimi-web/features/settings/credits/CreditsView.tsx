@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react';
-import { CREDITS, type CreditEntry, type CreditSection } from '@/lib/credits';
+import { CREDITS, type CreditEntry, type CreditSection } from './credits';
 
 // Credits view — third-party attributions. Back navigation is delegated
 // to the parent: the route page passes router.back; the bubble passes a

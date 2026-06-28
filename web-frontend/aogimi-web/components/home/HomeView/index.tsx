@@ -5,10 +5,8 @@ import { useRouter } from 'next/navigation';
 import { BookOpen, Search, Layers, ChevronRight, User, type LucideIcon } from 'lucide-react';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
 import { useReaderState } from '@/components/providers/ReaderStateProvider';
-import { useBubble } from '@/components/providers/BubbleProvider';
 import { getUserBooks } from '@/components/books/utils/booksApi';
 import type { BookProgressRecord } from '@/lib/types';
-import type { BubbleKey } from '@/components/WorkspaceNav';
 import {
   CoverMini,
   DictEntry,
@@ -19,8 +17,7 @@ import {
 
 type Destination = {
   k: 'reader' | 'dict' | 'decks' | 'profile';
-  path?: string;
-  bubble?: BubbleKey;
+  path: string;
   icon: LucideIcon;
   label: string;
   dot: string;
@@ -31,14 +28,13 @@ const DESTINATIONS: Destination[] = [
   { k: 'reader',  path: '/reader',     icon: BookOpen, label: 'Reader',     dot: '#D97757', desc: 'Read with tap-to-look-up and inline context.' },
   { k: 'dict',    path: '/dictionary', icon: Search,   label: 'Dictionary', dot: '#4B7AA3', desc: 'Full JMdict entries, kanji breakdown, audio.'  },
   { k: 'decks',   path: '/decks',      icon: Layers,   label: 'Decks',      dot: '#8FB08A', desc: 'Flashcards built from what you read.'         },
-  { k: 'profile', bubble: 'profile',   icon: User,     label: 'Profile',    dot: '#B5A27C', desc: 'Account and reading history.'                 },
+  { k: 'profile', path: '/profile',    icon: User,     label: 'Profile',    dot: '#B5A27C', desc: 'Account and reading history.'                 },
 ];
 
 export default function HomeView() {
   const router = useRouter();
   const user = useAuthedUser();
   const { setPendingBookOpen } = useReaderState();
-  const { setActiveBubble } = useBubble();
 
   const [recent, setRecent] = useState<BookProgressRecord[]>([]);
 
@@ -57,16 +53,8 @@ export default function HomeView() {
   }, [user]);
 
   const goToDestination = useCallback(
-    (d: Destination) => {
-      if (d.bubble) {
-        setActiveBubble(d.bubble);
-        return;
-      }
-      if (d.path) {
-        router.push(d.path);
-      }
-    },
-    [router, setActiveBubble],
+    (d: Destination) => router.push(d.path),
+    [router],
   );
 
   const resumeBook = useCallback(
