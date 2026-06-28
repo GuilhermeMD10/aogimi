@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/components/providers/AuthProvider';
+import { useAuth } from '@/features/auth/providers/AuthProvider';
 
 // Settings view — the row list. Routing is delegated to the parent: the
 // route page (`app/settings/page.tsx`) pushes /credits; the bubble passes

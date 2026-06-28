@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { updateBookProgress, sendProgressKeepalive } from '@/features/books/lib/booksApi';
 import { setReaderProgress } from '@/features/books/lib/readerSession';
-import type { ReaderSession } from '@/components/providers/ReaderStateProvider';
+import type { ReaderSession } from '@/features/app-shell/providers/ReaderStateProvider';
 
 export type ProgressSnapshot = {
   /** EPUB CFI. Empty string for fixed-layout (manga) books. */

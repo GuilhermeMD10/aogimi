@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
 import { Geist_Mono, Inter, Source_Serif_4 } from 'next/font/google';
 import './globals.css';
-import { AuthProvider } from '@/components/providers/AuthProvider';
-import { ThemeProvider } from '@/components/providers/ThemeProvider';
-import { AppShell } from '@/components/AppShell';
+import { AuthProvider } from '@/features/auth';
+import { ThemeProvider, AppShell } from '@/features/app-shell';
 import { MobileGate } from '@/features/mobile-gate';
 
 const inter = Inter({

@@ -4,10 +4,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, Plus, Search, X } from 'lucide-react';
-import { useAuthedUser } from '@/components/providers/useAuthedUser';
+import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
 import { useDictionaryState, preferredHeadword, getWordDetails } from '@/features/dictionary';
-import * as decksApi from '@/components/decks/utils/decksApi';
-import type { DeckRecord } from '@/components/decks/types';
+import { decksApi } from '@/features/study/decks';
+import type { DeckRecord } from '@/features/study/decks';
 import type {
   DetailsResponse,
   KanjiInfo,
@@ -16,7 +16,7 @@ import type {
 } from '@/features/dictionary/types';
 import { InfoRow } from '@/shared/ui/InfoRow';
 import { SectionHead } from '@/shared/ui/SectionHead';
-import { MAX_MEANINGS_ON_CARD } from '@/components/decks/utils/cardLimits';
+import { MAX_MEANINGS_ON_CARD } from '@/features/study/decks';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import { PitchAccentDiagram } from '@/shared/ui/PitchAccentDiagram';
 

@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef } from 'react';
 import { Plus, Volume2 } from 'lucide-react';
-import { useReaderActions } from '@/components/providers/useReaderActions';
+import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';
 import { useDictionaryState } from '../providers/DictionaryStateProvider';
 import WordDetailView, { preferredHeadword } from './WordDetailView';
 import {
