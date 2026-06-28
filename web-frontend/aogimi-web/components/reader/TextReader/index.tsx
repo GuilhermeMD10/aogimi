@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { THEMES, ICON_BTN, ICON_BTN_ON } from '@/components/reader/readerConstants';
 import { ReaderProgressBar } from '@/components/reader/ReaderProgressBar';
-import { useTextReaderEngine } from './useTextReaderEngine';
+import { useTextReaderEngine, type TextRelocateSnapshot } from './useTextReaderEngine';
 import { TextReaderBody } from './TextReaderBody';
 
 export type TextReaderProps = {
@@ -24,6 +24,10 @@ export type TextReaderProps = {
   onBack: () => void;
   sidekickOpen?: boolean;
   onToggleSidekick?: () => void;
+  /** CFI to restore to on open (null/undefined = start). */
+  initialCfi?: string | null;
+  /** Position callback for progress sync, fired on every page turn. */
+  onRelocate?: (snapshot: TextRelocateSnapshot) => void;
 };
 
 export function TextReader({
@@ -35,8 +39,10 @@ export function TextReader({
   onBack,
   sidekickOpen = false,
   onToggleSidekick,
+  initialCfi,
+  onRelocate,
 }: TextReaderProps) {
-  const engine = useTextReaderEngine({ blob, rtl });
+  const engine = useTextReaderEngine({ blob, rtl, initialCfi, onRelocate });
   const {
     chapterLabel,
     globalPage,

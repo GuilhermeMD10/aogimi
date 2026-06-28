@@ -91,14 +91,15 @@ GET /api/books/{id}
   Trigger:   Single book fetch (on demand)
   Response:  BookProgressRecord
 
-PUT /api/books/{id}/progress
-  Trigger:   "Mark finished" action only (manual). The client no longer
-             auto-syncs reading position — books always open at the start.
-  Request:   ProgressPayload  -- { progress: 100 }
+PUT/POST /api/books/{id}/progress
+  Trigger:   EPUB reading-position sync (periodic ~60s + on exit + on
+             "Back to library") and the "Mark finished" action.
+  Request:   ProgressPayload  -- { cfiPosition?, progress?, spineIndex?,
+             totalSpineItems? }   ("mark finished" sends { progress: 100 })
   Response:  BookProgressRecord
-  Notes:     Endpoint still accepts the full ProgressPayload shape, but the
-             web client only sends { progress: 100 } via updateBookProgress.
-             No debounce, no sendBeacon, no CFI restore.
+  Notes:     Backend COALESCEs omitted fields and bumps last_read_at. The
+             exit flush uses a keepalive POST (sendProgressKeepalive) so it
+             carries the Bearer token on teardown. PDF not synced yet.
 
 PATCH /api/books/{id}
   Trigger:   In-place book title rename (manual)
@@ -247,11 +248,16 @@ POST /api/translate                    (app/api/translate/route.ts)
 7. SYNC & PERSISTENCE PATTERNS
 ==============================================================================
 
-Reading-position sync:
-  - REMOVED. No CFI/page tracking, no debounced ~2s put, no sendBeacon on
-    unload, no backend-CFI restore. Books always open at the start.
-  - The only write to book_progress.progress is the explicit "mark finished"
-    action (PUT /api/books/{id}/progress with { progress: 100 }).
+Reading-position sync (EPUB only):
+  - Captured from foliate's relocate event; written to localStorage
+    (reader_progress_<filename>) on every page turn (no network).
+  - Flushed to book_progress (cfi_position / spine_index / progress) only
+    periodically (~60s), on exit (visibilitychange:hidden / pagehide via a
+    keepalive POST), and on unmount ("Back to library"). Dedup'd; the first
+    relocate per open only seeds the baseline, so a restore never writes back.
+  - On open, the restore anchor is the newer of the localStorage snapshot and
+    the backend row (newer-wins). "Mark finished" still sends { progress: 100 }
+    and sticks until the user moves. PDF not synced yet (no backend column).
 
 Library / device sync (library page mount):
   1. Load local IndexedDB records.
@@ -304,8 +310,9 @@ Client-side storage:
       reader_book_<filename>     highlights + bookmarks + per-book reader
                                  prefs removed; reader typography prefs are
                                  in-memory only (reset each book open)
-      reader_progress_<filename> reading-position tracking removed;
-                                 books always open at the start
+      reader_progress_<filename> EPUB reading-position buffer (cfi, spine
+                                 index, percent, updatedAt); flushed to the
+                                 backend periodically + on exit
 
   IndexedDB — single database `aogimi`
   (sole connection factory: components/books/utils/booksDb.ts):
@@ -363,6 +370,7 @@ External APIs:              1  (DeepL translation)
 Frequency:
   On page mount (auto):     GET /api/books/user, /api/decks/user, /api/user,
                             /api/devices/user, /api/devices/{id}/books
-  On user action only:      Everything else, including PUT /api/books/{id}/progress
-                            ("mark finished" only — no debounce, no beacon).
+  Periodic / on exit:       PUT/POST /api/books/{id}/progress (EPUB reading
+                            position — ~60s backstop + keepalive POST on exit).
+  On user action only:      Everything else, incl. "mark finished".
   No polling, no WebSockets.

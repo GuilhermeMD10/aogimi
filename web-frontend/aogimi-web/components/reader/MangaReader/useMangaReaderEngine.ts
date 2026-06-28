@@ -23,17 +23,39 @@ import {
 export type ViewMode = 'single' | 'double' | 'scroll';
 export type Panel = 'toc' | null;
 
-export interface UseMangaReaderEngineParams {
-  blob: Blob;
+/** Position snapshot emitted on every relocate (page turn). Mirrors the
+ *  `ProgressSnapshot` consumed by `useProgressSync`. Fixed-layout books have
+ *  no meaningful CFI, so `cfi` is empty and restore is by `spineIndex`. */
+export interface MangaRelocateSnapshot {
+  cfi: string;
+  progress: number;
+  spineIndex: number;
+  totalSpineItems: number;
 }
 
-export function useMangaReaderEngine({ blob }: UseMangaReaderEngineParams) {
+export interface UseMangaReaderEngineParams {
+  blob: Blob;
+  /** Spine index to restore to once the book is open (0 = start). */
+  initialSpineIndex?: number | null;
+  /** Called on every relocate with the current position. */
+  onRelocate?: (snapshot: MangaRelocateSnapshot) => void;
+}
+
+export function useMangaReaderEngine({ blob, initialSpineIndex, onRelocate }: UseMangaReaderEngineParams) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<FoliateViewElement | null>(null);
 
   // Within-session page restore when switching view modes (single↔double↔
   // scroll). Not persisted — just keeps your place across the layout toggle.
   const restorePageRef = useRef<number | null>(null);
+
+  // Relocate handler can change between renders; the init effect reads the
+  // latest via this ref so it doesn't need to re-run (and re-open the book).
+  const onRelocateRef = useRef(onRelocate);
+  useEffect(() => { onRelocateRef.current = onRelocate; }, [onRelocate]);
+  // Saved spine index to restore to, consumed once on the first open.
+  const initialSpineIndexRef = useRef(initialSpineIndex);
+  const didInitialRestoreRef = useRef(false);
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +112,28 @@ export function useMangaReaderEngine({ blob }: UseMangaReaderEngineParams) {
           const pg = idx + 1;
           currentPageRef.current = pg;
           setCurrentPage(pg);
+
+          // Forward the position for progress sync (spine-index based).
+          const spineTotal = spineTotalRef.current;
+          onRelocateRef.current?.({
+            cfi: detail.cfi ?? '',
+            progress: spineTotal > 0 ? Math.max(0, Math.min(100, Math.round((pg / spineTotal) * 100))) : 0,
+            spineIndex: idx,
+            totalSpineItems: spineTotal,
+          });
         });
+
+        // ── Restore saved position (one-shot, on first open) ────────────
+        // Seeds the same restore path used for view-mode switches. The
+        // relocate it triggers only seeds the sync baseline (see
+        // useProgressSync), so it never writes the restored position back.
+        if (!didInitialRestoreRef.current) {
+          didInitialRestoreRef.current = true;
+          const savedIdx = initialSpineIndexRef.current;
+          if (typeof savedIdx === 'number' && savedIdx > 0 && restorePageRef.current === null) {
+            restorePageRef.current = savedIdx + 1;
+          }
+        }
 
         // ── Restore page across a view-mode switch ──────────────────────
         const restorePage = restorePageRef.current;
