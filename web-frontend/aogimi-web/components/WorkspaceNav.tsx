@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Icon, type IconName } from '@/components/icons';
+import { Icon, type IconName } from '@/shared/icons';
 import { BUBBLE_ITEMS, NAV_ITEMS, type BubbleKey } from './WorkspaceNav.types';
 
 export type { BubbleKey } from './WorkspaceNav.types';

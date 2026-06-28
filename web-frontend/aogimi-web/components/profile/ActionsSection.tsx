@@ -1,8 +1,8 @@
 'use client';
 
 import { Info, LogOut, Settings } from 'lucide-react';
-import { SectionCard } from '@/components/ui/SectionCard';
-import { ActionRow } from '@/components/ui/ActionRow';
+import { SectionCard } from '@/shared/ui/SectionCard';
+import { ActionRow } from '@/shared/ui/ActionRow';
 
 export function ActionsSection({
   onShowOnboarding,

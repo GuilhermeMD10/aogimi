@@ -1,7 +1,7 @@
 'use client';
 
-import { SectionCard } from '@/components/ui/SectionCard';
-import { Field } from '@/components/ui/Field';
+import { SectionCard } from '@/shared/ui/SectionCard';
+import { Field } from '@/shared/ui/Field';
 
 const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const;
 

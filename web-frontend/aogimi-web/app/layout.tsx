@@ -4,7 +4,7 @@ import './globals.css';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { AppShell } from '@/components/AppShell';
-import { MobileGate } from '@/components/MobileGate';
+import { MobileGate } from '@/features/mobile-gate';
 
 const inter = Inter({
   variable: '--font-inter',

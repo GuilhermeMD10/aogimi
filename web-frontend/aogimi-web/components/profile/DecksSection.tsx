@@ -1,7 +1,7 @@
 'use client';
 
 import { MoreHorizontal } from 'lucide-react';
-import { SectionCard } from '@/components/ui/SectionCard';
+import { SectionCard } from '@/shared/ui/SectionCard';
 import { deckVisuals } from '@/components/decks/utils/deckVisuals';
 import type { DeckRecord } from '@/components/decks/types';
 
