@@ -10,16 +10,16 @@ import { deleteBookEverywhere } from '@/features/books/lib/deleteBook';
 import { locateAndAttachFile, validateBookFile } from '@/features/books/lib/locateAndAttachFile';
 import { importBookWithMatch } from '@/features/books/lib/importBookWithMatch';
 import { reconcileBooks, syncPending } from '@/features/books/lib/reconcileBooks';
-import { useAuthedUser } from '@/components/providers/useAuthedUser';
-import { useReaderState, type ReaderSession } from '@/components/providers/ReaderStateProvider';
-import { useReaderActions } from '@/components/providers/useReaderActions';
+import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
+import { useReaderState, type ReaderSession } from '@/features/app-shell/providers/ReaderStateProvider';
+import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';
 import { useProgressSync } from './useProgressSync';
 import { getReaderProgress } from '@/features/books/lib/readerSession';
 import type { Book } from '@/features/books/types';
 import type { BookProgressRecord } from '@/features/books/types';
 import { BooksDesk, RestoreBooks, FsAccessBanner } from '@/features/books/library';
-import OnboardingExplainerModal from '@/components/OnboardingExplainerModal';
-import { getUserProfile } from '@/lib/userApi';
+import OnboardingExplainerModal from '@/features/onboarding';
+import { getUserProfile } from '@/features/profile/lib/userApi';
 import { useSyncBooks } from '@/features/books/hooks/useSyncBooks';
 
 export default function BooksView() {

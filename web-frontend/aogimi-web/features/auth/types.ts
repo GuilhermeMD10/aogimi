@@ -1,3 +1,3 @@
-import type { StoredAuthUser } from '@/lib/storage/auth';
+import type { StoredAuthUser } from '@/features/auth/lib/storage';
 
 export type AuthUser = StoredAuthUser;

@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Search, X } from 'lucide-react';
 import { useDictionaryState } from '../providers/DictionaryStateProvider';
-import { useReaderActions } from '@/components/providers/useReaderActions';
+import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';
 import WordDetailView, { preferredHeadword } from './WordDetailView';
 import type { WordResult } from '../types';
 import { getRecentSearches, type RecentSearchItem } from '../lib/storage';
