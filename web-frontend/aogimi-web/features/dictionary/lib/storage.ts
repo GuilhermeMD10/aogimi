@@ -1,4 +1,4 @@
-import { getJSON, setJSON } from './_helpers';
+import { getJSON, setJSON } from '@/lib/storage/_helpers';
 
 const DEFAULT_KEY = 'dictionary_state';
 const RECENT_KEY = 'dictionary_recent_searches';

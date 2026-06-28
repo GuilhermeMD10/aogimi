@@ -4,14 +4,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef } from 'react';
 import { Plus, Volume2 } from 'lucide-react';
 import { useReaderActions } from '@/components/providers/useReaderActions';
-import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
-import WordDetailView, { preferredHeadword } from '@/components/views/WordDetailView';
+import { useDictionaryState } from '../providers/DictionaryStateProvider';
+import WordDetailView, { preferredHeadword } from './WordDetailView';
 import {
   DictionaryHero,
   HowItWorksColumn,
   RecentColumn,
   TipsRow,
-} from '@/components/views/DictionaryView/DictionaryQuiet';
+} from '../components/DictionaryQuiet';
 import { InfoRow } from '@/shared/ui/InfoRow';
 import { JlptChip } from '@/shared/ui/JlptChip';
 import { SectionHead } from '@/shared/ui/SectionHead';

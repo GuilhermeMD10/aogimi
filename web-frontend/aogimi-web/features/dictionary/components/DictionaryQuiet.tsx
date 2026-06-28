@@ -8,8 +8,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Bookmark, ChevronRight, Search, X } from 'lucide-react';
-import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
-import { getRecentSearches, type RecentSearchItem } from '@/lib/storage/dictionary';
+import { useDictionaryState } from '../providers/DictionaryStateProvider';
+import { getRecentSearches, type RecentSearchItem } from '../lib/storage';
 
 // ── Hero (always rendered at top of /dictionary) ────────────────────────────
 

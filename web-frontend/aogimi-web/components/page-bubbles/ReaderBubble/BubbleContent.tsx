@@ -5,10 +5,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, Plus, Search, X } from 'lucide-react';
 import { useAuthedUser } from '@/components/providers/useAuthedUser';
-import { useDictionaryState } from '@/components/providers/DictionaryStateProvider';
-import { preferredHeadword } from '@/components/views/WordDetailView';
+import { useDictionaryState, preferredHeadword, getWordDetails } from '@/features/dictionary';
 import * as decksApi from '@/components/decks/utils/decksApi';
-import { getWordDetails } from '@/lib/dictApi';
 import type { DeckRecord } from '@/components/decks/types';
 import type {
   DetailsResponse,

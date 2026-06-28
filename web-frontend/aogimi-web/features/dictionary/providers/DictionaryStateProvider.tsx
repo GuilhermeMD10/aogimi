@@ -1,9 +1,9 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { searchDictionary } from '@/lib/dictApi';
+import { searchDictionary } from '../lib/dictApi';
 import type { SearchResponse } from '@/lib/types';
-import { getDictionaryState, pushRecentSearch, setDictionaryState } from '@/lib/storage/dictionary';
+import { getDictionaryState, pushRecentSearch, setDictionaryState } from '../lib/storage';
 
 // Single source of truth for the dictionary surface — query, results, the
 // in-flight request lifecycle, and which word (if any) is being inspected.
