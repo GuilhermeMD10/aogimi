@@ -167,6 +167,11 @@ Library mount on the web reconciles all three storage layers (`features/books/li
 
 ## Conventions
 
+- **Web file placement & naming (where new code goes).** Place by feature, never by file type. Pick the existing feature under `features/`; create a new one only for a genuinely new user-nameable concern.
+  - A feature's internals use fixed sub-folder names — `components/` (PascalCase `Foo.tsx`), `hooks/` (camelCase `useFoo.ts`), `lib/` (camelCase: api/storage/pure logic, e.g. `fooApi.ts`), `providers/` (`FooProvider.tsx`), `views/` (route/page-level `FooView.tsx`), plus `types.ts`. **Only create a sub-folder that will hold a file** — no empty scaffolding.
+  - Each feature has an `index.ts` **barrel** = its public API. Other features import from the barrel (`@/features/foo`); a types-only borrow may import `@/features/foo/types` directly. Inside a feature, use relative imports (`./`, `../`).
+  - A domain with sub-features (`books`, `study`) nests them as sibling folders (`books/library`, `books/reader`), each with its own structure + barrel; things shared by the sub-features live at the domain root (`books/lib`, `books/types.ts`). Sub-features stay independent — they don't import each other (an orchestrator view at the domain root composes them).
+  - Routing stays in `app/`; a page is a thin wrapper that renders one feature view. Cross-cutting UI primitives → `shared/ui`, global icons → `shared/icons`. `lib/` is feature-agnostic infra only.
 - Domain types live in each feature's `types.ts` (e.g. `features/dictionary/types.ts`). A feature's fetch helpers live in its `lib/` (e.g. `features/study/decks/lib/decksApi.ts`) and import those types; no type declarations alongside fetch helpers. `web-frontend/aogimi-web/lib/` holds only feature-agnostic infra (`api.ts`, `tokenStore.ts`, `useFetchWithAbort.ts`, `storage/_helpers.ts`, `util/`).
 - `lib/util/cn.ts` is the Tailwind class merger. shadcn's `components.json` aliases `utils` → `@/lib/util/cn`, so future `shadcn add` writes the right path.
 - Don't run git commits, pushes, or destructive DB operations — the human handles those.
