@@ -1,4 +1,4 @@
-import { getDb, HANDLES_STORE } from '@/components/books/utils/booksDb';
+import { getDb, HANDLES_STORE } from './booksDb';
 
 // ── Feature detection ────────────────────────────────────────────────────────
 

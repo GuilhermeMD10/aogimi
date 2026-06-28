@@ -3,8 +3,8 @@ import {
   syncLocalBooksToBackend,
   type BookRecord,
 } from './bookStore';
-import { computeEpubIdentity } from '@/lib/epubIdentity';
-import { computePdfIdentity } from '@/lib/pdfIdentity';
+import { computeEpubIdentity } from './epubIdentity';
+import { computePdfIdentity } from './pdfIdentity';
 import { matchBooks } from './booksApi';
 import { AUTO_ATTACH_TYPES } from './locateAndAttachFile';
 

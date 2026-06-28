@@ -9,7 +9,7 @@
 // `'synced'` — they came from imports that successfully pushed to the
 // backend before the marker existed.
 
-import { getDb, META_STORE } from '@/components/books/utils/booksDb';
+import { getDb, META_STORE } from '../booksDb';
 import type { SyncState } from './types';
 
 // Minimum shape this module needs to read from IDB. The full

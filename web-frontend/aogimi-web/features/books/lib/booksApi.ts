@@ -1,5 +1,5 @@
 import { apiGet, apiSend, apiSendKeepalive, apiSendVoid } from '@/lib/api';
-import type { EpubIdentity } from '@/lib/epubIdentity';
+import type { EpubIdentity } from './epubIdentity';
 import type {
   BookProgressRecord,
   MatchCandidate,

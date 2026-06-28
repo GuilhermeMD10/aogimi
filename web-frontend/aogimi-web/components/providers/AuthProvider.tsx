@@ -19,7 +19,7 @@ import {
 } from '@/lib/auth/tokenStore';
 import { wipeUserData } from '@/lib/auth/wipeUserData';
 import { refreshAccessTokenOnce, registerSessionInvalidatedHandler } from '@/lib/api';
-import { reconcileBooks } from '@/components/books/utils/reconcileBooks';
+import { reconcileBooks } from '@/features/books';
 
 type AuthContextValue = {
   user: User | null;

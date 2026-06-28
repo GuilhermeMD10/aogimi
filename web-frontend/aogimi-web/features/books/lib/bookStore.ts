@@ -7,8 +7,8 @@ import {
   updateBookTitle as apiUpdateBookTitle,
 } from './booksApi';
 import type { BookProgressRecord } from '@/features/books/types';
-import { computeEpubIdentity, extractEpubData, type EpubData } from '@/lib/epubIdentity';
-import { computePdfIdentity, extractPdfData } from '@/lib/pdfIdentity';
+import { computeEpubIdentity, extractEpubData, type EpubData } from './epubIdentity';
+import { computePdfIdentity, extractPdfData } from './pdfIdentity';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

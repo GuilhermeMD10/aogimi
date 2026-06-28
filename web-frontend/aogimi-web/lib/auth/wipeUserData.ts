@@ -18,7 +18,7 @@
 // Onboarding state now lives on the backend (`users.onboarding_completed`),
 // so there's no per-account onboarding key to clear here.
 
-import { wipeBookDatabase } from '@/components/books/utils/bookStore';
+import { wipeBookDatabase } from '@/features/books';
 
 const USER_KEYS = [
   'dictionary_state',

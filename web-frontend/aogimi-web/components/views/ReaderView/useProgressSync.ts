@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { updateBookProgress, sendProgressKeepalive } from '@/components/books/utils/booksApi';
-import { setReaderProgress } from '@/lib/storage/readerSession';
+import { updateBookProgress, sendProgressKeepalive } from '@/features/books/lib/booksApi';
+import { setReaderProgress } from '@/features/books/lib/readerSession';
 import type { ReaderSession } from '@/components/providers/ReaderStateProvider';
 
 export type ProgressSnapshot = {

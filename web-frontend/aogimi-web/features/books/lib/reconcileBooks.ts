@@ -41,7 +41,7 @@ import {
   getUserBooks,
   updateBookIdentity as apiUpdateBookIdentity,
 } from './booksApi';
-import { effectiveSyncState, pushAllPending, type SyncSummary } from '@/lib/sync';
+import { effectiveSyncState, pushAllPending, type SyncSummary } from './sync';
 import type { BookProgressRecord } from '@/features/books/types';
 
 export type ReconcileSummary = {

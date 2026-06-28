@@ -5,7 +5,7 @@ import {
   getAllBooks,
   syncLocalBooksToBackend,
   backfillBookIdentity,
-} from '../utils/bookStore';
+} from '../lib/bookStore';
 import type { BookProgressRecord } from '@/features/books/types';
 import type { AuthUser } from '@/features/auth/types';
 import type { Book } from '../types';
