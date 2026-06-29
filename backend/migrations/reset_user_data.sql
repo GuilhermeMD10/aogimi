@@ -139,12 +139,14 @@ CREATE TABLE cards (
   stability         real         NOT NULL DEFAULT 2.0,             -- SRS: days, floor 0.1
   last_outcomes     text         NOT NULL DEFAULT '',              -- last 5: A/H/E encoded
   last_reviewed_at  timestamptz,
+  next_due_at       timestamptz,                                   -- SRS: when next due; NULL = never reviewed = due now
   created_at        timestamptz  NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_cards_deck_id        ON cards (deck_id);
 CREATE INDEX idx_cards_state          ON cards (deck_id, state);
 CREATE INDEX idx_cards_last_reviewed  ON cards (deck_id, last_reviewed_at);
+CREATE INDEX idx_cards_due            ON cards (deck_id, next_due_at);
 
 -- ── card_reviews ────────────────────────────────────────────────────────────
 

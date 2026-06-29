@@ -29,6 +29,14 @@ const STABILITY_FLOOR = 0.1;
 const MAX_OUTCOME_HISTORY = 5;
 const MS_PER_DAY = 86_400_000;
 
+// Scheduling target. A card is "due" once its retrievability has decayed to
+// this value, so the next review is scheduled at:
+//   next_due_at = last_reviewed_at + stability * ln(1 / TARGET_RETENTION).
+// Lower it to space reviews further apart; raise it for more frequent review.
+// Keep in sync with the 0.10536 factor in migration 023's backfill.
+const TARGET_RETENTION = 0.9;
+const LN_INV_TARGET = Math.log(1 / TARGET_RETENTION); // ≈ 0.10536
+
 // Ordering weights for the hardest-first sort. Tuning surface — keep
 // in this one place so the math is auditable.
 const SORT_WEIGHT_FADING = 0.30;             // (1 - R) multiplier
@@ -73,6 +81,17 @@ function computeRetrievability(card, now = new Date()) {
   const t = elapsedDays(card, now);
   const s = Math.max(STABILITY_FLOOR, card.stability ?? STABILITY_FLOOR);
   return Math.exp(-t / s);
+}
+
+/**
+ * When does a card next fall due, given its (post-review) stability and the
+ * moment it was reviewed? next_due_at = reviewedAt + stability * ln(1/target).
+ * Pure; mirrors the decay used by computeRetrievability.
+ */
+function computeNextDue(stability, reviewedAt) {
+  const s = Math.max(STABILITY_FLOOR, stability ?? STABILITY_FLOOR);
+  const intervalDays = s * LN_INV_TARGET;
+  return new Date(reviewedAt.getTime() + intervalDays * MS_PER_DAY);
 }
 
 /**
@@ -146,6 +165,7 @@ function applyOutcome(card, outcome, now = new Date()) {
       stability:        nextStability,
       last_outcomes:    nextOutcomes,
       last_reviewed_at: now,
+      next_due_at:      computeNextDue(nextStability, now),
       state:            nextState,
     },
     event: {
@@ -186,8 +206,10 @@ function hardestSortKey(card, now = new Date()) {
 
 module.exports = {
   OUTCOMES,
+  TARGET_RETENTION,
   applyOutcome,
   computeRetrievability,
+  computeNextDue,
   transitionState,
   hardestSortKey,
 };

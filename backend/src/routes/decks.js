@@ -105,6 +105,19 @@ router.get("/:id/cards", async (req, res) => {
   }
 });
 
+// Due cards in this deck only (never-reviewed or past next_due_at).
+router.get("/:id/cards/due", async (req, res) => {
+  if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
+    return res.status(404).json({ error: "Not found" });
+  }
+  try {
+    const cards = await cardService.getDueDeckCards(req.params.id);
+    return res.json(cards);
+  } catch (err) {
+    return res.status(500).json({ error: "Read failed" });
+  }
+});
+
 router.put("/cards/:cardId", async (req, res) => {
   if (!(await cardOwnedBy(req.user.userId, req.params.cardId))) {
     return res.status(404).json({ error: "Not found" });

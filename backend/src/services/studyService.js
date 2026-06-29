@@ -116,8 +116,23 @@ async function fetchSessionCards(userId, { scope, deckIds, mode, limit }) {
   return ordered.slice(0, cap);
 }
 
+/**
+ * Every card the user has due right now, across all the decks they own.
+ * "Due" = never reviewed (next_due_at IS NULL) or next_due_at <= now.
+ * Ordered most-overdue first; the client decides how many to actually study
+ * (no limit is applied here — the per-deck and all-decks due lists are the
+ * raw inventory the UI builds a session from).
+ */
+async function fetchDueCards(userId) {
+  const userDecks = await deckRepo.findByUser(userId);
+  const ownedIds = userDecks.map((d) => d.id);
+  if (ownedIds.length === 0) return [];
+  return await cardRepo.findDueByDeckIds(ownedIds);
+}
+
 module.exports = {
   VALID_MODES,
   DEFAULT_SESSION_SIZE,
   fetchSessionCards,
+  fetchDueCards,
 };

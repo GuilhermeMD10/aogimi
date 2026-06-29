@@ -158,6 +158,7 @@ matches `req.user.userId` via `requireUserMatch`.
 |---|---|---|---|---|
 | POST | `/api/decks/:id/cards` | `{ front, reading?, back, notes?, contextSentence? }` | `CardRecord` | `deckOwnedBy(:id)` |
 | GET | `/api/decks/:id/cards` | — | `CardRecord[]` | `deckOwnedBy(:id)` |
+| GET | `/api/decks/:id/cards/due` | — | `CardRecord[]` (due in this deck, most-overdue first) | `deckOwnedBy(:id)` |
 | PUT | `/api/decks/cards/:cardId` | `{ front?, reading?, back?, notes?, state?, contextSentence? }` | `CardRecord` | `cardOwnedBy` |
 | POST | `/api/decks/cards/:cardId/review` | `{ outcome: 'again' \| 'hard' \| 'easy' }` | `CardRecord` (with updated SRS columns) | `cardOwnedBy` |
 | DELETE | `/api/decks/cards/:cardId` | — | `{ message }` | `cardOwnedBy` |
@@ -170,8 +171,15 @@ an event row to `card_reviews` and bumps the user's `study_days` row
 for today.
 
 `CardRecord` includes the SRS columns: `difficulty`, `stability`,
-`last_outcomes`, `last_reviewed_at`, plus the legacy `notes`,
+`last_outcomes`, `last_reviewed_at`, `next_due_at`, plus the legacy `notes`,
 `reviewed_times`, etc. State enum: `new | seen | learned | mastered`.
+
+**Due cards.** A card is *due* when it has never been reviewed
+(`next_due_at IS NULL`) or its scheduled `next_due_at` has passed. Each
+review recomputes `next_due_at = last_reviewed_at + stability ·
+ln(1/0.9)` (≈ `stability/10` days). The two due endpoints below return the
+raw inventory of due cards (no `limit`) ordered most-overdue first, with
+never-reviewed cards first; the client decides session size.
 
 ---
 
@@ -180,6 +188,7 @@ for today.
 | Method | Path | Body | Response | Notes |
 |---|---|---|---|---|
 | POST | `/api/study/session` | `{ scope, deckIds?, mode, limit? }` | `{ cards: CardRecord[] }` | Cards already in display order |
+| GET | `/api/study/due` | — | `{ cards: CardRecord[] }` | All cards due now across every deck the user owns, most-overdue first |
 | GET | `/api/study/prefs` | — | `{ display, deckOverrides }` | Returns defaults when no row exists |
 | PUT | `/api/study/prefs` | `{ display?, deckOverrides? }` | `{ display, deckOverrides }` | Upsert; either field optional |
 

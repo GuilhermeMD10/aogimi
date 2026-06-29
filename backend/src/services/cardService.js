@@ -11,6 +11,12 @@ async function getDeckCards(deckId) {
   return await cardRepo.findByDeck(deckId);
 }
 
+// Cards in this deck that are due for review right now (never-reviewed or
+// past their scheduled next_due_at), most-overdue first.
+async function getDueDeckCards(deckId) {
+  return await cardRepo.findDueByDeck(deckId);
+}
+
 async function getCard(id) {
   const card = await cardRepo.findById(id);
   if (!card) throw new Error("Card not found");
@@ -62,4 +68,4 @@ async function deleteCard(id) {
   return true;
 }
 
-module.exports = { createCard, getDeckCards, getCard, updateCard, reviewCard, deleteCard };
+module.exports = { createCard, getDeckCards, getDueDeckCards, getCard, updateCard, reviewCard, deleteCard };
