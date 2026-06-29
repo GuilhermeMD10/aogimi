@@ -196,14 +196,28 @@ DELETE /api/decks/cards/{cardId}
 
 POST /api/decks/cards/{cardId}/review
   Trigger:   Card review completion (manual, once per review)
-  Response:  CardRecord  -- backend updates state + reviewed_times
+  Response:  CardRecord  -- backend updates SRS columns + next_due_at + reviewed_times
+
+GET /api/decks/{deckId}/cards/due       [NOT YET WIRED ON FRONTEND]
+  Trigger:   (planned) "Study due" entry for a single deck
+  Response:  CardRecord[]  -- due in this deck, most-overdue first
+  See:       ../../../docs/study-due-cards.md
+
+GET /api/study/due                       [NOT YET WIRED ON FRONTEND]
+  Trigger:   (planned) "Study all due" across every deck
+  Response:  { cards: CardRecord[] }  -- most-overdue first
+  See:       ../../../docs/study-due-cards.md
 
 DeckRecord shape:
   { id, user_id, name, description, created_at, card_count }
 
 CardRecord shape:
   { id, deck_id, front, reading, back, notes, context_sentence,
-    state ('new'|'learning'|'mastered'), reviewed_times, created_at }
+    state ('new'|'seen'|'learned'|'mastered'), reviewed_times,
+    difficulty, stability, last_outcomes, last_reviewed_at,
+    next_due_at, created_at }
+  -- A card is "due" when next_due_at IS NULL (never reviewed) or
+  --  next_due_at <= now. See docs/study-due-cards.md.
 
 
 ==============================================================================

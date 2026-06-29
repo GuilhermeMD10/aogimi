@@ -7,9 +7,10 @@ must stay in lockstep (any migration touching user-data tables also
 edits the reset script).
 
 The shape below reflects the schema after
-[`022_card_srs.sql`](./migrations/022_card_srs.sql), which extended
-`cards` with SRS state and added `card_reviews`, `study_days`, and
-`user_study_prefs`. Algorithm lives in
+[`023_card_next_due.sql`](./migrations/023_card_next_due.sql).
+[`022_card_srs.sql`](./migrations/022_card_srs.sql) extended `cards` with
+SRS state and added `card_reviews`, `study_days`, and `user_study_prefs`;
+`023` added `cards.next_due_at` for due-card scheduling. Algorithm lives in
 [`src/services/cardSrsService.js`](./src/services/cardSrsService.js).
 
 ---
@@ -158,12 +159,14 @@ identity fingerprints used to match the same book across devices.
 | stability | real | NOT NULL DEFAULT 2.0 | SRS: days of memory durability, floor 0.1 |
 | last_outcomes | text | NOT NULL DEFAULT '' | Last 5 outcomes encoded `A`/`H`/`E` (Again/Hard/Easy), oldest left |
 | last_reviewed_at | timestamptz | nullable | When the card was last reviewed (null for never-reviewed cards) |
+| next_due_at | timestamptz | nullable | SRS: when the card next falls due (`last_reviewed_at + stability·ln(1/0.9)`). Null = never reviewed → treated as due now |
 | created_at | timestamptz | NOT NULL DEFAULT now() | |
 
 **Indexes:**
 - `idx_cards_deck_id ON (deck_id)`
 - `idx_cards_state ON (deck_id, state)`
 - `idx_cards_last_reviewed ON (deck_id, last_reviewed_at)` — for "oldest first" and time-aware ordering
+- `idx_cards_due ON (deck_id, next_due_at)` — for the due-card queries (per-deck and all-decks)
 
 ---
 

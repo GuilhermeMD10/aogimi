@@ -44,6 +44,19 @@ router.post("/session", async (req, res) => {
   }
 });
 
+// ── Due ──────────────────────────────────────────────────────────────────────
+// Every card due right now across all the user's decks. Identity from the
+// token; ownership is implicit (only the caller's own decks are pooled).
+
+router.get("/due", async (req, res) => {
+  try {
+    const cards = await studyService.fetchDueCards(req.user.userId);
+    return res.json({ cards });
+  } catch (err) {
+    return res.status(500).json({ error: "Due resolution failed" });
+  }
+});
+
 // ── Prefs ──────────────────────────────────────────────────────────────────
 
 router.get("/prefs", async (req, res) => {

@@ -83,7 +83,8 @@
       "Bash(rg -n \"THEMES\\\\.md|THEME_AUTHORING\\\\.md|themes/index|themes/stamp|useThemedComponent|theme-decorations|ThemeSwitcher|ThemeSection\" web-frontend/aogimi-web/*.md web-frontend/aogimi-web/AGENTS.md CLAUDE.md)",
       "Bash(ls web-frontend/aogimi-web/AGENTS.md)",
       "Bash(rg --files)",
-      "Bash(rg \"\\\\.default\\\\.\\(ts|tsx\\)$\")"
+      "Bash(rg \"\\\\.default\\\\.\\(ts|tsx\\)$\")",
+      "Bash(xargs -I{} sh -c 'echo \"FOUND: $\\(cd \"$\\(dirname {}\\)\" && pwd\\)/$\\(basename {}\\)\"')"
     ],
     "additionalDirectories": [
       "/Users/guilhermedias/solo-projects/jp-eco/web-frontend/langecko-web/app/reader",
