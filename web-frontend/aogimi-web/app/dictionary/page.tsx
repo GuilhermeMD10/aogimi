@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import DictionaryView from '@/components/views/DictionaryView';
+import { DictionaryView } from '@/features/dictionary';
 
 export default function DictionaryPage() {
   return (
