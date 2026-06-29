@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import DecksView from '@/components/decks/ui/DecksView';
+import { DecksView } from '@/features/study/decks';
 
 export default function DecksPage() {
   return (

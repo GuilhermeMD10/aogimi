@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
-import ReaderView from '@/components/views/ReaderView';
+import { BooksView } from '@/features/books';
 
 export default function ReaderPage() {
   return (
     <Suspense>
-      <ReaderView />
+      <BooksView />
     </Suspense>
   );
 }

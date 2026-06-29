@@ -1,4 +1,4 @@
-import { StatsScreen } from '@/components/stats/ui/StatsScreen';
+import { StatsScreen } from '@/features/study/stats';
 
 export default function StatsPage() {
   return <StatsScreen />;

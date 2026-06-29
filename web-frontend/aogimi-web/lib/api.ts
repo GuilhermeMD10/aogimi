@@ -2,7 +2,7 @@
 // Override per-environment with NEXT_PUBLIC_API_URL.
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
-import { getAccessToken, setAccessToken, clearAccessToken } from './auth/tokenStore';
+import { getAccessToken, setAccessToken, clearAccessToken } from './tokenStore';
 
 /** Build a full URL against the backend. Path should start with `/`. */
 export function apiUrl(path: string): string {

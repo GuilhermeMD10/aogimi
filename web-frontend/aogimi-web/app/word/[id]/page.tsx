@@ -1,4 +1,4 @@
-import WordDetailView from '@/components/views/WordDetailView';
+import { WordDetailView } from '@/features/dictionary';
 
 export default async function WordDetailPage({
   params,

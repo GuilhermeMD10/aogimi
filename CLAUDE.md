@@ -99,11 +99,24 @@ Full docs:
 - `web-frontend/aogimi-web/backend-connections.txt` — endpoint catalog + payload shapes the frontend depends on.
 - `web-frontend/aogimi-web/DECISIONS.md` — scope decisions + deferred work.
 
+### Web: feature-oriented structure
+
+The web app is organized **by feature, not by file type**. Three layers with one-way dependencies — `lib`/`shared` ← `features` ← `app`:
+
+- `app/` — Next.js routing only. Pages are thin: each imports one feature view.
+- `features/<feature>/` — self-contained slices. Each owns its `components/`, `hooks/`, `lib/`, `providers/`, `views/`, `types.ts` as needed and exposes a **public API via `index.ts` (barrel)**. Cross-feature imports go through the barrel; a types-only borrow may import `@/features/<x>/types` directly. Top-level features: `mobile-gate`, `auth`, `dictionary`, `home`, `profile`, `settings`, `onboarding`, `app-shell`, plus two domains with sub-features:
+  - `books/` — `books/library` (the book list), `books/reader` (epub/pdf/text/manga engines + `reader-bubble`), shared data layer in `books/lib`, orchestrated by `books/views/BooksView` (the `/reader` route).
+  - `study/` — `study/decks`, `study/session` (the study runner), `study/stats`.
+- `shared/` — cross-feature UI primitives (`shared/ui`) + global icons (`shared/icons`).
+- `lib/` — feature-agnostic infra ONLY: `api.ts`, `tokenStore.ts`, `useFetchWithAbort.ts`, `storage/_helpers.ts`, `util/`.
+
+The layer rule is enforced by `import/no-restricted-paths` in `eslint.config.mjs` (lib/shared must not import features; features must not import app). Cross-feature "import only via the barrel" is convention (could be hardened with eslint-plugin-boundaries).
+
 ### Web: state architecture
 
-Six React Context providers in `web-frontend/aogimi-web/components/providers/`, mounted by `AppShell`. **No Redux, Zustand, Jotai, etc.** Cross-feature signalling happens through "pending fields" on `ReaderStateProvider` — e.g. the reader sets `pendingDictSearch`, `AppShell`'s effect picks it up, calls `dict.runSearch`, and nulls the field. Effects are guarded against double-fire with `useRef`s of the last-handled trigger object (see `components/AppShell.tsx`).
+React Context providers, **each owned by its feature** and composed by `AppShell` (`features/app-shell/AppShell.tsx`): `AuthProvider`→`features/auth`, `DecksProvider`→`features/study/decks`, `DictionaryStateProvider`→`features/dictionary`, `ReaderStateProvider`+`ThemeProvider`→`features/app-shell`. **No Redux, Zustand, Jotai, etc.** Cross-feature signalling happens through "pending fields" on `ReaderStateProvider` — e.g. the reader sets `pendingCard`, `DecksView` picks it up on mount and nulls it. Effects guard against double-fire with `useRef`s of the last-handled trigger object (see `AppShell.tsx`, `PendingCardOverlay.tsx`). To avoid barrel cycles, feature code imports providers/hooks **by file path**, not via the app-shell/auth barrel.
 
-Domain types are in `lib/types/` (NOT in `lib/<x>Api.ts` files — those only export fetch helpers).
+Domain types live in each feature's `types.ts` (e.g. `features/dictionary/types.ts`, `features/books/types.ts`, `features/profile/types.ts`). A feature's fetch helpers live in its `lib/` (e.g. `features/study/decks/lib/decksApi.ts`) and import those types; no type declarations alongside fetch helpers. (`lib/types/` was dissolved in the feature refactor.)
 
 ### Web: app-level features
 
@@ -120,11 +133,11 @@ Same three-layer system (`theme/tokens.ts`, `theme/createThemedComponent.tsx`, `
 
 ### Books: per-device storage + Postgres metadata
 
-EPUB/PDF blobs never go to Postgres. On web they live in a **single IndexedDB database `aogimi`** (`components/books/utils/booksDb.ts` is the sole connection factory; stores: `metadata`, `files` blobs, `handles` for the File System Access directory handle). On mobile they live in `expo-file-system documents/books/`. The backend stores **metadata + reading position** in `book_progress` rows (EPUB CFI / spine index / percent) — see *Reading progress / position* below and DECISIONS.md.
+EPUB/PDF blobs never go to Postgres. On web they live in a **single IndexedDB database `aogimi`** (`features/books/lib/booksDb.ts` is the sole connection factory; stores: `metadata`, `files` blobs, `handles` for the File System Access directory handle). On mobile they live in `expo-file-system documents/books/`. The backend stores **metadata + reading position** in `book_progress` rows (EPUB CFI / spine index / percent) — see *Reading progress / position* below and DECISIONS.md.
 
 The `aogimi` DB merged two former databases (`aogimi-books` + `aogimi-fs`); `booksDb.getDb()` runs a one-time, idempotent copy-then-delete migration from them on first open.
 
-Library mount on the web reconciles all three storage layers (`components/library/RestoreLibrary.tsx`):
+Library mount on the web reconciles all three storage layers (`features/books/library/components/RestoreBooks.tsx`, driven by `features/books/views/BooksView.tsx`):
 1. Load local IndexedDB book records.
 2. Register the device (`POST /api/devices`) if absent.
 3. Fetch backend books (`GET /api/books/user/{id}`).
@@ -136,10 +149,10 @@ Library mount on the web reconciles all three storage layers (`components/librar
 
 **Backend-buffered, EPUB only.** Position is captured from foliate's `relocate` event in the reader engines and persisted in two tiers (rationale in DECISIONS.md — deliberately *not* a per-turn backend write):
 
-- **localStorage** (`lib/storage/readerSession.ts`, key `reader_progress_<filename>`) is written on every page turn — cheap, no network, the per-device buffer / source of truth between flushes.
+- **localStorage** (`features/books/lib/readerSession.ts`, key `reader_progress_<filename>`) is written on every page turn — cheap, no network, the per-device buffer / source of truth between flushes.
 - **The backend** (`book_progress.cfi_position` / `spine_index` / `progress` via `PUT/POST /api/books/:id/progress`) is flushed only **periodically** (~60s backstop), **on exit** (`visibilitychange:hidden` / `pagehide` via a keepalive POST — `fetch(keepalive)`, *not* `sendBeacon`, so it carries the in-memory Bearer token), and **on unmount** (normal fetch — "Back to library" is an SPA nav that fires no unload event).
 
-`components/views/ReaderView/useProgressSync.ts` owns the wiring; readers forward position via an `onRelocate` prop. On open, `ReaderView` resolves the restore anchor as the **newer** of the localStorage snapshot and the backend row (same device ⇒ local; switched device ⇒ backend) and the engine does a one-shot `goTo`. The first relocate of a session only **seeds the dedup baseline**, so opening a book never writes back the restored position — a manual "mark finished" (`{ progress: 100 }`) sticks until the user actually turns a page. PDF position is **not** tracked yet (no backend column). Reader typography prefs remain in-memory only (reset per open) pending backend-backed storage.
+`features/books/views/useProgressSync.ts` owns the wiring; readers forward position via an `onRelocate` prop. On open, `BooksView` resolves the restore anchor as the **newer** of the localStorage snapshot and the backend row (same device ⇒ local; switched device ⇒ backend) and the engine does a one-shot `goTo`. The first relocate of a session only **seeds the dedup baseline**, so opening a book never writes back the restored position — a manual "mark finished" (`{ progress: 100 }`) sticks until the user actually turns a page. PDF position is **not** tracked yet (no backend column). Reader typography prefs remain in-memory only (reset per open) pending backend-backed storage.
 
 ## Gotchas
 
@@ -148,13 +161,18 @@ Library mount on the web reconciles all three storage layers (`components/librar
 - **Hex literals in components are not allowed** except in `JlptChip` (per-level palette, hardcoded by design); on mobile, theme decoration atoms are also exempt. If a surface should be token-driven, grep it for `#[0-9a-f]{6}` and replace with `--lgc-*` token / `bg-lgc-*` class.
 - **No inline `borderRadius: <px>` on token-relevant surfaces.** Use `rounded-*` Tailwind classes or `var(--radius-md)`. Pure decoratives (`'50%'`, `999`) are fine.
 - **No inline `if (theme === 'stamp')` branches** in components. (Mobile only — web has no per-theme dispatch anymore. On mobile, move the variation into a shape token or fork via the registry.)
-- **`react-hooks/set-state-in-effect`** fires false positives on legitimate "sync from external trigger" effects (see `AppShell.tsx` `pendingDictSearch`/`pendingCard`, `PendingCardOverlay.tsx` phase seed). Block-disabled with explanatory comment where the pattern is correct.
+- **`react-hooks/set-state-in-effect`** fires false positives on legitimate "sync from external trigger" effects (see `features/app-shell/AppShell.tsx` pending-field effects, `features/study/decks/components/PendingCardOverlay/` phase seed). Block-disabled with explanatory comment where the pattern is correct.
 - **Migrations are manual.** Sequence matters — apply in numbered order. `011_jlpt_seed.psql` is psql-specific because of `\copy`.
-- **Two design canvases vs production**: `web-frontend/aogimi-web/aogimi-DS/` and `components/home/HomeView/HomeDemos.tsx` + `components/library/LibraryDesk.tsx` + `components/views/DictionaryView/{DictionaryQuiet,DictionarySidekick}.tsx` are intentionally pinned reference layouts. They use inline pixel radii on purpose — don't sweep them into the token system without explicit visual review.
+- **Two design canvases vs production**: `web-frontend/aogimi-web/aogimi-DS/` and `features/home/HomeDemos.tsx` + `features/books/library/components/BooksDesk.tsx` + `features/dictionary/components/DictionaryQuiet.tsx` + `features/dictionary/views/DictionarySidekick.tsx` are intentionally pinned reference layouts. They use inline pixel radii on purpose — don't sweep them into the token system without explicit visual review.
 
 ## Conventions
 
-- Domain types in `web-frontend/aogimi-web/lib/types/` (one file per domain). API files in `lib/<domain>Api.ts` import their types from there; no type declarations alongside fetch helpers.
+- **Web file placement & naming (where new code goes).** Place by feature, never by file type. Pick the existing feature under `features/`; create a new one only for a genuinely new user-nameable concern.
+  - A feature's internals use fixed sub-folder names — `components/` (PascalCase `Foo.tsx`), `hooks/` (camelCase `useFoo.ts`), `lib/` (camelCase: api/storage/pure logic, e.g. `fooApi.ts`), `providers/` (`FooProvider.tsx`), `views/` (route/page-level `FooView.tsx`), plus `types.ts`. **Only create a sub-folder that will hold a file** — no empty scaffolding.
+  - Each feature has an `index.ts` **barrel** = its public API. Other features import from the barrel (`@/features/foo`); a types-only borrow may import `@/features/foo/types` directly. Inside a feature, use relative imports (`./`, `../`).
+  - A domain with sub-features (`books`, `study`) nests them as sibling folders (`books/library`, `books/reader`), each with its own structure + barrel; things shared by the sub-features live at the domain root (`books/lib`, `books/types.ts`). Sub-features stay independent — they don't import each other (an orchestrator view at the domain root composes them).
+  - Routing stays in `app/`; a page is a thin wrapper that renders one feature view. Cross-cutting UI primitives → `shared/ui`, global icons → `shared/icons`. `lib/` is feature-agnostic infra only.
+- Domain types live in each feature's `types.ts` (e.g. `features/dictionary/types.ts`). A feature's fetch helpers live in its `lib/` (e.g. `features/study/decks/lib/decksApi.ts`) and import those types; no type declarations alongside fetch helpers. `web-frontend/aogimi-web/lib/` holds only feature-agnostic infra (`api.ts`, `tokenStore.ts`, `useFetchWithAbort.ts`, `storage/_helpers.ts`, `util/`).
 - `lib/util/cn.ts` is the Tailwind class merger. shadcn's `components.json` aliases `utils` → `@/lib/util/cn`, so future `shadcn add` writes the right path.
 - Don't run git commits, pushes, or destructive DB operations — the human handles those.
 - All `*Api.ts` fetch helpers accept an optional `AbortSignal`; pair with `useEffect` cleanup.

@@ -1,0 +1,7 @@
+// Study-session sub-feature public surface.
+export { StudyScreen } from './components/StudyScreen';
+export { SessionConfigSheet } from './components/SessionConfigSheet';
+export { StateBreakdown } from './components/StateBreakdown';
+export { StudyAllHardestButton } from './components/StudyAllHardestButton';
+export { useDeckOverrides } from './hooks/useDeckOverrides';
+export type { StudySessionConfig } from './types';

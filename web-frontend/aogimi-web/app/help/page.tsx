@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import HelpView from '@/components/views/HelpView/HelpView';
+import { HelpView } from '@/features/settings';
 
 // Standalone /help route. The bubble flow swaps to HelpView inside
 // itself rather than navigating here; this route is for deep links.
