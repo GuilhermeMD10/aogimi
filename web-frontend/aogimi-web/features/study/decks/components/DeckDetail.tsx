@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { ArrowLeft, Plus, Search, Grid3x3, List, Trash2, Check, Settings2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import { TopBar } from '@/features/app-shell/TopBar';
 import type { Deck } from '../types';
 import { DeckForm } from './DeckForm';
-import { deckVisuals } from '../lib/deckVisuals';
-import { StateBreakdown } from '@/features/study/session';
+import { DeckCardPanel } from './DeckCardPanel';
+import { DeckLedger } from './DeckLedger';
+import { useDeckDueCount } from '../hooks/useDeckDueCount';
 
 interface DeckDetailProps {
   deck: Deck;
@@ -15,10 +17,25 @@ interface DeckDetailProps {
   onEditDeck: (patch: { name: string }) => void;
   onAddCard: (front: string, back: string) => void;
   onDeleteCard: (cardId: string) => void;
+  onDeleteDeck: () => void;
 }
 
 type FormMode = null | 'add-card' | 'edit-deck';
 
+/**
+ * One deck, opened: the constellation panel with its card list beside it, and
+ * the ledger underneath.
+ *
+ * **The sky panel is empty** — the same solid `--deck-sky` placeholder the deck
+ * cards use. The real star map is a separate component with its own data, and
+ * everything in the handoff that couples this page to it (the hover bubble,
+ * star↔row hover mirroring, the collapse control that hides the list to reveal
+ * the map) is deliberately not built: it would all be interaction with a blank
+ * rectangle.
+ *
+ * Still a child of `DecksView` rather than a `/decks/{id}` route, so the
+ * breadcrumb's "Decks" is a callback rather than a link.
+ */
 export function DeckDetail({
   deck,
   onBack,
@@ -27,33 +44,11 @@ export function DeckDetail({
   onEditDeck,
   onAddCard,
   onDeleteCard,
+  onDeleteDeck,
 }: DeckDetailProps) {
   const [mode, setMode] = useState<FormMode>(null);
-  const [front, setFront] = useState('');
-  const [back, setBack] = useState('');
-  const [filter, setFilter] = useState('');
-
-  const canStudy = deck.cards.length > 0;
-  const { color, kamon } = deckVisuals(deck.name);
-
-  const filteredCards = filter
-    ? deck.cards.filter(
-        (c) =>
-          c.front.toLowerCase().includes(filter.toLowerCase()) ||
-          c.back.toLowerCase().includes(filter.toLowerCase()),
-      )
-    : deck.cards;
-
-  const submitCard = (e: React.FormEvent) => {
-    e.preventDefault();
-    const f = front.trim();
-    const b = back.trim();
-    if (!f || !b) return;
-    onAddCard(f, b);
-    setFront('');
-    setBack('');
-    setMode(null);
-  };
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const { dueCount } = useDeckDueCount(deck.id);
 
   const submitEdit = ({ name }: { name: string }) => {
     onEditDeck({ name });
@@ -61,96 +56,35 @@ export function DeckDetail({
   };
 
   return (
-    <div className="@container min-h-full w-full">
-      <div className="lgc-scroll h-full overflow-auto">
-        {/* ── Header area ──────────────────────────────────────────── */}
-        <div className="px-4 pt-4 @md:px-8 @md:pt-5">
-          {/* Breadcrumb */}
+    <div className="h-full w-full overflow-auto font-[family-name:var(--face-ui)] font-medium">
+      <div className="mx-auto flex w-full max-w-[1300px] flex-col px-11 pt-[34px] pb-[140px]">
+        <TopBar />
+
+        <nav className="mb-2.75 flex items-center gap-2.25 font-[family-name:var(--face-mono)] text-[11px] tracking-[0.04em] text-(--muted)">
           <button
             type="button"
             onClick={onBack}
-            className="mb-4 flex items-center gap-1 text-xs text-lgc-fg-muted transition-colors hover:text-lgc-fg @md:mb-5"
+            className="inline-flex items-center gap-1.5 text-(--soft) hover:text-(--btn) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
           >
-            <ArrowLeft size={12} />
-            <span>Decks</span>
-            <span className="opacity-50">/</span>
-            <span className="text-lgc-fg">{deck.name}</span>
+            <ChevronLeft size={13} strokeWidth={2} />
+            Decks
           </button>
+          <span className="text-(--deck-bd)">/</span>
+          <span className="truncate text-(--ink)">{deck.name}</span>
+        </nav>
 
-          {/* Deck identity */}
-          <div className="mb-2.5 flex flex-col gap-3 @sm:flex-row @sm:items-start @sm:gap-5">
-            {/* Gradient icon */}
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-[28px] leading-none text-white/90 @sm:h-16 @sm:w-16 @sm:text-[34px] @lg:h-20 @lg:w-20 @lg:text-[44px]"
-              style={{
-                background: `linear-gradient(135deg, ${color} 0%, color-mix(in oklab, ${color} 50%, black) 100%)`,
-                fontFamily: 'var(--font-display)',
-              }}
-            >
-              {kamon}
-            </div>
+        <DeckHeader
+          deck={deck}
+          dueCount={dueCount}
+          mode={mode}
+          onSetMode={setMode}
+          onStudy={onStudy}
+          onConfigure={onConfigure}
+          onDeleteDeck={onDeleteDeck}
+        />
 
-            <div className="min-w-0 flex-1">
-              <h1
-                className="text-[22px] font-medium tracking-tight text-lgc-fg @sm:text-[26px] @lg:text-[30px] font-display"
-                style={{ letterSpacing: '-0.015em' }}
-              >
-                {deck.name}
-              </h1>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex shrink-0 flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => setMode(mode === 'add-card' ? null : 'add-card')}
-                className="flex items-center gap-1.5 rounded-md border border-lgc-border px-3 py-1.5 text-xs font-medium text-lgc-fg transition-colors hover:bg-lgc-bg-elev"
-              >
-                <Plus size={13} /> {mode === 'add-card' ? 'Cancel' : 'New card'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode(mode === 'edit-deck' ? null : 'edit-deck')}
-                className="rounded-md border border-lgc-border px-3 py-1.5 text-xs text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev hover:text-lgc-fg"
-              >
-                {mode === 'edit-deck' ? 'Cancel' : 'Edit'}
-              </button>
-              <button
-                type="button"
-                onClick={onStudy}
-                disabled={!canStudy}
-                className="lgc-button"
-              >
-                Study{canStudy ? ` (${deck.cards.length})` : ''}
-              </button>
-              {onConfigure && (
-                <button
-                  type="button"
-                  onClick={onConfigure}
-                  className="rounded-md border border-lgc-border px-2.5 py-1.5 text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev hover:text-lgc-fg"
-                  title="Session settings"
-                  aria-label="Session settings"
-                >
-                  <Settings2 size={14} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Stats strip — total cards + per-state breakdown from the
-              loaded cards array (no extra fetch). */}
-          <div className="flex flex-wrap items-center gap-x-7 gap-y-2 border-b border-t border-lgc-border py-3 text-xs text-lgc-fg-muted @md:py-4">
-            <StatCell label="Cards" value={deck.cards.length} accent />
-            <StateBreakdown
-              stats={summariseDeck(deck)}
-              variant="expanded"
-            />
-          </div>
-        </div>
-
-        {/* ── Edit deck form ───────────────────────────────────────── */}
         {mode === 'edit-deck' && (
-          <div className="px-4 @md:px-8">
+          <div className="mb-5">
             <DeckForm
               submitLabel="Save"
               initial={{ name: deck.name }}
@@ -160,203 +94,281 @@ export function DeckDetail({
           </div>
         )}
 
-        {/* ── Add card form ────────────────────────────────────────── */}
         {mode === 'add-card' && (
-          <form
-            onSubmit={submitCard}
-            className="mx-4 mt-4 rounded-lg border border-lgc-border bg-lgc-bg-elev p-4 @md:mx-8 @md:p-5"
-          >
-            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
-              Front
-            </div>
-            <div className="mb-3 rounded-lg border border-lgc-border-strong bg-lgc-bg p-4">
-              <input
-                type="text"
-                value={front}
-                onChange={(e) => setFront(e.target.value)}
-                placeholder="Kanji / word"
-                autoFocus
-                className="w-full border-none bg-transparent text-[20px] text-lgc-fg outline-none placeholder:text-lgc-fg-subtle @sm:text-[24px] @lg:text-[30px] font-display"
-                style={{ borderBottom: '1px dashed var(--lgc-border-strong)',
-                  paddingBottom: 4, }}
-              />
-            </div>
-
-            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
-              Back
-            </div>
-            <div className="mb-3 rounded-lg border border-lgc-border-strong bg-lgc-bg p-3.5">
-              <textarea
-                value={back}
-                onChange={(e) => setBack(e.target.value)}
-                placeholder="Meaning, reading, notes..."
-                rows={3}
-                className="w-full resize-none border-none bg-transparent text-[13px] leading-relaxed text-lgc-fg outline-none placeholder:text-lgc-fg-subtle"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setMode(null)}
-                className="text-xs text-lgc-fg-muted underline transition-colors hover:text-lgc-fg"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!front.trim() || !back.trim()}
-                className="flex items-center gap-1.5 rounded-md bg-lgc-accent px-4 py-2 text-xs font-medium text-lgc-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                <Check size={13} /> Add card
-              </button>
-            </div>
-          </form>
+          <AddCardForm
+            onCancel={() => setMode(null)}
+            onSubmit={(front, back) => {
+              onAddCard(front, back);
+              setMode(null);
+            }}
+          />
         )}
 
-        {/* ── Filter row ───────────────────────────────────────────── */}
-        <div className="flex items-center gap-2.5 px-4 pb-3 pt-4 @md:px-8">
-          <div className="flex flex-1 items-center gap-1.5 rounded-md border border-lgc-border bg-lgc-bg-elev px-2.5 py-1.5" style={{ maxWidth: 300 }}>
-            <Search size={12} className="text-lgc-fg-subtle" />
-            <input
-              type="text"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filter cards\u2026"
-              className="flex-1 border-none bg-transparent text-xs text-lgc-fg outline-none placeholder:text-lgc-fg-subtle"
+        {/* Panel + sky. Below 1100px the panel drops under the sky at full
+            width, which is also where the sky gives up most of its height. */}
+        <div className="flex h-[70vh] min-h-[480px] w-full flex-col items-stretch gap-4 max-[1100px]:h-auto max-[1100px]:min-h-0 min-[1101px]:flex-row">
+          <div className="min-[1101px]:w-[304px] min-[1101px]:shrink-0 max-[1100px]:order-2 max-[1100px]:h-[340px] max-[1100px]:w-full">
+            <DeckCardPanel
+              cards={deck.cards}
+              selectedId={selectedCardId}
+              onSelect={setSelectedCardId}
+              onDeleteCard={(cardId) => {
+                onDeleteCard(cardId);
+                setSelectedCardId(null);
+              }}
             />
           </div>
-          <div className="flex rounded-md border border-lgc-border bg-lgc-bg-sunken p-0.5">
-            <span className="flex h-6 w-6.5 items-center justify-center rounded bg-lgc-bg-elev text-lgc-fg">
-              <Grid3x3 size={12} />
-            </span>
-            <span className="flex h-6 w-6.5 items-center justify-center text-lgc-fg-muted">
-              <List size={12} />
-            </span>
-          </div>
+
+          {/* Empty on purpose — the star map mounts here. */}
+          <div className="min-w-0 flex-1 overflow-hidden rounded-[20px] border border-(--bd-a) bg-(--deck-sky) shadow-(--deck-sky-shadow) max-[1100px]:order-1 max-[1100px]:h-[52vh] max-[1100px]:min-h-[320px]" />
         </div>
 
-        {/* ── Card grid ────────────────────────────────────────────── */}
-        <div className="px-4 pb-10 @md:px-8">
-          {deck.cards.length === 0 ? (
-            <p className="py-6 text-sm text-lgc-fg-muted">No cards yet. Add one above.</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 @md:grid-cols-2 @xl:grid-cols-3">
-              {filteredCards.map((card) => (
-                <MiniCard
-                  key={card.id}
-                  front={card.front}
-                  reading={card.reading}
-                  back={card.back}
-                  contextSentence={card.context_sentence}
-                  onDelete={() => onDeleteCard(card.id)}
-                />
-              ))}
-              {/* New card placeholder — auto-height stretches to match
-                  the row's tallest MiniCard. */}
-              <button
-                type="button"
-                onClick={() => setMode('add-card')}
-                className="flex min-h-32 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-lgc-border-strong text-xs text-lgc-fg-muted transition-colors hover:border-lgc-accent hover:text-lgc-accent"
-              >
-                <Plus size={18} />
-                <span>New card</span>
-              </button>
-            </div>
-          )}
-        </div>
+        <DeckLedger
+          deckId={deck.id}
+          cards={deck.cards}
+          dueCount={dueCount}
+          onSelectCard={setSelectedCardId}
+        />
       </div>
     </div>
   );
 }
 
-function summariseDeck(deck: Deck) {
-  const stats = { total: 0, new: 0, seen: 0, learned: 0, mastered: 0 };
-  for (const card of deck.cards) {
-    stats.total += 1;
-    const s = card.state ?? 'new';
-    if (s === 'new') stats.new += 1;
-    else if (s === 'seen') stats.seen += 1;
-    else if (s === 'learned') stats.learned += 1;
-    else if (s === 'mastered') stats.mastered += 1;
-  }
-  return stats;
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+function DeckHeader({
+  deck,
+  dueCount,
+  mode,
+  onSetMode,
+  onStudy,
+  onConfigure,
+  onDeleteDeck,
+}: {
+  deck: Deck;
+  dueCount: number;
+  mode: FormMode;
+  onSetMode: (m: FormMode) => void;
+  onStudy: () => void;
+  onConfigure?: () => void;
+  onDeleteDeck: () => void;
+}) {
+  const hasDue = dueCount > 0;
+
+  return (
+    <div className="mt-2.5 mb-5 flex flex-wrap items-end justify-between gap-6.5">
+      <div className="flex min-w-0 items-center gap-4">
+        {/* The deck's cover, as the same blue placeholder the deck cards use.
+            It becomes real artwork later; until then this, the card panels and
+            the sky above are one unbuilt thing and should look like it. */}
+        <div
+          aria-hidden
+          className="h-[66px] w-[46px] shrink-0 rounded-(--radius-tile) bg-(--deck-sky) shadow-(--deck-sky-shadow)"
+        />
+        <div className="min-w-0">
+          <h1 className="m-0 truncate font-[family-name:var(--face-jp)] text-[31px] leading-[1.1] font-bold text-(--ink)">
+            {deck.name}
+          </h1>
+          {/* Middle-dot separated, and a segment with no data is dropped rather
+              than printed blank — which is why there is no "one constellation"
+              (waiting on the map) and no "started {month}" (the deck row is not
+              in scope on this screen). */}
+          <div className="mt-2.25 font-[family-name:var(--face-mono)] text-[11px] tracking-[0.07em] text-(--muted)">
+            {deck.cards.length.toLocaleString()} {deck.cards.length === 1 ? 'card' : 'cards'}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-none flex-wrap items-center gap-2.5">
+        {/* Add card, rename and session settings aren't in the handoff — it
+            treats this page as read-only apart from the two deletes. They're
+            existing capability, and the only route to a manual card or a
+            rename, so they stay; the design's two buttons keep their places. */}
+        <button
+          type="button"
+          onClick={() => onSetMode(mode === 'add-card' ? null : 'add-card')}
+          className="inline-flex items-center gap-2 rounded-(--radius-button) border border-(--bd-a) px-3.5 py-2.5 font-[family-name:var(--face-ui)] text-[12.5px] font-bold whitespace-nowrap text-(--soft) hover:bg-(--tint-b) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
+        >
+          <Plus size={14} strokeWidth={2} />
+          {mode === 'add-card' ? 'Cancel' : 'Add card'}
+        </button>
+
+        <DeckActionsMenu
+          deckName={deck.name}
+          onRename={() => onSetMode(mode === 'edit-deck' ? null : 'edit-deck')}
+          onConfigure={onConfigure}
+        />
+
+        <button
+          type="button"
+          onClick={onDeleteDeck}
+          className="inline-flex items-center gap-2 rounded-(--radius-button) border border-(--danger-bd) bg-transparent px-3.5 py-2.5 font-[family-name:var(--face-ui)] text-[12.5px] font-bold whitespace-nowrap text-(--danger) hover:bg-(--danger-bg) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
+        >
+          <Trash2 size={14} strokeWidth={1.8} />
+          Delete deck
+        </button>
+
+        {/* Studying is a navigation to /study?deck={id}, which resolves this
+            deck's saved mode and session size itself. `onStudy` owns the push,
+            so this is a button rather than a link. */}
+        <button
+          type="button"
+          onClick={onStudy}
+          className="inline-flex items-center gap-2.25 rounded-(--radius-button) bg-(--btn) px-4.25 py-2.75 font-[family-name:var(--face-ui)] text-[13.5px] font-bold whitespace-nowrap text-(--btn-ink) shadow-[0_8px_20px_rgba(33,56,92,.22)] transition-[transform,box-shadow] duration-[180ms] ease-[ease] hover:-translate-y-px hover:shadow-[0_12px_26px_rgba(33,56,92,.32)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink) motion-reduce:transform-none"
+        >
+          <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 4.5l13 7.5-13 7.5z" />
+          </svg>
+          {hasDue ? `Study ${dueCount.toLocaleString()} due` : 'Study ahead'}
+        </button>
+      </div>
+    </div>
+  );
 }
 
-function MiniCard({
-  front,
-  reading,
-  back,
-  contextSentence,
-  onDelete,
+function DeckActionsMenu({
+  deckName,
+  onRename,
+  onConfigure,
 }: {
-  front: string;
-  reading?: string;
-  back: string;
-  contextSentence?: string;
-  onDelete: () => void;
+  deckName: string;
+  onRename: () => void;
+  onConfigure?: () => void;
 }) {
-  const hasReading = reading && reading.length > 0;
-  const hasContext = contextSentence && contextSentence.length > 0;
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [open]);
+
+  const item =
+    'w-full px-3.5 py-2.5 text-left font-[family-name:var(--face-ui)] text-[13px] text-(--soft) hover:bg-(--tint-b) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ink)';
+
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-lg border border-lgc-border bg-lgc-bg transition-shadow hover:shadow-md">
-      {/* Delete button — appears on hover */}
+    <div ref={wrapRef} className="relative">
       <button
         type="button"
-        onClick={onDelete}
-        className="absolute right-1.5 top-1.5 z-10 rounded p-1 text-lgc-fg-muted opacity-0 transition-all hover:bg-lgc-bg-sunken hover:text-lgc-error group-hover:opacity-100"
-        aria-label="Delete card"
+        aria-label={`More actions for ${deckName}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex size-[38px] items-center justify-center rounded-(--radius-button) border border-(--bd-a) text-(--soft) hover:bg-(--tint-b) hover:text-(--ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
       >
-        <Trash2 size={12} />
+        <MoreHorizontal size={15} />
       </button>
 
-      {/* Headline — front + optional reading. Slightly raised
-          background so the kanji reads as the card's anchor. */}
-      <div className="flex flex-col items-center bg-lgc-bg-elev px-4 py-4 text-center">
+      {open && (
         <div
-          className="text-[26px] leading-none tracking-tight text-lgc-fg @sm:text-[30px] font-jp"
-          style={{ letterSpacing: '-0.01em' }}
+          role="menu"
+          className="absolute top-full right-0 z-50 mt-1.5 w-44 overflow-hidden rounded-(--radius-button) border border-(--deck-bd) bg-(--deck-paper) shadow-(--deck-shadow-hover)"
         >
-          {front}
-        </div>
-        {hasReading && (
-          <div className="mt-1.5 text-xs text-lgc-fg-muted font-jp">{reading}</div>
-        )}
-      </div>
-
-      {/* Body — meaning. Left-aligned reads as prose, not a chip. */}
-      <div className="border-t border-lgc-border px-4 py-3 text-[13px] leading-relaxed text-lgc-fg">
-        {back}
-      </div>
-
-      {/* Context — only renders when present. Sunken background +
-          quotation marks make it read as "where this came from". */}
-      {hasContext && (
-        <div className="border-t border-lgc-border bg-lgc-bg-sunken px-4 py-2.5 text-[12px] leading-relaxed text-lgc-fg-muted font-jp">
-          <span className="text-lgc-fg-subtle">「</span>
-          {contextSentence}
-          <span className="text-lgc-fg-subtle">」</span>
+          <button
+            type="button"
+            role="menuitem"
+            className={item}
+            onClick={() => {
+              setOpen(false);
+              onRename();
+            }}
+          >
+            Rename deck
+          </button>
+          {onConfigure && (
+            <button
+              type="button"
+              role="menuitem"
+              className={item}
+              onClick={() => {
+                setOpen(false);
+                onConfigure();
+              }}
+            >
+              Session settings
+            </button>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function StatCell({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+/* ── Add card ───────────────────────────────────────────────────────────── */
+
+function AddCardForm({
+  onSubmit,
+  onCancel,
+}: {
+  onSubmit: (front: string, back: string) => void;
+  onCancel: () => void;
+}) {
+  const [front, setFront] = useState('');
+  const [back, setBack] = useState('');
+  const canSubmit = front.trim().length > 0 && back.trim().length > 0;
+
   return (
-    <div>
-      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-lgc-fg-muted">
-        {label}
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (canSubmit) onSubmit(front.trim(), back.trim());
+      }}
+      className="mb-5 rounded-(--radius-card) border border-(--deck-bd) bg-(--deck-paper) p-4.5 shadow-(--deck-shadow)"
+    >
+      <label className="block">
+        <span className="font-[family-name:var(--face-mono)] text-[9px] tracking-[0.18em] uppercase text-(--faint)">
+          Front
+        </span>
+        <input
+          type="text"
+          value={front}
+          onChange={(e) => setFront(e.target.value)}
+          placeholder="Kanji / word"
+          autoFocus
+          className="mt-1.5 w-full border-b border-dashed border-(--bd-a) bg-transparent pb-1.5 font-[family-name:var(--face-jp)] text-2xl text-(--ink) placeholder:text-(--faint) focus-visible:border-(--ink) focus-visible:outline-none"
+        />
+      </label>
+
+      <label className="mt-4 block">
+        <span className="font-[family-name:var(--face-mono)] text-[9px] tracking-[0.18em] uppercase text-(--faint)">
+          Back
+        </span>
+        <textarea
+          value={back}
+          onChange={(e) => setBack(e.target.value)}
+          placeholder="Meaning, reading, notes…"
+          rows={3}
+          className="mt-1.5 w-full resize-none rounded-(--radius-button) border border-(--bd-a) bg-transparent px-3 py-2.5 font-[family-name:var(--face-ui)] text-[13px] leading-relaxed text-(--ink) placeholder:text-(--faint) focus-visible:border-(--ink) focus-visible:outline-none"
+        />
+      </label>
+
+      <div className="mt-4 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-(--radius-button) border border-(--bd-a) px-4 py-2.5 font-[family-name:var(--face-ui)] text-[13px] font-bold text-(--soft) hover:bg-(--tint-b) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="rounded-(--radius-button) bg-(--btn) px-4 py-2.5 font-[family-name:var(--face-ui)] text-[13px] font-bold text-(--btn-ink) disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
+        >
+          Add card
+        </button>
       </div>
-      <div
-        className="mt-0.5 text-lg font-medium"
-        style={{
-          color: accent ? 'var(--lgc-accent)' : 'var(--lgc-fg)',
-          fontFamily: 'var(--font-mono, Geist Mono, monospace)',
-        }}
-      >
-        {value}
-      </div>
-    </div>
+    </form>
   );
 }

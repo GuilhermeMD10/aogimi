@@ -23,7 +23,7 @@ export { ProgressTrack } from './ProgressTrack';
 export { Skeleton } from './Skeleton';
 export { SkyBar } from './SkyBar';
 export { HAIRLINE, DASHED } from './hairline';
-export { StageDot, stageLabel } from './StageDot';
+export { StageDot, stageColor, stageLabel } from './StageDot';
 export type { Stage } from './StageDot';
 export { coverPalette } from './coverPalette';
 export type { CoverColors } from './coverPalette';

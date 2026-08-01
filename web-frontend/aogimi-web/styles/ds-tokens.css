@@ -139,6 +139,24 @@ html[data-theme="light"] {
   --sky-border:        rgba(47, 65, 96, .42);
   --sky-shadow:        0 14px 34px rgba(47, 65, 96, .20);
 
+  /* Destructive actions. Distinct from --accent, which is the vermilion seal:
+     that one is theme-invariant by design, and #c2452c on the dark deck paper
+     is a dark red on dark grey. Danger has to stay legible on whatever it
+     lands on, so it shifts with the theme. */
+  --danger:            #c2452c;
+  --danger-bg:         rgba(194, 69, 44, .08);
+  --danger-bd:         rgba(194, 69, 44, .28);
+
+  /* Glass + tints. The deck-detail card panel and everything layered inside
+     it: a translucent surface, two hover/selected tints, and two border
+     weights. Unlike --card / --bd these carry real values, because a panel
+     floating beside the sky has nothing behind it to separate against. */
+  --scrim:             rgba(255, 255, 255, .72);
+  --tint-a:            rgba(20, 20, 20, .10);
+  --tint-b:            rgba(20, 20, 20, .04);
+  --bd-a:              rgba(20, 20, 20, .22);
+  --bd-b:              rgba(20, 20, 20, .09);
+
   --covtrack:          rgba(255, 255, 255, .16);
   --stage-mastered:    #c9962a;
 
@@ -192,6 +210,17 @@ html[data-theme="dark"] {
 
   --sky-border:        rgba(226, 232, 244, .34);
   --sky-shadow:        0 16px 40px rgba(0, 0, 0, .55);
+
+  /* Danger lightens in Midnight so it stays readable on the dark surfaces. */
+  --danger:            #e0715a;
+  --danger-bg:         rgba(224, 113, 90, .14);
+  --danger-bd:         rgba(224, 113, 90, .34);
+
+  --scrim:             rgba(28, 28, 34, .86);
+  --tint-a:            rgba(255, 255, 255, .14);
+  --tint-b:            rgba(255, 255, 255, .06);
+  --bd-a:              rgba(255, 255, 255, .26);
+  --bd-b:              rgba(255, 255, 255, .12);
 
   --covtrack:          rgba(0, 0, 0, .18);
   --stage-mastered:    #F4DC82;

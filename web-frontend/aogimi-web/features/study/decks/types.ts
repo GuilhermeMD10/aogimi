@@ -73,6 +73,13 @@ export type CardModel = {
   context_sentence?: string;
   state?: CardState;
   reviewed_times?: number;
+  // Needed by the deck-detail panel: `created_at` is the "Added" sort,
+  // and `difficulty` + `last_outcomes` are what `lib/rankProgress` reads to
+  // work out how far a card has come toward its next tier.
+  created_at?: string;
+  difficulty?: number;
+  last_outcomes?: string;
+  last_reviewed_at?: string | null;
 };
 
 export type Deck = {

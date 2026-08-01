@@ -278,10 +278,17 @@ GET /api/stats/cards
   Response:  { byState: { new, seen, learned, mastered }, total,
                hardest: CardRecord[] }  -- hardest capped at 20
 
-GET /api/stats/recent-upgrades
-  Trigger:   Home "recent progress" list
-  Response:  RecentUpgrade[]  -- the 5 latest tier promotions, newest first
-  Helper:    fetchRecentUpgrades() in features/study/stats/lib/statsApi.ts
+GET /api/stats/recent-upgrades[?deckId={uuid}]
+  Trigger:   Home "recent upgrades" row (no deckId);
+             deck detail's "RECENT UPGRADES - THIS DECK" panel (with deckId)
+  Helpers:   fetchRecentUpgrades(deckId?, signal) in
+             features/study/stats/lib/statsApi.ts
+             useDeckUpgrades(deckId) in features/study/decks/hooks/
+  Response:  RecentUpgrade[] -- <=5, newest first, promotions only
+  -- deckId filters BEFORE the limit. Do not fetch the global five and filter
+     client-side: a deck's own promotions often aren't in the newest five
+     overall, so an active deck would render as having none.
+  -- 400 when deckId is present and not a uuid.
 
 RecentUpgrade shape:                     (camelCase -- a purpose-built
   { cardId, deckId, deckName,             aggregate, not a raw cards row)

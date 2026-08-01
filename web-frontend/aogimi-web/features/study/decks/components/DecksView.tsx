@@ -68,6 +68,10 @@ export default function DecksView() {
           context_sentence: c.context_sentence || undefined,
           state: c.state,
           reviewed_times: c.reviewed_times,
+          created_at: c.created_at,
+          difficulty: c.difficulty,
+          last_outcomes: c.last_outcomes,
+          last_reviewed_at: c.last_reviewed_at,
         })),
       };
     },
@@ -270,6 +274,7 @@ export default function DecksView() {
             onEditDeck={editActiveDeck}
             onAddCard={addCardToActive}
             onDeleteCard={deleteCardFromActive}
+            onDeleteDeck={() => void deleteDeckHandler(activeDeck.id)}
           />
           <SessionConfigSheet
             open={configOpen}

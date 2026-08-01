@@ -12,7 +12,8 @@ import type { RecentUpgrade } from '@/features/study/stats';
  */
 export function useRecentUpgrades() {
   const { data, loading, error } = useFetchWithAbort<RecentUpgrade[]>(
-    (signal) => fetchRecentUpgrades(signal),
+    // No deck id — home shows promotions from every deck.
+    (signal) => fetchRecentUpgrades(undefined, signal),
     [],
   );
 

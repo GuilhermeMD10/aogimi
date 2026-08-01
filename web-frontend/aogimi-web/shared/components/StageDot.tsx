@@ -24,6 +24,16 @@ export function stageLabel(stage: Stage): string {
   return STAGES[stage].label;
 }
 
+/**
+ * The tier's colour, for the places that need the value rather than the dot:
+ * a glowing list marker, the segments of a mastery-mix bar, the two ends of a
+ * progress gradient. Exported so the ramp still has exactly one definition —
+ * a second copy is how a screen ends up a tier out of step.
+ */
+export function stageColor(stage: Stage): string {
+  return STAGES[stage].color;
+}
+
 type Props = {
   stage: Stage;
   className?: string;

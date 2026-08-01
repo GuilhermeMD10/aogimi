@@ -200,7 +200,7 @@ function DeckMenu({ deckName, onDelete }: { deckName: string; onDelete: () => vo
               setOpen(false);
               onDelete();
             }}
-            className="w-full px-3.5 py-2.5 text-left font-[family-name:var(--face-ui)] text-[13px] text-(--accent) hover:bg-(--deck-tile) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ink)"
+            className="w-full px-3.5 py-2.5 text-left font-[family-name:var(--face-ui)] text-[13px] text-(--danger) hover:bg-(--danger-bg) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ink)"
           >
             Delete deck
           </button>

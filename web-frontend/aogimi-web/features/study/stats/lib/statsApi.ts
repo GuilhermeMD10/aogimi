@@ -48,8 +48,19 @@ export function fetchCards(signal?: AbortSignal): Promise<CardsStats> {
   return apiGet<CardsStats>('/api/stats/cards', signal);
 }
 
-/** The 5 most recent tier promotions, newest first. Events, not distinct
- *  cards — a card promoted twice appears twice. */
-export function fetchRecentUpgrades(signal?: AbortSignal): Promise<RecentUpgrade[]> {
-  return apiGet<RecentUpgrade[]>('/api/stats/recent-upgrades', signal);
+/**
+ * The 5 most recent tier promotions, newest first. Events, not distinct
+ * cards — a card promoted twice appears twice.
+ *
+ * `deckId` narrows them to one deck. It has to be a server-side filter: the
+ * limit applies after it, so taking the global five and filtering client-side
+ * would show an active deck as having no recent upgrades whenever its
+ * promotions aren't among the five most recent overall.
+ */
+export function fetchRecentUpgrades(
+  deckId?: string,
+  signal?: AbortSignal,
+): Promise<RecentUpgrade[]> {
+  const query = deckId ? `?deckId=${encodeURIComponent(deckId)}` : '';
+  return apiGet<RecentUpgrade[]>(`/api/stats/recent-upgrades${query}`, signal);
 }

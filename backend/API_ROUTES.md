@@ -294,7 +294,7 @@ to the token user.
 |---|---|---|
 | GET | `/api/stats/activity` | `{ daysStudied: number, perDay: [{ date: 'YYYY-MM-DD', count: number }] }` |
 | GET | `/api/stats/cards` | `{ byState: { new, seen, learned, mastered }, total: number, hardest: CardRecord[] }` |
-| GET | `/api/stats/recent-upgrades` | `RecentUpgrade[]` — the 5 latest tier promotions, newest first |
+| GET | `/api/stats/recent-upgrades?deckId=` | `RecentUpgrade[]` — the 5 latest tier promotions, newest first. `deckId` (optional uuid) narrows them to one deck; 400 if it isn't a uuid |
 
 - `perDay` covers the last 365 days; only days with ≥ 1 review are listed.
 - `hardest` returns at most 20 cards (sorted by `difficulty` desc, with
@@ -317,6 +317,11 @@ transition it actually caused and later reviews don't overwrite it.
 - **Events, not distinct cards** — a card promoted twice appears twice.
 - Card + deck columns are joined in so a caller can render the promotion
   without a follow-up fetch per card.
+- **`deckId` filters before the limit.** Don't fetch the global five and
+  filter client-side: a deck's own recent promotions frequently aren't among
+  the five most recent overall, so an active deck would look idle. Ownership
+  needs no separate check — rows are already scoped by `user_id`, so another
+  user's deck id matches nothing.
 - camelCase because it's a purpose-built aggregate rather than a raw `cards`
   row (`CardRecord` stays snake_case).
 

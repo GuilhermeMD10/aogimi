@@ -404,3 +404,106 @@ explicitly warns against. No schema change, so no migration and no
       link and the due badge be a second one.
 - [ ] Part of speech, for the last-word row's `READING · POS` line. Not in the
       schema; the reading renders alone.
+
+---
+
+## Redesign — deck detail (`/decks`, the detail half)
+
+From `design_handoff_aogimi_deck-details`. Built in place: still a `screen`
+state of `DecksView`, not a `/decks/{id}` route.
+
+**Cut by the owner before building**
+
+- **The star map.** The 70vh canvas is the same solid `--deck-sky` placeholder
+  the deck cards and the spine tile use — one unbuilt thing, looking like it.
+  `sky-component-spec.md` and `clustering-spec.md` describe the real component;
+  neither was implemented.
+- **Everything that interacts with the map**: the hover bubble, star↔row hover
+  mirroring, hover-scrolls-the-row, and the collapse control that hides the list
+  to reveal the canvas. All of it would be interaction with a blank rectangle.
+  The selection model *was* built properly — `DeckCardPanel` takes
+  `selectedId`/`onSelect` — so the map plugs in later without touching it.
+- **The JLPT sort chip**, which is also the only option: `cards` has no
+  `word_id`, so a card cannot be joined to a JLPT level. Two chips, Added and
+  Mastery.
+- **The PER WEEK sparkline** and the **"at this pace"** row, which depended on
+  the same 12-week series.
+- **The SESSIONS figure** — no session entity exists anywhere (`study_days` is
+  per user, `card_reviews` per card). Same reason the decks page dropped
+  `studied N×`. Three ledger figures, not four.
+
+**Progress-to-next-rank is derived, not invented**
+
+The mastery meter needs a 0–100 within a tier, which nothing stores. It is
+nonetheless *real*: `cardSrsService.transitionState()` states the promotion
+criteria outright — 3 consecutive non-Again with D < 0.40 for seen→learned,
+5 consecutive Easy with D < 0.20 for learned→mastered — and `last_outcomes` and
+`difficulty` are already in the cards payload. `decks/lib/rankProgress.ts`
+reads them.
+
+Client-side by choice: the data is already in hand, so a server round trip per
+deck would buy nothing but freshness of a formula that changes about never. The
+cost is a **second copy of the thresholds**; the file says so at the top, and
+`cardSrsService.js` remains the source of truth.
+
+Each promotion has two gates, a streak *and* a difficulty ceiling, and the bar
+is one number — it shows the **lower** of the two normalised factors. A full bar
+on a card the server then refuses to promote is the single reading that would
+destroy trust in the meter.
+
+**Backend: `?deckId=` on recent-upgrades**
+
+`/api/stats/recent-upgrades` returned the five newest promotions across every
+deck. The panel needs five *for this deck*, and filtering the global five
+client-side would show an active deck as idle whenever its promotions aren't in
+the newest five overall — so the filter goes before the `LIMIT`. No ownership
+check: rows are already scoped by `user_id`, so a foreign deck id matches
+nothing. Malformed uuids are rejected at the route with a 400 rather than
+reaching the `::uuid` cast and surfacing as a 500.
+
+**New tokens**
+
+- `--danger` / `--danger-bg` / `--danger-bd`, per theme. Distinct from
+  `--accent`: the vermilion seal is theme-invariant by design, and `#c2452c` on
+  the dark deck paper is dark red on dark grey. **This also fixed the decks
+  list's "Delete deck" menu item**, which shipped reading `--accent`.
+- `--scrim`, `--tint-a`, `--tint-b`, `--bd-a`, `--bd-b` — the glass panel and
+  the tints layered inside it. Unlike `--card` / `--bd` these carry real values;
+  a panel floating beside the sky has nothing behind it to separate against.
+
+**Deviations**
+
+- **Add card, rename and session settings stay in the header.** The handoff
+  treats the page as read-only apart from its two deletes, but those three were
+  existing capability and the only route to a manual card or a rename. Add card
+  is a ghost button, the other two sit behind a `⋯`; the design's Delete deck
+  and Study N due keep their places.
+- **No delete confirmation**, for the deck or a card, consistent with the decks
+  list. Deleting a deck still cascades to every card in it.
+- **`stageColor` was added to `shared/components/StageDot`** so the ramp keeps
+  one definition while the list dots, mix bar and progress gradient all read it.
+- **The mastery ramp is the established `--stage-*`.** This handoff proposes a
+  third ramp (the violet→pink→gold sky one) and argues for it app-wide; that
+  belongs with the map, when star colours actually exist.
+- **`DeckForm` was restyled onto the redesign tokens.** It was the last
+  `--lgc-*` island on two otherwise-migrated screens, and no handoff draws it.
+- **`relativeTime` moved to `lib/util/`.** `features/home/lib/relativeTime.ts`
+  and `features/dictionary/lib/relativeAge.ts` were byte-identical and both
+  carried a note to merge them once a third caller appeared. The upgrades
+  column is the third. Imports only — neither screen renders differently.
+- **Dictionary links go to `/dictionary?q=`**, not the handoff's
+  `/dictionary/{word}`, which isn't a route.
+
+**Data omitted, each degrading its own line**
+
+Part of speech, a second meaning, the JLPT chip, and the italic translation
+under the context sentence. None exist; `back` is one column and there is no
+`word_id`. The header's meta line loses "one constellation" (waits on the map).
+
+**Still deferred**
+
+- [ ] The star map, in both the panel and the deck cards' sky.
+- [ ] `/decks/{id}` as a real route — would also give the breadcrumb a link
+      instead of a callback and let the page 404 on an unknown deck.
+- [ ] `PendingCardOverlay` is the last `--lgc-*` surface left in this feature.
+- [ ] A confirm step on the two destructive actions.

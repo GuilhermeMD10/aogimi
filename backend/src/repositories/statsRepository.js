@@ -87,8 +87,17 @@ module.exports = {
    *
    * Card + deck columns are joined in so the caller can render the
    * promotion without a follow-up fetch per card.
+   *
+   * `deckId` narrows the list to one deck (the deck-detail page's "recent
+   * upgrades · this deck" panel). It filters *before* the LIMIT, which is the
+   * whole point — the caller can't take the global five and filter them down,
+   * because a deck's own recent promotions frequently aren't among the five
+   * most recent overall.
+   *
+   * No ownership check is needed for it: `r.user_id = $1` already scopes every
+   * row to the caller, so another user's deck id simply matches nothing.
    */
-  recentTierUpgrades: async (userId) => {
+  recentTierUpgrades: async (userId, deckId = null) => {
     const result = await pool.query(
       `SELECT r.card_id      AS "cardId",
               c.deck_id      AS "deckId",
@@ -103,11 +112,12 @@ module.exports = {
          JOIN cards c ON c.id = r.card_id
          JOIN decks d ON d.id = c.deck_id
         WHERE r.user_id = $1
+          AND ($2::uuid IS NULL OR c.deck_id = $2::uuid)
           AND array_position(ARRAY['new','seen','learned','mastered'], r.state_after)
             > array_position(ARRAY['new','seen','learned','mastered'], r.state_before)
         ORDER BY r.reviewed_at DESC, r.id DESC
-        LIMIT $2`,
-      [userId, RECENT_UPGRADES_LIMIT]
+        LIMIT $3`,
+      [userId, deckId, RECENT_UPGRADES_LIMIT]
     );
     return result.rows;
   },

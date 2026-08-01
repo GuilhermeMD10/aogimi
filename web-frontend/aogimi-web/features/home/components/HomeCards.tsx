@@ -24,7 +24,7 @@ import { useDueSummary } from '../hooks/useDueSummary';
 import { useRecentSearches } from '../hooks/useRecentSearches';
 import { useRecentUpgrades } from '../hooks/useRecentUpgrades';
 import { useStudyWord } from '../hooks/useStudyWord';
-import { relativeTime } from '../lib/relativeTime';
+import { relativeTime } from '@/lib/util/relativeTime';
 
 /**
  * Home's cards — everything below the hero banner.
