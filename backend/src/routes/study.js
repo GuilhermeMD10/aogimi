@@ -19,7 +19,7 @@ const DEFAULT_DISPLAY = Object.freeze({
 // ── Session ────────────────────────────────────────────────────────────────
 
 router.post("/session", async (req, res) => {
-  const { scope, deckIds, mode, limit } = req.body || {};
+  const { scope, deckIds, mode, limit, dueOnly } = req.body || {};
 
   if (scope !== 'all' && scope !== 'deck') {
     return res.status(400).json({ error: "scope must be 'all' or 'deck'" });
@@ -30,6 +30,9 @@ router.post("/session", async (req, res) => {
   if (scope === 'deck' && (!Array.isArray(deckIds) || deckIds.length === 0)) {
     return res.status(400).json({ error: "deckIds required when scope is 'deck'" });
   }
+  if (dueOnly !== undefined && typeof dueOnly !== 'boolean') {
+    return res.status(400).json({ error: "dueOnly must be a boolean" });
+  }
 
   try {
     const cards = await studyService.fetchSessionCards(req.user.userId, {
@@ -37,6 +40,7 @@ router.post("/session", async (req, res) => {
       deckIds,
       mode,
       limit,
+      dueOnly,
     });
     return res.json({ cards });
   } catch (err) {
@@ -52,6 +56,30 @@ router.get("/due", async (req, res) => {
   try {
     const cards = await studyService.fetchDueCards(req.user.userId);
     return res.json({ cards });
+  } catch (err) {
+    return res.status(500).json({ error: "Due resolution failed" });
+  }
+});
+
+// Due counts across every deck the user owns. Serves a "N cards due" figure
+// plus per-deck chips from one request; decks with nothing due are omitted
+// from `byDeck`.
+router.get("/due/counts", async (req, res) => {
+  try {
+    const payload = await studyService.fetchDueCounts(req.user.userId);
+    return res.json(payload);
+  } catch (err) {
+    return res.status(500).json({ error: "Due resolution failed" });
+  }
+});
+
+// One random due card — the single-card "study something now" entry point.
+// `card` is null when nothing is due; that's a 200, not a 404, because having
+// nothing due is a normal state rather than a missing resource.
+router.get("/due/random", async (req, res) => {
+  try {
+    const card = await studyService.fetchRandomDueCard(req.user.userId);
+    return res.json({ card });
   } catch (err) {
     return res.status(500).json({ error: "Due resolution failed" });
   }

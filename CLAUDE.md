@@ -12,7 +12,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `web-frontend/aogimi-web/` | Next.js App Router web app | Next 16, React 19, Tailwind v4, shadcn |
 | `mobile-frontend/aogimi-mobile/` | Expo mobile app (iOS, Android, web target unused) | Expo 55, React Native 0.83 (Fabric) |
 | `helpers/files/` | Source data + JMdict/KANJIDIC2/JMnedict parsers (one-off scripts) | Node |
-| `docs/audit-remaining.md` | Known-but-deferred audit findings; consult before opening "obvious bugs" |
+| `web-frontend/aogimi-web/info-documents/DECISIONS.md` | Scope decisions + known-but-deferred work; consult before opening "obvious bugs" |
+
+**Web docs live in `web-frontend/aogimi-web/info-documents/`**, not at the package root: `PROJECT_CONTEXT.md`, `DECISIONS.md`, `AGENTS.md`, `backend-connections.txt`, `DEEPL.md`.
 
 No workspace tool. Each part has its own `package.json` and `node_modules` — `cd` into the one you care about.
 
@@ -46,7 +48,7 @@ npm run lint              # eslint .
 npx tsc --noEmit          # type-check only
 ```
 
-No test runner. Lint count is the current quality bar — see baseline in `docs/audit-remaining.md`.
+No test runner. Lint count is the current quality bar: **13 errors, 8 warnings** as of 2026-08-01. Don't add to it; drive it down when you're already in a file.
 
 ### Mobile frontend (`mobile-frontend/aogimi-mobile/`)
 
@@ -65,7 +67,12 @@ No test runner.
 
 ### Auth (cross-stack)
 
-JWT access + refresh tokens. Login returns a pair; the access token (15 min, claims `{ userId, username }`) goes in `Authorization: Bearer`; the refresh token (30 day, claims `{ userId, tokenId }`) lives in **expo-secure-store** on mobile and localStorage on web. Server stores SHA-256 hashes of refresh tokens in `refresh_tokens`; every `/auth/refresh` rotates (old revoked, new issued).
+JWT access + refresh tokens. The access token (15 min, claims `{ userId, username }`) goes in `Authorization: Bearer`; the refresh token (30 day, claims `{ userId, tokenId }`) is delivered **per transport**:
+
+- **Web** — "memory + httpOnly cookie" (`lib/tokenStore.ts`): the access token is in-memory only and the refresh token is an httpOnly + Secure + SameSite=Lax cookie scoped to `/api/auth`, so JS can't read it. Calls use `credentials: 'include'`; a silent `/api/auth/refresh` on boot re-mints the access token. `/auth/refresh` also enforces an Origin allowlist as a CSRF guard (403 otherwise). Tokens are **not** in localStorage — don't put them back.
+- **Mobile** — refresh token in **expo-secure-store** (Keychain / Keystore), returned in the response body since native clients send no Origin.
+
+Server stores SHA-256 hashes of refresh tokens in `refresh_tokens`; every `/auth/refresh` rotates (old revoked, new issued).
 
 **Identity is the token, never the body.** Protected routes ignore `userId` in body/path — `req.user.userId` is the only source. Routes that take a resource id (`:id` for book / deck / card / etc.) check ownership via `backend/src/services/ownership.js` and return **404** on mismatch (not 403) so the response shape is indistinguishable from "doesn't exist".
 
@@ -83,21 +90,29 @@ Full flow + endpoint table: [`docs/AUTH.md`](docs/AUTH.md). Hardening posture + 
 - `src/search/` — `PgSearchIndex.js` is the unified ranking pipeline used by `searchService`; it boosts JLPT-tier words with `+50 + jlpt_level*5`.
 - `src/services/assembler.js` — turns flat SQL row tuples (word + readings + kanji + meanings) into the `WordResult` shape the frontends consume.
 
-When the schema or API changes, update `backend/SCHEMA.md` and `backend/API_ROUTES.md`. The web frontend's `backend-connections.txt` mirrors API_ROUTES from a client perspective and is the inventory for cross-referencing payload shapes.
+When the schema or API changes, update `backend/SCHEMA.md` and `backend/API_ROUTES.md`. `web-frontend/aogimi-web/info-documents/backend-connections.txt` mirrors API_ROUTES from a client perspective and is the inventory for cross-referencing payload shapes.
 
-### Web: design tokens (theming was torn out)
+### Web: design tokens — a redesign is migrating screen by screen
 
-The multi-theme system on web was **removed** — pending a from-scratch redesign. There is one look, driven by design tokens over two layers:
+**Two token systems run in parallel.** New screens read the incoming set; screens not yet redesigned keep reading the outgoing one. Nothing collides because no name is shared, and the endgame is a *deletion* rather than a 75-file rename. Full detail in PROJECT_CONTEXT.md's **Theming** section.
 
-1. **Color + shape tokens** in `styles/themes/default.css` (the sole color palette, bound to both `:root` and `html[data-theme="default"]`) and `styles/shape-defaults.css` (`--lgc-surface-*`, `--lgc-button-*`, `--lgc-chip-*`, `--lgc-toolbar-*`, …).
-2. **Primitive classes** that read those tokens: `.lgc-card`, `.lgc-button`, `.lgc-button-secondary`, `.lgc-chip`, `.lgc-section-label` in `styles/primitives.css`. Anywhere a card/button/chip is rendered, use these — not hand-rolled `bg-lgc-bg-elev … border-lgc-border` chains.
+**Incoming — build on this** (`styles/ds-tokens.css`): two themes, `light` and `dark`, on `html[data-theme]`.
+- Colour/shape tokens `--ink`, `--soft`, `--muted`, `--faint`, `--card`, `--cardalt`, `--bd`, `--btn`, `--track`/`--fill`, `--cover-1..4`, `--stage-*`, `--radius-*`. Read as `text-(--ink)`, `bg-(--card)`.
+- Type tokens are `--face-jp` / `--face-ui` / `--face-mono` (M PLUS 1 + Space Mono). **Not** `--font-*` — `globals.css`'s `@theme` already binds those names to the outgoing faces, and declaring them twice emits two competing values.
+- **Don't register these in Tailwind's `@theme`.** shadcn owns `--color-card`, `--color-muted`, `--color-accent`, `--color-border` there; re-registering `--card`/`--muted`/`--accent`/`--bd` silently breaks every un-migrated screen.
+- Primitives are **React components** in `shared/components/`, not CSS classes. They read tokens and are theme-agnostic — never write a light variant and a dark variant of a component; the palette swaps underneath it. Something earns a place there once it's used twice.
+- Cards are transparent by design (shadow separates them). `--bd` is transparent too, so hairline dividers don't show until it's filled.
 
-When the redesign lands, components should change **colors + minimal CSS only** — there is no per-theme component dispatch, no `themes/` registry, no per-theme decoration atoms, and no theme picker. What's **deliberately kept** as minimal re-attach plumbing: the `data-theme="default"` attribute on `<html>` and `ThemeProvider`/`THEMES` (a single `default` entry). Theme selection is **no longer persisted client-side** — the `app-theme` localStorage key and the `app/layout.tsx` pre-hydration script were removed in the client-storage simplification (see DECISIONS.md); a future redesign will store the chosen theme on the backend. A future theme re-attaches by adding a `THEMES` entry + a CSS palette under its own `html[data-theme="…"]` selector.
+**Outgoing — don't build on this:** `--lgc-*` in `styles/themes/default.css` + `styles/shape-defaults.css`, the `.lgc-card` / `.lgc-button` / `.lgc-chip` classes in `styles/primitives.css`, and the old primitives in `shared/ui/`. All deleted once the last screen migrates.
 
-Full docs:
-- `web-frontend/aogimi-web/PROJECT_CONTEXT.md` — start here, end-to-end overview (see the **Theming** section).
-- `web-frontend/aogimi-web/backend-connections.txt` — endpoint catalog + payload shapes the frontend depends on.
-- `web-frontend/aogimi-web/DECISIONS.md` — scope decisions + deferred work.
+Theme choice persists in the `aogimi-theme` localStorage key, applied by a pre-paint `<script>` in `app/layout.tsx` (an effect fires after paint and flashes), falling back to `prefers-color-scheme`; a `users.theme` column supersedes it later. The switch lives in `TopBar`'s profile pill. **Un-migrated screens look wrong in dark mode** — they read the light-only `--lgc-*` palette while the canvas follows the theme. Accepted cost of migrating incrementally.
+
+Full docs (all under `web-frontend/aogimi-web/info-documents/`):
+- **`REDESIGN.md` — read this first if you're redesigning a screen.** Self-contained context for a fresh agent: what's done, the token traps, the primitive inventory, the recurring data gaps, and how to verify.
+- `PROJECT_CONTEXT.md` — start here, end-to-end overview (see the **Theming** section).
+- `backend-connections.txt` — endpoint catalog + payload shapes the frontend depends on.
+- `DECISIONS.md` — scope decisions + deferred work.
+- `AGENTS.md` — house rules for agents working in this package.
 
 ### Web: feature-oriented structure
 
@@ -106,8 +121,8 @@ The web app is organized **by feature, not by file type**. Three layers with one
 - `app/` — Next.js routing only. Pages are thin: each imports one feature view.
 - `features/<feature>/` — self-contained slices. Each owns its `components/`, `hooks/`, `lib/`, `providers/`, `views/`, `types.ts` as needed and exposes a **public API via `index.ts` (barrel)**. Cross-feature imports go through the barrel; a types-only borrow may import `@/features/<x>/types` directly. Top-level features: `mobile-gate`, `auth`, `dictionary`, `home`, `profile`, `settings`, `onboarding`, `app-shell`, plus two domains with sub-features:
   - `books/` — `books/library` (the book list), `books/reader` (epub/pdf/text/manga engines + `reader-bubble`), shared data layer in `books/lib`, orchestrated by `books/views/BooksView` (the `/reader` route).
-  - `study/` — `study/decks`, `study/session` (the study runner), `study/stats`.
-- `shared/` — cross-feature UI primitives (`shared/ui`) + global icons (`shared/icons`).
+  - `study/` — `study/decks`, `study/session` (the study runner), `study/stats`, orchestrated by `study/views/StudyView` (the `/study` route, which needs both decks and session).
+- `shared/` — `shared/components` (the redesign's general components — **put new primitives here**), `shared/ui` (the outgoing primitives + shadcn, being retired), `shared/icons` (global icons).
 - `lib/` — feature-agnostic infra ONLY: `api.ts`, `tokenStore.ts`, `useFetchWithAbort.ts`, `storage/_helpers.ts`, `util/`.
 
 The layer rule is enforced by `import/no-restricted-paths` in `eslint.config.mjs` (lib/shared must not import features; features must not import app). Cross-feature "import only via the barrel" is convention (could be hardened with eslint-plugin-boundaries).
@@ -123,7 +138,11 @@ Domain types live in each feature's `types.ts` (e.g. `features/dictionary/types.
 Documented in the **Features** section of `web-frontend/aogimi-web/PROJECT_CONTEXT.md`. When a new app-level feature lands (something a user can name — "shortcuts", "highlights sync", "deck import", …), add a subsection there: what it is, entry-point files, where state lives, any non-obvious behaviour. Keep entries terse; deep details belong in the source.
 
 Currently documented features:
-- _(none — the keyboard-shortcuts feature was removed.)_
+- **Home dashboard** (`features/home`) — `Home.tsx` composes the rows; `components/HeroBanner.tsx` (greeting + the deliberately empty sky panel) and `components/HomeCards.tsx` (continue-reading, study, library, dictionary, decks panel — all five in one file by request). Each card owns its request via a hook in `features/home/hooks/`, its own empty state and its own skeleton, so one slow query can't hold up the page. Renders the shared `TopBar` itself rather than inheriting it from the layout.
+- **Study route** (`/study`, `features/study/views/StudyView.tsx`) — studying used to be local `screen` state inside `DecksView`; it's now a route so it can be linked to and survive a refresh. Config comes from the query string: no params = all decks `hardest_all_decks`; `?deck={id}` = that deck's saved mode/size; `?due=1` = every due card shuffled, sized from a due-count endpoint. Exits to `/decks`.
+- **Theme switch** — `light` / `dark` via `html[data-theme]`, toggled from `TopBar`'s profile pill, persisted in `aogimi-theme`. See the design-tokens section above.
+
+Routes worth knowing: `/sky` is the study-stats screen (renamed for the star map it will become; the feature folder is still `study/stats`).
 
 ### Mobile: mirrors the web theme pattern
 
@@ -156,14 +175,14 @@ Library mount on the web reconciles all three storage layers (`features/books/li
 
 ## Gotchas
 
-- **Next.js 16 has breaking changes.** `web-frontend/aogimi-web/AGENTS.md` says: read `node_modules/next/dist/docs/` before writing route code. Conventions don't match training data — heed deprecation notices.
+- **Next.js 16 has breaking changes.** `web-frontend/aogimi-web/info-documents/AGENTS.md` says: read `node_modules/next/dist/docs/` before writing route code. Conventions don't match training data — heed deprecation notices.
 - **React Native 0.83 + Fabric:** `transform: pressed ? [...] : undefined` between press states gets coerced to `null` and crashes the transform processor (`forEach on null`). Always pass a stable-shape transform array, e.g. `transform: [{ translateX: pressed ? 2 : 0 }, { translateY: pressed ? 2 : 0 }]`.
-- **Hex literals in components are not allowed** except in `JlptChip` (per-level palette, hardcoded by design); on mobile, theme decoration atoms are also exempt. If a surface should be token-driven, grep it for `#[0-9a-f]{6}` and replace with `--lgc-*` token / `bg-lgc-*` class.
+- **Hex literals in components are discouraged, not banned.** Anything that reads as palette belongs in tokens — grep a surface for `#[0-9a-f]{6}` and replace with a `--lgc-*` token / `bg-lgc-*` class. But a one-off value that exists to make a *single* component work is fine hardcoded there rather than promoted to a global token: adding a token to `ds-tokens.css` widens the palette every screen reads, and that's the more expensive mistake. Document the value in a comment saying why it isn't a token. Standing exceptions: `JlptChip` (per-level palette, by design) and, on mobile, theme decoration atoms.
 - **No inline `borderRadius: <px>` on token-relevant surfaces.** Use `rounded-*` Tailwind classes or `var(--radius-md)`. Pure decoratives (`'50%'`, `999`) are fine.
 - **No inline `if (theme === 'stamp')` branches** in components. (Mobile only — web has no per-theme dispatch anymore. On mobile, move the variation into a shape token or fork via the registry.)
 - **`react-hooks/set-state-in-effect`** fires false positives on legitimate "sync from external trigger" effects (see `features/app-shell/AppShell.tsx` pending-field effects, `features/study/decks/components/PendingCardOverlay/` phase seed). Block-disabled with explanatory comment where the pattern is correct.
 - **Migrations are manual.** Sequence matters — apply in numbered order. `011_jlpt_seed.psql` is psql-specific because of `\copy`.
-- **Two design canvases vs production**: `web-frontend/aogimi-web/aogimi-DS/` and `features/home/HomeDemos.tsx` + `features/books/library/components/BooksDesk.tsx` + `features/dictionary/components/DictionaryQuiet.tsx` + `features/dictionary/views/DictionarySidekick.tsx` are intentionally pinned reference layouts. They use inline pixel radii on purpose — don't sweep them into the token system without explicit visual review.
+- **There are no pinned design canvases any more.** `aogimi-DS/` and `HomeDemos.tsx` are deleted; `BooksDesk.tsx`, `DictionaryQuiet.tsx` and `DictionarySidekick.tsx` are live production screens awaiting redesign, not reference layouts. Every screen gets replaced eventually — a redesign is expected to rewrite the screen it's assigned, and there's no need to preserve the outgoing one's inline pixel radii.
 
 ## Conventions
 
@@ -171,7 +190,7 @@ Library mount on the web reconciles all three storage layers (`features/books/li
   - A feature's internals use fixed sub-folder names — `components/` (PascalCase `Foo.tsx`), `hooks/` (camelCase `useFoo.ts`), `lib/` (camelCase: api/storage/pure logic, e.g. `fooApi.ts`), `providers/` (`FooProvider.tsx`), `views/` (route/page-level `FooView.tsx`), plus `types.ts`. **Only create a sub-folder that will hold a file** — no empty scaffolding.
   - Each feature has an `index.ts` **barrel** = its public API. Other features import from the barrel (`@/features/foo`); a types-only borrow may import `@/features/foo/types` directly. Inside a feature, use relative imports (`./`, `../`).
   - A domain with sub-features (`books`, `study`) nests them as sibling folders (`books/library`, `books/reader`), each with its own structure + barrel; things shared by the sub-features live at the domain root (`books/lib`, `books/types.ts`). Sub-features stay independent — they don't import each other (an orchestrator view at the domain root composes them).
-  - Routing stays in `app/`; a page is a thin wrapper that renders one feature view. Cross-cutting UI primitives → `shared/ui`, global icons → `shared/icons`. `lib/` is feature-agnostic infra only.
+  - Routing stays in `app/`; a page is a thin wrapper that renders one feature view. Cross-cutting UI primitives → `shared/components` (`shared/ui` is the outgoing set — don't add to it), global icons → `shared/icons`. `lib/` is feature-agnostic infra only.
 - Domain types live in each feature's `types.ts` (e.g. `features/dictionary/types.ts`). A feature's fetch helpers live in its `lib/` (e.g. `features/study/decks/lib/decksApi.ts`) and import those types; no type declarations alongside fetch helpers. `web-frontend/aogimi-web/lib/` holds only feature-agnostic infra (`api.ts`, `tokenStore.ts`, `useFetchWithAbort.ts`, `storage/_helpers.ts`, `util/`).
 - `lib/util/cn.ts` is the Tailwind class merger. shadcn's `components.json` aliases `utils` → `@/lib/util/cn`, so future `shadcn add` writes the right path.
 - Don't run git commits, pushes, or destructive DB operations — the human handles those.

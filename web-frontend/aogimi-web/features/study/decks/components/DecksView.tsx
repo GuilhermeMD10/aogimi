@@ -1,27 +1,28 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
 import { useDecks } from '../providers/DecksProvider';
 import * as api from '../lib/decksApi';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import { DeckList } from './DeckList';
 import { DeckDetail } from './DeckDetail';
-import { StudyScreen, SessionConfigSheet, useDeckOverrides } from '@/features/study/session';
-import type { StudySessionConfig } from '@/features/study/session/types';
+import { SessionConfigSheet, useDeckOverrides } from '@/features/study/session';
 import {
   PendingCardOverlay,
   type PendingCardFlow,
 } from './PendingCardOverlay';
 import type { CardModel, Deck, DeckPatch } from '../types';
 
+// Studying is no longer a screen here — it's the `/study` route, so it can be
+// linked to from anywhere (home, a deck, a bookmark) and survive a refresh.
 type Screen =
   | { type: 'decks' }
-  | { type: 'deck'; deckId: string }
-  | { type: 'study'; deckId: string }
-  | { type: 'study-all' };
+  | { type: 'deck'; deckId: string };
 
 export default function DecksView() {
+  const router = useRouter();
   const [screen, setScreen] = useState<Screen>({ type: 'decks' });
   const [pendingCardFlow, setPendingCardFlow] = useState<PendingCardFlow>(null);
   const { pendingCard, setPendingCard } = useReaderState();
@@ -47,8 +48,7 @@ export default function DecksView() {
   const fetchDecks = useCallback(() => refreshDecks(), [refreshDecks]);
 
   // ── Active deck + cards ─────────────────────────────────────────────────────
-  const activeDeckId =
-    screen.type === 'deck' || screen.type === 'study' ? screen.deckId : null;
+  const activeDeckId = screen.type === 'deck' ? screen.deckId : null;
   const { data: activeDeckData, loading } = useFetchWithAbort<Deck>(
     async (signal) => {
       const [deckRecord, cards] = await Promise.all([
@@ -124,9 +124,7 @@ export default function DecksView() {
     async (deckId: string) => {
       await providerDeleteDeck(deckId);
       setScreen((prev) =>
-        (prev.type === 'deck' || prev.type === 'study') && prev.deckId === deckId
-          ? { type: 'decks' }
-          : prev,
+        prev.type === 'deck' && prev.deckId === deckId ? { type: 'decks' } : prev,
       );
       if (activeDeck?.id === deckId) setActiveDeck(null);
     },
@@ -181,23 +179,16 @@ export default function DecksView() {
     setScreen({ type: 'deck', deckId });
   }, []);
 
+  // Both study entry points are now navigations. `/study` reads its config off
+  // the query string, so it resolves the deck's saved mode + size itself
+  // rather than having them handed over.
   const startStudy = useCallback(() => {
-    setScreen((prev) =>
-      prev.type === 'deck' ? { type: 'study', deckId: prev.deckId } : prev,
-    );
-  }, []);
-
-  const exitStudy = useCallback(() => {
-    setScreen((prev) => {
-      if (prev.type === 'study') return { type: 'deck', deckId: prev.deckId };
-      if (prev.type === 'study-all') return { type: 'decks' };
-      return prev;
-    });
-  }, []);
+    if (activeDeckId) router.push(`/study?deck=${activeDeckId}`);
+  }, [router, activeDeckId]);
 
   const startStudyAllHardest = useCallback(() => {
-    setScreen({ type: 'study-all' });
-  }, []);
+    router.push('/study');
+  }, [router]);
 
   const editActiveDeck = useCallback(
     (patch: { name: string; description: string }) => {
@@ -262,40 +253,6 @@ export default function DecksView() {
       onSubmitCard={(back, ctx) => void submitPendingCard(back, ctx)}
     />
   );
-
-  if (screen.type === 'study' && activeDeckId) {
-    const override = getDeckOverride(activeDeckId);
-    const spec: StudySessionConfig = {
-      scope: 'deck',
-      deckIds: [activeDeckId],
-      mode: override.mode,
-      limit: override.sessionSize,
-    };
-    return (
-      <div className="relative h-full min-h-0">
-        <StudyScreen
-          sessionSpec={spec}
-          title={activeDeck?.name ?? ''}
-          onExit={exitStudy}
-        />
-        {overlay}
-      </div>
-    );
-  }
-
-  if (screen.type === 'study-all') {
-    const spec: StudySessionConfig = {
-      scope: 'all',
-      mode: 'hardest_all_decks',
-      limit: 20,
-    };
-    return (
-      <div className="relative h-full min-h-0">
-        <StudyScreen sessionSpec={spec} onExit={exitStudy} />
-        {overlay}
-      </div>
-    );
-  }
 
   if (screen.type === 'deck') {
     if (loading) {

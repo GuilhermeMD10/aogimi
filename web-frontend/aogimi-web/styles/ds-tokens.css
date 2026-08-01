@@ -1,0 +1,240 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   AOGIMI DESIGN TOKENS
+   The palette for the redesign, from `design_handoff_aogimi_home`. Two themes
+   — `light` ("Ink on paper") and `dark` ("Midnight") — selected by
+   `html[data-theme]`.
+
+   This file runs ALONGSIDE the outgoing `--lgc-*` system in
+   `themes/default.css` + `shape-defaults.css`. The two never collide because
+   no name is shared: pages that haven't been redesigned keep reading `--lgc-*`,
+   redesigned pages read the tokens below. When the last page has migrated,
+   the old files are deleted and nothing here changes.
+
+   Components read these as `text-(--ink)`, `bg-(--card)`. They are
+   deliberately NOT registered in globals.css's `@theme` block: shadcn already
+   claims `--color-card`, `--color-muted`, `--color-accent` and `--color-border`
+   there, so registering `--card` / `--muted` / `--accent` / `--bd` as Tailwind
+   colors would silently overwrite the outgoing system's own bridge and break
+   every un-migrated page.
+
+   The type roles are `--face-*`, not `--font-*`, for the same reason: that
+   `@theme` block already defines `--font-ui`, `--font-jp` and `--font-mono`
+   pointing at the outgoing faces. Declaring them again here emitted two
+   competing values for each into one stylesheet, leaving which face won up to
+   Tailwind's output order.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* ── Theme-invariant ─────────────────────────────────────────────────────── */
+
+:root {
+  /* Vermilion seal. The accent, used in exactly two places on this design:
+     the brand tile and the dictionary search glyph. Identical in both themes. */
+  --accent:            #c2452c;
+  --accent-ink:        #f6ead0;
+
+  /* Book / deck cover surfaces. Same in both themes — a cover is a printed
+     object, it doesn't re-dye itself at night. Only the progress strip
+     (--covtrack) has to adapt, since it sits ON the cover. */
+  --cover-1:           #21385c;
+  --cover-1-ink:       #e7dcc2;
+  --cover-2:           #6B2A5E;
+  --cover-2-ink:       #F6E2EF;
+  --cover-3:           #4E8088;
+  --cover-3-ink:       #f0ead0;
+  --cover-4:           #2d5a4a;
+  --cover-4-ink:       #e9f6f1;
+  --cover-shadow:      0 10px 22px rgba(0, 0, 0, .24);
+
+  /* Mastery ladder. Only `mastered` shifts between themes (gold has to stay
+     legible on both canvases) — the other three read fine either way. */
+  --stage-new:         #AEB4BE;
+  --stage-recent:      #4E8088;
+  --stage-learned:     #3E5D86;
+
+  /* Star-field geometry. The RGB triplets are per-theme (below); the layer
+     list is written once and picks them up through var() substitution, which
+     resolves against the element the background lands on. Writing it twice
+     would be ~4KB of near-identical CSS waiting to drift apart. */
+  --star-blue:         132, 150, 180;
+
+  /* Radii. From the handoff scale, named by role rather than by number so a
+     call site reads as intent. The handoff gives 7px for the continue-reading
+     cover and 8px for the library covers; that 1px on a book cover isn't
+     perceptible, so both use --radius-cover. */
+  --radius-tile:       6px;   /* deck tile */
+  --radius-cover:      8px;   /* book covers, brand mark */
+  --radius-button:    10px;
+  --radius-input:     12px;   /* dictionary search field */
+  --radius-pill:      14px;   /* profile pill, sky card */
+  --radius-card:      16px;
+  --radius-panel:     18px;   /* decks panel */
+  --radius-chip:      20px;
+
+  /* Type. Three separate roles even though --face-jp and --face-ui resolve to
+     the same family today — splitting the Japanese face off later is then a
+     one-line change here rather than a sweep through components.
+     `--font-mplus1` / `--font-space-mono` are what next/font emits in
+     app/layout.tsx; the system stacks behind them cover the gap before the
+     webfont lands. */
+  --face-jp:          var(--font-mplus1), 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  --face-ui:          var(--font-mplus1), system-ui, sans-serif;
+  --face-mono:        var(--font-space-mono), ui-monospace, monospace;
+
+  /* Motion. The handoff is explicit: this is the only transition on the page,
+     and nothing else animates. */
+  --transition:       120ms ease;
+}
+
+/* ── Light — "Ink on paper" (default) ────────────────────────────────────── */
+
+html[data-theme="light"] {
+  --bg:                #f3f2ef;
+
+  /* Cards are transparent by design: shadow and layout do the separating, not
+     a filled surface. Fill these three to switch the whole app to filled
+     cards without touching any markup. */
+  --card:              transparent;
+  --cardalt:           transparent;
+  --bd:                transparent;
+
+  --card-border:       transparent;
+  --card-border-on:    rgba(20, 20, 20, .14);
+  --card-shadow:       0 8px 22px rgba(20, 20, 20, .08);
+  --card-shadow-float: 0 18px 44px rgba(20, 20, 20, .14);
+
+  --ink:               #141414;
+  --soft:              #4a4a48;
+  --muted:             #8b8a86;
+  --faint:             #b0afa9;
+
+  --btn:               #141414;
+  --btn-ink:           #ffffff;
+
+  --track:             #e8e6e0;
+  --fill:              #141414;
+
+  --avatar:            #141414;
+  --avatar-ink:        #ffffff;
+
+  --sky-border:        rgba(47, 65, 96, .42);
+  --sky-shadow:        0 14px 34px rgba(47, 65, 96, .20);
+
+  --covtrack:          rgba(255, 255, 255, .16);
+  --stage-mastered:    #c9962a;
+
+  /* Kincha gold, as gold. Reading progress on a book cover and the hover
+     outline on a library card. Distinct from --stage-mastered, which means
+     "top of the SRS ladder" — sharing one token would tie a book's progress
+     colour to a change in the mastery palette. */
+  --gold:              #a8811f;
+
+  --star-gold:         180, 138, 40;
+  --sky-1:             #dde5ee;
+  --sky-2:             #c2cedb;
+  --sky-3:             #9fa8b6;
+  --page-vignette:     inset 0 0 180px 40px rgba(110, 130, 165, .22);
+}
+
+/* ── Dark — "Midnight" ───────────────────────────────────────────────────── */
+
+html[data-theme="dark"] {
+  --bg:                #0b0b0d;
+
+  --card:              transparent;
+  --cardalt:           transparent;
+  --bd:                transparent;
+
+  --card-border:       transparent;
+  --card-border-on:    rgba(255, 255, 255, .14);
+  --card-shadow:       0 10px 26px rgba(0, 0, 0, .45);
+  --card-shadow-float: 0 20px 50px rgba(0, 0, 0, .6);
+
+  --ink:               #f2f1ee;
+  --soft:              #c9c8c4;
+  --muted:             #9b9aa2;
+  --faint:             #7a7982;
+
+  --btn:               #f2f1ee;
+  --btn-ink:           #141414;
+
+  --track:             #1f2024;
+  --fill:              #f2f1ee;
+
+  --avatar:            #f2f1ee;
+  --avatar-ink:        #141414;
+
+  --sky-border:        rgba(226, 232, 244, .34);
+  --sky-shadow:        0 16px 40px rgba(0, 0, 0, .55);
+
+  --covtrack:          rgba(0, 0, 0, .18);
+  --stage-mastered:    #F4DC82;
+  --gold:              #ffe085;
+
+  --star-gold:         244, 220, 130;
+  --sky-1:             #16203a;
+  --sky-2:             #0c1526;
+  --sky-3:             #05070f;
+  --page-vignette:     inset 0 0 220px 60px rgba(4, 7, 14, .55);
+}
+
+/* ── Page background ─────────────────────────────────────────────────────── */
+/* Split across two elements on purpose. The handoff puts all 43 layers in one
+   `background`, which forces a 43-entry `background-size` list (42 star tiles
+   at 640×460 plus the base gradient at `cover`) — a shorter list gets cycled
+   by the spec, so `640px 460px, cover` would apply `cover` to every other
+   star layer. Painting the base on <html> and the stars on <body> lets each
+   take a single size value. Natural paint order stacks them correctly with no
+   pseudo-element and no z-index, and both are viewport-fixed so they don't
+   drift while scrolling.
+
+   Values lifted from the prototype's `bgSky` rather than regenerated, per the
+   handoff. Must stay *barely* perceptible. */
+
+:root {
+  --page-base: radial-gradient(130% 120% at 44% 18%,
+    var(--sky-1) 0%, var(--sky-1) 10%, var(--sky-2) 52%, var(--sky-3) 108%);
+
+  --page-stars:
+    radial-gradient(1.42px 1.42px at 66.53% 2.81%, rgba(var(--star-gold), 0.16) 50%, transparent 51%),
+    radial-gradient(0.89px 0.89px at 28.99% 77.87%, rgba(var(--star-blue), 0.09) 50%, transparent 51%),
+    radial-gradient(1.45px 1.45px at 40.57% 28.68%, rgba(var(--star-blue), 0.11) 50%, transparent 51%),
+    radial-gradient(0.97px 0.97px at 48.79% 7.44%, rgba(var(--star-blue), 0.26) 50%, transparent 51%),
+    radial-gradient(1.31px 1.31px at 3.97% 35.73%, rgba(var(--star-blue), 0.26) 50%, transparent 51%),
+    radial-gradient(0.92px 0.92px at 46.58% 2.79%, rgba(var(--star-blue), 0.13) 50%, transparent 51%),
+    radial-gradient(0.50px 0.50px at 51.05% 82.50%, rgba(var(--star-gold), 0.29) 50%, transparent 51%),
+    radial-gradient(0.53px 0.53px at 98.26% 71.64%, rgba(var(--star-blue), 0.22) 50%, transparent 51%),
+    radial-gradient(1.20px 1.20px at 63.57% 99.29%, rgba(var(--star-blue), 0.29) 50%, transparent 51%),
+    radial-gradient(0.69px 0.69px at 67.39% 23.03%, rgba(var(--star-blue), 0.30) 50%, transparent 51%),
+    radial-gradient(1.06px 1.06px at 86.94% 43.39%, rgba(var(--star-blue), 0.08) 50%, transparent 51%),
+    radial-gradient(0.73px 0.73px at 94.70% 50.61%, rgba(var(--star-blue), 0.28) 50%, transparent 51%),
+    radial-gradient(1.22px 1.22px at 59.93% 96.03%, rgba(var(--star-gold), 0.27) 50%, transparent 51%),
+    radial-gradient(1.06px 1.06px at 53.08% 98.25%, rgba(var(--star-blue), 0.14) 50%, transparent 51%),
+    radial-gradient(0.49px 0.49px at 19.60% 85.65%, rgba(var(--star-blue), 0.21) 50%, transparent 51%),
+    radial-gradient(1.20px 1.20px at 72.25% 1.90%, rgba(var(--star-blue), 0.25) 50%, transparent 51%),
+    radial-gradient(0.50px 0.50px at 74.60% 0.41%, rgba(var(--star-blue), 0.20) 50%, transparent 51%),
+    radial-gradient(0.92px 0.92px at 90.80% 33.75%, rgba(var(--star-blue), 0.16) 50%, transparent 51%),
+    radial-gradient(0.80px 0.80px at 48.38% 77.48%, rgba(var(--star-gold), 0.23) 50%, transparent 51%),
+    radial-gradient(0.87px 0.87px at 73.80% 73.03%, rgba(var(--star-blue), 0.29) 50%, transparent 51%),
+    radial-gradient(0.44px 0.44px at 96.12% 37.02%, rgba(var(--star-blue), 0.19) 50%, transparent 51%),
+    radial-gradient(0.91px 0.91px at 92.23% 41.83%, rgba(var(--star-blue), 0.27) 50%, transparent 51%),
+    radial-gradient(0.75px 0.75px at 23.45% 41.14%, rgba(var(--star-blue), 0.07) 50%, transparent 51%),
+    radial-gradient(0.65px 0.65px at 51.60% 0.61%, rgba(var(--star-blue), 0.18) 50%, transparent 51%),
+    radial-gradient(0.89px 0.89px at 55.90% 70.82%, rgba(var(--star-gold), 0.11) 50%, transparent 51%),
+    radial-gradient(0.56px 0.56px at 15.05% 94.62%, rgba(var(--star-blue), 0.25) 50%, transparent 51%),
+    radial-gradient(0.79px 0.79px at 91.04% 60.55%, rgba(var(--star-blue), 0.06) 50%, transparent 51%),
+    radial-gradient(0.64px 0.64px at 53.88% 99.20%, rgba(var(--star-blue), 0.21) 50%, transparent 51%),
+    radial-gradient(0.45px 0.45px at 45.00% 84.91%, rgba(var(--star-blue), 0.19) 50%, transparent 51%),
+    radial-gradient(0.57px 0.57px at 51.28% 77.78%, rgba(var(--star-blue), 0.20) 50%, transparent 51%),
+    radial-gradient(1.09px 1.09px at 76.42% 34.86%, rgba(var(--star-gold), 0.15) 50%, transparent 51%),
+    radial-gradient(0.50px 0.50px at 13.47% 80.35%, rgba(var(--star-blue), 0.23) 50%, transparent 51%),
+    radial-gradient(0.93px 0.93px at 98.06% 27.76%, rgba(var(--star-blue), 0.07) 50%, transparent 51%),
+    radial-gradient(0.59px 0.59px at 78.77% 20.03%, rgba(var(--star-blue), 0.11) 50%, transparent 51%),
+    radial-gradient(1.25px 1.25px at 70.50% 27.55%, rgba(var(--star-blue), 0.07) 50%, transparent 51%),
+    radial-gradient(1.30px 1.30px at 89.29% 92.72%, rgba(var(--star-blue), 0.07) 50%, transparent 51%),
+    radial-gradient(1.03px 1.03px at 54.93% 91.28%, rgba(var(--star-gold), 0.28) 50%, transparent 51%),
+    radial-gradient(0.99px 0.99px at 11.33% 94.75%, rgba(var(--star-blue), 0.15) 50%, transparent 51%),
+    radial-gradient(0.78px 0.78px at 1.70% 23.48%, rgba(var(--star-blue), 0.11) 50%, transparent 51%),
+    radial-gradient(0.46px 0.46px at 14.78% 29.85%, rgba(var(--star-blue), 0.26) 50%, transparent 51%),
+    radial-gradient(1.09px 1.09px at 84.31% 87.27%, rgba(var(--star-blue), 0.11) 50%, transparent 51%),
+    radial-gradient(0.69px 0.69px at 3.04% 50.33%, rgba(var(--star-blue), 0.24) 50%, transparent 51%);
+}

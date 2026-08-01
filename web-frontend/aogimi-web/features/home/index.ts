@@ -1,1 +1,2 @@
-export { default as HomeView } from './HomeView';
+// Home feature public surface.
+export { default as Home } from './Home';

@@ -17,6 +17,11 @@ async function getDueDeckCards(deckId) {
   return await cardRepo.findDueByDeck(deckId);
 }
 
+// Just the count, for deck badges that don't need the cards themselves.
+async function getDueDeckCardCount(deckId) {
+  return await cardRepo.countDueByDeck(deckId);
+}
+
 async function getCard(id) {
   const card = await cardRepo.findById(id);
   if (!card) throw new Error("Card not found");
@@ -68,4 +73,4 @@ async function deleteCard(id) {
   return true;
 }
 
-module.exports = { createCard, getDeckCards, getDueDeckCards, getCard, updateCard, reviewCard, deleteCard };
+module.exports = { createCard, getDeckCards, getDueDeckCards, getDueDeckCardCount, getCard, updateCard, reviewCard, deleteCard };

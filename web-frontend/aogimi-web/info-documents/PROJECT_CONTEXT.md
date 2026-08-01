@@ -108,13 +108,30 @@ web-frontend/langecko-web/
 
 ## Theming
 
-**The multi-theme system was torn out** — pending a from-scratch redesign. Today there is exactly one look, driven entirely by design tokens:
+**A redesign is landing screen by screen, so two token systems run in parallel.** They never collide because no name is shared — a screen reads one set or the other, and the old one is deleted when the last screen has migrated.
 
-1. **`--lgc-*` color tokens** in `styles/themes/default.css` (bound to both `:root` and `html[data-theme="default"]`).
-2. **Shape tokens** (`--lgc-surface-*`, `--lgc-button-*`, `--lgc-chip-*`, `--lgc-toolbar-*`, `--lgc-meaning-num-*`, …) in `styles/shape-defaults.css`.
-3. **Primitive classes** (`.lgc-card`, `.lgc-button`, `.lgc-chip`, `.lgc-section-label`, …) in `styles/primitives.css` read those tokens. Build on these, not hand-rolled `bg-lgc-* border-lgc-*` chains.
+### Incoming — the redesign (`styles/ds-tokens.css`)
 
-The `data-theme="default"` attribute on `<html>` and `ThemeProvider`/`THEMES` (single `default` entry) are deliberately **kept** as minimal plumbing, so a future theme re-attaches by adding a `THEMES` entry + a CSS palette under its own `html[data-theme="…"]` selector. The theme is no longer persisted anywhere — the `app-theme` localStorage key and the pre-hydration `<script>` are **gone**, and `ThemeProvider` doesn't write the choice (backend-backed theme storage is deferred). There is no theme picker, no per-theme component dispatch, and no per-theme decoration atoms anymore.
+Two themes, `light` ("Ink on paper") and `dark` ("Midnight"), selected by `html[data-theme]`.
+
+- **Colour + shape tokens**: `--ink`, `--soft`, `--muted`, `--faint`, `--card`, `--cardalt`, `--bd`, `--btn`, `--track`/`--fill`, `--cover-1..4`, `--stage-new`/`-recent`/`-learned`/`-mastered`, `--radius-*`. Read them as `text-(--ink)`, `bg-(--card)`.
+- **Type**: `--face-jp`, `--face-ui`, `--face-mono`. Named `--face-*`, *not* `--font-*`, because `globals.css`'s `@theme` block already defines `--font-ui`/`--font-jp`/`--font-mono` for the outgoing faces — declaring them twice emitted two competing values into one stylesheet.
+- **Not registered in Tailwind's `@theme`**: shadcn already owns `--color-card`, `--color-muted`, `--color-accent` and `--color-border` there, so registering `--card`/`--muted`/`--accent`/`--bd` as Tailwind colours would overwrite the outgoing bridge and break every un-migrated screen.
+- **Cards are transparent by design** — shadow and layout separate surfaces, not a fill. `--bd` is transparent too, so hairline dividers are invisible until you fill it. Filling `--card`/`--cardalt`/`--bd` switches the whole app to filled cards with no markup change.
+- **Primitives are React components**, not CSS classes: `shared/components/` (`Button`, `Card`, `CardHeader`, `Chip`, `CoverTile`, `Eyebrow`, `MonoAction`, `ProgressTrack`, `Skeleton`, `StageDot`). They read tokens and know nothing about the theme — there is never a light and a dark variant of a component, because the palette swaps underneath it.
+- **Page canvas** is app-wide chrome, set in `globals.css`: base gradient on `<html>`, star tiles on `<body>`. Split across two elements because a single 43-layer `background` would need a 43-entry `background-size` list (a shorter list gets cycled by the spec).
+
+Theme choice persists in the `aogimi-theme` localStorage key, applied by a pre-paint `<script>` in `app/layout.tsx` — an effect would fire after paint and flash. Falls back to `prefers-color-scheme`. It moves to a `users.theme` column later. The switch itself lives in `TopBar`'s profile pill.
+
+**Un-migrated screens look wrong in dark mode.** They read the light-only `--lgc-*` palette while the canvas follows the theme. That's the accepted cost of migrating screen by screen.
+
+### Outgoing — `--lgc-*` (delete when the last screen migrates)
+
+1. **`--lgc-*` colour tokens** in `styles/themes/default.css` (`:root` + `html[data-theme="default"]`, which no longer matches anything since the attribute is now `light`/`dark`; the `:root` binding is what keeps it alive).
+2. **Shape tokens** in `styles/shape-defaults.css`.
+3. **Primitive classes** `.lgc-card`, `.lgc-button`, `.lgc-chip`, `.lgc-section-label` in `styles/primitives.css`, plus the old primitives in `shared/ui/`.
+
+Don't build anything new on these. The teardown is: point the `@theme` colour aliases at the new tokens, delete those three CSS files and the stranded `shared/ui` primitives.
 
 ---
 
@@ -247,6 +264,7 @@ In practice that means: when in doubt about App Router, server components, route
 
 ## Reference docs
 
+- **[REDESIGN.md](REDESIGN.md) — read first when redesigning a screen.** Self-contained context for a fresh agent: what's done, token traps, primitive inventory, recurring data gaps, verification.
 - [backend-connections.txt](backend-connections.txt) — endpoint catalog + payload shapes
 - [DECISIONS.md](DECISIONS.md) — scope & deferred work
 - [AGENTS.md](AGENTS.md) — Next.js version warning

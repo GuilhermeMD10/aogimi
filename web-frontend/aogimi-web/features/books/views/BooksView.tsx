@@ -9,7 +9,6 @@ import { getUserBooks, updateBookTitle as apiUpdateBookTitle, updateBookProgress
 import { deleteBookEverywhere } from '@/features/books/lib/deleteBook';
 import { locateAndAttachFile, validateBookFile } from '@/features/books/lib/locateAndAttachFile';
 import { importBookWithMatch } from '@/features/books/lib/importBookWithMatch';
-import { reconcileBooks, syncPending } from '@/features/books/lib/reconcileBooks';
 import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
 import { useReaderState, type ReaderSession } from '@/features/app-shell/providers/ReaderStateProvider';
 import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';
@@ -17,7 +16,7 @@ import { useProgressSync } from './useProgressSync';
 import { getReaderProgress } from '@/features/books/lib/readerSession';
 import type { Book } from '@/features/books/types';
 import type { BookProgressRecord } from '@/features/books/types';
-import { BooksDesk, RestoreBooks, FsAccessBanner } from '@/features/books/library';
+import { LibraryShelf, FsAccessBanner } from '@/features/books/library';
 import OnboardingExplainerModal from '@/features/onboarding';
 import { getUserProfile } from '@/features/profile/lib/userApi';
 import { useSyncBooks } from '@/features/books/hooks/useSyncBooks';
@@ -40,9 +39,8 @@ export default function BooksView() {
   // localStorage and flushes to the backend periodically / on exit.
   const { recordProgress } = useProgressSync(readerSession);
 
-  const { pageState, setPageState, books, setBooks, remoteBooks, error, setError } = useSyncBooks(user);
+  const { pageState, books, setBooks, error, setError } = useSyncBooks(user);
   const [importing, setImporting] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   /** Transient success/info banner shown next to / instead of error. Cleared
    *  by the next user action that interacts with the library. */
   const [notice, setNotice] = useState<string | null>(null);
@@ -71,48 +69,6 @@ export default function BooksView() {
       .catch(() => { /* signed-out / offline — skip the gate */ });
     return () => controller.abort();
   }, [user.id]);
-
-  const handleSyncNow = useCallback(async () => {
-    if (syncing) return;
-    setSyncing(true);
-    setError(null);
-    setNotice(null);
-    try {
-      // Pass 1: orphan + stale wipe (pending books are skipped).
-      const reconcileSummary = await reconcileBooks(user.id);
-      // Pass 2: push every locally-pending book.
-      const pushSummary = await syncPending(user.id);
-
-      const total =
-        reconcileSummary.staleReplaced.length +
-        reconcileSummary.syncedUp.length +
-        pushSummary.pushed.length +
-        pushSummary.failed.length;
-      if (total === 0) {
-        setNotice('Library is up to date.');
-      } else {
-        const parts: string[] = [];
-        if (reconcileSummary.staleReplaced.length > 0) {
-          parts.push(`${reconcileSummary.staleReplaced.length} replaced — re-locate to view the new bytes`);
-        }
-        if (pushSummary.pushed.length > 0) {
-          parts.push(`${pushSummary.pushed.length} pushed to cloud`);
-        }
-        if (pushSummary.failed.length > 0) {
-          parts.push(`${pushSummary.failed.length} couldn't push — try again`);
-        }
-        if (reconcileSummary.syncedUp.length > 0) {
-          parts.push(`${reconcileSummary.syncedUp.length} backfilled with local fingerprint`);
-        }
-        setNotice(`Synced: ${parts.join(' · ')}.`);
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(`Sync failed: ${msg}`);
-    } finally {
-      setSyncing(false);
-    }
-  }, [user, syncing, setError]);
 
   const handleImport = useCallback(
     async (file: File) => {
@@ -369,40 +325,6 @@ export default function BooksView() {
     [requestAddCard],
   );
 
-  // Both "Go to library" and "Skip for now" do the same thing: drop
-  // the user into the library with cloud registers rendered as
-  // unavailable tiles. They can locate files later from the library
-  // itself. No reload — useSyncBooks routes off local-vs-remote book
-  // state, so a reload would just bounce back to the restore screen.
-  const handleRestoreComplete = useCallback(() => {
-    setBooks(
-      remoteBooks.map((r) => ({
-        id: r.id,
-        title: r.title,
-        author: r.author,
-        filename: r.filename,
-        coverColor: r.cover_color,
-        hasCover: false,
-        progress: r.progress,
-        available: false,
-        backendId: r.id,
-        lastReadAt: r.last_read_at,
-      })),
-    );
-    setPageState('library');
-  }, [remoteBooks, setBooks, setPageState]);
-
-  if (pageState === 'restore' && !readerSession) {
-    return (
-      <RestoreBooks
-        remoteBooks={remoteBooks}
-        userId={user.id}
-        onComplete={handleRestoreComplete}
-        onSkip={handleRestoreComplete}
-      />
-    );
-  }
-
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -448,55 +370,21 @@ export default function BooksView() {
 
   return (
     <div className="relative h-full overflow-hidden">
-      {error && (
-        <div
-          className="mx-auto mt-4 max-w-295 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-[13px] text-red-700"
-          style={{ width: 'calc(100% - 80px)' }}
-        >
-          {error}
-        </div>
-      )}
-      {notice && !error && (
-        <div
-          className="mx-auto mt-4 max-w-295 flex items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-[13px] text-emerald-800"
-          style={{ width: 'calc(100% - 80px)' }}
-        >
-          <span>{notice}</span>
-          <button
-            type="button"
-            onClick={() => setNotice(null)}
-            className="rounded px-2 py-0.5 text-[12px] text-emerald-800 hover:bg-emerald-100"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-      <div className="mx-auto mt-3 max-w-295 flex justify-end" style={{ width: 'calc(100% - 80px)' }}>
-        <button
-          type="button"
-          onClick={handleSyncNow}
-          disabled={syncing}
-          className="rounded-md border border-lgc-border bg-lgc-bg-elev px-3 py-1 text-[12px] text-lgc-fg hover:bg-lgc-bg-hover disabled:opacity-55"
-        >
-          {syncing ? 'Syncing…' : 'Sync now'}
-        </button>
-      </div>
-
-      {pageState === 'loading' ? (
-        <div className="flex h-full items-center justify-center text-sm text-lgc-fg-muted">Loading library…</div>
-      ) : (
-        <BooksDesk
-          books={books}
-          importing={importing}
-          onOpen={(book) => (book.available ? openBook(book.id) : handleLocateClick(book.id))}
-          onImport={() => fileInputRef.current?.click()}
-          onRename={(book, title) => handleRenameBook(book, title)}
-          onMarkFinished={(book) => handleMarkFinished(book)}
-          onRemove={(book) => setDeletingBook(book)}
-          onLocate={(book) => handleLocateClick(book.id)}
-          footer={<FsAccessBanner />}
-        />
-      )}
+      <LibraryShelf
+        books={books}
+        loading={pageState === 'loading'}
+        importing={importing}
+        error={error}
+        notice={notice}
+        onDismissNotice={() => setNotice(null)}
+        onImport={() => fileInputRef.current?.click()}
+        onOpen={(book) => (book.available ? openBook(book.id) : handleLocateClick(book.id))}
+        onLocate={(book) => handleLocateClick(book.id)}
+        onRename={(book, title) => handleRenameBook(book, title)}
+        onMarkFinished={(book) => handleMarkFinished(book)}
+        onRemove={(book) => setDeletingBook(book)}
+        footer={<FsAccessBanner />}
+      />
 
       <input
         ref={fileInputRef}

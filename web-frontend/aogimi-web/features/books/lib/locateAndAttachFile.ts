@@ -63,13 +63,11 @@ export type LocateResult =
  * Verify a user-picked file actually belongs to the targeted backend book
  * record (`target.backendId`), then import it locally.
  *
- * Shared by:
- *   - ReaderView `onLocateFile` (locating a file for a "not on this device"
- *     entry from the library).
- *   - RestoreBooks `onLocateFile` (the post-login reconcile screen).
- *
- * Both call sites previously hand-rolled the same validate → probe →
- * matchBooks → importBook sequence with subtly different error wording.
+ * Called from `BooksView.onLocateFile` — the one entry point now that the shelf
+ * renders "not on this device" books as re-import tiles in the grid rather than
+ * behind a separate post-login reconcile screen. Both former call sites
+ * hand-rolled the same validate → probe → matchBooks → importBook sequence with
+ * subtly different error wording.
  */
 export async function locateAndAttachFile(input: {
   file: File;

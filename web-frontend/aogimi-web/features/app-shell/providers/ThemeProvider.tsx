@@ -8,22 +8,19 @@ export type ThemeMeta = {
   label: string;
 };
 
-/** Single source of truth for which themes exist.
- *  - `AppTheme` is derived from this record's keys.
+/** Single source of truth for which themes exist. `AppTheme` derives from the
+ *  keys, and each key must have a matching `html[data-theme="…"]` palette in
+ *  `styles/ds-tokens.css`.
  *
- *  The visual theming system was torn out; only `default` ships today, and
- *  theme selection is no longer persisted client-side (a future redesign will
- *  store the chosen theme on the backend). The `data-theme` attribute on
- *  <html> is kept so a future theme can re-attach by adding an entry here and
- *  a matching CSS palette. */
+ *  Order matters: `toggle` cycles through these in sequence, so a third theme
+ *  needs no code change beyond an entry here and its palette. */
 export const THEMES = {
-  default: { label: 'Default' },
+  light: { label: 'Light' },
+  dark: { label: 'Dark' },
 } as const satisfies Record<string, ThemeMeta>;
 
 export type AppTheme = keyof typeof THEMES;
 
-/** Runtime allow-list derived from THEMES — used by the storage validator and
- *  the pre-hydration script in app/layout.tsx. */
 export const THEME_NAMES = Object.keys(THEMES) as AppTheme[];
 
 export function isAppTheme(value: unknown): value is AppTheme {
@@ -32,20 +29,37 @@ export function isAppTheme(value: unknown): value is AppTheme {
 
 type ThemeContextValue = {
   theme: AppTheme;
+  /** The theme `toggle()` will move to — label a switch with this, not `theme`. */
+  nextTheme: AppTheme;
   setTheme: (theme: AppTheme) => void;
+  toggle: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const DEFAULT_THEME: AppTheme = 'default';
+const DEFAULT_THEME: AppTheme = 'light';
 
-/** Read the theme that the pre-hydration script (in app/layout.tsx) already
- *  applied to <html data-theme="…">. Runs synchronously during the client's
- *  initial render, so React state matches what's painted from frame zero. */
+/** Must match the key the pre-paint script in `app/layout.tsx` reads. */
+const STORAGE_KEY = 'aogimi-theme';
+
+/** Read what the pre-paint script already applied to `html[data-theme]`, so
+ *  React's first render agrees with what's on screen. Reading localStorage
+ *  here instead would duplicate the script's fallback logic and risk drifting
+ *  from it. */
 function readInitialTheme(): AppTheme {
   if (typeof document === 'undefined') return DEFAULT_THEME;
   const attr = document.documentElement.getAttribute('data-theme');
   return isAppTheme(attr) ? attr : DEFAULT_THEME;
+}
+
+function persist(theme: AppTheme) {
+  // Private-mode Safari throws on localStorage writes. A theme that fails to
+  // persist is a much smaller problem than a theme switch that throws.
+  try {
+    window.localStorage.setItem(STORAGE_KEY, theme);
+  } catch {
+    /* not persisted — resets on reload */
+  }
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -54,12 +68,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = useCallback((next: AppTheme) => {
     setThemeState(next);
     document.documentElement.setAttribute('data-theme', next);
-    // Not persisted — theme resets to the default on reload until backend-
-    // backed theme storage lands.
+    persist(next);
   }, []);
 
+  const toggle = useCallback(() => {
+    setThemeState((current) => {
+      const i = THEME_NAMES.indexOf(current);
+      const next = THEME_NAMES[(i + 1) % THEME_NAMES.length] ?? DEFAULT_THEME;
+      document.documentElement.setAttribute('data-theme', next);
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const i = THEME_NAMES.indexOf(theme);
+  const nextTheme = THEME_NAMES[(i + 1) % THEME_NAMES.length] ?? DEFAULT_THEME;
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, nextTheme, setTheme, toggle }}>
       {children}
     </ThemeContext.Provider>
   );

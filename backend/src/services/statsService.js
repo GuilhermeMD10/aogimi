@@ -17,4 +17,10 @@ async function getCards(userId) {
   return { byState, total, hardest };
 }
 
-module.exports = { getActivity, getCards };
+// The 5 most recent tier promotions. A bare list — the repository already
+// shapes each row for display, so there's nothing to assemble here.
+async function getRecentUpgrades(userId) {
+  return await statsRepo.recentTierUpgrades(userId);
+}
+
+module.exports = { getActivity, getCards, getRecentUpgrades };

@@ -43,6 +43,19 @@ export async function getDeckCards(
   return apiGet<CardRecord[]>(`/api/decks/${deckId}/cards`, signal);
 }
 
+/** How many cards are due in this deck. Counted server-side — don't fetch the
+ *  due list to read `.length`. */
+export async function getDueDeckCardCount(
+  deckId: string,
+  signal?: AbortSignal,
+): Promise<number> {
+  const { count } = await apiGet<{ count: number }>(
+    `/api/decks/${deckId}/cards/due/count`,
+    signal,
+  );
+  return count;
+}
+
 export async function createCard(
   deckId: string,
   params: { front: string; back: string; reading?: string; notes?: string; contextSentence?: string },

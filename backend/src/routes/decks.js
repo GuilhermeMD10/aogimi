@@ -118,6 +118,20 @@ router.get("/:id/cards/due", async (req, res) => {
   }
 });
 
+// Just the due count for this deck — for a badge that would otherwise pull
+// every due card row to call `.length` on it.
+router.get("/:id/cards/due/count", async (req, res) => {
+  if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
+    return res.status(404).json({ error: "Not found" });
+  }
+  try {
+    const count = await cardService.getDueDeckCardCount(req.params.id);
+    return res.json({ count });
+  } catch (err) {
+    return res.status(500).json({ error: "Read failed" });
+  }
+});
+
 router.put("/cards/:cardId", async (req, res) => {
   if (!(await cardOwnedBy(req.user.userId, req.params.cardId))) {
     return res.status(404).json({ error: "Not found" });

@@ -52,7 +52,7 @@ export function DeckList({
           </div>
           <div className="flex gap-1">
             <Link
-              href="/stats"
+              href="/sky"
               className="flex items-center gap-1.5 rounded-md border border-lgc-border px-3 py-1.5 text-[13px] font-medium text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev hover:text-lgc-fg"
             >
               <BarChart3 size={13} />

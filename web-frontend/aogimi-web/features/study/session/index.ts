@@ -4,4 +4,5 @@ export { SessionConfigSheet } from './components/SessionConfigSheet';
 export { StateBreakdown } from './components/StateBreakdown';
 export { StudyAllHardestButton } from './components/StudyAllHardestButton';
 export { useDeckOverrides } from './hooks/useDeckOverrides';
-export type { StudySessionConfig } from './types';
+export { fetchDueCounts, fetchRandomDueCard } from './lib/studyApi';
+export type { DueCounts, StudySessionConfig } from './types';

@@ -25,4 +25,13 @@ router.get("/cards", async (req, res) => {
   }
 });
 
+router.get("/recent-upgrades", async (req, res) => {
+  try {
+    const payload = await statsService.getRecentUpgrades(req.user.userId);
+    return res.json(payload);
+  } catch (err) {
+    return res.status(500).json({ error: "Read failed" });
+  }
+});
+
 module.exports = router;

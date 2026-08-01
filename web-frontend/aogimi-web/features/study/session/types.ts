@@ -19,6 +19,18 @@ export type StudySessionConfig = {
   deckIds?: string[];
   mode: StudyMode;
   limit?: number;
+  /** Narrow the pool to cards due right now before `mode` orders them.
+   *  `{ scope: 'all', dueOnly: true }` is the "study every due card across
+   *  all decks" session. Omitted / false = every card in scope. */
+  dueOnly?: boolean;
+};
+
+/** Due-card counts across every deck the user owns.
+ *  Decks with nothing due are **absent** from `byDeck` — read a missing key
+ *  as 0 rather than expecting an entry per deck. */
+export type DueCounts = {
+  total: number;
+  byDeck: Record<string, number>;
 };
 
 // ── Display prefs ──────────────────────────────────────────────────────────

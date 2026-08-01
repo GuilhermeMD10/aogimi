@@ -26,6 +26,10 @@ export interface CardRecord {
   stability: number;
   last_outcomes: string;
   last_reviewed_at: string | null;
+  /** When the card next falls due (migration 023). Null = never reviewed,
+   *  which counts as due now. Computed and persisted server-side — read it,
+   *  don't recompute it. */
+  next_due_at: string | null;
   created_at: string;
 }
 

@@ -37,6 +37,13 @@ enumeration.
 | POST | `/api/auth/refresh` | `{ refreshToken }` | `{ user, accessToken, refreshToken }` | global only |
 | POST | `/api/auth/logout` | `{ refreshToken }` | `{ ok: true }` (idempotent) | global only |
 
+**Those are the native shapes.** Browser clients (detected by `Origin`) get the
+refresh token as an httpOnly + Secure + SameSite=Lax **cookie** scoped to
+`/api/auth` instead of in the JSON — so the responses are `{ user, accessToken }`,
+and refresh / logout read the token from the cookie rather than the body.
+`/api/auth/refresh` additionally 403s a browser request whose `Origin` isn't
+allowlisted (CSRF guard). See [`docs/AUTH.md`](../docs/AUTH.md).
+
 Errors:
 - 400: zod validation failure (username/password format) — passwords must be 8+ chars with at least one non-letter
 - 401: invalid credentials / refresh token
@@ -159,6 +166,7 @@ matches `req.user.userId` via `requireUserMatch`.
 | POST | `/api/decks/:id/cards` | `{ front, reading?, back, notes?, contextSentence? }` | `CardRecord` | `deckOwnedBy(:id)` |
 | GET | `/api/decks/:id/cards` | — | `CardRecord[]` | `deckOwnedBy(:id)` |
 | GET | `/api/decks/:id/cards/due` | — | `CardRecord[]` (due in this deck, most-overdue first) | `deckOwnedBy(:id)` |
+| GET | `/api/decks/:id/cards/due/count` | — | `{ count: number }` | `deckOwnedBy(:id)` |
 | PUT | `/api/decks/cards/:cardId` | `{ front?, reading?, back?, notes?, state?, contextSentence? }` | `CardRecord` | `cardOwnedBy` |
 | POST | `/api/decks/cards/:cardId/review` | `{ outcome: 'again' \| 'hard' \| 'easy' }` | `CardRecord` (with updated SRS columns) | `cardOwnedBy` |
 | DELETE | `/api/decks/cards/:cardId` | — | `{ message }` | `cardOwnedBy` |
@@ -177,9 +185,30 @@ for today.
 **Due cards.** A card is *due* when it has never been reviewed
 (`next_due_at IS NULL`) or its scheduled `next_due_at` has passed. Each
 review recomputes `next_due_at = last_reviewed_at + stability ·
-ln(1/0.9)` (≈ `stability/10` days). The two due endpoints below return the
-raw inventory of due cards (no `limit`) ordered most-overdue first, with
+ln(1/0.9)` (≈ `stability/10` days).
+
+Six surfaces expose that predicate, all sharing one SQL fragment
+(`DUE` in [`src/repositories/cardRepository.js`](./src/repositories/cardRepository.js))
+so the definition can't drift between them:
+
+| Surface | Shape |
+|---|---|
+| `GET /api/decks/:id/cards/due` | raw inventory for one deck, no `limit` |
+| `GET /api/study/due` | raw inventory across all decks, no `limit` |
+| `GET /api/decks/:id/cards/due/count` | `{ count }` for one deck |
+| `GET /api/study/due/counts` | `{ total, byDeck }` across all decks |
+| `GET /api/study/due/random` | one random due card |
+| `POST /api/study/session` + `dueOnly: true` | a ready-to-study session — mode-ordered and `limit`-capped |
+
+The two inventory endpoints apply no `limit` and order most-overdue first with
 never-reviewed cards first; the client decides session size.
+
+Reach for the right one:
+- **A count** → a count endpoint. Never fetch an inventory to read its
+  `.length`; that ships every card row to produce one integer.
+- **A session** → `dueOnly`. It reuses the mode ordering and the cap instead of
+  making the client re-implement them.
+- **An inventory** → only when the client genuinely needs the rows themselves.
 
 ---
 
@@ -187,8 +216,10 @@ never-reviewed cards first; the client decides session size.
 
 | Method | Path | Body | Response | Notes |
 |---|---|---|---|---|
-| POST | `/api/study/session` | `{ scope, deckIds?, mode, limit? }` | `{ cards: CardRecord[] }` | Cards already in display order |
+| POST | `/api/study/session` | `{ scope, deckIds?, mode, limit?, dueOnly? }` | `{ cards: CardRecord[] }` | Cards already in display order |
 | GET | `/api/study/due` | — | `{ cards: CardRecord[] }` | All cards due now across every deck the user owns, most-overdue first |
+| GET | `/api/study/due/counts` | — | `{ total: number, byDeck: { [deckId]: number } }` | Due counts without the card rows. Decks with nothing due are **omitted** from `byDeck` |
+| GET | `/api/study/due/random` | — | `{ card: CardRecord \| null }` | One random due card. `null` (with 200) when nothing is due |
 | GET | `/api/study/prefs` | — | `{ display, deckOverrides }` | Returns defaults when no row exists |
 | PUT | `/api/study/prefs` | `{ display?, deckOverrides? }` | `{ display, deckOverrides }` | Upsert; either field optional |
 
@@ -197,6 +228,13 @@ never-reviewed cards first; the client decides session size.
 - `deckIds`: required when `scope === 'deck'`. Unowned IDs are silently dropped.
 - `mode`: one of `hardest` (default) · `random` · `oldest_first` · `oldest_only` · `newest_only` · `by_creation` · `hardest_all_decks`.
 - `limit`: defaults to 20. Capped per session size from `user_study_prefs.deck_overrides` if the client passes that value through.
+- `dueOnly`: optional boolean, default false. Narrows the candidate **pool** to
+  cards due right now (never reviewed, or past `next_due_at`) *before* `mode`
+  orders it — it's a filter, not a mode, so it composes with all seven.
+  `{ scope: 'all', dueOnly: true }` is the "study every due card across all
+  decks" session. Combining it with a mode that also filters
+  (`oldest_only`, `newest_only`) intersects both and can legitimately return
+  fewer than `limit` cards. 400 if present and not a boolean.
 
 **Mode semantics**:
 - `hardest` — difficulty + (1−R) fading boost + recent-failure boost + state bias + random jitter, sorted desc.
@@ -232,10 +270,31 @@ to the token user.
 |---|---|---|
 | GET | `/api/stats/activity` | `{ daysStudied: number, perDay: [{ date: 'YYYY-MM-DD', count: number }] }` |
 | GET | `/api/stats/cards` | `{ byState: { new, seen, learned, mastered }, total: number, hardest: CardRecord[] }` |
+| GET | `/api/stats/recent-upgrades` | `RecentUpgrade[]` — the 5 latest tier promotions, newest first |
 
 - `perDay` covers the last 365 days; only days with ≥ 1 review are listed.
 - `hardest` returns at most 20 cards (sorted by `difficulty` desc, with
   recent-Again count as a tiebreaker).
+
+### `RecentUpgrade`
+
+```
+{ cardId, deckId, deckName, front, reading, back,
+  stateBefore, stateAfter, reviewedAt }
+```
+
+Read from the `card_reviews` log, not from `cards`, so each row reports the
+transition it actually caused and later reviews don't overwrite it.
+
+- **Promotions only.** An "upgrade" moves *up* the ladder
+  `new < seen < learned < mastered`; `again`-driven demotions
+  (mastered→learned, learned→seen) are excluded, as is any review that leaves
+  the tier unchanged.
+- **Events, not distinct cards** — a card promoted twice appears twice.
+- Card + deck columns are joined in so a caller can render the promotion
+  without a follow-up fetch per card.
+- camelCase because it's a purpose-built aggregate rather than a raw `cards`
+  row (`CardRecord` stays snake_case).
 
 ---
 
