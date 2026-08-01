@@ -33,8 +33,8 @@ type DecksContextValue = {
   // ── Mutations: every one refreshes the list afterwards. The optimistic
   //    `bumpCardCount` helper is used by per-deck card add/delete so the
   //    summary count moves immediately without waiting for the refetch. ──
-  createDeck: (params: { name: string; description?: string }) => Promise<{ id: string }>;
-  updateDeck: (id: string, patch: { name?: string; description?: string }) => Promise<void>;
+  createDeck: (params: { name: string }) => Promise<{ id: string }>;
+  updateDeck: (id: string, patch: { name?: string }) => Promise<void>;
   deleteDeck: (id: string) => Promise<void>;
   /** Apply a +1 / -1 patch to a deck's card_count locally. Used after
    *  successful card-mutation API calls so the list reflects the new
@@ -62,7 +62,7 @@ export function DecksProvider({ children }: { children: ReactNode }) {
   // and was redundant because the derived list never needed to outlive
   // the fetch.
   type Override =
-    | { kind: 'patch'; cardCountDelta: number; namePatch?: string; descPatch?: string }
+    | { kind: 'patch'; cardCountDelta: number; namePatch?: string }
     | { kind: 'deleted' };
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
 
@@ -71,8 +71,8 @@ export function DecksProvider({ children }: { children: ReactNode }) {
     return data.map((r) => ({
       id: r.id,
       name: r.name,
-      description: r.description,
       card_count: r.card_count,
+      last_card: r.last_card,
     }));
   }, [data]);
 
@@ -86,7 +86,6 @@ export function DecksProvider({ children }: { children: ReactNode }) {
         return {
           ...d,
           name: o.namePatch ?? d.name,
-          description: o.descPatch ?? d.description,
           card_count: Math.max(0, d.card_count + o.cardCountDelta),
         };
       });
@@ -116,7 +115,7 @@ export function DecksProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createDeck = useCallback(
-    async (params: { name: string; description?: string }) => {
+    async (params: { name: string }) => {
       if (userId == null) throw new Error('createDeck requires a signed-in user');
       const created = await api.createDeck({ userId, ...params });
       await refreshFn();
@@ -126,7 +125,7 @@ export function DecksProvider({ children }: { children: ReactNode }) {
   );
 
   const updateDeck = useCallback(
-    async (id: string, patch: { name?: string; description?: string }) => {
+    async (id: string, patch: { name?: string }) => {
       await api.updateDeck(id, patch);
       // Stash an override so the list reflects the rename immediately;
       // the next refresh clears it once the server confirms.
@@ -137,7 +136,6 @@ export function DecksProvider({ children }: { children: ReactNode }) {
               kind: 'patch',
               cardCountDelta: cur.cardCountDelta,
               namePatch: patch.name ?? cur.namePatch,
-              descPatch: patch.description ?? cur.descPatch,
             },
       );
       await refreshFn();
@@ -163,7 +161,6 @@ export function DecksProvider({ children }: { children: ReactNode }) {
               kind: 'patch',
               cardCountDelta: cur.cardCountDelta + delta,
               namePatch: cur.namePatch,
-              descPatch: cur.descPatch,
             },
       );
     },

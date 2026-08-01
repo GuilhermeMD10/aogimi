@@ -12,7 +12,7 @@ interface DeckDetailProps {
   onBack: () => void;
   onStudy: () => void;
   onConfigure?: () => void;
-  onEditDeck: (patch: { name: string; description: string }) => void;
+  onEditDeck: (patch: { name: string }) => void;
   onAddCard: (front: string, back: string) => void;
   onDeleteCard: (cardId: string) => void;
 }
@@ -33,7 +33,6 @@ export function DeckDetail({
   const [back, setBack] = useState('');
   const [filter, setFilter] = useState('');
 
-  const description = deck.description?.trim();
   const canStudy = deck.cards.length > 0;
   const { color, kamon } = deckVisuals(deck.name);
 
@@ -56,8 +55,8 @@ export function DeckDetail({
     setMode(null);
   };
 
-  const submitEdit = ({ name, description }: { name: string; description: string }) => {
-    onEditDeck({ name, description });
+  const submitEdit = ({ name }: { name: string }) => {
+    onEditDeck({ name });
     setMode(null);
   };
 
@@ -98,11 +97,6 @@ export function DeckDetail({
               >
                 {deck.name}
               </h1>
-              {description && (
-                <p className="mt-1 max-w-xl whitespace-pre-wrap text-[13px] text-lgc-fg-muted">
-                  {description}
-                </p>
-              )}
             </div>
 
             {/* Action buttons */}
@@ -159,7 +153,7 @@ export function DeckDetail({
           <div className="px-4 @md:px-8">
             <DeckForm
               submitLabel="Save"
-              initial={{ name: deck.name, description: deck.description ?? '' }}
+              initial={{ name: deck.name }}
               onSubmit={submitEdit}
               onCancel={() => setMode(null)}
             />

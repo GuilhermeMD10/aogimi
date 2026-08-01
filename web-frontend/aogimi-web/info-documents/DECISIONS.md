@@ -290,3 +290,117 @@ together, so switching between hits is a keystroke instead of a navigation.
 - [ ] Below 1000 px the rail should become a full-width list with the entry as a
       second view. Not built — `MobileGate` blocks below 700 px and the target is
       ≥1280 px, so it's a narrow-desktop gap, not a mobile one.
+
+---
+
+## Redesign — decks (`/decks`)
+
+The list screen from `design_handoff_aogimi_decks`. Deck *detail*, the study
+runner and the create/edit form are not in this pass.
+
+**The one structural decision: the deck card got its own surface tokens.**
+
+`--card` / `--cardalt` / `--bd` are `transparent` app-wide — home and the
+dictionary separate surfaces with shadow and layout, not fills. A deck card
+can't work that way: it's one clipped object, dark sky panel over paper, and
+without a real fill and a real edge the two halves stop reading as one card.
+The handoff's token table supplies exactly the values that would fix it
+(`--card: #ffffff`, `--bd: #e8e6e0`), and `ds-tokens.css` was written so that
+filling those three switches the whole app to filled cards in one line.
+
+That was the rejected option. Filling them would have repainted every card,
+chip, pill and divider on two finished screens as a side effect of building a
+third. Instead the deck card carries its own group — `--deck-paper`,
+`--deck-tile`, `--deck-bd`, `--deck-shadow`, `--deck-shadow-hover`, plus the
+theme-invariant `--deck-sky` / `--deck-sky-shadow`. Home, `TopBar` and the
+dictionary are byte-identical; verified with
+`grep -o -- "--card:[^;]*" .next/static/chunks/*.css` still reading
+`transparent`. The app-wide switch stays available and unused.
+
+**Built as specified**
+
+- Sky panel is **empty** — 220 px of `--deck-sky` with its inset vignette and
+  nothing inside. Same rule as home's sky bubble: the star map is a separate
+  component with separate data. The two are drawn differently (home outlines a
+  transparent bubble, this fills a solid panel); both get reworked when the map
+  lands, so the divergence is deliberate and temporary.
+- Due badges, the header's count pill and the mastery ramp keep the handoff's
+  fixed colours in both themes, hardcoded in the components that use them.
+  They sit on the fixed night panel, so they're pinned the way it is; four
+  token names only one badge would ever read is the more expensive mistake.
+
+**Deviations**
+
+- **Column is home's 1300 px, not the handoff's 1500 px.** Pages that don't
+  share a width visibly jump when you navigate between them. The grid gives up
+  its fourth column and nothing else changes.
+- **The mastery ramp stays the established cool `--stage-*`.** The handoff asks
+  for a warmer ramp app-wide and calls the cool one the variant to abandon;
+  adopting it would have repainted home's recent-upgrades and forced `StageDot`
+  to grow per-stage label colours and a glow. `StageDot` is reused as-is,
+  including `seen` → "Recent".
+- **The due badge is informative, not a link.** The handoff wires it to
+  `/study?deck={id}`. The whole card is one stretched target that opens the
+  deck; a second control inside it is a coin toss to hit, and nesting an
+  interactive element inside another is invalid markup.
+- **`Study all due` links `/study?due=1`, not `/study`.** Bare `/study` is the
+  all-decks *hardest* session over every card — the button would not have done
+  what its label and count say. The nothing-due state keeps bare `/study` and
+  reads "Study ahead", per the handoff.
+- **Cards open the deck in place.** No `/decks/{id}` route; `DecksView` still
+  switches on local state. Routing was explicitly out of scope for this pass.
+- **No dock.** Standing deferral — `WorkspaceNav` stays, and the column pads
+  140 px to clear it rather than the handoff's 120 px.
+- **The `...` menu holds Delete only, with no confirmation**, by request. It's
+  always rendered at low opacity rather than appearing on hover, because a
+  hover-only control doesn't exist for keyboard or touch.
+- **Buttons are local, not `shared/components/Button`.** This screen's pair are
+  11/16 px padding with 13.5 and 14 px labels and a ghost variant edged in
+  `--deck-bd`; `Button` is 20/13 px at 15 px and edges in `--ink`. Overriding
+  nearly every value through `className` leaves a component whose own styles
+  never apply.
+
+**Deck description was dropped from the web entirely**
+
+The new card has no slot for it, so it was collecting text nothing displayed.
+Gone from `DeckForm`, `DeckDetail`, `DecksProvider`'s optimistic overrides, the
+`createDeck` / `updateDeck` payloads, the reader bubble's deck picker, and
+`Deck` / `DeckSummary` / `DeckPatch`.
+
+**The column and the mobile app are untouched.** No migration: dropping it
+would be destructive and `mobile-frontend` still reads and writes it in
+`DeckDetailScreen`, `DeckGridItem`, `NewDeckSheet` and its deck-sync push.
+`DeckRecord.description` therefore still exists and is documented as
+mobile-only. Removing the feature from mobile, then the column, is a separate
+job.
+
+**Backend: `last_card`**
+
+`deckRepository.findByUser` / `findById` now return the deck's most recently
+added card as one JSON field. `card_count` moved from `LEFT JOIN cards` +
+`GROUP BY d.id` to a scalar subquery, because an aggregate over a join can't
+coexist with the lateral without dragging its output columns into the GROUP BY.
+`deckService.createDeck` / `updateDeck` re-read through `findById` so all four
+deck responses have one shape.
+
+This is the first handoff data gap resolved by changing the query rather than
+dropping the feature. The alternative was fetching every deck's full card
+inventory to read one row off the end, N requests deep — which `API_ROUTES.md`
+explicitly warns against. No schema change, so no migration and no
+`reset_user_data.sql` edit.
+
+**Still deferred**
+
+- [ ] Deck detail, the create/edit form (`DeckForm`) and `PendingCardOverlay`
+      still read `--lgc-*`. Opening a deck drops into the old visual language —
+      the first seam that sits *inside* one route rather than between two.
+      `DeckForm` is shared with detail, so restyling it there would half-migrate
+      that screen; left alone on purpose.
+- [ ] The star map. `clustering-spec.md` in the handoff bundle is the spec; the
+      panel is the correctly-sized container it mounts into.
+- [ ] Deleting a deck cascades to every card in it and asks nothing first.
+      Worth a confirm step eventually.
+- [ ] `/decks/{id}` as a real route, which would also let the card be a plain
+      link and the due badge be a second one.
+- [ ] Part of speech, for the last-word row's `READING · POS` line. Not in the
+      schema; the reading renders alone.

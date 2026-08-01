@@ -15,7 +15,7 @@ Status:
 | Reader / library | `/reader` | Not started |
 | Dictionary | `/dictionary` | **Done** — empty state + rail/entry split |
 | Word detail | — | Folded into `/dictionary`; `/word/[id]` deleted |
-| Decks | `/decks` | Not started |
+| Decks | `/decks` | **Done** — list only; deck *detail* is still `--lgc-*` |
 | Study runner | `/study` | Route extracted, visuals not started |
 | Sky (study stats) | `/sky` | Not started |
 | Profile | `/profile` | Not started |
@@ -204,6 +204,8 @@ how home resolved them:
 | `studied N×` per deck | No such aggregate | Feature dropped |
 | Recent lookups with reading + gloss + entry id | `dictionary_recent_searches` stores `{ query, at }` only | Term + age, links to `?q=` |
 | A deck deep link (`/decks/{id}`) | `DecksView` picks its deck from local state; no param | Links to `/decks` |
+| A deck's last-added word | Deck rows had `card_count` and nothing else | **Backend gained `last_card`** — the one gap so far worth a query change rather than a drop |
+| Decks ordered by most recently studied | Nothing records it | `created_at DESC` |
 
 When you find a new one: **name it to the owner, don't invent a schema.** They
 have consistently chosen the simpler option.

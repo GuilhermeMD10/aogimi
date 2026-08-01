@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 
+// Name only. The deck-description field was dropped with the decks redesign:
+// the new card has no slot for it, so it was collecting text nothing displayed.
 interface DeckFormValues {
   name: string;
-  description: string;
 }
 
 interface DeckFormProps {
@@ -15,15 +16,14 @@ interface DeckFormProps {
 }
 
 export function DeckForm({ submitLabel, initial, onSubmit, onCancel }: DeckFormProps) {
-  const [name, setName]               = useState(initial?.name ?? '');
-  const [description, setDescription] = useState(initial?.description ?? '');
+  const [name, setName] = useState(initial?.name ?? '');
 
   const canSubmit = name.trim().length > 0;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    onSubmit({ name: name.trim(), description: description.trim() });
+    onSubmit({ name: name.trim() });
   };
 
   return (
@@ -42,19 +42,6 @@ export function DeckForm({ submitLabel, initial, onSubmit, onCancel }: DeckFormP
           placeholder="Deck name"
           autoFocus
           className="mt-1 w-full rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
-        />
-      </div>
-
-      <div>
-        <label className="text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
-          Description
-        </label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Optional \u2014 what\u2019s this deck for?"
-          rows={2}
-          className="mt-1 w-full resize-none rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
         />
       </div>
 

@@ -4,9 +4,27 @@ export interface DeckRecord {
   id: string;
   user_id: number;
   name: string;
+  /** Still a column, and still written by the mobile app — the web dropped the
+   *  feature, so nothing here reads it. */
   description: string;
   created_at: string;
   card_count: number;
+  /** The most recently added card, or null for an empty deck. Assembled
+   *  server-side by `deckRepository`, so `card_count` and this always agree.
+   *  Present on every deck response. */
+  last_card: LastCard | null;
+}
+
+/** The subset of a card the decks screen shows under "Last Added Word". Not a
+ *  `CardRecord` — the SRS columns aren't selected, because nothing on that
+ *  screen reads them and shipping them per deck would be waste. */
+export interface LastCard {
+  id: string;
+  front: string;
+  reading: string;
+  back: string;
+  state: CardState;
+  created_at: string;
 }
 
 export type CardState = 'new' | 'seen' | 'learned' | 'mastered';
@@ -39,7 +57,11 @@ export interface CardRecord {
  * `CardModel` matches the backend `cards` table columns.
  * `Deck` is the full deck + cards, used in detail/study views.
  * `DeckSummary` is the lightweight version returned by the list endpoint
- * (card_count only, no cards array).
+ * (card_count + last_card, no cards array).
+ *
+ * None of them carries `description`: the deck-description feature was dropped
+ * from the web with the decks redesign. The column and the mobile app's use of
+ * it are untouched — see `DeckRecord.description`.
  */
 
 export type CardModel = {
@@ -56,18 +78,16 @@ export type CardModel = {
 export type Deck = {
   id: string;
   name: string;
-  description?: string;
   cards: CardModel[];
 };
 
 export type DeckSummary = {
   id: string;
   name: string;
-  description: string;
   card_count: number;
+  last_card: LastCard | null;
 };
 
 export interface DeckPatch {
   name?: string;
-  description?: string;
 }

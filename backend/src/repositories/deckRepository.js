@@ -1,5 +1,44 @@
 const pool = require("../db");
 
+// Both deck reads return the same two derived fields, so the SQL is written
+// once here rather than twice inline.
+//
+// `card_count` is a scalar subquery instead of the `LEFT JOIN cards` +
+// `GROUP BY d.id` it used to be: aggregating over a join can't coexist with
+// the lateral below without dragging every one of its output columns into the
+// GROUP BY. Two independent subqueries are also easier to read than one
+// grouped join doing two jobs, and both hit `idx_cards_deck_id`.
+const CARD_COUNT = `(SELECT COUNT(*)::int FROM cards c WHERE c.deck_id = d.id) AS card_count`;
+
+// The most recently added card, as one JSON object (null for an empty deck) —
+// what the decks screen shows under "Last Added Word". A lateral keeps it to a
+// single round trip for the whole list; the alternative was the client
+// fetching every deck's full card inventory to read one row off the end.
+//
+// Only the columns that surface are selected: `state` drives the mastery chip
+// and `created_at` lets a caller tell how stale the row is. Part of speech
+// isn't in the schema, so the design's `READING · POS` line renders the
+// reading alone.
+//
+// `id DESC` breaks ties on `created_at`, which is only ever equal when several
+// cards are inserted inside the same transaction — without it the "last" card
+// would be arbitrary between two identical timestamps and could differ between
+// requests.
+const LAST_CARD = `LEFT JOIN LATERAL (
+         SELECT json_build_object(
+                  'id',         c.id,
+                  'front',      c.front,
+                  'reading',    c.reading,
+                  'back',       c.back,
+                  'state',      c.state,
+                  'created_at', c.created_at
+                ) AS last_card
+         FROM cards c
+         WHERE c.deck_id = d.id
+         ORDER BY c.created_at DESC, c.id DESC
+         LIMIT 1
+       ) lc ON TRUE`;
+
 module.exports = {
   create: async ({ userId, name, description }) => {
     const result = await pool.query(
@@ -13,11 +52,10 @@ module.exports = {
 
   findByUser: async (userId) => {
     const result = await pool.query(
-      `SELECT d.*, COUNT(c.id)::int AS card_count
+      `SELECT d.*, ${CARD_COUNT}, lc.last_card
        FROM decks d
-       LEFT JOIN cards c ON c.deck_id = d.id
+       ${LAST_CARD}
        WHERE d.user_id = $1
-       GROUP BY d.id
        ORDER BY d.created_at DESC`,
       [userId]
     );
@@ -26,11 +64,10 @@ module.exports = {
 
   findById: async (id) => {
     const result = await pool.query(
-      `SELECT d.*, COUNT(c.id)::int AS card_count
+      `SELECT d.*, ${CARD_COUNT}, lc.last_card
        FROM decks d
-       LEFT JOIN cards c ON c.deck_id = d.id
-       WHERE d.id = $1
-       GROUP BY d.id`,
+       ${LAST_CARD}
+       WHERE d.id = $1`,
       [id]
     );
     return result.rows[0];
