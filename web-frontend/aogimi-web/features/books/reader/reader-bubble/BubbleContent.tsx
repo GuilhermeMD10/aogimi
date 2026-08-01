@@ -34,6 +34,10 @@ export type BubbleContentProps =
       word: string;
       back: string;
       contextSentence?: string;
+      /** A dictionary surface is already on screen behind this bubble — see
+       *  `ReaderBubbleState`. Suppresses the lookup below and the in-bubble
+       *  dictionary it exists to feed. */
+      dictVisibleBehind?: boolean;
       onClose: () => void;
     };
 
@@ -45,16 +49,27 @@ export function BubbleContent(props: BubbleContentProps) {
       : { type: 'dict' },
   );
 
+  // Whether this bubble owns the dictionary state or is a guest on top of a
+  // surface that's already using it.
+  const ownsDictState = !(props.mode === 'addCard' && props.dictVisibleBehind);
+
   // In addCard mode, sync the provider with the word being carded so that the
   // back-button on select-deck returns to a sensible dictionary view.
+  //
+  // Skipped when a dictionary surface is already visible behind the bubble:
+  // the provider is shared, so this search would replace what that surface is
+  // rendering — on /dictionary the rail emptied and the open entry vanished
+  // the instant you pressed add. There's also nothing to build: backing out of
+  // deck selection just closes, revealing the dictionary that was there all
+  // along.
   const initRef = useRef(false);
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
-    if (props.mode === 'addCard') {
+    if (props.mode === 'addCard' && ownsDictState) {
       void dict.runSearch(props.word, props.contextSentence);
     }
-  }, [props, dict]);
+  }, [props, dict, ownsDictState]);
 
   if (phase.type === 'dict') {
     if (dict.selectedWordId !== null) {
@@ -90,7 +105,10 @@ export function BubbleContent(props: BubbleContentProps) {
     return (
       <SelectDeckPhase
         word={phase.word}
-        onBack={() => setPhase({ type: 'dict' })}
+        // With a dictionary already behind the bubble, "back" means get out of
+        // the way — there's no in-bubble dictionary to return to, because we
+        // never ran the search that would populate one.
+        onBack={ownsDictState ? () => setPhase({ type: 'dict' }) : props.onClose}
         onSelectDeck={(id, name) =>
           setPhase({
             type: 'create-card',

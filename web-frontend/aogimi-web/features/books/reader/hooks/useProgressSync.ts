@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { updateBookProgress, sendProgressKeepalive } from '@/features/books/lib/booksApi';
 import { setReaderProgress } from '@/features/books/lib/readerSession';
-import type { ReaderSession } from '@/features/app-shell/providers/ReaderStateProvider';
+
+/** What this hook needs to know about the open book: where to buffer locally,
+ *  and where to flush remotely. `backendBookId` absent → local-only book, so
+ *  there is nothing to sync and only the localStorage buffer runs. */
+export type ProgressTarget = {
+  filename: string;
+  backendBookId?: string;
+};
 
 export type ProgressSnapshot = {
   /** EPUB CFI. Empty string for fixed-layout (manga) books. */
@@ -46,7 +53,7 @@ function positionKey(s: ProgressSnapshot): string {
  * 100 is preserved until the user actually turns a page. Only a position that
  * differs from the seed/last-synced is pushed.
  */
-export function useProgressSync(session: ReaderSession | null) {
+export function useProgressSync(session: ProgressTarget | null) {
   const sessionRef = useRef(session);
   // Layout effect so the ref is current before any relocate handler fires in
   // the same commit (writing it during render would violate render purity).
@@ -63,7 +70,7 @@ export function useProgressSync(session: ReaderSession | null) {
   const recordProgress = useCallback((snapshot: ProgressSnapshot) => {
     const sess = sessionRef.current;
     if (!sess) return;
-    setReaderProgress(sess.activeBook.filename, {
+    setReaderProgress(sess.filename, {
       cfi: snapshot.cfi,
       progress: snapshot.progress,
       spineIndex: snapshot.spineIndex,
@@ -80,7 +87,7 @@ export function useProgressSync(session: ReaderSession | null) {
 
   /** Push the latest position for `sess` to the backend, if it has changed and
    *  the book has a backend id. `keepalive` picks the teardown-safe transport. */
-  const flush = useCallback((sess: ReaderSession | null, keepalive: boolean) => {
+  const flush = useCallback((sess: ProgressTarget | null, keepalive: boolean) => {
     if (!sess?.backendBookId) return;
     const latest = latestRef.current;
     if (!latest) return;

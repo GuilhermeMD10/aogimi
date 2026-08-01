@@ -4,9 +4,9 @@
 // Engine is foliate-js: <foliate-view> custom element, view.open(blob),
 // view.goTo(cfi|href), relocate / load events.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FONT_STACKS, useReaderPrefs } from '@/features/books/reader/hooks/useReaderPrefs';
-import type { NavItem } from '@/features/books/reader/components/TocPanel';
+import type { NavItem } from '@/features/books/reader/components/ContentsPanel';
 import { THEMES } from '@/features/books/reader/lib/readerConstants';
 import {
   createFoliateView,
@@ -115,7 +115,8 @@ function buildThemeCss({ bg, fg, fontFamilyStack, fontSizePct, lineSpacing, vert
   return common + verticalRules;
 }
 
-export type Panel = 'toc' | null;
+/** The toolbar's popovers share one anchor, so only one can be open. */
+export type Panel = 'toc' | 'settings' | null;
 
 /** Position snapshot emitted on every relocate (page turn). Mirrors the
  *  `ProgressSnapshot` consumed by `useProgressSync`. */
@@ -128,7 +129,10 @@ export interface TextRelocateSnapshot {
 
 export interface UseTextReaderEngineParams {
   blob: Blob;
-  rtl?: boolean;
+  /** Seeds the writing-mode pref from the EPUB's own `dir`. The reader can
+   *  override it in Display afterwards — vertical text is a preference, not a
+   *  property of the file. */
+  defaultVertical?: boolean;
   /** CFI to restore to once the book is open. Null/undefined = open at start. */
   initialCfi?: string | null;
   /** Called on every relocate with the current position. */
@@ -137,11 +141,14 @@ export interface UseTextReaderEngineParams {
 
 export function useTextReaderEngine({
   blob,
-  rtl = false,
+  defaultVertical = false,
   initialCfi,
   onRelocate,
 }: UseTextReaderEngineParams) {
-  const { prefs, savePrefs } = useReaderPrefs();
+  const { prefs, savePrefs } = useReaderPrefs({
+    writingMode: defaultVertical ? 'vertical' : 'horizontal',
+  });
+  const vertical = prefs.writingMode === 'vertical';
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<FoliateViewElement | null>(null);
@@ -160,19 +167,18 @@ export function useTextReaderEngine({
 
   const [globalPage, setGlobalPage] = useState(0);
   const [totalLocations, setTotalLocations] = useState(0);
+  /** Whole-book reading fraction as a percentage — what the sky bar uncovers.
+   *  Foliate's own `fraction`, which is finer than page/total. */
+  const [progress, setProgress] = useState(0);
 
   const [toc, setToc] = useState<NavItem[]>([]);
   const [panel, setPanel] = useState<Panel>(null);
-  const [showTypo, setShowTypo] = useState(false);
-  const [showPageJump, setShowPageJump] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const [selectedText, setSelectedText] = useState('');
   const [contextSentence, setContextSentence] = useState<string | undefined>(undefined);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
 
   const ctxMenuRef = useRef<HTMLDivElement>(null);
-  const typoPanelRef = useRef<HTMLDivElement>(null);
 
   // Chapter docs reached so far — selectionchange handlers are attached on
   // load and we don't want to double-bind if a chapter re-fires the event.
@@ -198,16 +204,71 @@ export function useTextReaderEngine({
           fontFamilyStack: font,
           fontSizePct: prefs.fontSize,
           lineSpacing: prefs.lineSpacing,
-          vertical: rtl,
+          vertical,
         }),
       );
     } catch { /* renderer not ready yet */ }
-  }, [prefs, rtl]);
+  }, [prefs, vertical]);
+
+  // ── Apply prefs to the renderer (layout attributes) ───────────────────
+  // Flow and margins are foliate-paginator attributes rather than CSS, so they
+  // are set separately from the injected stylesheet. Vertical text wants less
+  // margin and a tighter gap — the columns run the other way.
+  const applyLayout = useCallback(() => {
+    const renderer = viewRef.current?.renderer;
+    if (!renderer || renderer.tagName?.toLowerCase() !== 'foliate-paginator') return;
+    try {
+      renderer.setAttribute('flow', prefs.flowMode);
+      renderer.setAttribute('margin', vertical ? '16px' : '40px');
+      renderer.setAttribute('gap', vertical ? '3%' : '6%');
+    } catch { /* attribute set fail; non-fatal */ }
+  }, [prefs.flowMode, vertical]);
+
+  // The init effect below is keyed on the blob alone, so it can't close over
+  // these directly — it reads them through refs to get the current version
+  // without reopening the book when a pref changes. Assigned in an effect
+  // rather than during render: a render-phase ref write is exactly what
+  // `react-hooks/refs` warns about, and this effect is declared first, so both
+  // refs are current before init's async body starts.
   const applyThemeRef = useRef(applyTheme);
-  applyThemeRef.current = applyTheme;
+  const applyLayoutRef = useRef(applyLayout);
+  useEffect(() => {
+    applyThemeRef.current = applyTheme;
+    applyLayoutRef.current = applyLayout;
+  }, [applyTheme, applyLayout]);
 
   // ── Init view ────────────────────────────────────────────────────────
-  useEffect(() => {
+  //
+  // A LAYOUT effect, and that part is load-bearing — it's about the cleanup,
+  // not the setup.
+  //
+  // foliate's paginator watches its own `#container` with a ResizeObserver
+  // whose callback is `render()`, and `render()` reads
+  // `iframe.contentDocument`, which becomes null the moment the view is
+  // detached from the document. `view.close()` is what makes that safe: it
+  // nulls the renderer's `#view`, after which the observer callback hits an
+  // early return.
+  //
+  // A passive (`useEffect`) cleanup runs *after paint*, but React detaches the
+  // DOM during the commit and ResizeObserver callbacks are delivered before
+  // paint. So on unmount the order was: detach → container resizes → observer
+  // fires against a document-less view → `columnize` throws → and only then
+  // does our cleanup get around to calling `close()`. Every exit from a
+  // flowing EPUB, deterministically.
+  //
+  // A layout-effect cleanup runs synchronously in the commit, before the host
+  // nodes are removed, so the renderer is already torn down by the time
+  // anything can resize. Manga is unaffected either way: `fixed-layout.js`
+  // unobserves the same node it observed, so its observer doesn't outlive
+  // `destroy()` the way the paginator's does.
+  //
+  // The resets below are the correct form of the lint rule's false positive:
+  // they synchronise React with an external system (foliate + the blob) that
+  // can't be read during render, and they clear the *previous* book's state
+  // before a new one loads. Unconditional, so there's no cascade — and the
+  // async body guards every later write with its own `dead` flag.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useLayoutEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
     let dead = false;
@@ -267,6 +328,7 @@ export function useTextReaderEngine({
           // Forward the position for progress sync. `fraction` is the
           // whole-book reading fraction (0–1); `index` is the spine item.
           const frac = typeof detail.fraction === 'number' ? detail.fraction : 0;
+          setProgress(Math.max(0, Math.min(100, Math.round(frac * 100))));
           onRelocateRef.current?.({
             cfi: detail.cfi ?? '',
             progress: Math.max(0, Math.min(100, Math.round(frac * 100))),
@@ -283,18 +345,15 @@ export function useTextReaderEngine({
           attachChapterListeners(detail.doc, detail.index);
         });
 
-        // ── Renderer attributes (paginated flow, animated nav, margins) ─
+        // ── Renderer attributes ─────────────────────────────────────────
         const renderer = view.renderer;
-        const isPaginator = renderer?.tagName?.toLowerCase() === 'foliate-paginator';
-        if (isPaginator) {
+        if (renderer?.tagName?.toLowerCase() === 'foliate-paginator') {
           try {
-            renderer.setAttribute('flow', 'paginated');
             renderer.setAttribute('animated', '');
-            renderer.setAttribute('margin', rtl ? '16px' : '40px');
-            renderer.setAttribute('gap', rtl ? '3%' : '6%');
             renderer.setAttribute('max-column-count', '1');
           } catch { /* attribute set fail; non-fatal */ }
         }
+        applyLayoutRef.current();
         applyThemeRef.current();
         if (dead) return;
 
@@ -397,21 +456,30 @@ export function useTextReaderEngine({
         try { view.remove(); } catch { /* already detached */ }
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Keyed on the blob alone, deliberately: everything else this effect
+    // touches it reaches through a ref, so a pref change re-styles the open
+    // book instead of reopening it.
   }, [blob]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Re-apply theme when prefs change
+  // Re-apply theme + layout when prefs change. Foliate re-injects the
+  // stylesheet per chapter, and the paginator observes its own attributes, so
+  // both take effect without reopening the book.
   useEffect(() => {
     if (viewRef.current) applyTheme();
   }, [applyTheme]);
 
+  useEffect(() => {
+    if (viewRef.current) applyLayout();
+  }, [applyLayout]);
+
   // ── Navigation ────────────────────────────────────────────────────────
   const prev = useCallback(() => void viewRef.current?.prev(), []);
   const next = useCallback(() => void viewRef.current?.next(), []);
-  // In RTL (vertical-rl) flow, the page-progression direction means
-  // "left button = next page", same as the previous epubjs path.
-  const onLeftBtn = rtl ? next : prev;
-  const onRightBtn = rtl ? prev : next;
+  // Vertical-rl runs right to left, so the left button advances — the same
+  // inversion the page-progression direction implies.
+  const onLeftBtn = vertical ? next : prev;
+  const onRightBtn = vertical ? prev : next;
 
   const goToPage = useCallback(
     (pageNum: number) => {
@@ -423,23 +491,6 @@ export function useTextReaderEngine({
     },
     [totalLocations],
   );
-
-  // ── TTS ───────────────────────────────────────────────────────────────
-  const toggleTts = useCallback(() => {
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      return;
-    }
-    const entry = docsRef.current.get(currentChapterIndexRef.current);
-    const text = (entry?.doc.body?.innerText ?? '').trim();
-    if (!text) return;
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.onend = () => setIsSpeaking(false);
-    utt.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utt);
-    setIsSpeaking(true);
-  }, [isSpeaking]);
 
   // ── Close context menu on outside click / scroll ──────────────────────
   useEffect(() => {
@@ -468,52 +519,63 @@ export function useTextReaderEngine({
     };
   }, [ctxMenu]);
 
-  // ── Close typo panel on outside click ─────────────────────────────────
+  // ── Close the open popover ────────────────────────────────────────────
+  // A mousedown outside the panel and outside the button that opened it closes
+  // it; Esc closes it. Both panels are marked `data-reader-panel` and the
+  // toolbar buttons `data-reader-tool`, so this doesn't need a ref per panel.
+  // Chapter documents are included: clicking into the book should dismiss it,
+  // and a click inside an iframe never reaches the parent window.
   useEffect(() => {
-    if (!showTypo) return;
+    if (!panel) return;
+    const close = () => setPanel(null);
     const onDown = (e: PointerEvent) => {
-      if (typoPanelRef.current?.contains(e.target as Node)) return;
-      if ((e.target as HTMLElement)?.closest('[data-typo-toggle]')) return;
-      setShowTypo(false);
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.('[data-reader-panel]')) return;
+      if (target?.closest?.('[data-reader-tool]')) return;
+      close();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
     };
     window.addEventListener('pointerdown', onDown);
-    return () => window.removeEventListener('pointerdown', onDown);
-  }, [showTypo]);
+    window.addEventListener('keydown', onKey);
+    const chapterDocs = Array.from(docsRef.current.values()).map((e) => e.doc);
+    chapterDocs.forEach((d) => d.addEventListener('pointerdown', close));
+    return () => {
+      window.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('keydown', onKey);
+      chapterDocs.forEach((d) => d.removeEventListener('pointerdown', close));
+    };
+  }, [panel]);
 
   return {
     // refs
     wrapperRef,
     viewRef,
     ctxMenuRef,
-    typoPanelRef,
     // state
     ready,
     error,
     chapterLabel,
     globalPage,
     totalLocations,
+    progress,
     toc,
     panel,
     setPanel,
-    showTypo,
-    setShowTypo,
-    showPageJump,
-    setShowPageJump,
-    isSpeaking,
     selectedText,
     contextSentence,
     ctxMenu,
     setCtxMenu,
-    // prefs (for typography panel)
+    // prefs (for the Display panel)
     prefs,
     savePrefs,
     // navigation
     onLeftBtn,
     onRightBtn,
     goToPage,
-    toggleTts,
-    // RTL flag passes through
-    rtl,
+    // resolved writing mode, for the toolbar's arrow tooltips
+    vertical,
   };
 }
 

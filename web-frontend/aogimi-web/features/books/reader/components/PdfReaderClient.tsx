@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
+import { ReaderShell } from '@/features/books/reader/components/ReaderShell';
+import { THEMES } from '@/features/books/reader/lib/readerConstants';
 
 // Single pdfjs-dist (the root one). Bundled worker matches the API version
 // because both come from the same package.
@@ -15,6 +16,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 export type PdfReaderProps = {
   fileUrl: string;
   bookTitle?: string;
+  bookAuthor?: string;
   onBack: () => void;
 };
 
@@ -27,6 +29,7 @@ export type PdfReaderProps = {
 export function PdfReaderClient({
   fileUrl,
   bookTitle,
+  bookAuthor,
   onBack,
 }: PdfReaderProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -102,40 +105,30 @@ export function PdfReaderClient({
   }, [numPages]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2.5 border-b border-lgc-border px-4 py-2.5">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] text-lgc-fg-muted transition-colors hover:bg-lgc-bg-elev hover:text-lgc-fg"
-        >
-          <ArrowLeft size={14} /> Library
-        </button>
-        {bookTitle && (
-          <div className="truncate text-[13px] font-medium text-lgc-fg font-display">
-            {bookTitle}
-          </div>
-        )}
-        <div className="ml-auto text-[11px] text-lgc-fg-subtle font-mono">
-          {currentPage > 0 && numPages > 0
-            ? `${currentPage} / ${numPages}`
-            : numPages > 0
-              ? `${numPages} pages`
-              : ''}
-        </div>
-      </div>
-
+    <ReaderShell
+      title={bookTitle ?? 'PDF'}
+      author={bookAuthor}
+      onBack={onBack}
+      // In-session only. The observer above tracks the visible page, so the bar
+      // fills as you scroll — but nothing stores a PDF position yet, so
+      // reopening the file starts at zero. Deferred, see DECISIONS.md.
+      percent={numPages > 0 ? (currentPage / numPages) * 100 : 0}
+      page={numPages > 0 ? { current: currentPage, total: numPages } : undefined}
+      // No `onJumpToPage`, no `tools`: the pane scrolls freely with no
+      // page→offset mapping, and there's no TOC or text selection to offer.
+    >
       <div
         ref={containerRef}
-        className="lgc-scroll min-h-0 flex-1 overflow-auto bg-lgc-bg-sunken"
+        className="min-h-0 flex-1 overflow-auto"
+        style={{ background: THEMES.light.bg }}
       >
         {error ? (
-          <div className="flex h-full items-center justify-center text-sm text-lgc-error">
+          <div className="flex h-full items-center justify-center text-[13.5px] text-(--accent)">
             {error}
           </div>
         ) : !doc ? (
-          <div className="flex h-full items-center justify-center text-sm text-lgc-fg-muted">
-            Loading PDF…
+          <div className="flex h-full items-center justify-center text-[13.5px] text-(--muted)">
+            Opening&hellip;
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 py-4">
@@ -155,7 +148,7 @@ export function PdfReaderClient({
           </div>
         )}
       </div>
-    </div>
+    </ReaderShell>
   );
 }
 

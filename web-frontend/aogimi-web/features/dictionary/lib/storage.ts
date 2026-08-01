@@ -1,6 +1,5 @@
 import { getJSON, setJSON } from '@/lib/storage/_helpers';
 
-const DEFAULT_KEY = 'dictionary_state';
 const RECENT_KEY = 'dictionary_recent_searches';
 const RECENT_CAP = 30;
 
@@ -29,21 +28,8 @@ export function clearRecentSearches(): void {
   setJSON(RECENT_KEY, []);
 }
 
-export type DictionaryStoredState<TResult = unknown> = {
-  query?: string;
-  result?: TResult;
-  selectedWordId?: number | null;
-};
-
-export function getDictionaryState<TResult = unknown>(
-  key: string = DEFAULT_KEY,
-): DictionaryStoredState<TResult> | null {
-  return getJSON<DictionaryStoredState<TResult>>(key);
-}
-
-export function setDictionaryState<TResult>(
-  state: DictionaryStoredState<TResult>,
-  key: string = DEFAULT_KEY,
-): void {
-  setJSON(key, state);
-}
+// The `dictionary_state` key (query + result + selected word) is gone: the
+// query and the selection live in `/dictionary`'s URL now, and holding a second
+// copy in localStorage meant a stale result could surface behind the empty
+// state. `wipeUserData` still clears the old key so it doesn't linger on
+// devices that wrote one.

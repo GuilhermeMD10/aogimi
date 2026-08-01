@@ -199,3 +199,94 @@ outranks the older docs where they disagree.
       rather than a fetch per consumer.
 - [ ] Delete `--lgc-*`, `styles/primitives.css`, and the stranded `shared/ui`
       primitives once every screen has migrated.
+
+---
+
+## Redesign — dictionary (`/dictionary`)
+
+**Date:** 2026-08-01 · **Handoff:** `design_handoff_aogimi_dictionary`
+
+The flow changed as well as the paint. It used to be: empty state and results
+list on one page, entry detail on another (`?word=<id>`, plus a second copy at
+`/word/[id]`). It is now: empty state on its own, and results-list-plus-entry
+together, so switching between hits is a keystroke instead of a navigation.
+
+**Decisions**
+
+- **One route, two states — not two routes.** `/dictionary` with no `q` is the
+  prompt; `?q=…` is the rail plus entry. Two real Next routes would remount the
+  search field on every transition and lose focus and caret mid-typing.
+- **The URL is the only source of truth.** `?q=` the query, `?id=`/`?kanji=` the
+  selected row. The `dictionary_state` localStorage mirror (query + result +
+  selected word) is **gone**: it was a second copy of the same facts, and
+  landing on a bare `/dictionary` would rehydrate a stale result behind the
+  empty state. Recents keep their own key. The reader sidekick loses its
+  restore-across-reload, which in practice never fired — a full reload signs you
+  out in local dev anyway.
+- **New queries `push`, selection changes `replace`.** The rail stays on screen,
+  so "back" to the row above is meaningless, and one history entry per
+  arrow-key press would bury the query worth returning to. Typing `replace`s on
+  a 200 ms debounce, so a query typed one character at a time leaves one entry.
+- **The detail pane is split across two data sources.** Everything above the
+  fold — headword, reading, pitch, pills, meanings — is already in the rail's
+  `WordResult`, so it repaints instantly; only the kanji breakdown and examples
+  wait on `/api/words/:id/details` and show a skeleton. The pane never blanks
+  and never jumps.
+- **Detail requests are not cancelled when the selection moves on.** Cancelling
+  looks tidier and caches nothing: on a fast scroll every fetch dies a moment
+  before landing, so coming back re-requests all of them. They run to
+  completion, one per id, and all abort together on unmount.
+- **Kanji entries are first-class rows.** `/api/search` returns a kanji entry
+  (or several, for kana queries) beside the words. They select like any row and
+  get their own pane, which frames the glyph in a ruled block instead of setting
+  it as bare type — a KANJIDIC character and a JMdict word are different kinds
+  of thing.
+- **`/word/[id]` deleted.** Nothing linked to it; the entry is a pane now.
+- **`preferredHeadword` moved** out of `WordDetailView` into `lib/headword.ts`,
+  and the add-card draft builder into `lib/cardDraft.ts` — three surfaces were
+  keeping their own copy of the same logic.
+- **A hairline separates the two panes.** `--bd` is transparent by design, but
+  unlike a card there's no shadow doing the separating here, so the rail's right
+  edge uses the sanctioned `HAIRLINE` mix. Row hover borrows the same mix;
+  selection takes the accent edge. Three states, no new token.
+- **`JlptChip` was rebuilt in the feature**, on the handoff's calmer ramp (N5
+  `#7BB87D` … N1 `#C25B4A`). Not promoted to `shared/components` yet — the bar
+  is "a second screen wants it", and only the dictionary does.
+
+**Handoff details deliberately not built**
+
+- **No "← back to results".** The rail never leaves the screen, so there is
+  nowhere to go back to. Owner's call.
+- **Quick chips are recents.** The handoff wants "trending or last-session
+  words"; there's no trending signal, so the chips are the four most recent
+  terms — which does mean they repeat the column below them.
+- **Recent rows show term and age only**, and have no add-to-deck button:
+  `dictionary_recent_searches` stores `{ query, at }`, so there's no word to add.
+- **No "already added" check** on the add buttons. `CardRecord` has no
+  `word_id`, so there's no reliable way to know a word is already in a deck.
+- **Stars don't twinkle.** The constellation motif is there, static. The
+  redesign's standing rule is one 120 ms transition and no other motion; a
+  pulsing star would be the loudest thing on the screen. One `@keyframes` away
+  if that reads as too quiet.
+- **Translations are not Spectral italic.** Only M PLUS 1 and Space Mono ship;
+  the example translations are `--face-ui` italic.
+- **Example grade is one chip, not two.** The DB has a single `gradeLabel`
+  string ("6 (6th grade of primary school)"), not the handoff's separate grade
+  and Japanese school year.
+- **No `TopBar` in the split view.** The handoff puts a compact brand row in the
+  rail and nothing above the entry; a full-height two-pane layout can't spare
+  the header. Side effect: the theme switch is unreachable from `?q=…`.
+  `WorkspaceNav` still gets you to the profile.
+- **Bottom dock still not built** — `WorkspaceNav` stays, per the standing
+  deferral. Both panes pad 120 px to clear it.
+
+**Still deferred**
+
+- [ ] Reader surfaces (`DictionarySidekick`, the reader bubble, `WordDetailView`)
+      still read `--lgc-*`. They share only `DictionaryStateProvider` and
+      `preferredHeadword` with this screen; migrate them with the reader.
+- [ ] `relativeAge` here and `relativeTime` in `features/home/lib/` are the same
+      function. They belong in `lib/util/` together, once something wants a third.
+- [ ] Below 1000 px the rail should become a full-width list with the entry as a
+      second view. Not built — `MobileGate` blocks below 700 px and the target is
+      ≥1280 px, so it's a narrow-desktop gap, not a mobile one.

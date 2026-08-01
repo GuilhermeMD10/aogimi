@@ -11,7 +11,7 @@
 // a future pass.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { NavItem } from '@/features/books/reader/components/TocPanel';
+import type { NavItem } from '@/features/books/reader/components/ContentsPanel';
 import {
   createFoliateView,
   flattenFoliateToc,
@@ -21,7 +21,8 @@ import {
 } from '@/features/books/reader/lib/foliate';
 
 export type ViewMode = 'single' | 'double' | 'scroll';
-export type Panel = 'toc' | null;
+/** The toolbar's popovers share one anchor, so only one can be open. */
+export type Panel = 'toc' | 'settings' | null;
 
 /** Position snapshot emitted on every relocate (page turn). Mirrors the
  *  `ProgressSnapshot` consumed by `useProgressSync`. Fixed-layout books have
@@ -68,7 +69,6 @@ export function useMangaReaderEngine({ blob, initialSpineIndex, onRelocate }: Us
 
   const [toc, setToc] = useState<NavItem[]>([]);
   const [panel, setPanel] = useState<Panel>(null);
-  const [showPageJump, setShowPageJump] = useState(false);
 
   // ── Init view ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -231,8 +231,6 @@ export function useMangaReaderEngine({ blob, initialSpineIndex, onRelocate }: Us
     toc,
     panel,
     setPanel,
-    showPageJump,
-    setShowPageJump,
     // handlers
     advancePage,
     goBackPage,

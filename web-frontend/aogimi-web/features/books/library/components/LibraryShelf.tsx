@@ -18,11 +18,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { BookOpen, Plus, Search } from 'lucide-react';
-import { Button, Card, Skeleton } from '@/shared/components';
+import { Button, Card, HAIRLINE, Skeleton } from '@/shared/components';
 import { TopBar } from '@/features/app-shell/TopBar';
 import { cn } from '@/lib/util/cn';
 import type { Book } from '@/features/books/types';
-import { BookCard, ContinueReadingCard, HAIRLINE, ReimportCard } from './LibraryCards';
+import { BookCard, ContinueReadingCard, ReimportCard } from './LibraryCards';
 import { LibraryEmpty } from './LibraryEmpty';
 
 const FILTERS = ['all', 'reading', 'new', 'finished'] as const;
