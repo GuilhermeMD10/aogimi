@@ -159,6 +159,30 @@ matches `req.user.userId` via `requireUserMatch`.
 | PUT | `/api/decks/:id` | `{ name?, description? }` | `DeckRecord` | `deckOwnedBy` |
 | DELETE | `/api/decks/:id` | — | `{ message }` | `deckOwnedBy` (cascades to cards) |
 
+`DeckRecord` carries two derived fields alongside the `decks` row, assembled in
+[`src/repositories/deckRepository.js`](./src/repositories/deckRepository.js):
+
+```
+{ id, user_id, name, description, created_at,
+  card_count: number,
+  last_card: { id, front, reading, back, state, created_at } | null }
+```
+
+- `card_count` — a scalar subquery over `cards`.
+- `last_card` — the deck's **most recently added card** (`created_at DESC`, `id
+  DESC` as tiebreaker), or `null` for an empty deck. Added for the decks screen's
+  "Last Added Word" row. Only the displayed columns are selected; it is not a
+  `CardRecord` and carries no SRS state beyond `state`. A `LEFT JOIN LATERAL`
+  keeps the whole list to one round trip — **don't** fetch each deck's card
+  inventory to read the newest row off the end.
+
+All four deck responses share this shape: `POST` and `PUT` re-read through
+`findById` after mutating, so a client never has to know which endpoint produced
+a deck.
+
+`description` is still a column and the mobile app still reads and writes it.
+The web dropped the feature with the decks redesign and ignores the field.
+
 ### Cards (nested)
 
 | Method | Path | Body | Response | Ownership check |

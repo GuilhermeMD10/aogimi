@@ -8,7 +8,6 @@ import type { CardRecord, DeckRecord } from '../types';
 export async function createDeck(params: {
   userId: number;
   name: string;
-  description?: string;
   bookId?: string;
 }): Promise<DeckRecord> {
   return apiSend<DeckRecord>('/api/decks', 'POST', params);
@@ -27,7 +26,7 @@ export async function getDeck(id: string, signal?: AbortSignal): Promise<DeckRec
 
 export async function updateDeck(
   id: string,
-  params: { name?: string; description?: string },
+  params: { name?: string },
 ): Promise<DeckRecord> {
   return apiSend<DeckRecord>(`/api/decks/${id}`, 'PUT', params);
 }

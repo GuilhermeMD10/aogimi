@@ -1,7 +1,13 @@
 const deckRepo = require("../repositories/deckRepository");
 
+// Every deck response has one shape. `create` and `update` return the raw
+// mutated row, which carries neither of the derived fields (`card_count`,
+// `last_card`), so both re-read through `findById` — one extra indexed query on
+// a rare write path, in exchange for a client that can trust the shape without
+// checking which endpoint produced it.
 async function createDeck(userId, { name, description }) {
-  return await deckRepo.create({ userId, name, description });
+  const created = await deckRepo.create({ userId, name, description });
+  return await deckRepo.findById(created.id);
 }
 
 async function getUserDecks(userId) {
@@ -15,9 +21,9 @@ async function getDeck(id) {
 }
 
 async function updateDeck(id, { name, description }) {
-  const deck = await deckRepo.update(id, { name, description });
-  if (!deck) throw new Error("Deck not found");
-  return deck;
+  const updated = await deckRepo.update(id, { name, description });
+  if (!updated) throw new Error("Deck not found");
+  return await deckRepo.findById(id);
 }
 
 async function deleteDeck(id) {

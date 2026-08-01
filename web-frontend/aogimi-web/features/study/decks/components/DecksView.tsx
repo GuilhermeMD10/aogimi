@@ -38,6 +38,7 @@ export default function DecksView() {
   // time and its cards are the slower payload.
   const {
     decks,
+    error: decksError,
     refresh: refreshDecks,
     createDeck: providerCreateDeck,
     updateDeck: providerUpdateDeck,
@@ -58,7 +59,6 @@ export default function DecksView() {
       return {
         id: deckRecord.id,
         name: deckRecord.name,
-        description: deckRecord.description,
         cards: cards.map((c) => ({
           id: c.id,
           front: c.front,
@@ -104,8 +104,8 @@ export default function DecksView() {
 
   // ── Deck mutations (delegate to provider) ───────────────────────────────────
   const addDeck = useCallback(
-    async (name: string, description: string) => {
-      await providerCreateDeck({ name, description });
+    async (name: string) => {
+      await providerCreateDeck({ name });
     },
     [providerCreateDeck],
   );
@@ -186,12 +186,8 @@ export default function DecksView() {
     if (activeDeckId) router.push(`/study?deck=${activeDeckId}`);
   }, [router, activeDeckId]);
 
-  const startStudyAllHardest = useCallback(() => {
-    router.push('/study');
-  }, [router]);
-
   const editActiveDeck = useCallback(
-    (patch: { name: string; description: string }) => {
+    (patch: { name: string }) => {
       if (activeDeckId) void updateDeck(activeDeckId, patch);
     },
     [activeDeckId, updateDeck],
@@ -293,11 +289,12 @@ export default function DecksView() {
   return (
     <div className="relative h-full min-h-0">
       <DeckList
-        decks={deckSummaries}
+        decks={decks}
+        error={decksError}
+        onRetry={() => void fetchDecks()}
         onOpenDeck={goToDetail}
-        onCreateDeck={(name, desc) => void addDeck(name, desc)}
+        onCreateDeck={(name) => void addDeck(name)}
         onDeleteDeck={(id) => void deleteDeckHandler(id)}
-        onStudyAllHardest={startStudyAllHardest}
       />
       {overlay}
     </div>

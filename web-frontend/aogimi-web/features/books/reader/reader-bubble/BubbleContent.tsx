@@ -573,9 +573,6 @@ function SelectDeckPhase({
                 <span className="ml-2 text-xs text-lgc-fg-muted">
                   {deck.card_count} card{deck.card_count !== 1 ? 's' : ''}
                 </span>
-                {deck.description && (
-                  <p className="mt-0.5 text-xs text-lgc-fg-subtle">{deck.description}</p>
-                )}
               </button>
             ))}
           </div>

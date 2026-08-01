@@ -161,22 +161,35 @@ BookProgressRecord shape:
           features/study/stats/lib/statsApi.ts
 ==============================================================================
 
+DeckRecord (all four deck responses share this shape)
+  { id, user_id, name, description, created_at,
+    card_count: number,
+    last_card: { id, front, reading, back, state, created_at } | null }
+  -- card_count and last_card are assembled server-side.
+  -- last_card is the deck's most recently added card, null when empty. It
+     feeds the decks screen's "Last Added Word" row. Do NOT fetch a deck's
+     card inventory to derive it.
+  -- description is still returned and is still written by the MOBILE app.
+     The web dropped the feature with the decks redesign and ignores it;
+     DeckSummary / Deck / DeckPatch in features/study/decks/types.ts no
+     longer carry it.
+
 POST /api/decks
   Trigger:   Deck creation (manual)
-  Request:   { userId, name, description?, bookId? }
+  Request:   { userId, name, bookId? }
   Response:  DeckRecord
 
 GET /api/decks/user/{userId}
   Trigger:   Cards page mount, profile page mount (once per page load)
-  Response:  DeckRecord[]
+  Response:  DeckRecord[]   -- ordered created_at DESC (newest deck first)
 
 GET /api/decks/{id}
   Trigger:   Deck detail load (manual)
   Response:  DeckRecord
 
 PUT /api/decks/{id}
-  Trigger:   Deck name/description edit (manual)
-  Request:   { name?, description? }
+  Trigger:   Deck name edit (manual)
+  Request:   { name? }
   Response:  DeckRecord
 
 DELETE /api/decks/{id}

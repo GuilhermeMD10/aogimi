@@ -206,6 +206,38 @@ App-level features that ride on top of the architecture above. Document new feat
 - **↑/↓ walk the rail** from anywhere including the field, `/` and ⌘K focus it, `Esc` clears.
 - Reader surfaces (`DictionarySidekick`, the reader bubble, `WordDetailView`) still read the outgoing `--lgc-*` palette and are untouched. They share `DictionaryStateProvider` and `preferredHeadword` with this screen, nothing else.
 
+### Decks (`features/study/decks`)
+
+**`/decks` is the deck shelf; the deck *detail* is still the same route's other
+half.** `DecksView` switches on local `screen` state between
+`components/DeckList.tsx` (the redesigned grid) and `components/DeckDetail.tsx`
+(un-migrated, still `--lgc-*`). There is no `/decks/{id}`.
+
+- **`DeckList` is the page**, not a list: it owns the 1300 px column, renders
+  `TopBar` itself the way home does, and composes `DecksHeader` + a
+  `minmax(330px, 1fr)` auto-fill grid of `DeckCard`s. Order is the backend's
+  `created_at DESC`.
+- **The deck card has its own surface tokens** (`--deck-paper`, `--deck-bd`,
+  `--deck-sky`, …) rather than the app-wide `--card` / `--bd`, which are
+  transparent. It's the one component that needs a real fill and edge, because
+  it's a single clipped object with a dark panel over paper. Don't "unify" these
+  back into the shared tokens — that repaints home and the dictionary. Full
+  reasoning in `DECISIONS.md`.
+- **The sky panel is deliberately empty**, exactly like home's sky bubble. The
+  star map is a separate component with separate data.
+- **The card is one stretched target.** The deck name is the only control; its
+  `::after` covers the card so any dead space opens the deck too. The `...`
+  menu sits above that overlay at `z-10` — nesting it *inside* the target would
+  swallow its clicks. The due badge is display-only for the same reason.
+- **Due counts are one request for the whole screen.**
+  `hooks/useDeckDueCounts.ts` wraps `/api/study/due/counts`, which returns the
+  header total and the per-deck map together. A deck missing from `byDeck` has
+  nothing due — that's why the hook exposes `loading` separately.
+- **`last_card` comes from the backend**, not from fetching cards. The deck row
+  carries the most recently added card; see `backend-connections.txt`.
+- **Deck descriptions don't exist on the web** — dropped with the redesign. The
+  column and the mobile app still have the feature.
+
 ---
 
 ## Conventions to know
