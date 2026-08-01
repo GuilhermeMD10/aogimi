@@ -22,7 +22,7 @@ The app ships as a single Next.js client. There's a separate Expo mobile app (`m
 | Icons | `lucide-react` |
 | EPUB | `epubjs` |
 | PDF | `pdfjs-dist` + `react-pdf` (server-side parsing via `pdfreader` in an API route) |
-| Storage | localStorage (auth user, dictionary state, device id) + single `aogimi` IndexedDB via `idb` (book blobs + metadata + FS directory handle) |
+| Storage | localStorage (auth user, recent lookups, device id) + single `aogimi` IndexedDB via `idb` (book blobs + metadata + FS directory handle) |
 | Bundle helpers | `clsx`, `tailwind-merge`, `tw-animate-css`, `class-variance-authority` |
 
 No state library (Redux/Zustand/Jotai). State lives in **React Context providers**.
@@ -44,7 +44,6 @@ web-frontend/langecko-web/
 │   ├── dictionary/page.tsx       /dictionary
 │   ├── decks/page.tsx            /decks
 │   ├── profile/page.tsx          /profile
-│   └── word/[id]/page.tsx        /word/<id> (deep link to a dictionary entry)
 │
 ├── components/                   Default-theme components + theme infra
 │   ├── AppShell.tsx              Auth gate, providers, bubble routing
@@ -144,7 +143,7 @@ All state is in **React Context providers**, mounted by `AppShell`. Nothing in l
 | `AuthProvider` | Current user, login/signup/logout flows. **Token storage = "memory + httpOnly cookie"**: the access token lives in-memory only ([`lib/auth/tokenStore.ts`](lib/auth/tokenStore.ts)), the refresh token is an httpOnly cookie set by the backend (never readable by JS). On boot, a silent `/api/auth/refresh` re-mints the access token from the cookie. Session-invalidation hook in [`lib/api.ts`](lib/api.ts) auto-signs-out on unrecoverable 401/403. See [`../../docs/AUTH.md`](../../docs/AUTH.md). | `auth_user` only (tokens are no longer in localStorage) |
 | `ThemeProvider` | The single `default` theme (no setter that persists; kept as plumbing for a future redesign) | (none — no longer persisted) |
 | `ReaderStateProvider` | Active book session (`{ activeBook, fileUrl, backendBookId?, initialCfi?, initialSpineIndex? }`), sidekick toggle, and the three cross-route pending signals (`pendingDictSearch`, `pendingCard`, `pendingBookOpen`). Reading-position sync itself lives in `ReaderView/useProgressSync` (the session just carries the backend id + restore anchor). | (none) |
-| `DictionaryStateProvider` | Search query/results, recent searches, active word | `dictionary_state`, `dictionary_recent_searches` |
+| `DictionaryStateProvider` | Search query/results + the reader sidekick's selected word. Nothing is persisted: `/dictionary` keeps its query and selection in the URL, and holding a second copy in localStorage gave two sources of truth that drifted. | `dictionary_recent_searches` (written by `pushRecentSearch`, not by the provider's state) |
 | `BubbleProvider` | Which page-bubble (Profile/Reader) is active | (in-memory only) |
 
 The reader/dictionary/bubbles talk via **transient pending fields**: when the reader wants to look up a word, it sets `pendingDictSearch` on `ReaderStateProvider`; `AppShell` watches it, dispatches `dict.runSearch()`, then nulls the field. Same shape for `pendingCard`. Both effects guard against double-fire with a `useRef` of "last seen" — see [components/AppShell.tsx](components/AppShell.tsx).
@@ -184,7 +183,7 @@ There are no server-only Next.js API routes — every data call goes straight to
 |---|---|---|
 | **Backend (Postgres)** | Users (incl. `onboarding_completed`, avatar, study display prefs + deck overrides), books metadata + "finished" flag, decks, cards, devices, JMdict/KANJIDIC2 | Everything that should sync across devices; single source of truth for settings (no local cache) |
 | **IndexedDB** (`aogimi`) | EPUB / PDF blobs (`files`) + per-file metadata (`metadata`) + FS Access directory handle (`handles`) | Per-device — files don't leave the browser. Single DB; the old `aogimi-books` + `aogimi-fs` DBs were merged (one-time copy-then-delete migration in `components/books/utils/booksDb.ts`). |
-| **localStorage** | `auth_user`, `dictionary_state`, `dictionary_recent_searches`, device-id (`lgc_device_id`) | Per-device, low-stakes. No theme / reader / study / avatar / onboarding keys anymore. |
+| **localStorage** | `auth_user`, `dictionary_recent_searches`, device-id (`lgc_device_id`) | Per-device, low-stakes. No theme / reader / study / avatar / onboarding keys anymore. |
 
 Library mount reconciles all three: load local IndexedDB → register device → fetch backend records → call `POST /api/books/match` to resolve unidentified local files against existing user books → backfill identity (`PUT /api/books/{id}/identity`) where needed → call `POST /api/devices/{deviceId}/books/{bookId}/available` for files present locally. See [components/library/RestoreLibrary.tsx](components/library/RestoreLibrary.tsx) for the reconciliation flow.
 
@@ -194,7 +193,18 @@ Library mount reconciles all three: load local IndexedDB → register device →
 
 App-level features that ride on top of the architecture above. Document new features here as they land — describe what the feature is, the entry points, where state lives, and any non-obvious behaviour. Keep entries terse; details belong in the source.
 
-_No app-level features are currently documented._
+> Home, the `/study` route and the theme switch are described in the repo-root `CLAUDE.md` but have never been written up here. Fold them in when someone next touches them.
+
+### Dictionary (`features/dictionary`)
+
+**One route, two states, the URL decides which.** `/dictionary` with no `q` is the centred prompt (`components/BeforeSearch.tsx`); `?q=辞書` is the results rail beside the selected entry (`views/SearchView.tsx`). `views/DictionaryView.tsx` is the only thing that reads or writes the URL and picks between the two.
+
+- **The URL is the single source of truth.** `?q=` is the query, `?id=<n>` / `?kanji=<char>` is the selected row. The field's text is local draft state that pushes into the URL after a 200 ms pause (`replace`, so a typed query leaves one history entry); everything downstream reads back out. Nothing is persisted — the previous `dictionary_state` localStorage mirror was a second source of truth that let a stale result surface behind the empty state.
+- **New queries `push`, selection changes `replace`.** The rail never leaves the screen, so "back" to the row above is meaningless and would bury the query you actually want to return to.
+- **The detail pane never blanks.** Headword, reading, pitch, pills and meanings all come from the `WordResult` the rail already holds, so switching entries repaints instantly. Only the kanji breakdown and example sentences wait on `/api/words/:id/details`, and only those two show a skeleton. `hooks/useWordDetails.ts` caches per word id and deliberately does **not** cancel a request when the selection moves on — killing them on a fast scroll caches nothing.
+- **Rail contents are normalised** by `lib/results.ts`: `/api/search` answers with four different shapes (one kanji entry, a list of them, or neither; names only sometimes). Kanji entries are selectable and get their own detail pane (`KanjiEntryDetail`); names sit at the bottom, display-only, because there's no per-name endpoint.
+- **↑/↓ walk the rail** from anywhere including the field, `/` and ⌘K focus it, `Esc` clears.
+- Reader surfaces (`DictionarySidekick`, the reader bubble, `WordDetailView`) still read the outgoing `--lgc-*` palette and are untouched. They share `DictionaryStateProvider` and `preferredHeadword` with this screen, nothing else.
 
 ---
 
@@ -218,7 +228,7 @@ _No app-level features are currently documented._
 | **Auth flow** | `components/providers/AuthProvider.tsx`, `app/authenticate/page.tsx`, `lib/userApi.ts` |
 | **Reader chrome** | `components/reader/*`, `components/views/ReaderView/*` |
 | **Library / book sync** | `components/library/*`, `components/views/ReaderView/*`, `lib/booksApi.ts`, `lib/devicesApi.ts`, `components/books/utils/booksDb.ts` (sole `aogimi` IDB factory), `lib/epubIdentity.ts` |
-| **Dictionary** | `app/dictionary/page.tsx`, `components/views/DictionaryView/*`, `components/views/WordDetailView/*`, `lib/dictApi.ts`, `components/providers/DictionaryStateProvider.tsx` |
+| **Dictionary** | `app/dictionary/page.tsx` → `features/dictionary/` (`views/DictionaryView.tsx` owns the URL, `views/SearchView.tsx` is the rail + entry layout, `components/`, `hooks/useWordDetails.ts`, `lib/results.ts`, `lib/dictApi.ts`, `providers/DictionaryStateProvider.tsx`) |
 | **Decks / study** | `app/decks/page.tsx`, `components/views/cards/*`, `lib/decksApi.ts` |
 | **Reader bubbles (overlays)** | `components/page-bubbles/*`, `components/providers/BubbleProvider.tsx` |
 | **Profile** | `app/profile/page.tsx`, `components/profile/*` |

@@ -7,9 +7,8 @@
 // Three lines explaining the model, and a dropzone to act on it.
 
 import { UploadCloud } from 'lucide-react';
-import { Eyebrow } from '@/shared/components';
+import { DASHED, Eyebrow } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
-import { DASHED } from './LibraryCards';
 
 const STEPS = [
   {

@@ -13,42 +13,19 @@
 
 import { useEffect, useRef } from 'react';
 import { CheckCircle2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import { Button, Card, CoverTile, Eyebrow, ProgressTrack } from '@/shared/components';
+import {
+  Button,
+  Card,
+  CoverTile,
+  DASHED,
+  Eyebrow,
+  HAIRLINE,
+  ProgressTrack,
+  SkyBar,
+} from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import type { Book } from '@/features/books/types';
 import { useBookRowEditing } from '../hooks/useBookRowEditing';
-
-/**
- * `--bd` and `--card-border` are transparent by design on the redesign — shadow
- * and layout do the separating, not a filled surface with an edge. Three things
- * on this screen genuinely need a visible line: the dropzone, the ghost tile's
- * "waiting for a file" outline, and the top edge of a card's hover panel. Those
- * are affordances rather than decoration; with no edge there's nothing to read.
- *
- * They mix their own line out of `--muted` instead of adding a global token — a
- * new token widens the palette every screen reads, and this value is only ever
- * wanted here. Deriving it from a token rather than hardcoding a hex is what
- * keeps it correct in both themes; a fixed grey would be wrong in one of them.
- */
-export const HAIRLINE = '[border-color:color-mix(in_srgb,var(--muted)_35%,transparent)]';
-export const DASHED = '[border-color:color-mix(in_srgb,var(--muted)_55%,transparent)]';
-
-// The sky the reading progress uncovers. Hardcoded rather than tokenised: the
-// handoff gives these the same values in both themes — a night sky is a night
-// sky — so there is nothing here for a theme to swap.
-const SKY_FILL = '#0e0e12';
-const SKY_VEIL = 'rgba(206,216,234,.6)';
-const SKY_VEIL_EDGE = '#aeb9cf';
-const SKY_STARS = [
-  'radial-gradient(1.4px 1.4px at 7% 30%, #f6e9bd 50%, transparent 51%)',
-  'radial-gradient(1.1px 1.1px at 18% 62%, #f6e9bd 50%, transparent 51%)',
-  'radial-gradient(1.5px 1.5px at 29% 22%, #f6e9bd 50%, transparent 51%)',
-  'radial-gradient(1px 1px at 41% 70%, #f6e9bd 50%, transparent 51%)',
-  'radial-gradient(1.3px 1.3px at 53% 34%, #f6e9bd 50%, transparent 51%)',
-  'radial-gradient(1.1px 1.1px at 66% 66%, #f6e9bd 50%, transparent 51%)',
-  'radial-gradient(1.4px 1.4px at 78% 26%, #f6e9bd 50%, transparent 51%)',
-  'radial-gradient(1px 1px at 90% 58%, #f6e9bd 50%, transparent 51%)',
-].join(', ');
 
 // Reading position is a percentage. The design prints `PAGE 142 / 412` beside
 // it, but an EPUB position is a CFI plus a spine index — there is no page
@@ -60,37 +37,6 @@ function statusMeta(progress: number): string {
 }
 
 const MONO = 'font-[family-name:var(--face-mono)] uppercase';
-
-// ── Sky bar ─────────────────────────────────────────────────────────────────
-
-// Progress as a night sky being uncovered rather than a bar being filled: the
-// unread remainder is a pale veil over the stars, and reading pulls it back.
-//
-// The width isn't animated. The handoff asks for 400ms ease-out on change with
-// nothing on first paint, but progress only ever changes inside the reader —
-// by the time this screen renders again the new value is the first paint. An
-// animation here would never be seen and would need a mounted-yet flag to
-// suppress.
-function SkyBar({ percent }: { percent: number }) {
-  const clamped = Math.max(0, Math.min(100, percent));
-
-  return (
-    <div
-      aria-hidden
-      className="relative h-[26px] overflow-hidden rounded-(--radius-tile)"
-      style={{ backgroundColor: SKY_FILL, backgroundImage: SKY_STARS }}
-    >
-      <div
-        className="absolute inset-y-0 right-0 border-l border-dashed"
-        style={{
-          width: `${100 - clamped}%`,
-          background: SKY_VEIL,
-          borderColor: SKY_VEIL_EDGE,
-        }}
-      />
-    </div>
-  );
-}
 
 // ── Overflow menu ───────────────────────────────────────────────────────────
 

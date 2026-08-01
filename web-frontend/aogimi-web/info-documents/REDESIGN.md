@@ -13,8 +13,8 @@ Status:
 |---|---|---|
 | Home | `/` | **Done** — reference implementation |
 | Reader / library | `/reader` | Not started |
-| Dictionary | `/dictionary` | Not started |
-| Word detail | `/word/[id]` | Not started |
+| Dictionary | `/dictionary` | **Done** — empty state + rail/entry split |
+| Word detail | — | Folded into `/dictionary`; `/word/[id]` deleted |
 | Decks | `/decks` | Not started |
 | Study runner | `/study` | Route extracted, visuals not started |
 | Sky (study stats) | `/sky` | Not started |

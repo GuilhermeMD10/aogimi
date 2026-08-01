@@ -10,7 +10,7 @@
 // The wrapper types here narrow the parts of the API we actually call. They
 // are not exhaustive; foliate's View / Renderer / Book have more surface.
 
-import type { NavItem } from '@/features/books/reader/components/TocPanel';
+import type { NavItem } from '@/features/books/reader/components/ContentsPanel';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

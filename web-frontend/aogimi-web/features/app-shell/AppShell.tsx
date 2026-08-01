@@ -71,6 +71,7 @@ function ShellContent({ isAuthPage, children }: { isAuthPage: boolean; children:
           word={readerBubble.word}
           back={readerBubble.back}
           contextSentence={readerBubble.contextSentence}
+          dictVisibleBehind={readerBubble.dictVisibleBehind}
           onClose={closeAddCardBubble}
         />
       ))}

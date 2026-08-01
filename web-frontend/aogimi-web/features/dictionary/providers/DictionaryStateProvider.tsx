@@ -3,12 +3,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { searchDictionary } from '../lib/dictApi';
 import type { SearchResponse } from '../types';
-import { getDictionaryState, pushRecentSearch, setDictionaryState } from '../lib/storage';
+import { pushRecentSearch } from '../lib/storage';
 
 // Single source of truth for the dictionary surface — query, results, the
 // in-flight request lifecycle, and which word (if any) is being inspected.
 // Both the /dictionary page and the reader's lookup bubble read/write this
 // same state, so a search done in one shows up in the other.
+//
+// Nothing here is persisted. `/dictionary` keeps its query and its selected row
+// in the URL, which restores both on a reload for free; mirroring the same
+// facts into localStorage as well gave two sources of truth that drifted —
+// landing on a bare `/dictionary` would rehydrate a stale result behind the
+// empty state. Only the recent-lookups list outlives a reload, under its own
+// key.
+//
+// `selectedWordId` belongs to the reader sidekick, not to the page: the
+// sidekick has no URL of its own to hold a selection in.
 
 type DictionaryStateContextValue = {
   query: string;
@@ -38,38 +48,6 @@ export function DictionaryStateProvider({ children }: { children: React.ReactNod
   const [lastContextSentence, setLastContextSentence] = useState<string | undefined>(undefined);
 
   const abortRef = useRef<AbortController | null>(null);
-  const persistReadyRef = useRef(false);
-
-  // Hydrate once on mount
-  useEffect(() => {
-    const saved = getDictionaryState<SearchResponse>();
-    if (saved) {
-      if (saved.query) setQuery(saved.query);
-      if (saved.result) setResult(saved.result);
-      // Only restore the selected word if it still exists in the
-      // restored result. The persisted id can otherwise point at a
-      // word that's no longer present (corrupted storage, an out-of-
-      // sync write, or a dictionary rebuild that reassigned numeric
-      // ids), causing the detail pane to render the wrong entry.
-      if (saved.selectedWordId != null) {
-        const stillPresent = saved.result?.words?.some(
-          (w) => w.id === saved.selectedWordId,
-        );
-        if (stillPresent) setSelectedWordId(saved.selectedWordId);
-      }
-    }
-    persistReadyRef.current = true;
-  }, []);
-
-  // Persist on every change (loading/error/lastContextSentence intentionally excluded)
-  useEffect(() => {
-    if (!persistReadyRef.current) return;
-    setDictionaryState<SearchResponse>({
-      query,
-      result: result ?? undefined,
-      selectedWordId,
-    });
-  }, [query, result, selectedWordId]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 

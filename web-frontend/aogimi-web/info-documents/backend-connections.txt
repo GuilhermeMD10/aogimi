@@ -309,8 +309,16 @@ GET /api/search?q={query}
     | { type: 'meaning', words: WordResult[] }
 
 GET /api/words/{id}/details
-  Trigger:   Word selection from search results (manual)
-  Response:  DetailsResponse  -- { word: WordResult, kanjis: KanjiInfo[] }
+  Trigger:   Selecting a row in /dictionary's results rail -- including the
+             first row, which is selected automatically, and every row you
+             pass through with the arrow keys. Also the reader sidekick and
+             the reader bubble.
+  Client:    features/dictionary/hooks/useWordDetails.ts caches per word id
+             for the life of the mount and does NOT cancel in-flight requests
+             when the selection moves on (they finish and warm the cache);
+             everything outstanding aborts together on unmount.
+  Response:  DetailsResponse  -- { word: WordResult, kanjis: KanjiInfo[],
+                                   sentences: ExampleSentence[] }
 
 WordResult shape:
   { id, is_common, jlpt_level (1..5 | null), grade, char_grades[],
@@ -379,8 +387,13 @@ Client-side storage:
       auth_user                  { id, username } cached for first-paint
                                  (replaced by the new user on sign-in,
                                  cleared on logout)
-      dictionary_state           sticky dictionary view state
-      dictionary_recent_searches recent search history
+      dictionary_recent_searches recent search history ({ query, at })
+                                 The former dictionary_state key (query +
+                                 result + selected word) was removed: the
+                                 /dictionary URL holds the query and the
+                                 selected row now, and a second copy in
+                                 localStorage drifted out of sync. Still
+                                 wiped on account switch so old ones go.
 
     Device-scoped (NOT wiped on account switch):
       aogimi-theme               'light' | 'dark'. Written by ThemeProvider,
@@ -438,7 +451,8 @@ Account-switch wipe:
             against lgc_last_user_id (NOT auth_user — that key is cleared
             on logout and would miss the typical sign-out → sign-in flow).
             On mismatch, lib/auth/wipeUserData.ts runs before persist().
-  Wipes:    dictionary_state + dictionary_recent_searches, plus the `aogimi`
+  Wipes:    dictionary_state (legacy, no longer written) +
+            dictionary_recent_searches, plus the `aogimi`
             IDB `metadata` + `files` stores (the `handles` directory handle
             is kept — it's a folder, not user data). See
             lib/auth/wipeUserData.ts.

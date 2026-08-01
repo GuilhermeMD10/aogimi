@@ -6,13 +6,17 @@ import { useReaderState } from '../providers/ReaderStateProvider';
 import { useDictionaryState } from '@/features/dictionary/providers/DictionaryStateProvider';
 
 // Routes where the dictionary surface is *always* visible; lookups skip the
-// floating bubble and just feed the visible surface. `/reader` is conditional
-// on the sidekick being open — see `isDictSurfaceVisible`.
+// floating bubble and just feed the visible surface. An open book is
+// conditional on the sidekick being docked — see `isDictSurfaceVisible`.
 const ALWAYS_DICT_VISIBLE_ROUTES = new Set(['/dictionary']);
 
 function isDictSurfaceVisible(pathname: string, sidekickOpen: boolean): boolean {
   if (ALWAYS_DICT_VISIBLE_ROUTES.has(pathname)) return true;
-  if (pathname === '/reader' && sidekickOpen) return true;
+  // A prefix test, not equality: the reader is `/reader/<bookId>`. Matching
+  // `/reader` exactly would be true only on the library shelf, which has no
+  // sidekick — so every in-book lookup would pop the bubble over the panel
+  // that was already showing it.
+  if (pathname.startsWith('/reader/') && sidekickOpen) return true;
   return false;
 }
 
@@ -50,10 +54,16 @@ export function useReaderActions() {
         word,
         back: back ?? '',
         contextSentence,
+        // When a dictionary surface is already showing, the bubble must not
+        // run its own lookup: the two share one `DictionaryStateProvider`, so
+        // it would replace the query and results the surface behind it is
+        // rendering — on /dictionary that empties the rail and drops the
+        // selected entry the moment you press add.
+        dictVisibleBehind: isDictSurfaceVisible(pathname, sidekickOpen),
       });
       setPendingCard({ word, back, contextSentence });
     },
-    [setReaderBubble, setPendingCard],
+    [setReaderBubble, setPendingCard, pathname, sidekickOpen],
   );
 
   return { requestDictLookup, requestAddCard };

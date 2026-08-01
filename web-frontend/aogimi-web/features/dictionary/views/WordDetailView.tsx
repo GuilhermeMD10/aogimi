@@ -10,18 +10,11 @@ import type { DetailsResponse } from '../types';
 import { MAX_MEANINGS_ON_CARD } from '@/features/study/decks';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import { PitchAccentDiagram } from '@/shared/ui/PitchAccentDiagram';
+import { preferredHeadword } from '../lib/headword';
 
-// If the user's query matches one of the entry's kanji or reading forms exactly,
-// surface that form instead of the dict's "primary" common kanji.
-export function preferredHeadword(
-  word: { kanji: string[]; readings: { form: string }[] },
-  query: string | undefined,
-): string {
-  const q = (query ?? '').trim();
-  if (q && word.kanji.includes(q)) return q;
-  if (q && word.readings.some((r) => r.form === q)) return q;
-  return word.kanji[0] ?? word.readings[0]?.form ?? '—';
-}
+// The outgoing word detail. Still the reader sidekick's and the reader
+// bubble's detail pane — `/dictionary` now renders `EntryDetail` beside its
+// results rail instead. Both go when the reader is redesigned.
 
 export default function WordDetailView({
   id,

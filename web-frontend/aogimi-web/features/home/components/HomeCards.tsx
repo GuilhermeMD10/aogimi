@@ -17,7 +17,6 @@ import {
   StageDot,
   coverPalette,
 } from '@/shared/components';
-import { useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
 import { deckVisuals } from '@/features/study/decks';
 import { useDecks } from '@/features/study/decks/providers/DecksProvider';
 import { useBooks } from '../hooks/useBooks';
@@ -49,18 +48,13 @@ const RECENT_DECKS = 3;
 // ── Continue reading ────────────────────────────────────────────────────────
 
 export function ContinueReadingCard() {
-  const router = useRouter();
-  const { setPendingBookOpen } = useReaderState();
   const { current, loading } = useBooks();
 
-  // Not a link: resuming has to seed `pendingBookOpen` before navigating. The
-  // reader checks for the local file itself, so setting it unconditionally is
-  // safe — if this device doesn't have the file, the reader offers to locate it.
-  const resume = () => {
-    if (!current) return;
-    setPendingBookOpen(current.filename);
-    router.push('/reader');
-  };
+  // A real link: the reader is a route keyed on the book, so there is nothing
+  // to seed before navigating. `filename` is the id — it's the IndexedDB key.
+  // Linking unconditionally is safe; a device without the file gets the
+  // reader's "not on this device" panel rather than a broken screen.
+  const href = current ? `/reader/${encodeURIComponent(current.filename)}` : '/reader';
 
   if (loading) {
     return (
@@ -118,7 +112,7 @@ export function ContinueReadingCard() {
             <span>{current.progress}%</span>
           </div>
           <ProgressTrack percent={current.progress} className="mb-[13px]" />
-          <Button onClick={resume} icon={<Play size={15} fill="currentColor" />}>
+          <Button href={href} icon={<Play size={15} fill="currentColor" />}>
             Resume reading
           </Button>
         </div>
@@ -195,14 +189,7 @@ export function StudyCard() {
 // ── Library ─────────────────────────────────────────────────────────────────
 
 export function LibraryCard() {
-  const router = useRouter();
-  const { setPendingBookOpen } = useReaderState();
   const { books, loading } = useBooks();
-
-  const open = (filename: string) => {
-    setPendingBookOpen(filename);
-    router.push('/reader');
-  };
 
   const shelf = books.slice(0, LIBRARY_COVERS);
 
@@ -234,10 +221,9 @@ export function LibraryCard() {
         // placeholders — a fake cover reads as a real book.
         <div className="mt-auto grid grid-cols-3 gap-4">
           {shelf.map((book) => (
-            <button
+            <Link
               key={book.id}
-              type="button"
-              onClick={() => open(book.filename)}
+              href={`/reader/${encodeURIComponent(book.filename)}`}
               aria-label={`Open ${book.title}`}
               className="cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
             >
@@ -247,7 +233,7 @@ export function LibraryCard() {
                 percent={book.progress}
                 className="aspect-[96/140] w-full"
               />
-            </button>
+            </Link>
           ))}
         </div>
       )}

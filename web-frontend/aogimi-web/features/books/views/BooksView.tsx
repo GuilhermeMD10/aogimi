@@ -1,21 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Trash2 } from 'lucide-react';
-import { EpubReader, PdfReader } from '@/features/books/reader';
-import { DictionarySidekick } from '@/features/dictionary';
-import { getAllBooks, getBookFile, ensureBackendBook, renameBook as renameLocalBook } from '@/features/books/lib/bookStore';
-import { getUserBooks, updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/features/books/lib/booksApi';
+import { renameBook as renameLocalBook } from '@/features/books/lib/bookStore';
+import { updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/features/books/lib/booksApi';
 import { deleteBookEverywhere } from '@/features/books/lib/deleteBook';
 import { locateAndAttachFile, validateBookFile } from '@/features/books/lib/locateAndAttachFile';
 import { importBookWithMatch } from '@/features/books/lib/importBookWithMatch';
 import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
-import { useReaderState, type ReaderSession } from '@/features/app-shell/providers/ReaderStateProvider';
-import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';
-import { useProgressSync } from './useProgressSync';
-import { getReaderProgress } from '@/features/books/lib/readerSession';
 import type { Book } from '@/features/books/types';
-import type { BookProgressRecord } from '@/features/books/types';
 import { LibraryShelf, FsAccessBanner } from '@/features/books/library';
 import OnboardingExplainerModal from '@/features/onboarding';
 import { getUserProfile } from '@/features/profile/lib/userApi';
@@ -23,21 +17,7 @@ import { useSyncBooks } from '@/features/books/hooks/useSyncBooks';
 
 export default function BooksView() {
   const user = useAuthedUser();
-  const {
-    readerSession,
-    setReaderSession,
-    pendingBookOpen,
-    setPendingBookOpen,
-    sidekickOpen,
-    toggleSidekick,
-    setSidekickOpen,
-  } = useReaderState();
-  const { requestDictLookup, requestAddCard } = useReaderActions();
-
-  // Reading-position persistence for the active session. `recordProgress` is
-  // handed to the reader and fired on every page turn; the hook buffers it to
-  // localStorage and flushes to the backend periodically / on exit.
-  const { recordProgress } = useProgressSync(readerSession);
+  const router = useRouter();
 
   const { pageState, books, setBooks, error, setError } = useSyncBooks(user);
   const [importing, setImporting] = useState(false);
@@ -49,15 +29,6 @@ export default function BooksView() {
   const [locatingBookId, setLocatingBookId] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [deletingBook, setDeletingBook] = useState<Book | null>(null);
-
-  const [loading, setLoading] = useState(false);
-  const blobUrlRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (readerSession?.fileUrl) {
-      blobUrlRef.current = readerSession.fileUrl;
-    }
-  }, [readerSession?.fileUrl]);
 
   // Onboarding is gated on the backend `onboarding_completed` flag (set by
   // the modal's "Got it" via markOnboardingCompleted). New accounts default
@@ -209,164 +180,12 @@ export default function BooksView() {
     }
   }, []);
 
+  // Opening a book is a navigation now, not a state flip: the reader owns the
+  // file, the restore anchor and the progress sync, keyed off the id in its URL.
   const openBook = useCallback(
-    async (bookId: string) => {
-      const allBooks = await getAllBooks();
-      const book = allBooks.find((b) => b.id === bookId);
-      if (!book) return;
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const arrayBuffer = await getBookFile(book.id);
-        if (!arrayBuffer) {
-          setError('File not found');
-          setLoading(false);
-          return;
-        }
-
-        if (blobUrlRef.current && blobUrlRef.current !== readerSession?.fileUrl) {
-          URL.revokeObjectURL(blobUrlRef.current);
-        }
-
-        const mime = book.filename.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/epub+zip';
-        const url = URL.createObjectURL(new Blob([arrayBuffer], { type: mime }));
-        blobUrlRef.current = url;
-
-        // Resolve the backend book id + ensure registration. Best-effort —
-        // if the backend is unreachable the session opens local-only (no id
-        // ⇒ useProgressSync writes localStorage but doesn't sync this run).
-        let backendRecord: BookProgressRecord | undefined;
-        try {
-          const remote = await getUserBooks(user.id);
-          backendRecord = remote.find((b) => b.filename === book.filename);
-          if (!backendRecord) backendRecord = await ensureBackendBook(book, user.id);
-        } catch {
-          /* backend unavailable */
-        }
-
-        // Restore anchor: take the newer of the local snapshot and the backend
-        // row (same device ⇒ local; switched device ⇒ backend). Manga carries
-        // no CFI, so spine index is the fallback the fixed-layout reader uses.
-        const local = getReaderProgress(book.filename);
-        const backendUpdatedAt = backendRecord?.last_read_at ? Date.parse(backendRecord.last_read_at) : 0;
-        const useLocal = local != null && local.updatedAt >= backendUpdatedAt;
-        const initialCfi = useLocal ? (local!.cfi || null) : (backendRecord?.cfi_position ?? null);
-        const initialSpineIndex = useLocal ? (local!.spineIndex ?? null) : (backendRecord?.spine_index ?? null);
-
-        const session: ReaderSession = {
-          activeBook: book,
-          fileUrl: url,
-          backendBookId: backendRecord?.id,
-          initialCfi,
-          initialSpineIndex,
-        };
-        setReaderSession(session);
-        setLoading(false);
-      } catch {
-        setError('Failed to load book');
-        setLoading(false);
-      }
-    },
-    [user, readerSession?.fileUrl, setReaderSession],
+    (book: Book) => router.push(`/reader/${encodeURIComponent(book.id)}`),
+    [router],
   );
-
-  useEffect(() => {
-    if (!pendingBookOpen) return;
-    if (readerSession?.activeBook.filename === pendingBookOpen) {
-      setPendingBookOpen(null);
-      return;
-    }
-    if (pageState !== 'library') return;
-    const target = books.find((b) => b.filename === pendingBookOpen && b.available);
-    if (!target) {
-      setPendingBookOpen(null);
-      return;
-    }
-    setPendingBookOpen(null);
-    openBook(target.id);
-  }, [pendingBookOpen, books, pageState, readerSession, openBook, setPendingBookOpen]);
-
-  const goBack = useCallback(() => {
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = null;
-    }
-    setReaderSession(null);
-    setError(null);
-    getAllBooks()
-      .then((allBooks) => {
-        setBooks((prev) => {
-          const localMap = new Map(allBooks.map((b) => [b.filename, b]));
-          return prev.map((b) => {
-            const local = localMap.get(b.filename);
-            if (local) {
-              return { ...b, id: local.id, hasCover: local.hasCover, coverImage: local.coverImage, available: true };
-            }
-            return b;
-          });
-        });
-      })
-      .catch(() => {});
-  }, [setReaderSession, setBooks, setError]);
-
-  const handleLookup = useCallback(
-    (word: string, contextSentence?: string) => {
-      requestDictLookup(word, contextSentence);
-    },
-    [requestDictLookup],
-  );
-
-  const handleAddCard = useCallback(
-    (word: string, contextSentence?: string) => {
-      requestAddCard(word, undefined, contextSentence);
-    },
-    [requestAddCard],
-  );
-
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-lgc-fg-muted">Loading book...</p>
-      </div>
-    );
-  }
-
-  if (readerSession) {
-    const isPdf = readerSession.activeBook.filename.toLowerCase().endsWith('.pdf');
-    return (
-      <div className="flex h-full min-h-0 flex-row">
-        <div className="flex h-full min-h-0 flex-1 flex-col">
-          {isPdf ? (
-            <PdfReader
-              fileUrl={readerSession.fileUrl}
-              bookTitle={readerSession.activeBook.title}
-              onBack={goBack}
-            />
-          ) : (
-            <EpubReader
-              fileUrl={readerSession.fileUrl}
-              bookTitle={readerSession.activeBook.title}
-              onLookup={handleLookup}
-              onAddCard={handleAddCard}
-              onBack={goBack}
-              sidekickOpen={sidekickOpen}
-              onToggleSidekick={toggleSidekick}
-              initialCfi={readerSession.initialCfi}
-              initialSpineIndex={readerSession.initialSpineIndex}
-              onRelocate={recordProgress}
-            />
-          )}
-        </div>
-        {sidekickOpen && (
-          <aside aria-label="Dictionary" style={{ width: '25%', minWidth: 320, maxWidth: 480, flexShrink: 0 }}>
-            <DictionarySidekick onClose={() => setSidekickOpen(false)} />
-          </aside>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="relative h-full overflow-hidden">
@@ -378,7 +197,7 @@ export default function BooksView() {
         notice={notice}
         onDismissNotice={() => setNotice(null)}
         onImport={() => fileInputRef.current?.click()}
-        onOpen={(book) => (book.available ? openBook(book.id) : handleLocateClick(book.id))}
+        onOpen={(book) => (book.available ? openBook(book) : handleLocateClick(book.id))}
         onLocate={(book) => handleLocateClick(book.id)}
         onRename={(book, title) => handleRenameBook(book, title)}
         onMarkFinished={(book) => handleMarkFinished(book)}

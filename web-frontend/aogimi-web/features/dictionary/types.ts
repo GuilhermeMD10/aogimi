@@ -71,3 +71,14 @@ export interface DetailsResponse {
   kanjis: KanjiInfo[];
   sentences: ExampleSentence[];
 }
+
+/**
+ * Which row of the search rail the detail pane is showing.
+ *
+ * Two kinds because a kanji entry isn't a JMdict word and has no numeric id —
+ * `/api/search` returns it alongside the words for kanji and kana queries. The
+ * URL carries whichever applies as `?id=<n>` or `?kanji=<char>`.
+ */
+export type Selection =
+  | { kind: 'word'; id: number }
+  | { kind: 'kanji'; literal: string };

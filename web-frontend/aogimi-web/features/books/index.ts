@@ -6,4 +6,4 @@ export { wipeBookDatabase } from './lib/bookStore';
 export type { BookRecord } from './lib/bookStore';
 // Views
 export { default as BooksView } from './views/BooksView';
-export { ReaderBubble } from './reader';
+export { ReaderView, ReaderBubble } from './reader';

@@ -1,29 +1,20 @@
 'use client';
 
 import { createContext, useCallback, useContext, useState } from 'react';
-import type { BookRecord } from '@/features/books';
 
 // What's left in this provider is genuinely cross-cutting:
-//   - the active reader session + bubble overlay
+//   - the reader bubble overlay
 //   - the dictionary sidekick toggle
 //   - the pending flashcard hand-off to /decks
-//   - the auto-open-book signal for cross-route shortcuts
-// Reading-position sync lives in `ReaderView/useProgressSync`; the session
-// just carries the backend id + the restore anchor it resolved on open.
+//
+// The open book is NOT here any more. It used to be a `readerSession` object
+// plus a `pendingBookOpen` filename that a mounted library view watched for —
+// both of which existed only because the reader was state inside the library
+// screen. The reader is `/reader/[bookId]` now, so the id in the URL *is* the
+// session: `ReaderView` resolves the file, the restore anchor and the progress
+// sync from it, and anything wanting to open a book links to the route.
+//
 // Dict/card pending fields collapsed into `useReaderActions` — see that file.
-
-export type ReaderSession = {
-  activeBook: BookRecord;
-  fileUrl: string;
-  /** Backend `book_progress` id, resolved on open. Absent when the backend
-   *  was unreachable at open time — the session then reads/writes position
-   *  to localStorage only (no cross-device sync this session). */
-  backendBookId?: string;
-  /** CFI to restore to on open (flowing EPUBs). Null = open at the start. */
-  initialCfi?: string | null;
-  /** Spine index to restore to on open (fixed-layout / manga EPUBs). */
-  initialSpineIndex?: number | null;
-};
 
 /**
  * Overlay state for the reader's right-edge bubble. Two mutually-exclusive
@@ -48,20 +39,25 @@ export type ReaderSession = {
  */
 export type ReaderBubbleState =
   | { mode: 'dict' }
-  | { mode: 'addCard'; word: string; back: string; contextSentence?: string };
+  | {
+      mode: 'addCard';
+      word: string;
+      back: string;
+      contextSentence?: string;
+      /** True when a dictionary surface is already on screen behind the
+       *  bubble (`/dictionary`, or the reader with the sidekick docked). The
+       *  bubble then skips its own lookup — running one would overwrite the
+       *  shared `DictionaryStateProvider` search that the surface behind it is
+       *  rendering from, blanking its results mid-add. Set by
+       *  `useReaderActions`, which is the only thing that knows the route. */
+      dictVisibleBehind?: boolean;
+    };
 
 type ReaderContextValue = {
   // Pending flashcard hand-off for `DecksView` — set by `requestAddCard`,
   // read-and-cleared by the decks page on mount.
   pendingCard: { word: string; back?: string; contextSentence?: string } | null;
   setPendingCard: React.Dispatch<React.SetStateAction<{ word: string; back?: string; contextSentence?: string } | null>>;
-  /** Filename of a book the reader should auto-open on next mount (e.g. from home shortcut). */
-  pendingBookOpen: string | null;
-  setPendingBookOpen: React.Dispatch<React.SetStateAction<string | null>>;
-
-  // Active reader session.
-  readerSession: ReaderSession | null;
-  setReaderSession: React.Dispatch<React.SetStateAction<ReaderSession | null>>;
 
   // Right-edge reader bubble (dict lookup or add-card flow). Lives here so
   // producers can open it via `useReaderActions` without a pending-field
@@ -81,9 +77,6 @@ const ReaderContext = createContext<ReaderContextValue | null>(null);
 
 export function ReaderStateProvider({ children }: { children: React.ReactNode }) {
   const [pendingCard, setPendingCard] = useState<{ word: string; back?: string; contextSentence?: string } | null>(null);
-  const [pendingBookOpen, setPendingBookOpen] = useState<string | null>(null);
-
-  const [readerSession, setReaderSession] = useState<ReaderSession | null>(null);
   const [readerBubble, setReaderBubble] = useState<ReaderBubbleState | null>(null);
 
   const [sidekickOpen, setSidekickOpen] = useState(false);
@@ -93,8 +86,6 @@ export function ReaderStateProvider({ children }: { children: React.ReactNode })
     <ReaderContext.Provider
       value={{
         pendingCard, setPendingCard,
-        pendingBookOpen, setPendingBookOpen,
-        readerSession, setReaderSession,
         readerBubble, setReaderBubble,
         sidekickOpen, toggleSidekick, setSidekickOpen,
       }}
