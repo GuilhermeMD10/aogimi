@@ -17,10 +17,11 @@ async function getCards(userId) {
   return { byState, total, hardest };
 }
 
-// The 5 most recent tier promotions. A bare list — the repository already
-// shapes each row for display, so there's nothing to assemble here.
-async function getRecentUpgrades(userId) {
-  return await statsRepo.recentTierUpgrades(userId);
+// The 5 most recent tier promotions, across every deck or within one. A bare
+// list — the repository already shapes each row for display, so there's
+// nothing to assemble here.
+async function getRecentUpgrades(userId, deckId = null) {
+  return await statsRepo.recentTierUpgrades(userId, deckId);
 }
 
 module.exports = { getActivity, getCards, getRecentUpgrades };

@@ -1,10 +1,14 @@
 /**
- * Compact age for a timestamp — "2m", "14m", "1h", "3d".
+ * Compact age for a timestamp — "now", "14m", "3h", "2d", "5w".
  *
- * Deliberately terse and unit-only, because it sits in a narrow right-hand
- * column where "14 minutes ago" would wrap. Anything older than a week reads
- * as a week count rather than a date: the exact day doesn't matter for "how
- * stale is this lookup".
+ * Unit-only because every caller puts it in a narrow right-hand column where
+ * "14 minutes ago" would wrap, and because the exact day of an old event
+ * carries no information worth the space.
+ *
+ * Hoisted here from `features/home/lib/relativeTime.ts` and
+ * `features/dictionary/lib/relativeAge.ts`, which were byte-identical and
+ * both carried a note to merge them once a third caller appeared. The deck
+ * detail's "recent upgrades" column is that third.
  */
 export function relativeTime(iso: string, now: number = Date.now()): string {
   const then = new Date(iso).getTime();

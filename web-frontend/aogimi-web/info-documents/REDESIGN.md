@@ -15,7 +15,7 @@ Status:
 | Reader / library | `/reader` | Not started |
 | Dictionary | `/dictionary` | **Done** — empty state + rail/entry split |
 | Word detail | — | Folded into `/dictionary`; `/word/[id]` deleted |
-| Decks | `/decks` | **Done** — list only; deck *detail* is still `--lgc-*` |
+| Decks | `/decks` | **Done** — list **and** detail (detail is still a state of `DecksView`, not a route) |
 | Study runner | `/study` | Route extracted, visuals not started |
 | Sky (study stats) | `/sky` | Not started |
 | Profile | `/profile` | Not started |
@@ -206,6 +206,9 @@ how home resolved them:
 | A deck deep link (`/decks/{id}`) | `DecksView` picks its deck from local state; no param | Links to `/decks` |
 | A deck's last-added word | Deck rows had `card_count` and nothing else | **Backend gained `last_card`** — the one gap so far worth a query change rather than a drop |
 | Decks ordered by most recently studied | Nothing records it | `created_at DESC` |
+| `SESSIONS 28×` on a deck | No session entity at all — `study_days` is per user, `card_reviews` per card | Dropped; three ledger figures, not four |
+| Progress-to-next-rank per card | Not stored — **but the promotion rules are explicit in `cardSrsService.js`** | Derived client-side in `decks/lib/rankProgress.ts` from `last_outcomes` + `difficulty` |
+| A card's part of speech, second meaning, JLPT level, or its context sentence's translation | None exist; `cards` has no `word_id` to reach the dictionary through | All four omitted, each degrading its own line |
 
 When you find a new one: **name it to the owner, don't invent a schema.** They
 have consistently chosen the simpler option.

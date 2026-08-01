@@ -5,7 +5,7 @@ import { DASHED, Eyebrow, HAIRLINE, Skeleton } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { SearchField } from './SearchField';
 import { useRecentSearches } from '../hooks/useRecentSearches';
-import { relativeAge } from '../lib/relativeAge';
+import { relativeTime } from '@/lib/util/relativeTime';
 
 const CHIP_COUNT = 4;
 const RECENT_ROWS = 5;
@@ -124,7 +124,7 @@ export function BeforeSearch({
                             {item.query}
                           </span>
                           <span className="shrink-0 font-[family-name:var(--face-mono)] text-[10px] text-(--faint)">
-                            {relativeAge(item.at)}
+                            {relativeTime(item.at)}
                           </span>
                         </button>
                       </li>

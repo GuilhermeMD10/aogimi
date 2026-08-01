@@ -238,6 +238,32 @@ half.** `DecksView` switches on local `screen` state between
 - **Deck descriptions don't exist on the web** — dropped with the redesign. The
   column and the mobile app still have the feature.
 
+**Deck detail** (`components/DeckDetail.tsx`, still the other half of `/decks`)
+is the card list beside an empty sky panel, with a ledger below.
+
+- **Nothing on it talks to a star map.** The handoff binds the list and the map
+  together — hover bubbles, star↔row hover mirroring, a collapse control that
+  hides the list to reveal the map. All deferred with the map: it would be
+  interaction with a blank rectangle. `DeckCardPanel` takes
+  `selectedId`/`onSelect`, so the map plugs into the existing selection model
+  without the panel changing.
+- **`lib/rankProgress.ts` mirrors the backend's promotion rules.**
+  `backend/src/services/cardSrsService.js` owns them; that file is a client
+  copy, and retuning the thresholds there means changing both. It exists
+  because `last_outcomes` and `difficulty` already ride along in the cards
+  payload. Each promotion has a streak gate *and* a difficulty gate, and the
+  bar shows the lower of the two so it can't read 100% on a card the server
+  won't promote.
+- **The ledger counts in memory.** Card totals and the four-tier mix bar come
+  from the `cards` array the page already has — no `deck/stats` endpoint,
+  because it would return figures we're holding. Only the upgrades panel
+  fetches, and only because its limit has to be applied server-side.
+- **Two sorts, not three.** Added and Mastery. JLPT is impossible rather than
+  unwanted: `cards` has no `word_id`, so a card can't reach a JLPT level.
+- **Add card, rename and session settings survive** in the header even though
+  the handoff treats this page as read-only apart from its two deletes — they
+  were existing capability and the only route to either.
+
 ---
 
 ## Conventions to know
