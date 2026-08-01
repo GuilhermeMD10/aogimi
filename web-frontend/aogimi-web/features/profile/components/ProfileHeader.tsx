@@ -72,7 +72,7 @@ export function ProfileHeader({
 
       <div className="flex gap-1.5 pb-1.5 shrink-0">
         <Link
-          href="/stats"
+          href="/sky"
           className="flex items-center gap-1.5 rounded-md border border-lgc-border px-3 py-1.5 text-[13px] text-lgc-fg transition-colors hover:bg-lgc-bg-elev"
         >
           <BarChart3 size={13} /> Stats

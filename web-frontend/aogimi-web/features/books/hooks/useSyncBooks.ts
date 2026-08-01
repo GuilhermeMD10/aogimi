@@ -10,7 +10,7 @@ import type { BookProgressRecord } from '@/features/books/types';
 import type { AuthUser } from '@/features/auth/types';
 import type { Book } from '../types';
 
-export type PageState = 'loading' | 'restore' | 'library';
+export type PageState = 'loading' | 'library';
 
 /**
  * Owns the page-mount books reconciliation:
@@ -21,10 +21,11 @@ export type PageState = 'loading' | 'restore' | 'library';
  * tracking endpoint involvement.
  *
  * Re-runs on `user` change. Internally tracks a `cancelled` flag so
- * stale fetches can't clobber newer state. Mutators (`setBooks`,
- * `setError`, `setPageState`) are exposed so import / locate / delete
- * / rename handlers in the page can update the same store without
- * round-tripping the API.
+ * stale fetches can't clobber newer state. `setBooks` and `setError`
+ * are exposed so import / locate / delete / rename handlers in the
+ * page can update the same store without round-tripping the API.
+ * `pageState` is read-only: it only ever goes loading → library, and
+ * that transition belongs to this hook.
  *
  * When `user` is null, falls back to a local-only books view (the
  * signed-out, local-first state).
@@ -32,7 +33,6 @@ export type PageState = 'loading' | 'restore' | 'library';
 export function useSyncBooks(user: AuthUser | null) {
   const [pageState, setPageState] = useState<PageState>('loading');
   const [books, setBooks] = useState<Book[]>([]);
-  const [remoteBooks, setRemoteBooks] = useState<BookProgressRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -72,15 +72,13 @@ export function useSyncBooks(user: AuthUser | null) {
         if (cancelled) return;
 
         const backendBooks = Array.from(backendMap.values());
-        setRemoteBooks(backendBooks);
 
         const localFilenames = new Set(localBooks.map((b) => b.filename));
 
-        if (localBooks.length === 0 && backendBooks.length > 0) {
-          setPageState('restore');
-          return;
-        }
-
+        // No special case for "signed in on a fresh device". A backend book with
+        // no local file merges below as `available: false` and the shelf renders
+        // it as a re-import tile, so an empty device is just a library where
+        // every tile is waiting for a file — no separate screen to escape from.
         const merged: Book[] = backendBooks.map((remote) => {
           const local = localBooks.find((b) => b.filename === remote.filename);
           if (local) {
@@ -158,10 +156,8 @@ export function useSyncBooks(user: AuthUser | null) {
 
   return {
     pageState,
-    setPageState,
     books,
     setBooks,
-    remoteBooks,
     error,
     setError,
   };

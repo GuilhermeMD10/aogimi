@@ -1,11 +1,13 @@
 AOGIMI WEB FRONTEND — BACKEND CONNECTION INVENTORY
 =====================================================
-Last reviewed: 2026-06-27
+Last reviewed: 2026-08-01
 
 Base URL: NEXT_PUBLIC_API_URL (default: http://localhost:3000)
 HTTP helpers live in lib/api.ts (apiUrl, apiGet, apiSend, apiSendVoid).
 Both apiSend and apiSendVoid accept an optional AbortSignal.
-Domain types live in lib/types/{book,deck,dict,user,device}.ts.
+Domain types live in each feature's types.ts (e.g. features/study/decks/types.ts,
+features/dictionary/types.ts) -- lib/types/ was dissolved in the feature
+refactor. Fetch helpers live in the feature's lib/ (e.g. fooApi.ts).
 
 
 ==============================================================================
@@ -152,8 +154,11 @@ BookProgressRecord shape:
 
 
 ==============================================================================
-4. DECKS & FLASHCARDS
-   File: lib/decksApi.ts
+4. DECKS, FLASHCARDS, STUDY SESSIONS & STATS
+   Files: features/study/decks/lib/decksApi.ts
+          features/study/session/lib/studyApi.ts, .../lib/deckOverrides.ts,
+          .../lib/displayPrefs.ts
+          features/study/stats/lib/statsApi.ts
 ==============================================================================
 
 POST /api/decks
@@ -198,15 +203,81 @@ POST /api/decks/cards/{cardId}/review
   Trigger:   Card review completion (manual, once per review)
   Response:  CardRecord  -- backend updates SRS columns + next_due_at + reviewed_times
 
-GET /api/decks/{deckId}/cards/due       [NOT YET WIRED ON FRONTEND]
-  Trigger:   (planned) "Study due" entry for a single deck
+GET /api/decks/{deckId}/cards/due       [NO CLIENT HELPER YET]
+  Trigger:   (planned) single-deck due inventory
   Response:  CardRecord[]  -- due in this deck, most-overdue first
+  Note:      For a badge use the /count variant below, not this + .length.
   See:       ../../../docs/study-due-cards.md
 
-GET /api/study/due                       [NOT YET WIRED ON FRONTEND]
-  Trigger:   (planned) "Study all due" across every deck
+GET /api/decks/{deckId}/cards/due/count
+  Trigger:   Deck-scoped due session start (/study?deck={id}&due=1) sizing it
+  Response:  { count }
+  Helper:    getDueDeckCardCount() in features/study/decks/lib/decksApi.ts
+
+GET /api/study/due                       [NO CLIENT HELPER YET]
+  Trigger:   (planned) all-decks due inventory
   Response:  { cards: CardRecord[] }  -- most-overdue first
+  Note:      To *run* a due session, don't fetch this and hand-build a queue --
+             use POST /api/study/session with dueOnly: true (below). For a
+             count, use /due/counts.
   See:       ../../../docs/study-due-cards.md
+
+GET /api/study/due/counts
+  Trigger:   Home study card (total + per-deck chips); all-decks due session
+             sizing itself on /study?due=1
+  Response:  { total, byDeck: { [deckId]: count } }
+             -- decks with nothing due are OMITTED from byDeck; read a
+             -- missing key as 0.
+  Helper:    fetchDueCounts() in features/study/session/lib/studyApi.ts
+
+GET /api/study/due/random
+  Trigger:   Single-card "study one word now" entry point
+  Response:  { card: CardRecord | null }  -- null (with 200) when nothing is due
+  Helper:    fetchRandomDueCard() in features/study/session/lib/studyApi.ts
+  See:       ../../../docs/study-due-cards.md
+
+POST /api/study/session
+  Trigger:   Study session start / restart (useStudySession)
+  Request:   { scope: 'all'|'deck', deckIds?, mode, limit?, dueOnly? }
+             mode: hardest | random | oldest_first | oldest_only |
+                   newest_only | by_creation | hardest_all_decks
+             dueOnly: narrows the pool to due cards BEFORE mode orders it.
+                      { scope:'all', dueOnly:true } = study all due cards.
+  Response:  { cards: CardRecord[] }  -- already in display order, limit-capped
+
+GET /api/study/prefs
+  Trigger:   Study display prefs + deck overrides read (backend is the only
+             source of truth -- no local cache)
+  Response:  { display, deckOverrides }  -- defaults when no row exists
+
+PUT /api/study/prefs
+  Trigger:   Display-pref or deck-override change (manual)
+  Request:   { display?, deckOverrides? }  -- either field optional (upsert)
+  Response:  { display, deckOverrides }
+
+GET /api/stats/activity
+  Trigger:   /sky (study stats) mount, activity tab
+  Response:  { daysStudied, perDay: [{ date:'YYYY-MM-DD', count }] }
+             -- last 365 days, only days with >= 1 review
+
+GET /api/stats/cards
+  Trigger:   /sky (study stats) mount, cards tab; profile animal label
+  Response:  { byState: { new, seen, learned, mastered }, total,
+               hardest: CardRecord[] }  -- hardest capped at 20
+
+GET /api/stats/recent-upgrades
+  Trigger:   Home "recent progress" list
+  Response:  RecentUpgrade[]  -- the 5 latest tier promotions, newest first
+  Helper:    fetchRecentUpgrades() in features/study/stats/lib/statsApi.ts
+
+RecentUpgrade shape:                     (camelCase -- a purpose-built
+  { cardId, deckId, deckName,             aggregate, not a raw cards row)
+    front, reading, back,
+    stateBefore, stateAfter, reviewedAt }
+  -- Promotions ONLY, up the ladder new < seen < learned < mastered.
+  --  again-driven demotions and same-tier reviews are excluded.
+  -- Events, not distinct cards: a card promoted twice appears twice.
+  -- Read from the card_reviews log, so later reviews don't overwrite it.
 
 DeckRecord shape:
   { id, user_id, name, description, created_at, card_count }
@@ -227,7 +298,10 @@ CardRecord shape:
 
 GET /api/search?q={query}
   Trigger:   Dictionary input typing (debounced via DictionaryStateProvider),
-             URL-based search, kanji lookup from word detail.
+             URL-based search (?q=), kanji lookup from word detail. The home
+             dictionary card's search field and its recent-lookup rows both
+             route here by pushing /dictionary?q=<term> -- one search
+             implementation, several doorways into it.
   Response:  SearchResponse
     | { type: 'kanji',   kanji: KanjiInfo | null, words: WordResult[], names: NameResult[] }
     | { type: 'word',    words: WordResult[] }
@@ -308,9 +382,18 @@ Client-side storage:
       dictionary_state           sticky dictionary view state
       dictionary_recent_searches recent search history
 
+    Device-scoped (NOT wiped on account switch):
+      aogimi-theme               'light' | 'dark'. Written by ThemeProvider,
+                                 read by the pre-paint <script> in
+                                 app/layout.tsx before first paint. Falls back
+                                 to prefers-color-scheme when absent.
+                                 Supersedes the removed `app-theme` key; moves
+                                 to a users.theme column later.
+
     REMOVED localStorage keys (no longer written/read):
-      app-theme                  theme not persisted (single `default`);
-                                 pre-hydration <script> also gone
+      app-theme                  superseded by `aogimi-theme` above (the
+                                 redesign reintroduced a real theme switch, so
+                                 the choice has to survive a reload)
       lgc_avatar_index           avatar now read from backend (avatar_index
                                  on UserProfile) — single source of truth
       lgc_needs_onboarding       gate now reads users.onboarding_completed

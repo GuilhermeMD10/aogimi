@@ -2,7 +2,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* ── Color tokens (--lgc-*) ────────────────────────────────────────────── */
+/* ── Design tokens (redesign — light + dark) ───────────────────────────── */
+/* Loaded before the outgoing --lgc-* layer so that layer keeps winning any
+   accidental overlap while pages are still migrating. No name is shared, so
+   in practice the two never meet. */
+@import "../styles/ds-tokens.css";
+
+/* ── Color tokens (--lgc-*) — OUTGOING ─────────────────────────────────── */
+/* Deleted once the last page reads ds-tokens.css instead. */
 @import "../styles/themes/default.css";
 
 /* ── Shape tokens ──────────────────────────────────────────────────────── */
@@ -128,8 +135,28 @@
     font-family: var(--lgc-font-ui);
   }
 
+  /* Page canvas. Owned by the new token layer, so it is theme-aware for every
+     route — the background is app-wide chrome, not something a page paints.
+     `bg-background`/`text-foreground` (which resolve to the outgoing --lgc-*
+     palette, light-only) are deliberately gone from here.
+     Split across the two elements: base gradient on <html>, star tiles on
+     <body>, so each background-size list is a single value. See ds-tokens.css
+     for why one combined declaration doesn't work. */
+  html {
+    background-color: var(--bg);
+    background-image: var(--page-base);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    color: var(--ink);
+    background-image: var(--page-stars);
+    background-size: 640px 460px;
+    background-repeat: repeat;
+    background-attachment: fixed;
+    box-shadow: var(--page-vignette);
   }
 }
 

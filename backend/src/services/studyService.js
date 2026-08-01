@@ -91,8 +91,15 @@ function orderByMode(cards, mode) {
  * Resolve a session: fetch eligible cards for the user, apply the
  * selected mode, and slice to the requested limit. Deck IDs not owned
  * by the user are silently dropped (no leak about which IDs exist).
+ *
+ * `dueOnly` narrows the candidate pool to cards that are due right now
+ * (never reviewed, or past `next_due_at`) before the mode orders them. It's
+ * a pool filter, not a mode: `dueOnly: true` with `scope: 'all'` is the
+ * "study every due card across all decks" session. Combining it with a mode
+ * that filters further (`oldest_only`, `newest_only`) intersects both
+ * filters and can legitimately return fewer cards than `limit`.
  */
-async function fetchSessionCards(userId, { scope, deckIds, mode, limit }) {
+async function fetchSessionCards(userId, { scope, deckIds, mode, limit, dueOnly }) {
   if (!VALID_MODES.includes(mode)) {
     throw new Error(`Unknown mode: ${mode}`);
   }
@@ -109,7 +116,9 @@ async function fetchSessionCards(userId, { scope, deckIds, mode, limit }) {
 
   if (effectiveDeckIds.length === 0) return [];
 
-  const cards = await cardRepo.findByDeckIds(effectiveDeckIds);
+  const cards = dueOnly
+    ? await cardRepo.findDueByDeckIds(effectiveDeckIds)
+    : await cardRepo.findByDeckIds(effectiveDeckIds);
   const ordered = orderByMode(cards, mode);
 
   const cap = Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_SESSION_SIZE;
@@ -130,9 +139,47 @@ async function fetchDueCards(userId) {
   return await cardRepo.findDueByDeckIds(ownedIds);
 }
 
+/**
+ * One card picked at random from everything the user has due right now.
+ * Returns null when the user owns no decks or has nothing due — "nothing to
+ * study" is a normal state, not an error.
+ */
+async function fetchRandomDueCard(userId) {
+  const userDecks = await deckRepo.findByUser(userId);
+  const ownedIds = userDecks.map((d) => d.id);
+  if (ownedIds.length === 0) return null;
+  const card = await cardRepo.findRandomDueByDeckIds(ownedIds);
+  return card ?? null;
+}
+
+/**
+ * How many cards are due, in total and per deck, across everything the user
+ * owns. One round trip — the alternative is fetching the whole due inventory
+ * just to measure it, which is what the home screen would otherwise do to
+ * render a count and three deck chips.
+ *
+ * Decks with nothing due are omitted from `byDeck`; read a missing key as 0.
+ */
+async function fetchDueCounts(userId) {
+  const userDecks = await deckRepo.findByUser(userId);
+  const ownedIds = userDecks.map((d) => d.id);
+  if (ownedIds.length === 0) return { total: 0, byDeck: {} };
+
+  const rows = await cardRepo.countDueByDeckIds(ownedIds);
+  const byDeck = {};
+  let total = 0;
+  for (const row of rows) {
+    byDeck[row.deck_id] = row.count;
+    total += row.count;
+  }
+  return { total, byDeck };
+}
+
 module.exports = {
   VALID_MODES,
   DEFAULT_SESSION_SIZE,
   fetchSessionCards,
   fetchDueCards,
+  fetchRandomDueCard,
+  fetchDueCounts,
 };
