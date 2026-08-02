@@ -31,6 +31,7 @@ CREATE TABLE users (
   language              text         NOT NULL DEFAULT 'en',
   avatar_index          smallint     NOT NULL DEFAULT 0,
   onboarding_completed  boolean      NOT NULL DEFAULT false,
+  sky_seed              text         NOT NULL DEFAULT substr(md5(gen_random_uuid()::text), 1, 16),
   created_at            timestamptz  NOT NULL DEFAULT now(),
   updated_at            timestamptz  NOT NULL DEFAULT now()
 );

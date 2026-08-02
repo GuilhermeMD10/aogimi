@@ -6,6 +6,9 @@ export interface UserProfile {
   language: string | null;
   avatar_index: number | null;
   onboarding_completed: boolean;
+  /** 16-hex immutable seed the star map generates from (migration 025). Optional only because a
+   *  backend that predates the migration omits it — the sky simply doesn't mount then. */
+  sky_seed?: string;
   created_at: string;
 }
 

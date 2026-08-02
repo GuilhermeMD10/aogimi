@@ -4,7 +4,12 @@ const pool = require("../db");
 // `password_hash` is deliberately excluded — no API response should ever
 // carry it. New columns added to `users` should be added here only if
 // they are safe to expose to clients.
-const PUBLIC_COLUMNS = "id, username, display_name, email, language, avatar_index, onboarding_completed, created_at";
+//
+// `sky_seed` (migration 025) is exposed on purpose: the star map generates
+// client-side from it, and it is not a secret — knowing it reveals nothing
+// but star positions. It is NOT in the PATCH allow-list; treat it as
+// immutable.
+const PUBLIC_COLUMNS = "id, username, display_name, email, language, avatar_index, onboarding_completed, sky_seed, created_at";
 
 module.exports = {
   /** Insert a new user with an already-bcrypted hash. The caller (auth

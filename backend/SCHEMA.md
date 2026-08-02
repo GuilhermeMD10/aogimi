@@ -33,6 +33,7 @@ Authentication + profile.
 | language | text | NOT NULL DEFAULT 'en' | UI language preference |
 | avatar_index | smallint | NOT NULL DEFAULT 0 | Index into the kamon glyph set |
 | onboarding_completed | boolean | NOT NULL DEFAULT false | Onboarding modal gate |
+| sky_seed | text | NOT NULL DEFAULT `substr(md5(gen_random_uuid()::text), 1, 16)` | 16-hex procedural seed for the user's star map (migration 025). Star positions derive client-side from (seed, deck uuid, card uuid) — nothing positional is stored. Exposed via `PUBLIC_COLUMNS`; **immutable** (not in the PATCH allow-list — changing it would rearrange the whole sky). |
 | created_at | timestamptz | NOT NULL DEFAULT now() | |
 | updated_at | timestamptz | NOT NULL DEFAULT now() | Bumped by every profile update |
 
