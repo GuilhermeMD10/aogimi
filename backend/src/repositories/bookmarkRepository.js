@@ -11,6 +11,15 @@ module.exports = {
     return result.rows[0];
   },
 
+  /** Bookmarks on one book. Backs the per-book bookmark quota. */
+  countByBook: async (bookId) => {
+    const result = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM bookmarks WHERE book_id = $1`,
+      [bookId]
+    );
+    return result.rows[0]?.count ?? 0;
+  },
+
   findByBook: async (bookId) => {
     const result = await pool.query(
       `SELECT * FROM bookmarks WHERE book_id = $1 ORDER BY created_at DESC`,

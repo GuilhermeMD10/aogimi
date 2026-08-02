@@ -10,11 +10,8 @@ const { Router } = require("express");
 const rateLimit = require("express-rate-limit");
 const { ipKeyGenerator } = require("express-rate-limit");
 const authService = require("../services/authService");
-const {
-  registerSchema,
-  loginSchema,
-  parseBody,
-} = require("../validation/auth");
+const { registerSchema, loginSchema } = require("../validation/auth");
+const { parseBody } = require("../validation/_helpers");
 const {
   REFRESH_COOKIE_NAME,
   REFRESH_COOKIE_PATH,
@@ -120,11 +117,13 @@ router.post("/register", registerLimiter, async (req, res) => {
   if (!body) return;
 
   try {
-    const tokens = await authService.register(body.username, body.password);
+    const tokens = await authService.register(body.username, body.email, body.password);
     return sendAuthSuccess(req, res, tokens, 201);
   } catch (err) {
-    if (err.code === "USERNAME_TAKEN") {
-      return res.status(409).json({ error: err.message });
+    // `code` rides along so the client can attach the message to the field
+    // that caused it rather than to the form as a whole.
+    if (err.code === "USERNAME_TAKEN" || err.code === "EMAIL_TAKEN") {
+      return res.status(409).json({ error: err.message, code: err.code });
     }
     // Generic 500 — never echo internal messages on the auth surface.
     return res.status(500).json({ error: "Registration failed" });

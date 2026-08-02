@@ -16,7 +16,15 @@ import type {
 } from '@/features/dictionary/types';
 import { InfoRow } from '@/shared/ui/InfoRow';
 import { SectionHead } from '@/shared/ui/SectionHead';
-import { MAX_MEANINGS_ON_CARD } from '@/features/study/decks';
+import {
+  MAX_MEANINGS_ON_CARD,
+  MAX_CARDS_PER_DECK,
+  MAX_CARD_BACK,
+  MAX_CARD_CONTEXT,
+  MAX_DECKS,
+  MAX_DECK_NAME,
+  deckQuotaMessage,
+} from '@/features/study/decks';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import { PitchAccentDiagram } from '@/shared/ui/PitchAccentDiagram';
 
@@ -562,31 +570,42 @@ function SelectDeckPhase({
           <p className="text-sm text-lgc-fg-muted">Loading decks&hellip;</p>
         ) : decks.length > 0 ? (
           <div className="space-y-1.5">
-            {decks.map((deck) => (
-              <button
-                key={deck.id}
-                type="button"
-                onClick={() => onSelectDeck(deck.id, deck.name)}
-                className="w-full rounded-md border border-lgc-border bg-lgc-bg px-4 py-3 text-left transition-colors hover:bg-lgc-accent-soft"
-              >
-                <span className="font-medium text-lgc-fg">{deck.name}</span>
-                <span className="ml-2 text-xs text-lgc-fg-muted">
-                  {deck.card_count} card{deck.card_count !== 1 ? 's' : ''}
-                </span>
-              </button>
-            ))}
+            {decks.map((deck) => {
+              // Full decks aren't offered — selecting one would advance to a
+              // card form whose submit 409s.
+              const full = deck.card_count >= MAX_CARDS_PER_DECK;
+              return (
+                <button
+                  key={deck.id}
+                  type="button"
+                  onClick={() => onSelectDeck(deck.id, deck.name)}
+                  disabled={full}
+                  className="w-full rounded-md border border-lgc-border bg-lgc-bg px-4 py-3 text-left transition-colors hover:bg-lgc-accent-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lgc-bg"
+                >
+                  <span className="font-medium text-lgc-fg">{deck.name}</span>
+                  <span className="ml-2 text-xs text-lgc-fg-muted">
+                    {full
+                      ? 'full'
+                      : `${deck.card_count} card${deck.card_count !== 1 ? 's' : ''}`}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-lgc-fg-muted">No decks yet &mdash; create one below.</p>
         )}
 
-        {showNewDeck ? (
+        {decks.length >= MAX_DECKS ? (
+          <p className="mt-4 text-xs text-lgc-fg-muted">{deckQuotaMessage(decks.length)}</p>
+        ) : showNewDeck ? (
           <form onSubmit={createDeck} className="mt-4 flex gap-2">
             <input
               type="text"
               value={newDeckName}
               onChange={(e) => setNewDeckDraft((d) => ({ name: e.target.value, creating: d?.creating ?? false }))}
               placeholder="New deck name"
+              maxLength={MAX_DECK_NAME}
               className="flex-1 rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
               autoFocus
             />
@@ -703,6 +722,7 @@ function CreateCardPhase({
             <textarea
               value={back}
               onChange={(e) => setBack(e.target.value)}
+              maxLength={MAX_CARD_BACK}
               className="mt-1.5 w-full resize-none rounded-md border border-lgc-border bg-lgc-bg px-4 py-3 text-sm leading-relaxed text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
               rows={5}
               autoFocus
@@ -718,6 +738,7 @@ function CreateCardPhase({
               value={context}
               onChange={(e) => setContext(e.target.value)}
               placeholder="The sentence where you found this word..."
+              maxLength={MAX_CARD_CONTEXT}
               className="mt-1.5 w-full resize-none rounded-md border border-lgc-border bg-lgc-bg px-4 py-3 text-[13px] leading-relaxed text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
               rows={2}
             />

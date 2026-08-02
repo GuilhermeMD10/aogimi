@@ -14,6 +14,12 @@ type Props = {
   /** Present → renders an anchor. Absent → a real <button>. */
   href?: string;
   onClick?: () => void;
+  /** Ignored when `href` is set — a link has no form semantics. `submit` lets
+   *  a form's primary action be this component instead of a hand-rolled one. */
+  type?: 'button' | 'submit';
+  /** Ignored when `href` is set. Pointer events and the hover lift go with it,
+   *  so a pending button doesn't invite a second click. */
+  disabled?: boolean;
   className?: string;
   'aria-label'?: string;
 };
@@ -50,10 +56,17 @@ export function Button({
   variant = 'primary',
   href,
   onClick,
+  type = 'button',
+  disabled = false,
   className,
   'aria-label': ariaLabel,
 }: Props) {
-  const classes = cn(BASE, VARIANTS[variant], className);
+  const classes = cn(
+    BASE,
+    VARIANTS[variant],
+    disabled && 'pointer-events-none opacity-60 hover:translate-y-0',
+    className,
+  );
 
   const content = (
     <>
@@ -71,7 +84,13 @@ export function Button({
   }
 
   return (
-    <button type="button" onClick={onClick} className={classes} aria-label={ariaLabel}>
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={classes}
+      aria-label={ariaLabel}
+    >
       {content}
     </button>
   );

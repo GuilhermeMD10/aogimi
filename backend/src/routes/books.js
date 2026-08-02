@@ -12,17 +12,35 @@ const bookService = require("../services/bookService");
 const bookmarkService = require("../services/bookmarkService");
 const { requireUserMatch } = require("../middleware/authorize");
 const { bookOwnedBy, bookmarkOwnedBy } = require("../services/ownership");
+const quotas = require("../services/quotas");
+const { parseBody } = require("../validation/_helpers");
+const {
+  createBookSchema,
+  updateIdentitySchema,
+  updateTitleSchema,
+  progressSchema,
+  createBookmarkSchema,
+  matchSchema,
+} = require("../validation/books");
 
 const router = Router();
 
 // POST /api/books — register a new book for the calling user.
+//
+// The quota check sits AFTER `createBook`'s dedup would have run, so it's
+// done here against the count: `bookService.createBook` returns the existing
+// row when (user, filename) already exists, and re-registering a book the
+// user already has must not be refused. `alreadyRegistered` asks that
+// question first so an at-quota user can still re-sync their own library.
 router.post("/", async (req, res) => {
-  const { filename, title, author, coverColor, fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher } = req.body;
-  if (!filename || !title) {
-    return res.status(400).json({ error: "filename and title are required" });
-  }
+  const body = parseBody(createBookSchema, req, res);
+  if (!body) return;
   try {
-    const book = await bookService.createBook(req.user.userId, { filename, title, author, coverColor, fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher });
+    const existing = await bookService.findByFilename(req.user.userId, body.filename);
+    if (!existing && !(await quotas.enforce(res, quotas.bookQuota, req.user.userId))) {
+      return;
+    }
+    const book = await bookService.createBook(req.user.userId, body);
     return res.json(book);
   } catch (err) {
     return res.status(500).json({ error: "Create failed" });
@@ -31,13 +49,15 @@ router.post("/", async (req, res) => {
 
 // POST /api/books/match — match candidates against the caller's library.
 // Must be before /:id to avoid "match" being captured as a book id.
+//
+// The array is length-capped by the schema: matching is a hamming-distance
+// loop per candidate × per stored book × per sampled page, run synchronously,
+// so an unbounded array stalls the event loop for every other request.
 router.post("/match", async (req, res) => {
-  const { books } = req.body;
-  if (!Array.isArray(books)) {
-    return res.status(400).json({ error: "books array is required" });
-  }
+  const body = parseBody(matchSchema, req, res);
+  if (!body) return;
   try {
-    const results = await bookService.matchBooks(req.user.userId, books);
+    const results = await bookService.matchBooks(req.user.userId, body.books);
     return res.json(results);
   } catch (err) {
     return res.status(500).json({ error: "Match failed" });
@@ -78,11 +98,10 @@ async function handleProgressUpdate(req, res) {
   if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
-  const { cfiPosition, progress, spineIndex, totalSpineItems } = req.body;
+  const body = parseBody(progressSchema, req, res);
+  if (!body) return;
   try {
-    const book = await bookService.updateProgress(req.params.id, {
-      cfiPosition, progress, spineIndex, totalSpineItems,
-    });
+    const book = await bookService.updateProgress(req.params.id, body);
     return res.json(book);
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
@@ -96,12 +115,10 @@ router.patch("/:id", async (req, res) => {
   if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
-  const { title } = req.body;
-  if (typeof title !== "string" || title.trim().length === 0) {
-    return res.status(400).json({ error: "title is required" });
-  }
+  const body = parseBody(updateTitleSchema, req, res);
+  if (!body) return;
   try {
-    const book = await bookService.updateTitle(req.params.id, title.trim());
+    const book = await bookService.updateTitle(req.params.id, body.title);
     return res.json(book);
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
@@ -113,11 +130,10 @@ router.put("/:id/identity", async (req, res) => {
   if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
-  const { fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher } = req.body;
+  const body = parseBody(updateIdentitySchema, req, res);
+  if (!body) return;
   try {
-    const book = await bookService.updateIdentity(req.params.id, {
-      fileHash, contentHash, pdfIdOriginal, pdfIdCurrent, pageCount, hasTextLayer, producer, xmpDocumentId, xmpOriginalId, pageHashes, textLength, detectedDoi, detectedIsbn, pagePhashes, fingerprintVersion, dcIdentifier, language, publisher,
-    });
+    const book = await bookService.updateIdentity(req.params.id, body);
     return res.json(book);
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
@@ -143,10 +159,11 @@ router.post("/:id/bookmarks", async (req, res) => {
   if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
-  const { cfi, label } = req.body;
-  if (!cfi) return res.status(400).json({ error: "cfi is required" });
+  const body = parseBody(createBookmarkSchema, req, res);
+  if (!body) return;
+  if (!(await quotas.enforce(res, quotas.bookmarkQuota, req.params.id))) return;
   try {
-    const bookmark = await bookmarkService.createBookmark(req.params.id, { cfi, label });
+    const bookmark = await bookmarkService.createBookmark(req.params.id, body);
     return res.json(bookmark);
   } catch (err) {
     return res.status(500).json({ error: "Create failed" });

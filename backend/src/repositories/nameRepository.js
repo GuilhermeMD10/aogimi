@@ -1,19 +1,31 @@
 const pool = require("../db");
+const { LIMITS } = require("../config/limits");
 
 const NAME_SELECT = `SELECT id, kanji, kana, name_type, meaning`;
 
+// Every query here is capped. `names` is the JMnedict import — hundreds of
+// thousands of rows — and the two pattern queries below (`name_type LIKE
+// '%…%'`, `meaning ILIKE '%…%'`) had no LIMIT at all, so `?type=a` or
+// `?meaning=a` on an UNAUTHENTICATED endpoint streamed a large fraction of
+// the table into Node's heap. The equality lookups are naturally small but
+// share the cap so there's one number to reason about.
+//
+// The cap is above what any caller uses: searchService hands name rows to
+// `assembleNameRow` and the web client renders `names.slice(0, 10)`.
+const CAP = LIMITS.DICTIONARY_RESULTS;
+
 async function findByKanji(kanji) {
   const { rows } = await pool.query(
-    `${NAME_SELECT} FROM names WHERE kanji = $1`,
-    [kanji]
+    `${NAME_SELECT} FROM names WHERE kanji = $1 LIMIT $2`,
+    [kanji, CAP]
   );
   return rows;
 }
 
 async function findByKana(kana) {
   const { rows } = await pool.query(
-    `${NAME_SELECT} FROM names WHERE kana = $1`,
-    [kana]
+    `${NAME_SELECT} FROM names WHERE kana = $1 LIMIT $2`,
+    [kana, CAP]
   );
   return rows;
 }
@@ -24,7 +36,7 @@ async function findByKanaPrefix(prefix, limit = 20) {
      WHERE kana LIKE $1
      ORDER BY kana
      LIMIT $2`,
-    [`${prefix}%`, limit]
+    [`${prefix}%`, Math.min(limit, CAP)]
   );
   return rows;
 }
@@ -33,16 +45,17 @@ async function findByType(type) {
   const { rows } = await pool.query(
     `${NAME_SELECT} FROM names
      WHERE name_type LIKE $1
-     ORDER BY kana`,
-    [`%${type}%`]
+     ORDER BY kana
+     LIMIT $2`,
+    [`%${type}%`, CAP]
   );
   return rows;
 }
 
 async function findByMeaning(query) {
   const { rows } = await pool.query(
-    `${NAME_SELECT} FROM names WHERE meaning ILIKE $1`,
-    [`%${query}%`]
+    `${NAME_SELECT} FROM names WHERE meaning ILIKE $1 LIMIT $2`,
+    [`%${query}%`, CAP]
   );
   return rows;
 }

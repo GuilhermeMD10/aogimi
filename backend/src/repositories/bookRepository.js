@@ -13,6 +13,18 @@ module.exports = {
     return result.rows[0];
   },
 
+  /** How many books this user has registered. Backs the per-user book
+   *  quota — `book_progress` rows are wide (23 identity columns plus two
+   *  text[] hash arrays), so counting in SQL rather than measuring
+   *  findBooksByUser().length keeps the check cheap. */
+  countBooksByUser: async (userId) => {
+    const result = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM book_progress WHERE user_id = $1`,
+      [userId]
+    );
+    return result.rows[0]?.count ?? 0;
+  },
+
   findBooksByUser: async (userId) => {
     const result = await pool.query(
       `SELECT * FROM book_progress WHERE user_id = $1 ORDER BY last_read_at DESC`,

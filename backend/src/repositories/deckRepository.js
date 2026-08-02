@@ -50,6 +50,17 @@ module.exports = {
     return result.rows[0];
   },
 
+  /** How many decks this user owns. Backs the per-user deck quota —
+   *  counted in SQL so the check doesn't pull whole rows (with their
+   *  card_count subquery and last_card lateral) to measure `.length`. */
+  countByUser: async (userId) => {
+    const result = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM decks WHERE user_id = $1`,
+      [userId]
+    );
+    return result.rows[0]?.count ?? 0;
+  },
+
   findByUser: async (userId) => {
     const result = await pool.query(
       `SELECT d.*, ${CARD_COUNT}, lc.last_card

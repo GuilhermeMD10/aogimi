@@ -1,8 +1,18 @@
 const { Router } = require("express");
 const wordService = require("../services/wordService");
 const searchService = require("../services/searchService");
+const { clampLimit } = require("../validation/_helpers");
+const { LIMITS } = require("../config/limits");
 
 const router = Router();
+
+// `?limit=` used to be `parseInt(...) || fallback` and went straight into
+// `LIMIT $n`. These routes are UNAUTHENTICATED, so `?limit=999999999`
+// returned the entire reading table to anyone who asked — and the pg pool
+// defaults to 10 connections, so a few concurrent requests exhausted it.
+// Clamping (rather than 400-ing) keeps existing callers working.
+const clampDictLimit = (raw, fallback) =>
+  clampLimit(raw, { fallback, max: LIMITS.DICTIONARY_RESULTS });
 
 // GET /api/words/:id/details  — word + kanji breakdown for the detail page
 router.get("/:id/details", async (req, res) => {
@@ -67,7 +77,7 @@ router.get("/priority", async (req, res) => {
 
 // GET /api/words/kana-only[?limit=50]
 router.get("/kana-only", async (req, res) => {
-  const limit = parseInt(req.query.limit, 10) || 50;
+  const limit = clampDictLimit(req.query.limit, 50);
   try {
     res.json(await wordService.getKanaOnly(limit));
   } catch {
@@ -98,7 +108,7 @@ router.get("/kana/:kana", async (req, res) => {
 
 // GET /api/words/kana-prefix/:prefix[?limit=20]
 router.get("/kana-prefix/:prefix", async (req, res) => {
-  const limit = parseInt(req.query.limit, 10) || 20;
+  const limit = clampDictLimit(req.query.limit, 20);
   try {
     res.json(await wordService.getKanaPrefix(req.params.prefix, limit));
   } catch {

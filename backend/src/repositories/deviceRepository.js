@@ -13,6 +13,27 @@ module.exports = {
     return result.rows[0];
   },
 
+  /** Devices registered to this user. Backs the per-user device quota.
+   *  Counted without the availability join `findByUser` carries. */
+  countByUser: async (userId) => {
+    const result = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM devices WHERE user_id = $1`,
+      [userId]
+    );
+    return result.rows[0]?.count ?? 0;
+  },
+
+  /** Whether this (device, user) pair already exists. `upsert` is an
+   *  ON CONFLICT DO UPDATE, so re-registering a known device must NOT count
+   *  against the quota — only a genuinely new row does. */
+  exists: async (deviceId, userId) => {
+    const result = await pool.query(
+      `SELECT 1 FROM devices WHERE device_id = $1 AND user_id = $2 LIMIT 1`,
+      [deviceId, userId]
+    );
+    return result.rowCount > 0;
+  },
+
   findByUser: async (userId) => {
     const result = await pool.query(
       `SELECT d.*,

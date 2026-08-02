@@ -3,22 +3,37 @@
 // Same ownership pattern as books.js: token is the only identity
 // source, every `:id` is cross-checked via deckOwnedBy / cardOwnedBy
 // (cards owned via deck FK), 404 on mismatch.
+//
+// Bodies are validated by zod (validation/decks.js) — length caps on every
+// text field and an enum on `state`, which used to accept any string and let
+// a client skip the SRS ladder. Inserts are gated by the per-user deck and
+// per-deck card quotas (services/quotas.js), which answer 409.
 
 const { Router } = require("express");
 const deckService = require("../services/deckService");
 const cardService = require("../services/cardService");
 const { requireUserMatch } = require("../middleware/authorize");
 const { deckOwnedBy, cardOwnedBy } = require("../services/ownership");
+const quotas = require("../services/quotas");
+const { parseBody } = require("../validation/_helpers");
+const {
+  createDeckSchema,
+  updateDeckSchema,
+  createCardSchema,
+  updateCardSchema,
+  reviewCardSchema,
+} = require("../validation/decks");
 
 const router = Router();
 
 // ── Decks ───────────────────────────────────────────────────────────────────
 
 router.post("/", async (req, res) => {
-  const { name, description } = req.body;
-  if (!name) return res.status(400).json({ error: "name is required" });
+  const body = parseBody(createDeckSchema, req, res);
+  if (!body) return;
+  if (!(await quotas.enforce(res, quotas.deckQuota, req.user.userId))) return;
   try {
-    const deck = await deckService.createDeck(req.user.userId, { name, description });
+    const deck = await deckService.createDeck(req.user.userId, body);
     return res.json(deck);
   } catch (err) {
     return res.status(500).json({ error: "Create failed" });
@@ -54,9 +69,10 @@ router.put("/:id", async (req, res) => {
   if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
-  const { name, description } = req.body;
+  const body = parseBody(updateDeckSchema, req, res);
+  if (!body) return;
   try {
-    const deck = await deckService.updateDeck(req.params.id, { name, description });
+    const deck = await deckService.updateDeck(req.params.id, body);
     return res.json(deck);
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
@@ -81,12 +97,11 @@ router.post("/:id/cards", async (req, res) => {
   if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
-  const { front, reading, back, notes, contextSentence } = req.body;
-  if (!front || !back) {
-    return res.status(400).json({ error: "front and back are required" });
-  }
+  const body = parseBody(createCardSchema, req, res);
+  if (!body) return;
+  if (!(await quotas.enforce(res, quotas.cardQuota, req.params.id))) return;
   try {
-    const card = await cardService.createCard(req.params.id, { front, reading, back, notes, contextSentence });
+    const card = await cardService.createCard(req.params.id, body);
     return res.json(card);
   } catch (err) {
     return res.status(500).json({ error: "Create failed" });
@@ -136,9 +151,10 @@ router.put("/cards/:cardId", async (req, res) => {
   if (!(await cardOwnedBy(req.user.userId, req.params.cardId))) {
     return res.status(404).json({ error: "Not found" });
   }
-  const { front, reading, back, notes, state, contextSentence } = req.body;
+  const body = parseBody(updateCardSchema, req, res);
+  if (!body) return;
   try {
-    const card = await cardService.updateCard(req.params.cardId, { front, reading, back, notes, state, contextSentence });
+    const card = await cardService.updateCard(req.params.cardId, body);
     return res.json(card);
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
@@ -149,12 +165,10 @@ router.post("/cards/:cardId/review", async (req, res) => {
   if (!(await cardOwnedBy(req.user.userId, req.params.cardId))) {
     return res.status(404).json({ error: "Not found" });
   }
-  const { outcome } = req.body;
-  if (!["again", "hard", "easy"].includes(outcome)) {
-    return res.status(400).json({ error: "outcome must be 'again', 'hard', or 'easy'" });
-  }
+  const body = parseBody(reviewCardSchema, req, res);
+  if (!body) return;
   try {
-    const card = await cardService.reviewCard(req.user.userId, req.params.cardId, outcome);
+    const card = await cardService.reviewCard(req.user.userId, req.params.cardId, body.outcome);
     return res.json(card);
   } catch (err) {
     return res.status(404).json({ error: "Not found" });

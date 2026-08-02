@@ -2,6 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { CardModel, DeckSummary } from '../../types';
+import {
+  MAX_CARDS_PER_DECK,
+  MAX_CARD_BACK,
+  MAX_DECKS,
+  MAX_DECK_NAME,
+  deckQuotaMessage,
+} from '../../lib/limits';
 
 export type PendingCardFlow =
   | { phase: 'select-deck'; word: string; initialBack?: string; contextSentence?: string }
@@ -123,6 +130,8 @@ function SelectDeckPhase({
   onCreateDeck: (e: React.FormEvent) => void;
   onCancel: () => void;
 }) {
+  const atDeckQuota = decks.length >= MAX_DECKS;
+
   return (
     <>
       <h2
@@ -140,32 +149,44 @@ function SelectDeckPhase({
 
       {decks.length > 0 ? (
         <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
-          {decks.map((deck) => (
-            <li key={deck.id}>
-              <button
-                type="button"
-                onClick={() => onSelectDeck(deck.id)}
-                className="w-full rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-left text-sm transition-colors hover:bg-lgc-accent-soft"
-              >
-                <span className="font-medium text-lgc-fg">{deck.name}</span>
-                <span className="ml-2 text-xs text-lgc-fg-muted">
-                  {deck.card_count} card{deck.card_count !== 1 ? 's' : ''}
-                </span>
-              </button>
-            </li>
-          ))}
+          {decks.map((deck) => {
+            // A deck at the card quota can't take this card, so it isn't
+            // offered — picking it would advance the flow to a form that
+            // 409s on submit.
+            const full = deck.card_count >= MAX_CARDS_PER_DECK;
+            return (
+              <li key={deck.id}>
+                <button
+                  type="button"
+                  onClick={() => onSelectDeck(deck.id)}
+                  disabled={full}
+                  className="w-full rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-left text-sm transition-colors hover:bg-lgc-accent-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lgc-bg"
+                >
+                  <span className="font-medium text-lgc-fg">{deck.name}</span>
+                  <span className="ml-2 text-xs text-lgc-fg-muted">
+                    {full
+                      ? 'full'
+                      : `${deck.card_count} card${deck.card_count !== 1 ? 's' : ''}`}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p className="mt-2 text-sm text-lgc-fg-muted">No decks yet &mdash; create one below.</p>
       )}
 
-      {showNewDeck ? (
+      {atDeckQuota ? (
+        <p className="mt-3 text-xs text-lgc-fg-muted">{deckQuotaMessage(decks.length)}</p>
+      ) : showNewDeck ? (
         <form onSubmit={onCreateDeck} className="mt-3 flex gap-2">
           <input
             type="text"
             value={newDeckName}
             onChange={(e) => setNewDeckName(e.target.value)}
             placeholder="New deck name"
+            maxLength={MAX_DECK_NAME}
             className="flex-1 rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
             autoFocus
           />
@@ -241,6 +262,7 @@ function CreateCardPhase({
             value={pendingBack}
             onChange={(e) => setPendingBack(e.target.value)}
             placeholder="Write the back side..."
+            maxLength={MAX_CARD_BACK}
             className="mt-1 w-full resize-none rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
             rows={3}
             autoFocus

@@ -14,6 +14,7 @@ import { LibraryShelf, FsAccessBanner } from '@/features/books/library';
 import OnboardingExplainerModal from '@/features/onboarding';
 import { getUserProfile } from '@/features/profile/lib/userApi';
 import { useSyncBooks } from '@/features/books/hooks/useSyncBooks';
+import { MAX_BOOKS, bookQuotaMessage } from '@/features/books/lib/limits';
 
 export default function BooksView() {
   const user = useAuthedUser();
@@ -46,6 +47,21 @@ export default function BooksView() {
       const validationError = validateBookFile(file);
       if (validationError) {
         setError(validationError);
+        return;
+      }
+
+      // Library quota, checked before the expensive part. Importing hashes the
+      // whole file (up to 500 MB for a PDF) and, for PDFs, renders sampled
+      // pages to compute perceptual hashes — all before the backend is asked
+      // anything. Refusing here saves the user that wait; the backend still
+      // gates the insert with a 409 (BOOK_QUOTA_EXCEEDED).
+      //
+      // Re-importing a book already in the library is exempt: the backend
+      // treats a known (user, filename) as a no-op and returns the existing
+      // row, so a user at the cap can still re-attach their own files.
+      const alreadyPresent = books.some((b) => b.filename === file.name);
+      if (!alreadyPresent && books.length >= MAX_BOOKS) {
+        setError(bookQuotaMessage(books.length));
         return;
       }
 
@@ -88,7 +104,7 @@ export default function BooksView() {
         setImporting(false);
       }
     },
-    [user, setBooks, setError],
+    [user, books, setBooks, setError],
   );
 
   const onFileChange = useCallback(

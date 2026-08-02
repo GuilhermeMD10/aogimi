@@ -7,6 +7,8 @@
 const { Router } = require("express");
 const studyService = require("../services/studyService");
 const prefsRepo = require("../repositories/userStudyPrefsRepository");
+const { parseBody } = require("../validation/_helpers");
+const { sessionSchema, prefsSchema } = require("../validation/study");
 
 const router = Router();
 
@@ -18,30 +20,15 @@ const DEFAULT_DISPLAY = Object.freeze({
 
 // ── Session ────────────────────────────────────────────────────────────────
 
+// Validation moved to validation/study.js — same rules as before plus two
+// bounds the hand-rolled checks didn't have: `limit` has a ceiling (it was
+// any magnitude) and `deckIds` has a length cap and a uuid-per-entry check.
 router.post("/session", async (req, res) => {
-  const { scope, deckIds, mode, limit, dueOnly } = req.body || {};
-
-  if (scope !== 'all' && scope !== 'deck') {
-    return res.status(400).json({ error: "scope must be 'all' or 'deck'" });
-  }
-  if (!studyService.VALID_MODES.includes(mode)) {
-    return res.status(400).json({ error: `mode must be one of ${studyService.VALID_MODES.join(', ')}` });
-  }
-  if (scope === 'deck' && (!Array.isArray(deckIds) || deckIds.length === 0)) {
-    return res.status(400).json({ error: "deckIds required when scope is 'deck'" });
-  }
-  if (dueOnly !== undefined && typeof dueOnly !== 'boolean') {
-    return res.status(400).json({ error: "dueOnly must be a boolean" });
-  }
+  const body = parseBody(sessionSchema, req, res);
+  if (!body) return;
 
   try {
-    const cards = await studyService.fetchSessionCards(req.user.userId, {
-      scope,
-      deckIds,
-      mode,
-      limit,
-      dueOnly,
-    });
+    const cards = await studyService.fetchSessionCards(req.user.userId, body);
     return res.json({ cards });
   } catch (err) {
     return res.status(500).json({ error: "Session resolution failed" });
@@ -103,11 +90,15 @@ router.get("/prefs", async (req, res) => {
   }
 });
 
+// Both documents are stored as JSONB. They used to be stringified and
+// written verbatim, which made the column arbitrary user-controlled storage
+// up to the body cap; the schema now bounds shape, key count and value types
+// while staying open enough for new display toggles (SCHEMA.md documents
+// `display` as deliberately schema-free).
 router.put("/prefs", async (req, res) => {
-  const { display, deckOverrides } = req.body || {};
-  if (display === undefined && deckOverrides === undefined) {
-    return res.status(400).json({ error: "Provide display and/or deckOverrides" });
-  }
+  const body = parseBody(prefsSchema, req, res);
+  if (!body) return;
+  const { display, deckOverrides } = body;
   try {
     const row = await prefsRepo.upsert(req.user.userId, { display, deckOverrides });
     return res.json({

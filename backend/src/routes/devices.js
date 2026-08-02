@@ -8,15 +8,29 @@
 const { Router } = require("express");
 const deviceService = require("../services/deviceService");
 const { deviceOwnedBy, bookOwnedBy } = require("../services/ownership");
+const quotas = require("../services/quotas");
+const { parseBody } = require("../validation/_helpers");
+const {
+  registerDeviceSchema,
+  renameDeviceSchema,
+} = require("../validation/devices");
 
 const router = Router();
 
 // POST /api/devices — register or update a device for the calling user.
+//
+// `deviceId` is client-generated, so the schema constrains its charset as
+// well as its length — it travels in URLs and in the book_availability FK.
+// The quota is a no-op for a device the user already has (registration is an
+// upsert, and every app boot calls it).
 router.post("/", async (req, res) => {
-  const { deviceId, name } = req.body;
-  if (!deviceId) return res.status(400).json({ error: "deviceId is required" });
+  const body = parseBody(registerDeviceSchema, req, res);
+  if (!body) return;
+  if (!(await quotas.enforce(res, quotas.deviceQuota, req.user.userId, body.deviceId))) {
+    return;
+  }
   try {
-    const device = await deviceService.registerDevice(req.user.userId, deviceId, name);
+    const device = await deviceService.registerDevice(req.user.userId, body.deviceId, body.name);
     return res.json(device);
   } catch (err) {
     return res.status(500).json({ error: "Register failed" });
@@ -40,10 +54,10 @@ router.put("/:deviceId", async (req, res) => {
   if (!(await deviceOwnedBy(req.user.userId, req.params.deviceId))) {
     return res.status(404).json({ error: "Not found" });
   }
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ error: "name is required" });
+  const body = parseBody(renameDeviceSchema, req, res);
+  if (!body) return;
   try {
-    const device = await deviceService.renameDevice(req.params.deviceId, req.user.userId, name);
+    const device = await deviceService.renameDevice(req.params.deviceId, req.user.userId, body.name);
     return res.json(device);
   } catch (err) {
     return res.status(404).json({ error: "Not found" });

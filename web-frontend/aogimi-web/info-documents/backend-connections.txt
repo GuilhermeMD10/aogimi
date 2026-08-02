@@ -27,9 +27,15 @@ POST /api/auth/login
   Response:  { user: UserProfile, accessToken }   (+ Set-Cookie: refresh)
 
 POST /api/auth/register
-  Trigger:   User signup (manual) -- CURRENTLY DISABLED server-side (403)
-  Request:   { username, password }
+  Trigger:   Create-account mode on /authenticate -- CURRENTLY DISABLED
+             server-side (403 before validation; one `return` to re-enable)
+  Request:   { username, email, password }
   Response:  { user: UserProfile, accessToken }   (+ Set-Cookie: refresh)
+  Notes:     `email` is required here as of the auth redesign; the column stays
+             nullable for pre-redesign accounts. Login is still username-keyed.
+             409 carries `code: USERNAME_TAKEN | EMAIL_TAKEN`, which lib/api.ts
+             discards -- it throws Error(message) only -- so the web client
+             shows the message form-level rather than per-field.
 
 POST /api/auth/refresh
   Trigger:   401 refresh-retry (lib/api.ts) + silent session-restore on boot

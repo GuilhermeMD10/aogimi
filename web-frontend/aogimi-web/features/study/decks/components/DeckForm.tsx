@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { MAX_DECK_NAME } from '../lib/limits';
 
 // Name only. The deck-description field was dropped with the decks redesign:
 // the new card has no slot for it, so it was collecting text nothing displayed.
@@ -46,6 +47,9 @@ export function DeckForm({ submitLabel, initial, onSubmit, onCancel }: DeckFormP
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Name this deck"
+          // Mirrors the backend cap so the browser stops the typing rather
+          // than the server rejecting the submit.
+          maxLength={MAX_DECK_NAME}
           autoFocus
           className="w-full rounded-(--radius-button) border border-(--bd-a) bg-transparent px-3 py-2.5 font-[family-name:var(--face-ui)] text-sm text-(--ink) placeholder:text-(--faint) focus-visible:border-(--ink) focus-visible:outline-none"
         />

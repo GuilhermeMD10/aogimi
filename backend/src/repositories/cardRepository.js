@@ -17,6 +17,16 @@ module.exports = {
     return result.rows[0];
   },
 
+  /** Total cards in a deck, due or not. Backs the per-deck card quota.
+   *  Distinct from `countDueByDeck`, which applies the DUE predicate. */
+  countByDeck: async (deckId) => {
+    const result = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM cards WHERE deck_id = $1`,
+      [deckId]
+    );
+    return result.rows[0]?.count ?? 0;
+  },
+
   findByDeck: async (deckId) => {
     const result = await pool.query(
       `SELECT * FROM cards WHERE deck_id = $1 ORDER BY created_at DESC`,
