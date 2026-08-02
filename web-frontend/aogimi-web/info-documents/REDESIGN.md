@@ -18,10 +18,13 @@ Status:
 | Decks | `/decks` | **Done** — list **and** detail (detail is still a state of `DecksView`, not a route) |
 | Study runner | `/study` | Route extracted, visuals not started |
 | Sky (study stats) | `/sky` | Not started |
-| Profile | `/profile` | Not started |
+| Profile | `/profile` | **Done** |
 | Settings / help / credits | `/settings`, `/help`, `/credits` | **Done** — three routes, one shared shell |
-| Auth | `/authenticate` | Not started |
-| Bottom nav (dock) | — | **Deferred by the owner. Don't touch `WorkspaceNav`.** |
+| Auth | `/authenticate` | **Done** — split screen, mode is local state |
+| Bottom nav (dock) | — | **Done** — `features/app-shell/Dock.tsx` replaced `WorkspaceNav` |
+
+**Three screens remain: reader/library, the study runner, and sky.** Until all
+three migrate, the outgoing `--lgc-*` system stays — see §2's deletion note.
 
 ---
 
@@ -122,6 +125,14 @@ and the old primitives in `shared/ui/` (`SectionCard`, `SectionHead`,
 `ActionRow`, `InfoRow`, `Field`, `ReaderProgressBar`). Leave them alone on
 screens you aren't redesigning; delete nothing until the last screen migrates.
 
+**Not yet — 44 files still read it** (`grep -rl 'lgc-' features app shared`),
+concentrated in `features/study/session` (13), `features/study/stats` (5),
+`features/books/reader`, `features/books/library`, `features/onboarding`,
+`features/mobile-gate` and `features/dictionary/views`. That maps to the three
+screens still on the list above. Deleting the outgoing system now would strip
+the palette off the reader, the study runner and sky simultaneously. The
+deletion is a single pass to run *after* those three, not alongside them.
+
 ---
 
 ## 3. General components — `shared/components/`
@@ -129,7 +140,9 @@ screens you aren't redesigning; delete nothing until the last screen migrates.
 The primitive layer. All theme-agnostic, all token-driven.
 
 `Button` (primary/secondary, icon slot, renders `<a>` when given `href` else
-`<button>`) · `Card` (`card` | `panel`) · `CardHeader` (title + corner action) ·
+`<button>`; `type="submit"` + `disabled` for form primaries — auth's CTA is
+this component, full-width via `className`, with the arrow passed as trailing
+children rather than a new prop) · `Card` (`card` | `panel`) · `CardHeader` (title + corner action) ·
 `Chip` · `CoverTile` (cover colour + vertical title + progress strip) ·
 `Eyebrow` (mono uppercase column label) · `MonoAction` (`VIEW ALL →`) ·
 `PaperCard` + `PAPER_GHOST` (the `--paper-*` ruled-list card shell and its
@@ -267,7 +280,9 @@ style preference.
 ## 8. Don't
 
 - **No git commits, pushes, or destructive DB operations.** The owner does those.
-- **Don't touch `WorkspaceNav`** or build the handoff's bottom dock — deferred.
+- **Don't delete the outgoing token system yet** — see §2. Three screens still
+  read it. (The old "don't touch `WorkspaceNav`" rule is retired: the owner
+  lifted the dock deferral and `Dock.tsx` replaced it.)
 - **Prefer tokens over hex literals — but don't promote a one-off.** Anything
   that reads as palette goes in `ds-tokens.css`. A value that exists to make a
   single component work stays hardcoded in that component, with a comment saying

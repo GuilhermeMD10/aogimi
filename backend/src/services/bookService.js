@@ -17,6 +17,18 @@ const VISUAL_PAGE_COUNT_TOLERANCE = 0.10;
 // or a rendering pipeline that's drifted enough to be unreliable.
 const VISUAL_MAX_HAMMING_DIST = 8;
 
+/**
+ * The (user, filename) row, if any. Exposed because the route needs to know
+ * whether a POST /api/books is a NEW registration or a re-registration of
+ * something the user already has: `createBook` treats the second case as a
+ * no-op returning the existing row, so it must not be refused by the book
+ * quota. Without this, a user sitting at the cap couldn't re-sync their own
+ * library from a second device.
+ */
+async function findByFilename(userId, filename) {
+  return await bookRepo.findBookByUserAndFilename(userId, filename);
+}
+
 async function createBook(userId, fields) {
   // Check if user already has this book (by filename)
   const existing = await bookRepo.findBookByUserAndFilename(userId, fields.filename);
@@ -191,4 +203,4 @@ async function deleteBook(id) {
   return true;
 }
 
-module.exports = { createBook, getUserBooks, getBook, updateProgress, updateTitle, updateIdentity, matchBooks, deleteBook };
+module.exports = { findByFilename, createBook, getUserBooks, getBook, updateProgress, updateTitle, updateIdentity, matchBooks, deleteBook };

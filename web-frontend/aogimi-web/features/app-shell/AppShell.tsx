@@ -6,7 +6,7 @@ import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { ReaderStateProvider, useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
 import { DictionaryStateProvider } from '@/features/dictionary';
 import { DecksProvider } from '@/features/study/decks';
-import WorkspaceNav from '@/features/app-shell/WorkspaceNav';
+import Dock from '@/features/app-shell/Dock';
 import { ReaderBubble } from '@/features/books';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -60,7 +60,7 @@ function ShellContent({ isAuthPage, children }: { isAuthPage: boolean; children:
     <main className="h-full w-full">
       {children}
 
-      {!isAuthPage && <WorkspaceNav />}
+      {!isAuthPage && <Dock />}
 
       {readerBubble && (readerBubble.mode === 'dict' ? (
         <ReaderBubble mode="dict" onClose={() => setReaderBubble(null)} />

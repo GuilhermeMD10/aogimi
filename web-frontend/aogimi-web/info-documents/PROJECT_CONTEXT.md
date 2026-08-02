@@ -101,7 +101,7 @@ web-frontend/langecko-web/
 3. React hydrates. `ThemeProvider` exposes the single `default` theme (no persistence).
 4. `AuthProvider` reads `auth-user` from localStorage; if absent and not on `/authenticate`, `AppShell` redirects.
 5. `ReaderStateProvider`, `DictionaryStateProvider`, `BubbleProvider` mount.
-6. The current route's component renders inside `AppShell`, alongside the floating `WorkspaceNav` and any active page-bubble (Profile / Reader).
+6. The current route's component renders inside `AppShell`, alongside the floating `Dock` (hidden on `/authenticate`) and any active reader bubble.
 
 ---
 
@@ -293,6 +293,67 @@ handoff's "Help lives inside settings" illusion done with real routes.
 - Built on the `--paper-*` ruled-list surface; `PaperCard` / `PAPER_GHOST`
   were promoted to `shared/components` when this screen became their second
   consumer.
+
+### Auth (`/authenticate`, `features/auth`)
+
+Split screen: a night panel left (`components/SkyPanel.tsx`, `1.15fr`, dropped
+below `lg`), the form right (`components/AuthForm.tsx`, `1fr`, 420px column).
+`views/AuthView.tsx` owns all the state and the submit; the components are
+presentational.
+
+- **`mode` is local state, not a route or a search param.** `AppShell` gates on
+  `pathname === '/authenticate'` exactly and redirects there, so a second route
+  would mean editing that predicate for a linkable URL nobody asked for.
+- **The mode switcher never moves.** The signup-only EMAIL field is always
+  mounted and goes `invisible` + `inert` in login mode instead of unmounting,
+  so the field stack is the same box in both modes, the panel's height never
+  changes, and its vertical centring never recomputes. Immobile by
+  construction, not by a pixel-measured `min-height` that a font swap or a
+  wrapped error could invalidate. The cost is a field's worth of blank space in
+  the login state — the same trade the handoff made deliberately.
+  `components/ModeSwitch.tsx` is a **radiogroup**, not a tablist: there are no
+  tab panels, both modes render one form.
+- **Signup collects username + email + password; login is username +
+  password.** Email is required client- and server-side for new accounts —
+  `validate()` in `AuthView` mirrors `backend/src/validation/auth.js` exactly
+  (username 3–32 of `[a-zA-Z0-9_.-]`, password 8–72 with one non-letter),
+  because checking less means a valid-looking form returns a server error.
+  **Registration is disabled server-side** (403 before validation), so signup
+  cannot succeed until that guard is removed.
+- **Google / Apple are built and flagged off.** `components/SocialButtons.tsx`
+  renders behind `SHOW_SOCIAL_AUTH = false` in `AuthForm`; there is no OAuth on
+  the backend, and two prominent buttons that do nothing are worse than none.
+- Not built, by owner call: "Keep me signed in" (the refresh cookie is always
+  30-day persistent — there is no session-only mode to toggle), "Forgot
+  password?" (no route, no reset-token table, no mailer), terms/privacy links
+  (no routes). The generated constellation is deferred — the sky panel is its
+  background plus the scrim, and the star map mounts as a sibling child when it
+  lands. The panel's colours are hardcoded because it is night in both themes.
+- No loading branch and no redirect effect: `AppShell` already returns `null`
+  while auth resolves and already replaces to `/` once a user exists.
+
+### Dock (`features/app-shell/Dock.tsx`)
+
+The fixed bottom nav on every signed-in screen, composed by `AppShell` (hidden
+on `/authenticate`). Replaced `WorkspaceNav`, which is deleted.
+
+- **Reader · Dictionary · Decks │ Sky · Home · Profile.** Sky gained an entry
+  (`/sky` existed as a route with no nav item); Settings lost one — pre-decided
+  when settings was redesigned, and `/profile`'s Settings button is the way in.
+- `next/link`, not `router.push` on a `<button>`, so middle-click and
+  open-in-new-tab work and prefetch happens. Active state is
+  `aria-current="page"` plus a `--dock-active` tile; `/` matches exactly, the
+  rest match their subtree.
+- **Labels always visible** (the hover tooltip went with the icon-only
+  version), and **monochrome** — the per-item brand hexes were outgoing-system
+  decoration. Profile renders the `--avatar` circle the TopBar pill uses rather
+  than a glyph.
+- Reads the **`--dock-*` token group**: the dock is near-black in both themes,
+  a floating object over the page rather than a surface of it, so it can't use
+  `--card` / `--muted` / `--ink`. Same justification as `--paper-*`. Its shadow
+  and divider are hardcoded — the handoff gives both one value for both themes.
+- Icons are inlined at the handoff's geometry; `shared/icons` is the outgoing
+  lucide set and its shapes are not these. Pages reserve `pb-[140px]`.
 
 ---
 

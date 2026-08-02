@@ -25,7 +25,7 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  signup: (username: string, password: string) => Promise<void>;
+  signup: (username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -115,8 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signup = useCallback(
-    async (username: string, password: string) => {
-      const data = await registerUser(username, password);
+    async (username: string, email: string, password: string) => {
+      const data = await registerUser(username, email, password);
       setAccessToken(data.accessToken);
       await handleAuthenticated({ id: data.user.id, username: data.user.username });
       // New accounts default to onboarding_completed=false on the backend, so

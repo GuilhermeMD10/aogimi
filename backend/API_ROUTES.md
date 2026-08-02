@@ -32,7 +32,7 @@ enumeration.
 
 | Method | Path | Body | Response | Rate limit |
 |---|---|---|---|---|
-| POST | `/api/auth/register` | `{ username, password }` | `{ user, accessToken, refreshToken }` (201) | 3/hr/IP |
+| POST | `/api/auth/register` | `{ username, email, password }` | `{ user, accessToken, refreshToken }` (201) | 3/hr/IP |
 | POST | `/api/auth/login` | `{ username, password }` | `{ user, accessToken, refreshToken }` | 5/15min/(IP+username) |
 | POST | `/api/auth/refresh` | `{ refreshToken }` | `{ user, accessToken, refreshToken }` | global only |
 | POST | `/api/auth/logout` | `{ refreshToken }` | `{ ok: true }` (idempotent) | global only |
@@ -45,10 +45,23 @@ and refresh / logout read the token from the cookie rather than the body.
 allowlisted (CSRF guard). See [`docs/AUTH.md`](../docs/AUTH.md).
 
 Errors:
-- 400: zod validation failure (username/password format) — passwords must be 8+ chars with at least one non-letter
+- 400: zod validation failure (username / email / password format) — passwords must be 8+ chars with at least one non-letter; email must be a valid address, max 254 chars
 - 401: invalid credentials / refresh token
-- 409: `Username already taken` (register only)
+- 409: `Username already taken` (`code: USERNAME_TAKEN`) or `That email is already in use`
+  (`code: EMAIL_TAKEN`) — register only. Both are 23505; the constraint name
+  picks the message, so the client can point at the offending field.
 - 429: rate limited
+
+**`email` is required on register** as of the auth redesign, but `users.email`
+is still nullable: accounts created before the change have no address and
+nothing to backfill from. The requirement lives in `registerSchema`, not in the
+column. Login remains username-keyed — the address is stored for later, not
+used to authenticate.
+
+**Register is disabled server-side.** `POST /api/auth/register` returns
+`403 { error: "Registration is currently disabled." }` before it reaches
+validation. The guard is the first statement in the handler and the original
+logic is intact behind it; remove the `return` to re-enable sign-ups.
 
 ---
 
@@ -344,6 +357,44 @@ file for which book).
 
 ---
 
+## Quotas + input limits
+
+Every write endpoint validates its body against a zod schema
+(`src/validation/*.js`) and every insert is gated by a per-user quota
+(`src/services/quotas.js`). All numbers live in one file:
+[`src/config/limits.js`](./src/config/limits.js).
+
+| Resource | Limit | Error code |
+|---|---|---|
+| Books per user | 50 | `BOOK_QUOTA_EXCEEDED` |
+| Decks per user | 50 | `DECK_QUOTA_EXCEEDED` |
+| Cards per deck | 5000 | `CARD_QUOTA_EXCEEDED` |
+| Bookmarks per book | 500 | `BOOKMARK_QUOTA_EXCEEDED` |
+| Devices per user | 10 | `DEVICE_QUOTA_EXCEEDED` |
+
+Field caps (characters, after trim): deck name 100 · card front/reading 200 ·
+card back/notes/context 2000 · book title/author/filename 500 · book CFI 2000 ·
+bookmark label 100 · device id 128 · device name 100 · display_name 64 ·
+email 254 · language 16.
+
+Array caps: `books/match` candidates 200 · `pageHashes`/`pagePhashes` 5000 ·
+session `deckIds` 50.
+
+`cards.state` is constrained to `new | seen | learned | mastered` by both the
+schema and a DB CHECK (migration 024). It used to accept any string.
+
+Two quota exemptions, both because the underlying write is an upsert rather
+than an insert:
+- `POST /api/books` with a `filename` the user already has returns the
+  existing row, so it is not refused at the book quota (re-syncing a library
+  from a second device still works at the cap).
+- `POST /api/devices` for a device already registered to the user is a
+  `last_seen_at` touch, so it is not refused at the device quota.
+
+**`?limit=` is clamped, not rejected.** Public dictionary endpoints cap at 100
+results; `POST /api/study/session` caps at 200 cards. An over-large value
+returns the maximum rather than a 400, so existing callers keep working.
+
 ## Error response shape
 
 All error responses are JSON:
@@ -351,10 +402,18 @@ All error responses are JSON:
 { "error": "<message>" }
 ```
 
+Quota rejections carry three extra fields so a client can render an exact
+message without parsing prose:
+```
+{ "error": "Deck limit reached (50). Delete a deck to make room.",
+  "code": "DECK_QUOTA_EXCEEDED", "limit": 50, "current": 50 }
+```
+
 - 400 — body validation failure (zod) or weak password
 - 401 — missing / invalid / expired token, or wrong credentials on `/auth/login`
 - 403 — token user ≠ path `:userId` (in `requireUserMatch` routes)
 - 404 — resource not found, OR token user doesn't own the resource (id-only routes)
-- 409 — username already taken
+- 409 — username already taken; email already in use (`EMAIL_TAKEN`, on
+  `PATCH /api/user`); resource quota reached (`*_QUOTA_EXCEEDED`, see above)
 - 429 — rate limited (`Retry-After` header set)
 - 500 — generic; backend never echoes internal messages on the auth surface

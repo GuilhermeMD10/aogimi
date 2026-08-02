@@ -10,6 +10,7 @@
 //     them through silently.
 
 const { z } = require("zod");
+const { TEXT } = require("../config/limits");
 
 const usernameSchema = z
   .string()
@@ -26,8 +27,22 @@ const passwordSchema = z
   // don't qualify.
   .regex(/[^A-Za-z\s]/, "Password must contain at least one number or symbol");
 
+// Collected at sign-up as of the auth redesign. The column has been on
+// `users` (nullable) since 001 and is still nullable in the DB: accounts
+// created before this change have no address, and a NOT NULL migration would
+// need a backfill that has nothing to backfill from. So the requirement lives
+// at this boundary — every NEW account has an email, existing ones keep their
+// NULL. Format checking mirrors `validation/user.js` (a pragmatic check, not
+// RFC 5322) and `users_email_lower_idx` enforces uniqueness case-insensitively.
+const emailSchema = z
+  .string()
+  .trim()
+  .max(TEXT.EMAIL, `Email must be at most ${TEXT.EMAIL} characters`)
+  .pipe(z.email("Enter a valid email address"));
+
 const registerSchema = z.object({
   username: usernameSchema,
+  email: emailSchema,
   password: passwordSchema,
 });
 
@@ -40,23 +55,8 @@ const refreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
 
-/** Express helper: validate body against schema, send 400 on failure,
- *  return parsed object on success. Returns null when validation
- *  failed and the response has already been written. */
-function parseBody(schema, req, res) {
-  const result = schema.safeParse(req.body);
-  if (!result.success) {
-    res
-      .status(400)
-      .json({ error: result.error.issues.map((i) => i.message).join(", ") });
-    return null;
-  }
-  return result.data;
-}
-
 module.exports = {
   registerSchema,
   loginSchema,
   refreshSchema,
-  parseBody,
 };

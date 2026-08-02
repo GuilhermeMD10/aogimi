@@ -8,6 +8,12 @@ import { DeckForm } from './DeckForm';
 import { DeckCardPanel } from './DeckCardPanel';
 import { DeckLedger } from './DeckLedger';
 import { useDeckDueCount } from '../hooks/useDeckDueCount';
+import {
+  MAX_CARDS_PER_DECK,
+  MAX_CARD_BACK,
+  MAX_CARD_FRONT,
+  cardQuotaMessage,
+} from '../lib/limits';
 
 interface DeckDetailProps {
   deck: Deck;
@@ -50,6 +56,13 @@ export function DeckDetail({
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const { dueCount } = useDeckDueCount(deck.id);
 
+  // Card quota. Counted off the in-memory array, the same source the ledger
+  // uses — there's no count endpoint for a deck's total, and the array is
+  // already the truth this screen renders from. The backend re-counts on
+  // insert and answers 409 CARD_QUOTA_EXCEEDED, so a stale array can only
+  // ever be optimistic, never permissive.
+  const atCardQuota = deck.cards.length >= MAX_CARDS_PER_DECK;
+
   const submitEdit = ({ name }: { name: string }) => {
     onEditDeck({ name });
     setMode(null);
@@ -81,7 +94,17 @@ export function DeckDetail({
           onStudy={onStudy}
           onConfigure={onConfigure}
           onDeleteDeck={onDeleteDeck}
+          addCardDisabled={atCardQuota}
         />
+
+        {atCardQuota && (
+          <p
+            role="status"
+            className="mb-5 rounded-(--radius-button) border border-(--paper-bd) bg-(--paper-tile) px-4 py-3 text-[13.5px] text-(--soft)"
+          >
+            {cardQuotaMessage(deck.cards.length)}
+          </p>
+        )}
 
         {mode === 'edit-deck' && (
           <div className="mb-5">
@@ -94,7 +117,7 @@ export function DeckDetail({
           </div>
         )}
 
-        {mode === 'add-card' && (
+        {mode === 'add-card' && !atCardQuota && (
           <AddCardForm
             onCancel={() => setMode(null)}
             onSubmit={(front, back) => {
@@ -144,6 +167,7 @@ function DeckHeader({
   onStudy,
   onConfigure,
   onDeleteDeck,
+  addCardDisabled,
 }: {
   deck: Deck;
   dueCount: number;
@@ -152,6 +176,8 @@ function DeckHeader({
   onStudy: () => void;
   onConfigure?: () => void;
   onDeleteDeck: () => void;
+  /** True at the per-deck card quota. The detail body renders the reason. */
+  addCardDisabled?: boolean;
 }) {
   const hasDue = dueCount > 0;
 
@@ -187,7 +213,8 @@ function DeckHeader({
         <button
           type="button"
           onClick={() => onSetMode(mode === 'add-card' ? null : 'add-card')}
-          className="inline-flex items-center gap-2 rounded-(--radius-button) border border-(--bd-a) px-3.5 py-2.5 font-[family-name:var(--face-ui)] text-[12.5px] font-bold whitespace-nowrap text-(--soft) hover:bg-(--tint-b) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
+          disabled={addCardDisabled}
+          className="inline-flex items-center gap-2 rounded-(--radius-button) border border-(--bd-a) px-3.5 py-2.5 font-[family-name:var(--face-ui)] text-[12.5px] font-bold whitespace-nowrap text-(--soft) hover:bg-(--tint-b) disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
         >
           <Plus size={14} strokeWidth={2} />
           {mode === 'add-card' ? 'Cancel' : 'Add card'}
@@ -335,6 +362,7 @@ function AddCardForm({
           value={front}
           onChange={(e) => setFront(e.target.value)}
           placeholder="Kanji / word"
+          maxLength={MAX_CARD_FRONT}
           autoFocus
           className="mt-1.5 w-full border-b border-dashed border-(--bd-a) bg-transparent pb-1.5 font-[family-name:var(--face-jp)] text-2xl text-(--ink) placeholder:text-(--faint) focus-visible:border-(--ink) focus-visible:outline-none"
         />
@@ -348,6 +376,7 @@ function AddCardForm({
           value={back}
           onChange={(e) => setBack(e.target.value)}
           placeholder="Meaning, reading, notes…"
+          maxLength={MAX_CARD_BACK}
           rows={3}
           className="mt-1.5 w-full resize-none rounded-(--radius-button) border border-(--bd-a) bg-transparent px-3 py-2.5 font-[family-name:var(--face-ui)] text-[13px] leading-relaxed text-(--ink) placeholder:text-(--faint) focus-visible:border-(--ink) focus-visible:outline-none"
         />

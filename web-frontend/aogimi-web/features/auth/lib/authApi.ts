@@ -15,8 +15,11 @@ export type AuthSuccess = {
   refreshToken?: string;
 };
 
-export function registerUser(username: string, password: string): Promise<AuthSuccess> {
-  return apiSendPublic<AuthSuccess>('/api/auth/register', 'POST', { username, password });
+/** Sign-up collects an email as of the auth redesign; the backend requires it
+ *  for new accounts (`registerSchema`). Login stays username-keyed — the
+ *  address is stored for future use, not used to authenticate. */
+export function registerUser(username: string, email: string, password: string): Promise<AuthSuccess> {
+  return apiSendPublic<AuthSuccess>('/api/auth/register', 'POST', { username, email, password });
 }
 
 export function loginUser(username: string, password: string): Promise<AuthSuccess> {

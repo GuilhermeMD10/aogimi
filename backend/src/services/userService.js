@@ -31,6 +31,15 @@ async function updateProfile(id, updates) {
   try {
     return await userRepo.updateById(id, filtered);
   } catch (err) {
+    // `users_email_lower_idx` is UNIQUE where email IS NOT NULL, so writing
+    // an address another account already holds is a client error, not a
+    // server fault. Re-throw with a code the route turns into 409 — the
+    // generic wrap below would have made it a 500.
+    if (err?.code === "23505") {
+      const e = new Error("That email is already in use");
+      e.code = "EMAIL_TAKEN";
+      throw e;
+    }
     throw new Error(`userService.updateProfile failed: ${err.message}`);
   }
 }

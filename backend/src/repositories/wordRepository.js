@@ -1,10 +1,24 @@
 const pool = require("../db");
+const { LIMITS } = require("../config/limits");
 
 const WORD_SELECT = `
   SELECT w.id AS word_id, w.is_common, w.jlpt_level,
          wk.kanji, wk.priority AS kanji_priority,
          wr.kana,  wr.priority AS kana_priority, wr.pitch_accents AS kana_pitch_accents,
          wm.meaning, wm.pos, wm.lang`;
+
+// Backstop cap for the queries that had no LIMIT: `findCommonByKanji`,
+// `findByMeaningAndPos` and `findByPriority`. The last two are the reason —
+// both are pattern matches on UNAUTHENTICATED routes (`?marker=1` matches
+// nearly every prioritised entry; `?q=the&pos=n` matches most of the gloss
+// table) and both returned the full result set.
+//
+// Note this bounds TUPLES, not words: WORD_SELECT is a word × reading ×
+// meaning cross product that `services/assembler.js` regroups, so a capped
+// query can truncate the last word's readings. That's the same trade the
+// already-capped queries here make (`findByPos` has had a bare LIMIT 50
+// since it was written), so the behaviour is consistent rather than new.
+const CAP = LIMITS.DICTIONARY_RESULTS;
 
 async function findByKanji(kanji, limit = 50) {
   const { rows } = await pool.query(
@@ -89,8 +103,9 @@ async function findCommonByKanji(kanji) {
      LEFT JOIN word_meanings wm ON wm.word_id = w.id
      WHERE wk.kanji = $1
        AND w.is_common = true
-       AND wm.lang = 'eng'`,
-    [kanji]
+       AND wm.lang = 'eng'
+     LIMIT $2`,
+    [kanji, CAP]
   );
   return rows;
 }
@@ -122,8 +137,9 @@ async function findByMeaningAndPos(query, pos, lang = "eng") {
      LEFT JOIN word_readings wr ON wr.word_id = w.id
      WHERE to_tsvector('english', wm.meaning) @@ plainto_tsquery('english', $1)
        AND wm.pos ILIKE $2
-       AND wm.lang = $3`,
-    [query, `%${pos}%`, lang]
+       AND wm.lang = $3
+     LIMIT $4`,
+    [query, `%${pos}%`, lang, CAP]
   );
   return rows;
 }
@@ -136,8 +152,9 @@ async function findByPriority(marker) {
      JOIN words w ON wk.word_id = w.id
      LEFT JOIN word_readings wr ON wr.word_id = w.id
      LEFT JOIN word_meanings wm ON wm.word_id = w.id
-     WHERE wk.priority LIKE $1`,
-    [`%${marker}%`]
+     WHERE wk.priority LIKE $1
+     LIMIT $2`,
+    [`%${marker}%`, CAP]
   );
   return rows;
 }

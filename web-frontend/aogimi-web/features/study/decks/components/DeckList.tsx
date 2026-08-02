@@ -8,6 +8,7 @@ import { DeckForm } from './DeckForm';
 import { DeckCard } from './DeckCard';
 import { DecksHeader } from './DecksHeader';
 import { useDeckDueCounts } from '../hooks/useDeckDueCounts';
+import { MAX_DECKS, deckQuotaMessage } from '../lib/limits';
 
 interface DeckListProps {
   /** Null while the first fetch is in flight — distinct from `[]`, which means
@@ -43,9 +44,21 @@ export function DeckList({
   const [formOpen, setFormOpen] = useState(false);
   const { total: dueTotal, byDeck, loading: dueLoading } = useDeckDueCounts();
 
+  // Deck quota. `decks === null` is "still loading", not "zero decks", so the
+  // button stays enabled until the count is actually known — blocking on
+  // unknown data would lock out a user whose first fetch is slow. The backend
+  // is the real gate either way (409 DECK_QUOTA_EXCEEDED).
+  const deckCount = decks?.length ?? 0;
+  const atDeckQuota = decks !== null && deckCount >= MAX_DECKS;
+
   const handleSubmit = ({ name }: { name: string }) => {
     onCreateDeck(name);
     setFormOpen(false);
+  };
+
+  const openForm = () => {
+    if (atDeckQuota) return;
+    setFormOpen(true);
   };
 
   return (
@@ -58,10 +71,20 @@ export function DeckList({
         <DecksHeader
           dueTotal={dueTotal}
           dueLoading={dueLoading}
-          onNewDeck={() => setFormOpen((v) => !v)}
+          onNewDeck={() => setFormOpen((v) => (atDeckQuota ? false : !v))}
+          newDeckDisabled={atDeckQuota}
         />
 
-        {formOpen && (
+        {atDeckQuota && (
+          <p
+            role="status"
+            className="mb-7 rounded-(--radius-button) border border-(--paper-bd) bg-(--paper-tile) px-4 py-3 text-[13.5px] text-(--soft)"
+          >
+            {deckQuotaMessage(deckCount)}
+          </p>
+        )}
+
+        {formOpen && !atDeckQuota && (
           <div className="mb-7">
             <DeckForm
               submitLabel="Create"
@@ -97,7 +120,7 @@ export function DeckList({
             </p>
             <button
               type="button"
-              onClick={() => setFormOpen(true)}
+              onClick={openForm}
               className="mt-4 inline-flex items-center rounded-(--radius-button) bg-(--btn) px-[18px] py-[11px] text-sm font-bold text-(--btn-ink) transition-transform duration-[180ms] ease-[ease] hover:-translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink) motion-reduce:transform-none"
             >
               New deck

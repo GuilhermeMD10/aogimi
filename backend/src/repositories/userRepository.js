@@ -8,11 +8,16 @@ const PUBLIC_COLUMNS = "id, username, display_name, email, language, avatar_inde
 
 module.exports = {
   /** Insert a new user with an already-bcrypted hash. The caller (auth
-   *  service) owns hashing — this repo never sees a plaintext password. */
-  create: async ({ username, passwordHash }) => {
+   *  service) owns hashing — this repo never sees a plaintext password.
+   *
+   *  `email` is optional at this layer because the column is nullable for
+   *  pre-existing accounts; `registerSchema` is what makes it mandatory for
+   *  new ones. Passing `undefined` inserts NULL, which the partial unique
+   *  index (`WHERE email IS NOT NULL`) allows any number of. */
+  create: async ({ username, email = null, passwordHash }) => {
     const result = await pool.query(
-      `INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING ${PUBLIC_COLUMNS}`,
-      [username, passwordHash],
+      `INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING ${PUBLIC_COLUMNS}`,
+      [username, email, passwordHash],
     );
     return result.rows[0];
   },

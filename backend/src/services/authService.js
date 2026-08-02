@@ -68,16 +68,22 @@ async function issueTokenPair(user) {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-async function register(username, password) {
+async function register(username, email, password) {
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   let user;
   try {
-    user = await userRepo.create({ username, passwordHash });
+    user = await userRepo.create({ username, email, passwordHash });
   } catch (err) {
-    // Unique-violation on username — surface as 409 from the route.
+    // Two unique constraints can fire here now that sign-up collects an
+    // email: `users_username_key` and the partial `users_email_lower_idx`.
+    // Both are 23505, so the constraint name is what tells the user which
+    // field to fix — without it a taken address would read "Username already
+    // taken". Unknown constraint falls back to the username message, which is
+    // the pre-email behaviour.
     if (err.code === "23505") {
-      const e = new Error("Username already taken");
-      e.code = "USERNAME_TAKEN";
+      const onEmail = typeof err.constraint === "string" && err.constraint.includes("email");
+      const e = new Error(onEmail ? "That email is already in use" : "Username already taken");
+      e.code = onEmail ? "EMAIL_TAKEN" : "USERNAME_TAKEN";
       throw e;
     }
     throw err;

@@ -11,6 +11,8 @@ const { Router } = require("express");
 const userService = require("../services/userService");
 const authService = require("../services/authService");
 const { requireUserMatch } = require("../middleware/authorize");
+const { parseBody } = require("../validation/_helpers");
+const { patchUserSchema } = require("../validation/user");
 
 const router = Router();
 
@@ -28,17 +30,24 @@ router.get("/:id", requireUserMatch({ from: "params", key: "id" }), async (req, 
 });
 
 // PATCH /api/user — update editable profile fields (display_name,
-// email, language, avatar_index). Other fields are ignored; the
-// service layer enforces the allow-list.
+// email, language, avatar_index). The zod schema bounds every value and
+// rejects unknown keys; the service layer's allow-list stays as defence in
+// depth so a future caller that skips validation still can't write
+// `password_hash` or `username`.
+//
+// The email unique index (`users_email_lower_idx`) makes a duplicate a
+// legitimate client error, so 23505 is mapped to 409 rather than surfacing
+// as the generic 500 it used to.
 router.patch("/", async (req, res) => {
-  const updates = req.body?.updates;
-  if (!updates || typeof updates !== "object") {
-    return res.status(400).json({ error: "updates is required" });
-  }
+  const body = parseBody(patchUserSchema, req, res);
+  if (!body) return;
   try {
-    const user = await userService.updateProfile(req.user.userId, updates);
+    const user = await userService.updateProfile(req.user.userId, body.updates);
     return res.json(user);
   } catch (err) {
+    if (err?.code === "EMAIL_TAKEN") {
+      return res.status(409).json({ error: err.message, code: err.code });
+    }
     return res.status(500).json({ error: "Update failed" });
   }
 });

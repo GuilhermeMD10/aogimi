@@ -141,6 +141,14 @@ html[data-theme="light"] {
   --sky-border:        rgba(47, 65, 96, .42);
   --sky-shadow:        0 14px 34px rgba(47, 65, 96, .20);
 
+  /* Dock. See the note in the dark block below for why this is its own group. */
+  --dock:              #141414f0;
+  --dock-bd:           transparent;
+  --dock-dim:          #8f8f8f;
+  --dock-hover:        #ffffff;
+  --dock-active:       #ffffff1c;
+  --dock-active-ink:   #ffffff;
+
   /* Destructive actions. Distinct from --accent, which is the vermilion seal:
      that one is theme-invariant by design, and #c2452c on the dark deck paper
      is a dark red on dark grey. Danger has to stay legible on whatever it
@@ -212,6 +220,21 @@ html[data-theme="dark"] {
 
   --sky-border:        rgba(226, 232, 244, .34);
   --sky-shadow:        0 16px 40px rgba(0, 0, 0, .55);
+
+  /* ── Dock ────────────────────────────────────────────────────────────────
+     Its own group for the same reason --paper-* is: the dock can't read the
+     shared surface tokens. It is near-black in BOTH themes — a floating
+     object over the page rather than a surface of it — so its "dim" and
+     "hover" inks are light-on-dark even in Ink on paper, where --muted and
+     --ink are the opposite. The two themes differ only slightly (the dark
+     dock gains a visible edge against the dark canvas, and its dim ink warms
+     a touch), which is exactly what a token pair is for. */
+  --dock:              #1c1c1ff0;
+  --dock-bd:           #2e2e33;
+  --dock-dim:          #8b8a92;
+  --dock-hover:        #ffffff;
+  --dock-active:       rgba(255, 255, 255, .16);
+  --dock-active-ink:   #ffffff;
 
   /* Danger lightens in Midnight so it stays readable on the dark surfaces. */
   --danger:            #e0715a;

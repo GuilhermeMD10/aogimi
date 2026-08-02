@@ -566,3 +566,224 @@ second use.
 - [ ] The handoff's "Couldn't save — retry" pending-write line — the only
       write on the page is localStorage, which `ThemeProvider` already fails
       silently by design.
+
+## Resource quotas + input validation (2026-08-02)
+
+Came out of a security audit. The backend had **no row-count limits and no
+length limits on any user text field** — every user column is Postgres `text`
+(unbounded) and no route counted rows before inserting, so the only bound in
+the system was `express.json({ limit: "10kb" })`. A client with a valid token
+could write a 10 KB deck name and insert rows until the disk filled.
+
+**Numbers.** Books 50/user · decks 50/user · cards 5000/deck · bookmarks
+500/book · devices 10/user. Field caps: deck name 100 · card front/reading 200
+· card back/notes/context 2000 · book title/author/filename 500 · bookmark
+label 100 · display_name 64.
+
+**Two layers, one authority.** `backend/src/config/limits.js` is the
+enforcement — zod schemas per domain (`backend/src/validation/*.js`) plus
+`COUNT`-before-insert checks (`backend/src/services/quotas.js`, shaped like
+`services/ownership.js`, answering **409** with a `code`/`limit`/`current`
+body). The web mirrors the numbers in `features/study/decks/lib/limits.ts` and
+`features/books/lib/limits.ts` purely so buttons can go disabled with a reason
+instead of submitting into a 409 — **a client-side cap is UX, never
+enforcement.** Change a number on one side, change it on the other (same
+convention as `rankProgress.ts` ↔ `cardSrsService.js`).
+
+**`cards.state` was forgeable.** `PUT /api/decks/cards/:cardId` passed `state`
+straight into `COALESCE($6, state)` with no validation and the column had no
+CHECK, so `{"state":"mastered"}` skipped the entire SRS progression and
+garbage broke the stats buckets and `rankProgress.ts`. Now an enum in zod
+**and** a DB CHECK (migration 024). Manual re-grading through the API is still
+allowed — that's deliberate; what's gone is writing a value nothing can read.
+
+**Quota exemptions.** `POST /api/books` with a known `filename` and
+`POST /api/devices` for a known device are both upserts, not inserts, so
+neither is refused at its quota — otherwise a user at the cap couldn't
+re-sync their own library or boot the app on an existing device.
+
+**Also fixed in the same pass** (all pre-existing, all unauthenticated):
+`?limit=` on `/api/words/kana-prefix`, `/api/words/kana-only` and
+`/api/names/kana-prefix` reached `LIMIT $n` unbounded, so `?limit=999999999`
+returned whole tables against a 10-connection pool — now clamped to 100.
+`kanjiRepository`'s three `ILIKE '%…%'` queries and `wordRepository`'s
+`findByPriority` / `findByMeaningAndPos` / `findCommonByKanji` had no `LIMIT`
+at all; `nameRepository.findByType` / `findByMeaning` scanned the JMnedict
+import unbounded. `POST /api/books/match` took an unbounded array into an
+O(candidates × books × pages) synchronous loop — capped at 200.
+`PATCH /api/user` validated nothing, so `avatar_index: "lol"` and a duplicate
+email both surfaced as 500s (now 400 and 409 `EMAIL_TAKEN`).
+
+**Deliberately NOT capped:** `kanjiRepository`'s grade/stroke/radical
+enumerations. They're bounded by the table (~13k rows) and capping them would
+truncate the list they exist to return ("every grade 1-6 kanji"); their inputs
+are already range-validated in the route.
+
+**Still open from the audit** (documented, not fixed):
+
+- [ ] Login limiter keys on IP+username, so username spraying is bounded only
+      by the global 100/min. No per-IP login cap, no lockout.
+- [ ] `app.set("trust proxy", 1)` trusts one `X-Forwarded-For` hop blindly. If
+      the API is ever reachable without the platform edge in front, every
+      rate limiter is bypassable per-request.
+- [ ] EPUB iframes run `sandbox="allow-same-origin allow-scripts"` (that pair
+      is equivalent to no sandbox). Accepted and documented in `paginator.js`
+      — the high-value target is gone since no token is JS-reachable — but a
+      malicious EPUB can still read localStorage/IndexedDB and drive the DOM.
+- [ ] `db.js` uses `ssl: { rejectUnauthorized: false }` — encrypted but
+      unverified. Pin the provider CA if one is published.
+- [ ] `LIKE`/`ILIKE` don't escape user-supplied `%`/`_`. Not injection (they
+      are values, parameterized), but a query of `%` is a full scan.
+
+---
+
+# Redesign — auth screen + bottom dock (`/authenticate`, `features/app-shell/Dock.tsx`)
+
+From `design_handoff_aogimi_signin_dock`. Two things in one pass because the
+dock is chrome the auth screen is the only signed-in-adjacent screen *without*.
+
+**The dock deferral is lifted.** Owner call: "that don't-touch warning is for a
+time like this." `WorkspaceNav.tsx` + `WorkspaceNav.types.ts` are deleted,
+`Dock.tsx` + `Dock.types.ts` replace them, and `AppShell` composes the new one
+at the same call site. The standing rule in REDESIGN.md §8 is retired.
+
+**The dock's route set resolves two loose ends rather than inventing anything.**
+Sky gains the nav entry `/sky` never had; Settings loses the one the settings
+redesign already said it would ("the nav's settings button leaves when that
+refactor lands"). Per-item brand hexes (`#D97757`, `#4B7AA3`, …) are gone with
+the outgoing system — the dock is one dim ink that brightens on hover, with a
+`--dock-active` tile and `aria-current="page"` on the active route. Items are
+`next/link`, not `router.push` on a `<button>`, so prefetch and middle-click
+work and screen readers hear navigation.
+
+**`--dock-*` is a new token group, not a reuse.** The dock is near-black in both
+themes — a floating object over the page, not a surface of it — so its "dim" and
+"hover" inks are light-on-dark even in Ink on paper, where `--muted` and `--ink`
+are the opposite. Same argument that produced `--paper-*`. Its shadow and
+divider stay hardcoded in the component: the handoff gives both one value for
+both themes, so a token would only add a name that never varies. Radii reuse
+`--radius-panel` (18) for the shell and `--radius-pill` (14) for items — the
+handoff says 13 for items, and 1px on a nav pill is not perceptible, the same
+call the token file already documents for 7px vs 8px covers.
+
+**Email is now collected at sign-up.** Owner call. `users.email` has existed
+since 001 with a partial unique index on `LOWER(email)`, so this is a boundary
+change, not a migration: `registerSchema` requires it, `userRepository.create`
+inserts it, and the column **stays nullable** because pre-redesign accounts have
+no address and nothing to backfill from. Login remains username-keyed — the
+address is stored for later, not used to authenticate. Register can now trip two
+unique constraints, so `authService.register` branches on the constraint name;
+without that a taken address would have read "Username already taken". The 409
+carries `code: USERNAME_TAKEN | EMAIL_TAKEN` for clients that can use it —
+`lib/api.ts` throws `Error(message)` and discards the code, so the web client
+shows it form-level rather than per-field. Changing that means touching shared
+infra every feature uses, which this pass didn't earn.
+
+**Sign-up still can't succeed.** `POST /api/auth/register` returns 403 before it
+reaches validation — a deliberate, commented guard that predates this work. The
+email plumbing is correct and inert until the owner removes that one `return`.
+Not removed here: opening public registration is a product decision, not a
+side effect of a redesign.
+
+**The mode switcher is immobile by construction.** Owner requirement: the
+switcher must not move when the mode changes; content below it may. The
+handoff's answer was a `min-height:800px` three-row grid with the CTA pinned to
+the bottom, and it published three exact y-coordinates (438/578/664) — numbers
+calibrated with the Google/Apple buttons in the panel, which don't ship. What's
+here instead: the signup-only EMAIL field is always mounted and goes `invisible`
++ `inert` in login mode rather than unmounting. The field stack is then the same
+box in both modes, the panel's height never changes, its vertical centring never
+recomputes, and nothing above can move. That holds under a font swap or a
+wrapped error message, which a measured `min-height` would not. `inert` keeps
+the hidden field out of the tab order and the a11y tree, and login never reads
+its value. Cost: a field's worth of blank space in the login state — the same
+trade the handoff made deliberately, for the same reason.
+
+**The switcher is a radiogroup, not a tablist.** The handoff says "implement as
+a real tablist"; there are no tab panels, both modes render one form with one
+field added, so `role="tab"` would promise a `tabpanel` relationship that
+doesn't exist. Arrow keys still work.
+
+**Client validation mirrors the backend exactly.** The handoff's README says
+"password min 8 characters", which is only part of the real policy — the
+backend also demands one non-letter and caps at 72, and username is 3–32 of
+`[a-zA-Z0-9_.-]`. Validating less would mean a valid-looking form comes back as
+a server error, so `validate()` in `AuthView` restates `validation/auth.js`.
+Login only checks non-empty: the server's answer there is "wrong credentials",
+and pre-validating a legacy password against today's policy would lock out an
+account that is fine.
+
+**Google / Apple: built, flagged off.** `SocialButtons.tsx` is complete —
+divider, both marks, hover states — behind `SHOW_SOCIAL_AUTH = false`. There is
+no OAuth anywhere in the backend: no provider column, no callback route. Two
+prominent buttons that do nothing are worse than two that aren't drawn, and the
+previous screen shipped them as explicit no-ops. Flip the flag and wire
+`onStart` when there's something behind them.
+
+**Handoff details deliberately not built** (all owner calls):
+
+- **"Keep me signed in"**, default checked. The refresh cookie is always 30-day
+  persistent; there is no session-only mode, so the checkbox would have been
+  decorative. Implementing it honestly means a `{ persist: false }` login that
+  sets a session cookie — a backend change, not a checkbox.
+- **"Forgot password?" → `/reset`.** No route, no reset-token table, no mailer,
+  and until this change no address to send to. Now that sign-up collects email,
+  this is buildable for the first time — but it's a feature, not a redesign.
+- **terms / privacy links.** `/terms` and `/privacy` don't exist and the copy is
+  the owner's to write. `/help` and `/credits` are the precedent if they land.
+- **"2,258 STARS LIT TONIGHT".** A global cross-user count with no endpoint. The
+  handoff itself says to drop the clause rather than fake a number, so only
+  `空が満ちている` ships.
+- **The generated constellation** (34 seeded points, rejection sampling, a Prim
+  MST, twinkle on rank 3). Deferred by the owner: the sky panel is its
+  background plus the scrim for now, and the generator mounts as a sibling child
+  of the same wrapper when it lands. `features/dictionary/components/
+  Constellation.tsx` is a hand-drawn decorative SVG, not a generator, so it was
+  never the thing to reuse. When it does land it belongs in `features/auth/lib/`
+  and gets promoted on `/sky`'s second use. Note the twinkle would be the first
+  animation on any redesigned screen — `SkyBar` and `Constellation` both
+  document dropping motion for the "one 120ms transition" rule.
+- **`/signin` ↔ `/signup` as routes.** `AppShell` gates on `pathname ===
+  '/authenticate'` exactly and redirects there; a second route means editing the
+  redirect predicate in the highest-blast-radius file in the app, for a linkable
+  URL nobody asked for. `mode` is local state.
+
+**Sky-panel colours are hardcoded, not tokenised.** The panel is night in both
+themes, so there is nothing for a theme to swap and a token would add a name
+that always resolves to one value. Same reasoning as `SkyBar`'s four colours
+and the `--cover-*` group.
+
+**`shared/components/Button` gained `type` and `disabled`** rather than auth
+forking its own button. Both are generic to any button; the CTA's full width and
+52px height come from `className`, and the trailing arrow is passed as children,
+so no new props were needed for either. `AuthView` also lost its own loading
+branch and redirect effect — `AppShell` already returns `null` while auth
+resolves and already replaces to `/` once a user exists, and the two
+implementations raced.
+
+**Lint went down, not up:** 13 errors / 8 warnings → **10 / 5**. Every remaining
+problem is pre-existing and in an un-migrated feature.
+
+**Still deferred**
+
+- [ ] Remove the `return` in `POST /api/auth/register` to re-enable sign-ups.
+      Until then create-account 403s no matter what the form does.
+- [ ] **Mobile's sign-up needs an email field before register is re-enabled.**
+      `mobile-frontend/aogimi-mobile/lib/auth/authApi.ts` still posts
+      `{ username, password }`, which `registerSchema` now rejects with a 400.
+      No behaviour change today — the 403 guard fires before validation, so
+      mobile already can't register — but the two unblock in the wrong order:
+      lifting the guard turns mobile's 403 into a 400. Out of scope for a web
+      redesign pass; it's a mobile screen change, not a helper tweak.
+- [ ] The constellation generator for the sky panel (and `/sky`).
+- [ ] OAuth — backend, then `SHOW_SOCIAL_AUTH`.
+- [ ] Password reset, now that an address exists to send to.
+- [ ] Per-field 409 attribution would need `lib/api.ts` to carry the error
+      `code` instead of flattening to a message string.
+- [ ] **Deleting the outgoing `--lgc-*` system is NOT unblocked by this pass.**
+      44 files still read it, across `features/study/session` (13),
+      `features/study/stats` (5), `features/books/reader`,
+      `features/books/library`, `features/onboarding`, `features/mobile-gate`
+      and `features/dictionary/views` — i.e. the reader/library, the study
+      runner and sky, the three screens still on REDESIGN.md's list. The
+      deletion is one pass to run after those three.

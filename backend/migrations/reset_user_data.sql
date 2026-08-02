@@ -133,7 +133,10 @@ CREATE TABLE cards (
   back              text         NOT NULL,
   notes             text         NOT NULL DEFAULT '',
   context_sentence  text         NOT NULL DEFAULT '',
-  state             text         NOT NULL DEFAULT 'new',           -- new | seen | learned | mastered
+  -- CHECK added in 024: the route used to accept any string here, which let a
+  -- client skip the SRS ladder outright. Enforced in src/validation/decks.js too.
+  state             text         NOT NULL DEFAULT 'new'
+                                 CHECK (state IN ('new','seen','learned','mastered')),
   reviewed_times    int          NOT NULL DEFAULT 0,
   difficulty        real         NOT NULL DEFAULT 0.30,            -- SRS: [0.05, 0.95]
   stability         real         NOT NULL DEFAULT 2.0,             -- SRS: days, floor 0.1

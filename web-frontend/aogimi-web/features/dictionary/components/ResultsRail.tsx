@@ -18,7 +18,7 @@ const SKELETON_ROWS = 6;
  *
  * Scrolls on its own — the page itself doesn't scroll, so reading down a long
  * entry never carries the results list off screen. `pb-[120px]` clears the
- * fixed `WorkspaceNav`.
+ * fixed `Dock`.
  *
  * Names sit at the bottom, after the selectable rows, and are display-only:
  * there's no per-name detail endpoint, so there's nothing for a click to open.

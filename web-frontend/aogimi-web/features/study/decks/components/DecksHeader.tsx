@@ -10,6 +10,9 @@ type Props = {
    *  flash "0" and then fill in. */
   dueLoading: boolean;
   onNewDeck: () => void;
+  /** True once the user is at the deck quota. The list renders the
+   *  explanatory line; this just stops the button being a dead end. */
+  newDeckDisabled?: boolean;
 };
 
 // Buttons are local rather than the shared `Button`. This screen's pair sit at
@@ -28,7 +31,7 @@ const GHOST =
   `${BUTTON_BASE} gap-2 border border-(--paper-bd) bg-transparent px-4 py-[11px] ` +
   'text-[13.5px] text-(--soft) hover:border-(--btn) hover:bg-(--paper-tile) hover:text-(--btn)';
 
-export function DecksHeader({ dueTotal, dueLoading, onNewDeck }: Props) {
+export function DecksHeader({ dueTotal, dueLoading, onNewDeck, newDeckDisabled }: Props) {
   const hasDue = dueTotal > 0;
 
   return (
@@ -49,7 +52,12 @@ export function DecksHeader({ dueTotal, dueLoading, onNewDeck }: Props) {
       </div>
 
       <div className="flex w-full items-center gap-3 min-[900px]:w-auto">
-        <button type="button" onClick={onNewDeck} className={GHOST}>
+        <button
+          type="button"
+          onClick={onNewDeck}
+          disabled={newDeckDisabled}
+          className={`${GHOST} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-(--paper-bd) disabled:hover:bg-transparent disabled:hover:text-(--soft)`}
+        >
           <Plus size={15} strokeWidth={2} />
           New deck
         </button>

@@ -7,7 +7,11 @@ must stay in lockstep (any migration touching user-data tables also
 edits the reset script).
 
 The shape below reflects the schema after
-[`023_card_next_due.sql`](./migrations/023_card_next_due.sql).
+[`024_card_state_check.sql`](./migrations/024_card_state_check.sql), which
+constrained `cards.state` to the SRS ladder (see that table below).
+Row-count and field-length limits are enforced at the application layer —
+[`src/config/limits.js`](./src/config/limits.js) holds the numbers and
+[`API_ROUTES.md`](./API_ROUTES.md#quotas--input-limits) tabulates them.
 [`022_card_srs.sql`](./migrations/022_card_srs.sql) extended `cards` with
 SRS state and added `card_reviews`, `study_days`, and `user_study_prefs`;
 `023` added `cards.next_due_at` for due-card scheduling. Algorithm lives in
@@ -24,7 +28,7 @@ Authentication + profile.
 | id | serial | PK | |
 | username | text | NOT NULL, UNIQUE | Login key. 3-32 chars, `[a-zA-Z0-9_.-]`. |
 | password_hash | text | NOT NULL | bcrypt (cost 12). Never returned by any API. |
-| email | text | nullable | Reserved — not collected at signup yet. See unique index below. |
+| email | text | nullable | **Collected at signup** (required by `registerSchema`, max 254, format-checked). Stays nullable in the DB: pre-redesign accounts have none. Not a login key — login is username-only. See unique index below. |
 | display_name | text | nullable | Profile chrome (falls back to username) |
 | language | text | NOT NULL DEFAULT 'en' | UI language preference |
 | avatar_index | smallint | NOT NULL DEFAULT 0 | Index into the kamon glyph set |
@@ -34,8 +38,12 @@ Authentication + profile.
 
 **Indexes**
 - `users_email_lower_idx UNIQUE ON (LOWER(email)) WHERE email IS NOT NULL`
-  — partial unique index. Future-proofs the column for the email-as-login
-  switch without another migration.
+  — partial unique index. Enforces case-insensitive uniqueness for the
+  addresses signup now collects (values are stored as typed, minus whitespace —
+  the index does the case folding), and still future-proofs the column for an
+  eventual email-as-login switch without another migration. `WHERE email IS
+  NOT NULL` is what lets the pre-redesign accounts coexist: any number of them
+  can hold NULL.
 
 ---
 
@@ -153,7 +161,7 @@ identity fingerprints used to match the same book across devices.
 | back | text | NOT NULL | Meaning / translation |
 | notes | text | NOT NULL DEFAULT '' | |
 | context_sentence | text | NOT NULL DEFAULT '' | Optional in-context excerpt |
-| state | text | NOT NULL DEFAULT 'new' | SRS state: `new` \| `seen` \| `learned` \| `mastered` |
+| state | text | NOT NULL DEFAULT 'new', CHECK IN ('new','seen','learned','mastered') | SRS state. CHECK added in 024 — the update route accepted any string before, so a client could write `mastered` and skip the ladder. Also enforced in `src/validation/decks.js`. |
 | reviewed_times | int | NOT NULL DEFAULT 0 | Review counter |
 | difficulty | real | NOT NULL DEFAULT 0.30 | SRS: how hard this card is intrinsically, clamped [0.05, 0.95] |
 | stability | real | NOT NULL DEFAULT 2.0 | SRS: days of memory durability, floor 0.1 |
