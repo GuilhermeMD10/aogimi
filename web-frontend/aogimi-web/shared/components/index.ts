@@ -19,6 +19,7 @@ export { Chip } from './Chip';
 export { CoverTile } from './CoverTile';
 export { Eyebrow } from './Eyebrow';
 export { MonoAction } from './MonoAction';
+export { PaperCard, PAPER_GHOST } from './PaperCard';
 export { ProgressTrack } from './ProgressTrack';
 export { Skeleton } from './Skeleton';
 export { SkyBar } from './SkyBar';

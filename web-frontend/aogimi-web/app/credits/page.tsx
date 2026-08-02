@@ -1,11 +1,7 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
 import { CreditsView } from '@/features/settings';
 
-// Standalone /credits route. The bubble flow swaps to CreditsView inside
-// itself rather than navigating here; this route is for deep links.
+// /credits — the settings shell showing attribution. Several data licenses
+// require this page to exist; the list lives in features/settings/lib/credits.ts.
 export default function CreditsPage() {
-  const router = useRouter();
-  return <CreditsView onBack={() => router.back()} />;
+  return <CreditsView />;
 }

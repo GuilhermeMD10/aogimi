@@ -1,3 +1,3 @@
-export { default as SettingsView } from './SettingsView';
-export { default as CreditsView } from './credits/CreditsView';
-export { default as HelpView } from './help/HelpView';
+export { default as SettingsView } from './views/SettingsView';
+export { default as HelpView } from './views/HelpView';
+export { default as CreditsView } from './views/CreditsView';

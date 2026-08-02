@@ -133,14 +133,14 @@ function DeckGrid({ children }: { children: React.ReactNode }) {
 
 function DeckCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-(--radius-card) border border-(--deck-bd) bg-(--deck-paper) shadow-(--deck-shadow)">
+    <div className="overflow-hidden rounded-(--radius-card) border border-(--paper-bd) bg-(--paper) shadow-(--paper-shadow)">
       <div className="h-[220px] bg-(--deck-sky) shadow-(--deck-sky-shadow)" />
       <div className="px-5 pt-[18px] pb-5">
         <div className="flex items-baseline justify-between gap-3">
           <Skeleton className="h-6 w-1/2" />
           <Skeleton className="h-3 w-16" />
         </div>
-        <div className="mt-4 border-t border-dashed border-(--deck-bd) pt-4">
+        <div className="mt-4 border-t border-dashed border-(--paper-bd) pt-4">
           <Skeleton className="mb-2.5 h-2 w-28" />
           <div className="flex items-center gap-3.5">
             <Skeleton className="size-8 shrink-0" />

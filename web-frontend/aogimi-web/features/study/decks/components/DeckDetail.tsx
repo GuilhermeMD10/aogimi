@@ -69,7 +69,7 @@ export function DeckDetail({
             <ChevronLeft size={13} strokeWidth={2} />
             Decks
           </button>
-          <span className="text-(--deck-bd)">/</span>
+          <span className="text-(--paper-bd)">/</span>
           <span className="truncate text-(--ink)">{deck.name}</span>
         </nav>
 
@@ -273,7 +273,7 @@ function DeckActionsMenu({
       {open && (
         <div
           role="menu"
-          className="absolute top-full right-0 z-50 mt-1.5 w-44 overflow-hidden rounded-(--radius-button) border border-(--deck-bd) bg-(--deck-paper) shadow-(--deck-shadow-hover)"
+          className="absolute top-full right-0 z-50 mt-1.5 w-44 overflow-hidden rounded-(--radius-button) border border-(--paper-bd) bg-(--paper) shadow-(--paper-shadow-hover)"
         >
           <button
             type="button"
@@ -324,7 +324,7 @@ function AddCardForm({
         e.preventDefault();
         if (canSubmit) onSubmit(front.trim(), back.trim());
       }}
-      className="mb-5 rounded-(--radius-card) border border-(--deck-bd) bg-(--deck-paper) p-4.5 shadow-(--deck-shadow)"
+      className="mb-5 rounded-(--radius-card) border border-(--paper-bd) bg-(--paper) p-4.5 shadow-(--paper-shadow)"
     >
       <label className="block">
         <span className="font-[family-name:var(--face-mono)] text-[9px] tracking-[0.18em] uppercase text-(--faint)">

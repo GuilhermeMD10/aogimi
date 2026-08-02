@@ -14,7 +14,7 @@ type Props = {
 
 // Buttons are local rather than the shared `Button`. This screen's pair sit at
 // 11px/16px padding with 13.5px and 14px labels and a ghost variant that takes
-// its edge from --deck-bd; `Button` is 20px/13px at 15px and borders --ink.
+// its edge from --paper-bd; `Button` is 20px/13px at 15px and borders --ink.
 // Overriding nearly every value through className would leave a component whose
 // own styles never apply, which is harder to read than the markup below.
 const BUTTON_BASE =
@@ -25,8 +25,8 @@ const BUTTON_BASE =
   'active:translate-y-0 active:opacity-[0.92] motion-reduce:transform-none';
 
 const GHOST =
-  `${BUTTON_BASE} gap-2 border border-(--deck-bd) bg-transparent px-4 py-[11px] ` +
-  'text-[13.5px] text-(--soft) hover:border-(--btn) hover:bg-(--deck-tile) hover:text-(--btn)';
+  `${BUTTON_BASE} gap-2 border border-(--paper-bd) bg-transparent px-4 py-[11px] ` +
+  'text-[13.5px] text-(--soft) hover:border-(--btn) hover:bg-(--paper-tile) hover:text-(--btn)';
 
 export function DecksHeader({ dueTotal, dueLoading, onNewDeck }: Props) {
   const hasDue = dueTotal > 0;
@@ -39,7 +39,7 @@ export function DecksHeader({ dueTotal, dueLoading, onNewDeck }: Props) {
             light-theme shadow would read as grey haze on the dark canvas. */}
         <span
           aria-hidden
-          className="flex size-11 shrink-0 items-center justify-center rounded-(--radius-button) border border-(--deck-bd) bg-(--deck-tile) text-(--btn) shadow-(--deck-shadow)"
+          className="flex size-11 shrink-0 items-center justify-center rounded-(--radius-button) border border-(--paper-bd) bg-(--paper-tile) text-(--btn) shadow-(--paper-shadow)"
         >
           <GalleryVerticalEnd size={22} strokeWidth={1.7} />
         </span>
