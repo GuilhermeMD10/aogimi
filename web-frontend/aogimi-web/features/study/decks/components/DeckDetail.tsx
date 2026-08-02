@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 import { TopBar } from '@/features/app-shell/TopBar';
-import type { Deck } from '../types';
+import { DeckSky, useSkySeed, type SkyCard } from '@/features/sky';
+import type { CardState, Deck } from '../types';
 import { DeckForm } from './DeckForm';
 import { DeckCardPanel } from './DeckCardPanel';
 import { DeckLedger } from './DeckLedger';
@@ -28,16 +29,21 @@ interface DeckDetailProps {
 
 type FormMode = null | 'add-card' | 'edit-deck';
 
+/** The decks ladder as the sky's 0..3 rank — the two vocabularies for one
+ *  `cards.state` column (`rankProgress` walks the same array form). */
+const SKY_RANK: Record<CardState, number> = { new: 0, seen: 1, learned: 2, mastered: 3 };
+
 /**
- * One deck, opened: the constellation panel with its card list beside it, and
- * the ledger underneath.
+ * One deck, opened: the card panel with the star map beside it, and the
+ * ledger underneath.
  *
- * **The sky panel is empty** — the same solid `--deck-sky` placeholder the deck
- * cards use. The real star map is a separate component with its own data, and
- * everything in the handoff that couples this page to it (the hover bubble,
- * star↔row hover mirroring, the collapse control that hides the list to reveal
- * the map) is deliberately not built: it would all be interaction with a blank
- * rectangle.
+ * **The sky panel is the deck's own star map** (`DeckSky`, `features/sky`) —
+ * locked to this deck, every card a star, one constellation per UTC day of
+ * adding. It shares `selectedCardId` with the card panel: clicking a star
+ * opens that card in the panel, clicking a list row rings that star. The map
+ * mounts once the user's `sky_seed` is known; until then the container shows
+ * the same `--deck-sky` fill it always had. Hover mirroring between rows and
+ * stars, and the collapse control that hides the list, remain unbuilt.
  *
  * Still a child of `DecksView` rather than a `/decks/{id}` route, so the
  * breadcrumb's "Decks" is a callback rather than a link.
@@ -55,6 +61,23 @@ export function DeckDetail({
   const [mode, setMode] = useState<FormMode>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const { dueCount } = useDeckDueCount(deck.id);
+
+  const skySeed = useSkySeed();
+  // The sky's projection of the cards array. Memoised on the array itself —
+  // DecksView updates it immutably, so this (and the ~1–26ms regeneration
+  // inside DeckSky) reruns on add/delete, never on unrelated renders.
+  const skyCards = useMemo<SkyCard[]>(
+    () =>
+      deck.cards.map((c) => ({
+        id: c.id,
+        front: c.front,
+        back: c.back,
+        mastery: SKY_RANK[c.state ?? 'new'],
+        count: c.reviewed_times ?? 0,
+        createdAt: c.created_at ?? '',
+      })),
+    [deck.cards],
+  );
 
   // Card quota. Counted off the in-memory array, the same source the ledger
   // uses — there's no count endpoint for a deck's total, and the array is
@@ -142,8 +165,21 @@ export function DeckDetail({
             />
           </div>
 
-          {/* Empty on purpose — the star map mounts here. */}
-          <div className="min-w-0 flex-1 overflow-hidden rounded-[20px] border border-(--bd-a) bg-(--deck-sky) shadow-(--deck-sky-shadow) max-[1100px]:order-1 max-[1100px]:h-[52vh] max-[1100px]:min-h-[320px]" />
+          {/* The deck's star map. The div keeps its `--deck-sky` fill as the
+              pre-seed placeholder; DeckSky fills and self-measures whatever
+              box this container resolves to at any breakpoint. */}
+          <div className="min-w-0 flex-1 overflow-hidden rounded-[20px] border border-(--bd-a) bg-(--deck-sky) shadow-(--deck-sky-shadow) max-[1100px]:order-1 max-[1100px]:h-[52vh] max-[1100px]:min-h-[320px]">
+            {skySeed && (
+              <DeckSky
+                seed={skySeed}
+                deckKey={deck.id}
+                deckName={deck.name}
+                cards={skyCards}
+                selectedCardId={selectedCardId}
+                onSelectCard={setSelectedCardId}
+              />
+            )}
+          </div>
         </div>
 
         <DeckLedger

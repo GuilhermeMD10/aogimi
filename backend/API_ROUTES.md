@@ -132,9 +132,12 @@ matches `req.user.userId` via `requireUserMatch`.
 `UserProfile` shape:
 ```
 { id, username, display_name, email, language, avatar_index,
-  onboarding_completed, created_at }
+  onboarding_completed, sky_seed, created_at }
 ```
-`password_hash` is never returned.
+`password_hash` is never returned. `sky_seed` (16 hex chars, migration 025)
+is the immutable per-user seed the client generates the star map from — it
+rides on every profile-shaped response (register/login/refresh included) but
+is **not** PATCHable.
 
 ---
 

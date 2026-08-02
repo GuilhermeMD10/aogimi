@@ -87,7 +87,12 @@ DELETE /api/user
              decision.
 
 UserProfile shape:
-  { id, username, display_name, email, language, avatar_index, created_at }
+  { id, username, display_name, email, language, avatar_index,
+    onboarding_completed, sky_seed, created_at }
+
+  sky_seed: 16-hex immutable seed for the star map (features/sky). Read by
+  useSkySeed(); never PATCHed — the sky regenerates deterministically from
+  (sky_seed, deck uuid, card uuid).
 
 
 ==============================================================================
