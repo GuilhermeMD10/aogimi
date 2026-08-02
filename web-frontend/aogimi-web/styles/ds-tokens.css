@@ -51,23 +51,25 @@
   --stage-recent:      #4E8088;
   --stage-learned:     #3E5D86;
 
-  /* ── Deck card ───────────────────────────────────────────────────────────
+  /* ── Paper surfaces (deck card + profile) ────────────────────────────────
      A deliberately separate surface group, not a reuse of --card / --cardalt /
      --bd.
 
      Those three are `transparent` app-wide because home and the dictionary
-     separate their surfaces with shadow and layout instead of a fill. A deck
-     card can't: it is one clipped object whose top half is a dark sky panel and
-     whose bottom half is paper, so it needs a real fill and a real edge or the
-     two halves stop reading as one card. Filling the shared tokens would have
-     given it both — and repainted every card, chip, pill and divider on the
-     two finished screens at the same time. These names are the deck card's
-     own, so it can be a filled object while the rest of the app stays as
-     designed.
+     separate their surfaces with shadow and layout instead of a fill. Two
+     screens can't: the deck card is one clipped object whose top half is a
+     dark sky panel and whose bottom half is paper, and the profile page is
+     built as ruled lists — rows separated by hairlines inside a filled card —
+     which read as nothing without a real fill and a real edge. Filling the
+     shared tokens would have given both screens what they need — and repainted
+     every card, chip, pill and divider on the finished screens at the same
+     time. This group exists so a filled object can be filled while the rest of
+     the app stays as designed. (Born as --deck-*, generalized when profile
+     became the second consumer.)
 
-     The sky pair is theme-invariant: the sky is the sky, and the panel plus its
-     inset vignette are the card's frame rather than part of the star map that
-     will eventually mount inside it. */
+     The sky pair below stays the deck card's own: the sky is the sky, and the
+     panel plus its inset vignette are the card's frame rather than part of the
+     star map that will eventually mount inside it. */
   --deck-sky:          #16233c;
   --deck-sky-shadow:   inset 0 0 60px 10px rgba(6, 10, 22, .55);
 
@@ -160,12 +162,12 @@ html[data-theme="light"] {
   --covtrack:          rgba(255, 255, 255, .16);
   --stage-mastered:    #c9962a;
 
-  /* Deck card — see the invariant block above for why these are their own. */
-  --deck-paper:        #ffffff;
-  --deck-tile:         #f7f6f3;  /* header icon tile, ghost-button hover */
-  --deck-bd:           #e8e6e0;  /* card edge + the dashed last-word rule */
-  --deck-shadow:       0 6px 20px rgba(22, 35, 60, .10);
-  --deck-shadow-hover: 0 18px 36px rgba(22, 35, 60, .18);
+  /* Paper surfaces — see the invariant block above for why these are their own. */
+  --paper:              #ffffff;
+  --paper-tile:         #f7f6f3;  /* header icon tile, ghost-button hover, row hover */
+  --paper-bd:           #e8e6e0;  /* card edge, ruled rows, the dashed last-word rule */
+  --paper-shadow:       0 6px 20px rgba(22, 35, 60, .10);
+  --paper-shadow-hover: 0 18px 36px rgba(22, 35, 60, .18);
 
   /* Kincha gold, as gold. Reading progress on a book cover and the hover
      outline on a library card. Distinct from --stage-mastered, which means
@@ -226,14 +228,14 @@ html[data-theme="dark"] {
   --stage-mastered:    #F4DC82;
   --gold:              #ffe085;
 
-  /* Deck card. Shadows deepen to the theme's floating values rather than
+  /* Paper surfaces. Shadows deepen to the theme's floating values rather than
      scaling the light ones — a light-theme shadow reads as grey haze on the
      dark canvas. */
-  --deck-paper:        #31333a;
-  --deck-tile:         #1f2024;
-  --deck-bd:           #3f424a;
-  --deck-shadow:       0 10px 26px rgba(0, 0, 0, .45);
-  --deck-shadow-hover: 0 20px 50px rgba(0, 0, 0, .6);
+  --paper:        #31333a;
+  --paper-tile:         #1f2024;
+  --paper-bd:           #3f424a;
+  --paper-shadow:       0 10px 26px rgba(0, 0, 0, .45);
+  --paper-shadow-hover: 0 20px 50px rgba(0, 0, 0, .6);
 
   --star-gold:         244, 220, 130;
   --sky-1:             #16203a;

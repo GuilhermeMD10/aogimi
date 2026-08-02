@@ -264,6 +264,36 @@ is the card list beside an empty sky panel, with a ledger below.
   the handoff treats this page as read-only apart from its two deletes — they
   were existing capability and the only route to either.
 
+### Settings, Help & Credits (`features/settings`)
+
+**Three routes, one shell.** `/settings`, `/help` and `/credits` each render a
+thin page over one feature view, and all three views wrap themselves in
+`components/SettingsShell.tsx` — TopBar (with the `back to profile` pill
+eyebrow) + a sticky "Settings" rail + the 900px-capped panel column. Navigating
+between them reads as the panel column swapping in place, which is the
+handoff's "Help lives inside settings" illusion done with real routes.
+
+- **Reached from `/profile`'s Settings button only** — no nav entry. Help and
+  Credits are reached only from the About card's link rows; each carries a
+  `← BACK TO SETTINGS` link in its eyebrow row.
+- **The theme picker here is the canonical control.** `TopBar`'s pill toggle is
+  gone (the pill collapsed back to a single profile link with an optional
+  eyebrow prop); the Appearance card drives `ThemeProvider` directly. The
+  swatch dots are literal colours by design — they depict the themes, so they
+  never follow the active one.
+- **Delete account** (Data card) fronts `DELETE /api/user` with a typed-
+  "delete" native `<dialog>` confirm (`components/DeleteAccountDialog.tsx`),
+  then wipes the local session and lands on `/authenticate`. Signed out, the
+  Data card collapses to a Sign in row.
+- **Content is hand-authored and ships with the app.** Help copy lives in
+  `views/HelpView.tsx` (works offline, no CMS); the Credits list is
+  `lib/credits.ts`, the audited what-we-actually-ship inventory — several data
+  licenses require the page, so keep that file in sync with reality (its
+  Typography section mirrors the `next/font` imports in `app/layout.tsx`).
+- Built on the `--paper-*` ruled-list surface; `PaperCard` / `PAPER_GHOST`
+  were promoted to `shared/components` when this screen became their second
+  consumer.
+
 ---
 
 ## Conventions to know

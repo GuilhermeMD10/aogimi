@@ -507,3 +507,62 @@ under the context sentence. None exist; `back` is one column and there is no
       instead of a callback and let the page 404 on an unknown deck.
 - [ ] `PendingCardOverlay` is the last `--lgc-*` surface left in this feature.
 - [ ] A confirm step on the two destructive actions.
+
+---
+
+## Redesign — settings / help / credits (`/settings`, `/help`, `/credits`) (2026-08)
+
+The settings handoff, built with the owner's overrides. Visuals follow the
+handoff (ruled lists on the `--paper-*` surface, 236px rail + 900px panel
+column); everything below is where we deliberately diverged.
+
+**Routes instead of local view state.** The handoff wants one `/settings`
+route with Help and Credits as unrouted panel swaps. Owner kept the existing
+`/help` and `/credits` routes. All three views render the same
+`SettingsShell` (TopBar + sticky "Settings" rail), so navigation still reads
+as the panel column swapping; the About rows became real `next/link`s
+(middle-clickable), and the handoff's 120ms cross-fade / scroll-restore
+choreography is moot. The `← BACK TO SETTINGS` eyebrow link stays.
+
+**"Empty the sky" became "Delete account".** There is no data-only wipe
+endpoint and the owner chose not to add one — the row now fronts
+`DELETE /api/user` (cascade-deletes the account, revokes all refresh tokens)
+behind the handoff's typed-`delete` confirm, implemented as a native
+`<dialog>` in the feature (no shadcn AlertDialog exists and `shared/ui` is
+frozen). On success: local logout, land on `/authenticate`.
+
+**Handoff copy discarded, organization kept.** The handoff's Help Q&A claimed
+features that don't exist (furigana-at-your-level, 1–4/J shortcuts) and its
+Credits list didn't match the bundle (KanjiVG isn't shipped; JMnedict and
+Kanjium, which are, were missing; "FSRS BSD-3" misattributes our homegrown
+FSRS-lite). The pre-existing Help prose and `lib/credits.ts` inventory carry
+over into the handoff's layout. The credits Typography section was corrected
+to the five faces `app/layout.tsx` actually loads (M PLUS 1, Space Mono,
+Inter, Source Serif 4, Geist Mono — Lora was stale). Dropped with the copy:
+the "STILL STUCK" group (no contact address or shortcuts content), the
+version strings and the footer line (owner: don't read the version), and the
+handoff's type-specimen grid (plain rows, simpler option).
+
+**The theme switch moved here and left TopBar.** Owner call: the Appearance
+card's segmented picker is now the only theme control. `ThemeToggle` is
+deleted and TopBar's pill collapsed back to a single profile link with an
+optional `pillEyebrow` prop (`back to profile` on these pages). Theme naming
+stays `light`/`dark`; the swatch dots are literal hex by design (they depict
+the themes and must not follow the active one).
+
+**Other divergences.** "Signed in as {email}" → username (email isn't
+collected at signup; auth context carries `{ id, username }`). No sign-out
+confirm (no unsynced-work concept on web). Dock skipped (deferred with
+`WorkspaceNav`; the nav's settings button leaves when that refactor lands —
+until then `/settings` is reachable from `/profile`'s Settings button). 1300px
+column like home/profile, not the handoff's 1500px. `PaperCard` /
+`PAPER_GHOST` promoted from `features/profile` to `shared/components` on
+second use.
+
+**Still deferred**
+
+- [ ] `users.theme` column — theme persists per device (`aogimi-theme`
+      localStorage), not per account.
+- [ ] The handoff's "Couldn't save — retry" pending-write line — the only
+      write on the page is localStorage, which `ThemeProvider` already fails
+      silently by design.

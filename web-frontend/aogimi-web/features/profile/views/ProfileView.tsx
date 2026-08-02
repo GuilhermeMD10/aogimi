@@ -1,139 +1,41 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/features/auth/providers/AuthProvider';
-import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
-import { getUserProfile, updateUserProfile } from '@/features/profile/lib/userApi';
-import { getUserBooks } from '@/features/books';
-import { getUserDecks } from '@/features/study/decks';
-import type { BookProgressRecord } from '@/features/books/types';
-import type { UserProfile } from '@/features/profile/types';
-import type { DeckRecord } from '@/features/study/decks';
-import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
-import OnboardingExplainerModal from '@/features/onboarding';
-import AvatarPickerModal from '@/features/profile/avatar-picker';
-import { HeroBanner } from '@/features/profile/components/HeroBanner';
-import { ProfileHeader } from '@/features/profile/components/ProfileHeader';
-import { AccountSection } from '@/features/profile/components/AccountSection';
-import { DecksSection } from '@/features/profile/components/DecksSection';
-import { CurrentlyReadingSection } from '@/features/profile/components/CurrentlyReadingSection';
-import { ActionsSection } from '@/features/profile/components/ActionsSection';
-import { useStatsCards } from '@/features/study/stats';
+import { TopBar } from '@/features/app-shell/TopBar';
+import { AccountCard } from '../components/AccountCard';
+import { BooksReadCard } from '../components/BooksReadCard';
+import { DecksKeptCard } from '../components/DecksKeptCard';
+import { IdentityCard } from '../components/IdentityCard';
 
+/**
+ * `/profile` — the account page and the reading record in one. A record, not
+ * a dashboard: no charts, no streaks, only counts of real things.
+ *
+ * Composition and grid geometry only — every card owns its own request, so one
+ * slow query can't hold up the page. Same column discipline as home: `TopBar`
+ * is rendered here, inside the page's own 1300px column, and `pb-[140px]`
+ * clears the fixed bottom nav.
+ *
+ * The grid collapses below `lg` in the order Account → Decks → Books. The
+ * right column's `minmax(0, …)` stops long book rows forcing the grid wider
+ * than the page; the left `minmax(340px, …)` keeps the deck rows from
+ * crushing.
+ */
 export default function ProfileView() {
-  const router = useRouter();
-  const user = useAuthedUser();
-  const { logout } = useAuth();
-
-  const profileQ = useFetchWithAbort<UserProfile>((s) => getUserProfile(user.id, s), [user.id]);
-  const booksQ = useFetchWithAbort<BookProgressRecord[]>((s) => getUserBooks(user.id, s), [user.id]);
-  const decksQ = useFetchWithAbort<DeckRecord[]>((s) => getUserDecks(user.id, s), [user.id]);
-  // Mastered count for the AnimalLabel chip — silent on failure
-  // (signed-out / offline). Hook always fires; data is harmless when
-  // empty.
-  const { data: cardsStats } = useStatsCards();
-
-  // Local mirrors of server data so handlers can do optimistic updates.
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  useEffect(() => { if (profileQ.data) setProfile(profileQ.data); }, [profileQ.data]);
-  const books = booksQ.data ?? [];
-  const decks = decksQ.data ?? [];
-  const loading = profileQ.loading || booksQ.loading || decksQ.loading;
-
-  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  // Derived
-  const avatarIndex = profile?.avatar_index ?? 0;
-  const displayName = profile?.display_name || profile?.username || user.username;
-  const language = profile?.language || null;
-  const email = profile?.email || null;
-  const joinDate = profile?.created_at
-    ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-    : null;
-
-  // ── Handlers ─────────────────────────────────────────────────────────────────
-  const handleAvatarSelect = useCallback(
-    (idx: number) => {
-      setProfile((prev) => (prev ? { ...prev, avatar_index: idx } : prev));
-      // Backend is the source of truth for the avatar; optimistic update above.
-      updateUserProfile({ avatar_index: idx }).catch(() => { /* backend not ready */ });
-    },
-    [],
-  );
-
-  const handleSignOut = useCallback(() => {
-    logout();
-    router.push('/authenticate');
-  }, [logout, router]);
-
-  // ── Computed ─────────────────────────────────────────────────────────────────
-  const readingBooks = books.filter((b) => b.progress > 0 && b.progress < 100).slice(0, 3);
-
-  // ── Loading gate ─────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="flex min-h-full items-center justify-center">
-        <p className="text-sm text-lgc-fg-muted">Loading profile&hellip;</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="lgc-scroll min-h-full overflow-auto">
-      <HeroBanner />
+    <div className="h-full w-full overflow-auto font-[family-name:var(--face-ui)] font-medium">
+      <div className="mx-auto w-full max-w-[1300px] px-11 pt-[34px] pb-[140px]">
+        <TopBar />
 
-      <div style={{ padding: '0 24px 22px' }}>
-        <ProfileHeader
-          avatarIndex={avatarIndex}
-          displayName={displayName}
-          language={language}
-          joinDate={joinDate}
-          mastered={cardsStats.byState.mastered}
-          onEditAvatar={() => setShowAvatarPicker(true)}
-        />
+        <IdentityCard />
 
-        {/* Auto-fit grid: gracefully collapses to one column under
-            ~580px and expands back to two when the surface is wider. */}
-        <div
-          className="grid gap-5"
-          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}
-        >
-          <div>
-            <AccountSection
-              displayName={displayName}
-              username={user.username}
-              email={email}
-              language={language}
-            />
-            <DecksSection decks={decks} />
+        <div className="grid items-start gap-[26px] lg:grid-cols-[minmax(340px,1fr)_minmax(0,1.55fr)]">
+          <div className="flex flex-col gap-[26px]">
+            <AccountCard />
+            <DecksKeptCard />
           </div>
-
-          <div>
-            <CurrentlyReadingSection books={readingBooks} />
-            <ActionsSection
-              onShowOnboarding={() => setShowOnboarding(true)}
-              onSignOut={handleSignOut}
-            />
-          </div>
+          <BooksReadCard />
         </div>
       </div>
-
-      {showAvatarPicker && (
-        <AvatarPickerModal
-          current={avatarIndex}
-          onSelect={handleAvatarSelect}
-          onClose={() => setShowAvatarPicker(false)}
-        />
-      )}
-
-      {showOnboarding && (
-        <OnboardingExplainerModal
-          userId={user.id}
-          onDismiss={() => setShowOnboarding(false)}
-        />
-      )}
     </div>
   );
 }

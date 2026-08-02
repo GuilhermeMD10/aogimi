@@ -19,7 +19,7 @@ Status:
 | Study runner | `/study` | Route extracted, visuals not started |
 | Sky (study stats) | `/sky` | Not started |
 | Profile | `/profile` | Not started |
-| Settings / help / credits | `/settings`, `/help`, `/credits` | Not started |
+| Settings / help / credits | `/settings`, `/help`, `/credits` | **Done** — three routes, one shared shell |
 | Auth | `/authenticate` | Not started |
 | Bottom nav (dock) | — | **Deferred by the owner. Don't touch `WorkspaceNav`.** |
 
@@ -109,8 +109,8 @@ Write them with Tailwind v4's var shorthand: `text-(--ink)`, `bg-(--card)`,
   `primary`/`secondary` because that's a real distinction; it has no `dark`.
 - Theme lives in `html[data-theme]`, persists in the `aogimi-theme` localStorage
   key, and is applied by a pre-paint `<script>` in `app/layout.tsx`. An effect
-  can't do this — it fires after paint and flashes. The switch is in
-  `TopBar`'s profile pill.
+  can't do this — it fires after paint and flashes. The switch is the
+  Appearance card on `/settings` (TopBar's pill toggle is gone).
 - **Un-migrated screens look wrong in dark mode** (light-only `--lgc-*` text on
   a themed canvas). Known and accepted; not a bug to chase.
 
@@ -132,7 +132,9 @@ The primitive layer. All theme-agnostic, all token-driven.
 `<button>`) · `Card` (`card` | `panel`) · `CardHeader` (title + corner action) ·
 `Chip` · `CoverTile` (cover colour + vertical title + progress strip) ·
 `Eyebrow` (mono uppercase column label) · `MonoAction` (`VIEW ALL →`) ·
-`ProgressTrack` · `Skeleton` · `StageDot` (+ `stageLabel`) · `coverPalette`.
+`PaperCard` + `PAPER_GHOST` (the `--paper-*` ruled-list card shell and its
+ghost-button class — profile, settings) · `ProgressTrack` · `Skeleton` ·
+`StageDot` (+ `stageLabel`) · `coverPalette`.
 
 **The bar for adding one: it's used twice.** A one-off stays in the feature that
 uses it and gets promoted when a second screen wants it. A too-simple component

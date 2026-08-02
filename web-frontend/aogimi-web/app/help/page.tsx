@@ -1,11 +1,7 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
 import { HelpView } from '@/features/settings';
 
-// Standalone /help route. The bubble flow swaps to HelpView inside
-// itself rather than navigating here; this route is for deep links.
+// /help — the settings shell showing the guide. Entered from the About card
+// on /settings; the eyebrow row carries the way back.
 export default function HelpPage() {
-  const router = useRouter();
-  return <HelpView onBack={() => router.back()} />;
+  return <HelpView />;
 }

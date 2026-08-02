@@ -70,6 +70,16 @@ PUT /api/user/onboarding
   Notes:     Sets users.onboarding_completed; the gate reads that flag back
              via GET /api/user/{id}. Endpoint/column pre-existed, unchanged.
 
+DELETE /api/user
+  Trigger:   Settings → Data → Delete account, behind the typed-"delete"
+             confirm dialog (features/settings/lib/settingsApi.ts).
+  Response:  { message: 'Account deleted' }
+  Notes:     Revokes every refresh token and cascade-deletes the account and
+             everything under it. The client then wipes local session state
+             (logout) and lands on /authenticate. There is no data-only wipe
+             endpoint — the handoff's "empty the sky" became this by owner
+             decision.
+
 UserProfile shape:
   { id, username, display_name, email, language, avatar_index, created_at }
 
@@ -488,8 +498,8 @@ Account-switch wipe:
 SUMMARY
 ==============================================================================
 
-Total backend endpoints:   28
-  GET:     8   POST:   8   PUT:    7   PATCH:  1   DELETE: 4
+Total backend endpoints:   29
+  GET:     8   POST:   8   PUT:    7   PATCH:  1   DELETE: 5
 
 Internal API routes:        0  (none)
 External APIs:              0  (none)

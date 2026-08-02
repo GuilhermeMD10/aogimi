@@ -35,7 +35,7 @@ export function DeckForm({ submitLabel, initial, onSubmit, onCancel }: DeckFormP
   return (
     <form
       onSubmit={submit}
-      className="flex flex-wrap items-end gap-3 rounded-(--radius-card) border border-(--deck-bd) bg-(--deck-paper) p-4.5 shadow-(--deck-shadow)"
+      className="flex flex-wrap items-end gap-3 rounded-(--radius-card) border border-(--paper-bd) bg-(--paper) p-4.5 shadow-(--paper-shadow)"
     >
       <label className="flex min-w-[220px] flex-1 flex-col gap-1.5">
         <span className="font-[family-name:var(--face-mono)] text-[9px] tracking-[0.18em] uppercase text-(--faint)">

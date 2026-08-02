@@ -25,7 +25,7 @@ export function DeckCard({ deck, dueCount, onOpen, onDelete }: Props) {
   const last = deck.last_card;
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-(--radius-card) border border-(--deck-bd) bg-(--deck-paper) shadow-(--deck-shadow) transition-[transform,box-shadow] duration-[180ms] ease-[ease] hover:-translate-y-1 hover:shadow-(--deck-shadow-hover) has-[:focus-visible]:-translate-y-1 motion-reduce:transform-none motion-reduce:hover:translate-y-0">
+    <div className="group relative flex flex-col overflow-hidden rounded-(--radius-card) border border-(--paper-bd) bg-(--paper) shadow-(--paper-shadow) transition-[transform,box-shadow] duration-[180ms] ease-[ease] hover:-translate-y-1 hover:shadow-(--paper-shadow-hover) has-[:focus-visible]:-translate-y-1 motion-reduce:transform-none motion-reduce:hover:translate-y-0">
       <div
         className="relative h-[220px] shrink-0 overflow-hidden bg-(--deck-sky) shadow-(--deck-sky-shadow)"
         // The star map mounts here and fills it edge to edge.
@@ -55,7 +55,7 @@ export function DeckCard({ deck, dueCount, onOpen, onDelete }: Props) {
           </span>
         </div>
 
-        <div className="mt-4 border-t border-dashed border-(--deck-bd) pt-4">
+        <div className="mt-4 border-t border-dashed border-(--paper-bd) pt-4">
           {last ? (
             <>
               <div className="mb-2.5 font-[family-name:var(--face-mono)] text-[9px] tracking-[0.18em] uppercase text-(--faint)">
@@ -189,7 +189,7 @@ function DeckMenu({ deckName, onDelete }: { deckName: string; onDelete: () => vo
       {open && (
         <div
           role="menu"
-          className="absolute top-full left-0 mt-1.5 w-36 overflow-hidden rounded-(--radius-button) border border-(--deck-bd) bg-(--deck-paper) shadow-(--deck-shadow-hover)"
+          className="absolute top-full left-0 mt-1.5 w-36 overflow-hidden rounded-(--radius-button) border border-(--paper-bd) bg-(--paper) shadow-(--paper-shadow-hover)"
         >
           {/* Deletes immediately, no confirm step. It cascades to every card in
               the deck — worth revisiting, deliberately not now. */}
