@@ -53,6 +53,22 @@ router.get(
   },
 );
 
+// Every deck with its full card list in one response — feeds the /sky page,
+// which needs all cards across all decks and would otherwise do a per-deck
+// GET /:id/cards fan-out. Bounded by the per-user card quota, so no paging.
+router.get(
+  "/user/:userId/cards",
+  requireUserMatch({ from: "params", key: "userId" }),
+  async (req, res) => {
+    try {
+      const decks = await deckService.getUserDecksWithCards(req.user.userId);
+      return res.json({ decks });
+    } catch (err) {
+      return res.status(500).json({ error: "List failed" });
+    }
+  },
+);
+
 router.get("/:id", async (req, res) => {
   if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });

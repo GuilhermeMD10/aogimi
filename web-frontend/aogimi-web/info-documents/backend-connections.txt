@@ -204,6 +204,18 @@ GET /api/decks/user/{userId}
   Trigger:   Cards page mount, profile page mount (once per page load)
   Response:  DeckRecord[]   -- ordered created_at DESC (newest deck first)
 
+GET /api/decks/user/{userId}/cards
+  Trigger:   Sky page mount (once per page load)
+  Response:  { decks: (DeckRecord & { cards: CardRecord[] })[] }
+             -- decks ordered created_at DESC (same rows/order as
+                /api/decks/user/{userId}); each deck's cards ordered
+                created_at DESC (same shape/order as /api/decks/{id}/cards);
+                empty decks carry cards: []
+  Note:      Bulk read for screens that need every card across all decks in
+             one request -- use this instead of a per-deck
+             GET /api/decks/{deckId}/cards fan-out. Unpaginated; bounded by
+             the per-user card quota (5000).
+
 GET /api/decks/{id}
   Trigger:   Deck detail load (manual)
   Response:  DeckRecord
