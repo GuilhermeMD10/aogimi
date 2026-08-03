@@ -8,10 +8,10 @@ import { cn } from '@/lib/util/cn';
  * (a learner reads "green = easy" the same way at night). Pill ink is always
  * the same warm near-black, which stays legible on all five.
  *
- * Values are the Dictionary handoff's ramp. The reader prototype ships a
- * brighter variant of the same scale; the handoff says to standardise on this,
- * calmer one, so `shared/ui/JlptChip` (the outgoing component, still used by
- * the reader surfaces) will be deleted rather than reconciled.
+ * Values are the Dictionary handoff's ramp. The reader prototype shipped a
+ * brighter variant of the same scale in `shared/ui/JlptChip`; the handoff said to
+ * standardise on this calmer one, and that file is now deleted — the reader's
+ * surfaces render this component.
  *
  * `level` is the DB's 1–5 where 1 = N1 = hardest.
  */

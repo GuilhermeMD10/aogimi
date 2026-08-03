@@ -1,8 +1,18 @@
 'use client';
 import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { cameraFitting, clampCamera, fitZoom, matchAspect, panBy, viewOf, zoomAround } from '../lib/camera';
-import { DRAG_SLOP_PX, ZOOM_PER_WHEEL_PX } from '../lib/config';
+import {
+  cameraFitting,
+  clampCamera,
+  easeOutCubic,
+  fitZoom,
+  matchAspect,
+  panBy,
+  tweenCamera,
+  viewOf,
+  zoomAround,
+} from '../lib/camera';
+import { CAMERA_TWEEN_MS, DRAG_SLOP_PX, ZOOM_PER_WHEEL_PX } from '../lib/config';
 import type { Bounds, Camera, Point, View, Viewport } from '../lib/types';
 
 type Drag = {
@@ -13,13 +23,23 @@ type Drag = {
 };
 
 /**
- * Either a definite pose, or the intent to frame the whole of `bounds`. Keeping "fit" as an intent
- * rather than resolving it to numbers means it re-resolves against whatever the bounds are when read
- * — so fitting right after a build frames the new sky, not the one that was there when the button was
- * pressed, and entering a deck frames that deck without anyone computing a pose for it. It also makes
- * the view follow a sky that is still growing, until you touch it.
+ * Either a definite pose, the intent to frame the whole of `bounds`, or one frame of a flight.
+ *
+ * Keeping "fit" as an intent rather than resolving it to numbers means it re-resolves against
+ * whatever the bounds are when read — so fitting right after a build frames the new sky, not the
+ * one that was there when the button was pressed, and entering a deck frames that deck without
+ * anyone computing a pose for it. It also makes the view follow a sky that is still growing,
+ * until you touch it.
+ *
+ * A flight pose is a camera that is deliberately **not clamped**: the path between two tiers
+ * legitimately passes outside the destination's box (its zoom starts below the new floor), and
+ * clamping any frame of it would snap the zoom to that floor and end the flight before it began.
+ * It also passes through a lock — returning to the locked outer view is itself a flight, and the
+ * lock re-asserts the moment it lands or is interrupted.
  */
-type Pose = Camera | 'fit';
+type Pose = Camera | 'fit' | { flight: Camera };
+
+const isFlight = (p: Pose): p is { flight: Camera } => p !== 'fit' && 'flight' in p;
 
 /**
  * Stands in for one render, until the ResizeObserver in `attach` reports the element's real size.
@@ -55,6 +75,20 @@ export type CameraController = {
   relZoom: number;
   /** Frame the whole of `bounds`, now and as it grows, until a gesture takes over. */
   fitTo: () => void;
+  /**
+   * Fly to a pose over CAMERA_TWEEN_MS with a decelerating ease, instead of jumping there.
+   *
+   * A `'fit'` target re-resolves against the bounds **every frame**, so a flight started in the
+   * same commit that changes them (entering a deck, leaving one) still lands on the new tier's
+   * fit — and hands the pose back to the `'fit'` intent on arrival, so nothing about the resting
+   * state differs from having jumped. The departure pose is the camera as of the last commit,
+   * which during a focus-change commit is still the view the reader was just looking at.
+   *
+   * Interruptible: any pan or wheel takes over mid-flight and the flight simply never arrives —
+   * `onArrive` fires only on an actual landing, which is what lets a caller sequence work
+   * (select a star, say) behind the camera genuinely getting there.
+   */
+  flyTo: (target: Camera | 'fit', onArrive?: () => void) => void;
   /** Begin following this pointer. */
   onPointerDown: (e: ReactPointerEvent<SVGSVGElement>) => void;
   /** Returns true when the move belonged to a pan, so the caller can skip hover work. */
@@ -124,15 +158,90 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
 
   // A locked camera is not a pose that happens to be fitted — it is the *intent* to be fitted, so
   // it keeps re-resolving as the bounds change and cannot be left stale by a gesture that raced it.
-  const effective: Pose = locked ? 'fit' : pose;
+  // A flight passes through the lock (see Pose); everything else defers to it.
+  const effective: Pose = isFlight(pose) ? pose : locked ? 'fit' : pose;
 
   // the camera is confined on the way *out* rather than on the way in. Growing the sky only adds
   // slack, but entering a deck shrinks the box under a camera that was legal a moment ago —
   // deriving the clamp here handles that without a correcting render, and guarantees no consumer
-  // can ever observe an out-of-bounds camera.
+  // can ever observe an out-of-bounds camera. The one exception is a flight frame, whose whole
+  // point is to cross the boundary the clamp enforces — see Pose.
   const camera = useMemo(
-    () => clampCamera(effective === 'fit' ? cameraFitting(bounds, viewport) : effective, bounds, viewport),
+    () =>
+      isFlight(effective)
+        ? effective.flight
+        : clampCamera(effective === 'fit' ? cameraFitting(bounds, viewport) : effective, bounds, viewport),
     [effective, bounds, viewport],
+  );
+
+  // The flight's departure pose, read through a ref like the bounds are. Synced after the commit,
+  // so during the commit that changes focus it still holds the camera the reader was just looking
+  // at — exactly the pose a flight into the new tier should depart from.
+  const cameraRef = useRef(camera);
+  useEffect(() => {
+    cameraRef.current = camera;
+  });
+
+  /* ---------- flights ---------- */
+
+  const flightRef = useRef<{ raf: number; onArrive?: () => void } | null>(null);
+
+  /** End any flight. An interrupted one (a gesture took over) lands where it is, clamped back
+   *  inside the law — or back on the fit intent when locked, where a free pose means nothing. */
+  const stopFlight = useCallback((arrived: boolean) => {
+    const flight = flightRef.current;
+    if (!flight) return;
+    cancelAnimationFrame(flight.raf);
+    flightRef.current = null;
+    if (arrived) flight.onArrive?.();
+    else {
+      setPose(
+        lockedRef.current
+          ? 'fit'
+          : clampCamera(cameraRef.current, boundsRef.current, viewportRef.current),
+      );
+    }
+  }, []);
+
+  // a flight left running past unmount would keep calling setPose into nothing
+  useEffect(
+    () => () => {
+      if (flightRef.current) cancelAnimationFrame(flightRef.current.raf);
+    },
+    [],
+  );
+
+  const flyTo = useCallback(
+    (target: Camera | 'fit', onArrive?: () => void) => {
+      stopFlight(false);
+      const from = cameraRef.current;
+      const start = performance.now();
+      const flight: { raf: number; onArrive?: () => void } = { raf: 0, onArrive };
+      flightRef.current = flight;
+      // on screen this very commit, so the first painted frame is the departure — never a fit of
+      // the new bounds that the flight then appears to jump back from
+      setPose({ flight: from });
+
+      const step = (now: number) => {
+        if (flightRef.current !== flight) return; // a newer flight or a gesture took over
+        const b = boundsRef.current;
+        const vp = viewportRef.current;
+        // 'fit' resolves per frame, so a flight racing a bounds change still lands on the new fit
+        const to = target === 'fit' ? cameraFitting(b, vp) : target;
+        const k = Math.min(1, (now - start) / CAMERA_TWEEN_MS);
+        if (k >= 1) {
+          // land on the intent (or the clamped pose), so the resting state is exactly what a
+          // jump would have produced — nothing downstream can tell the two apart afterwards
+          setPose(target === 'fit' ? 'fit' : clampCamera(target, b, vp));
+          stopFlight(true);
+          return;
+        }
+        setPose({ flight: tweenCamera(from, to, easeOutCubic(k)) });
+        flight.raf = requestAnimationFrame(step);
+      };
+      flight.raf = requestAnimationFrame(step);
+    },
+    [stopFlight],
   );
   const view = useMemo(() => viewOf(camera, viewport), [camera, viewport]);
   // relative to a fit of the *current* bounds, so 1.0 means "this tier, fully framed" whether that
@@ -144,12 +253,13 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
   const onPointerDown = useCallback(
     (e: ReactPointerEvent<SVGSVGElement>) => {
       if (e.button !== 0) return;
+      stopFlight(false); // a press takes the camera back from a flight
       // capture on the viewport, so a drag keeps tracking once the cursor leaves it
       e.currentTarget.setPointerCapture(e.pointerId);
       dragRef.current = { id: e.pointerId, from: localOf(e.currentTarget, e), cam: camera, moved: false };
       setDragging(true);
     },
-    [camera],
+    [camera, stopFlight],
   );
 
   const onPointerMove = useCallback((e: ReactPointerEvent<SVGSVGElement>) => {
@@ -194,6 +304,12 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
     // reliably, and without that the page scrolls behind the sky
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      // The wheel takes over from a flight — except at the locked outer view, where the wheel is
+      // otherwise inert and a momentum tail arriving mid-return-flight must not cut it short.
+      if (flightRef.current) {
+        if (lockedRef.current) return;
+        stopFlight(false);
+      }
       const b = boundsRef.current;
       const vp = viewportRef.current;
       // the wheel's own feel is decided here. Exponential, so a notch means the same proportional
@@ -206,7 +322,7 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
       if (factor < 1) {
         const floor = fitZoom(b, vp);
         setPose((current) => {
-          const from = current === 'fit' ? cameraFitting(b, vp) : current;
+          const from = current === 'fit' ? cameraFitting(b, vp) : isFlight(current) ? current.flight : current;
           if (from.zoom <= floor + 1e-9) {
             escapeRef.current?.();
             return current;
@@ -221,7 +337,7 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
       // clampCamera then pulls the position back in
       const local = localOf(el, e);
       setPose((current) => {
-        const from = current === 'fit' ? cameraFitting(b, vp) : current;
+        const from = current === 'fit' ? cameraFitting(b, vp) : isFlight(current) ? current.flight : current;
         return clampCamera(zoomAround(from, local, factor, b, vp), b, vp);
       });
     };
@@ -231,7 +347,8 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
       observer.disconnect();
       el.removeEventListener('wheel', onWheel);
     };
-  }, []);
+    // stopFlight is stable (useCallback, no deps), so the listener is still attached exactly once
+  }, [stopFlight]);
 
   return {
     attach,
@@ -243,6 +360,7 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
     locked,
     relZoom,
     fitTo,
+    flyTo,
     onPointerDown,
     onPointerMove,
     onPointerUp,

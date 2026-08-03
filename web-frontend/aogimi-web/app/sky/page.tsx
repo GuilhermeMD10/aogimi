@@ -1,8 +1,13 @@
-import { StatsScreen } from '@/features/study/stats';
+import { Suspense } from 'react';
+import { SkyView } from '@/features/sky';
 
-// `/sky` is the study-stats screen. The route carries the new name because the
-// star map is what this page becomes; the feature folder stays `study/stats`
-// until that lands, since what it holds today is a heatmap and a reviews chart.
+// `/sky` is the star map. Suspense is required, not decorative: SkyView reads
+// `useSearchParams` (the `?deck=&card=` navigation state), which suspends
+// during prerender.
 export default function SkyPage() {
-  return <StatsScreen />;
+  return (
+    <Suspense>
+      <SkyView />
+    </Suspense>
+  );
 }

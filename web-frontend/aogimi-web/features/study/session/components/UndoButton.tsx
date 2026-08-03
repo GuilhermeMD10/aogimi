@@ -7,19 +7,26 @@ type Props = {
   disabled?: boolean;
 };
 
-// Subtle link below the action row. Single-step only; the backend
-// event row stays since the next review on the same card overwrites
-// the backend card state.
+/**
+ * Take back the last grade. Single step — the backend event row stays, since
+ * the next review of the same card overwrites the card state anyway.
+ *
+ * It sits in the session header beside the close control rather than under the
+ * grade row: the handoff draws no undo at all, and the header is where this
+ * screen's other session-level control already is. Disabled (not hidden) with
+ * nothing to undo, so the header's width doesn't shift after the first grade.
+ */
 export function UndoButton({ onPress, disabled }: Props) {
   return (
     <button
       type="button"
       onClick={onPress}
       disabled={disabled}
-      className="mx-auto mt-3 flex items-center gap-1.5 px-3 py-1 text-xs text-lgc-fg-muted transition-opacity hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-30"
-      style={{ opacity: 0.75 }}
+      title="Undo the last grade (Z)"
+      className="inline-flex h-10 items-center gap-2 rounded-(--radius-button) border border-(--bd-a) px-3 font-[family-name:var(--face-mono)] text-[11px] tracking-[0.08em] whitespace-nowrap text-(--muted) transition-colors duration-120 ease-[ease] hover:bg-(--tint-b) hover:text-(--ink) disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
     >
-      <Undo2 size={12} /> Undo
+      <Undo2 size={14} strokeWidth={1.8} aria-hidden />
+      UNDO
     </button>
   );
 }

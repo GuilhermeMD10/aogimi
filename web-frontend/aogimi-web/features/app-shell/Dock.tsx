@@ -90,6 +90,10 @@ const ICONS: Record<DockKey, React.ReactNode> = {
   ),
 };
 
+/** Routes with no dock entry of their own, mapped to the entry that stays lit.
+ *  A study session is entered from Decks and exits back to it, so Decks owns it. */
+const ADOPTED_BY: Record<string, string> = { '/study': '/decks' };
+
 export default function Dock() {
   const pathname = usePathname();
   const { user } = useAuth();
@@ -99,8 +103,11 @@ export default function Dock() {
 
   // `/` has to match exactly or Home would light up on every route. The others
   // match their subtree, so `/reader/…` keeps Reader active.
-  const isActive = (path: string) =>
-    path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`);
+  const isActive = (path: string) => {
+    if (path === '/') return pathname === '/';
+    if (ADOPTED_BY[pathname] === path) return true;
+    return pathname === path || pathname.startsWith(`${path}/`);
+  };
 
   const renderItem = ({ key, label, path }: { key: DockKey; label: string; path: string }) => {
     const active = isActive(path);

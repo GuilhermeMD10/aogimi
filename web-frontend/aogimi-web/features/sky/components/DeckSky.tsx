@@ -21,7 +21,8 @@ import { SkyCanvas } from './SkyCanvas';
  *
  * Selection is the host's, by card uuid — the same `selectedCardId` the card panel beside this
  * component reads, so a star click and a list-row click are one act arriving by different fingers.
- * `Star.key` carries the uuid back out; the maps below translate in both directions.
+ * `Star.key` carries the uuid back out; the maps below translate in both directions. A click on
+ * empty sky clears the selection, the same way the panel's back button does.
  *
  * Rebuilds only when the inputs change: `cards` is referentially stable in the deck page's state,
  * so the ~1–26ms regenerate runs on mount and on add/delete, never per render. `today` is read
@@ -72,6 +73,7 @@ export function DeckSky({ seed, deckKey, deckName, cards, selectedCardId, onSele
       openTip={openTip}
       onEnterDeck={noop}
       onStarClick={(star: Star) => onSelectCard(star.key)}
+      onMiss={() => onSelectCard(null)}
       onSeen={noop}
     />
   );

@@ -128,9 +128,9 @@ Theme choice persists in the `aogimi-theme` localStorage key, applied by a pre-p
 
 1. **`--lgc-*` colour tokens** in `styles/themes/default.css` (`:root` + `html[data-theme="default"]`, which no longer matches anything since the attribute is now `light`/`dark`; the `:root` binding is what keeps it alive).
 2. **Shape tokens** in `styles/shape-defaults.css`.
-3. **Primitive classes** `.lgc-card`, `.lgc-button`, `.lgc-chip`, `.lgc-section-label` in `styles/primitives.css`, plus the old primitives in `shared/ui/`.
+3. **Primitive classes** `.lgc-card`, `.lgc-button`, `.lgc-chip`, `.lgc-section-label` in `styles/primitives.css`, plus the old primitives in `shared/ui/` — now down to `SectionCard`, `ActionRow`, `Field` and `ReaderProgressBar`. `InfoRow`, `SectionHead`, `PitchAccentDiagram` and `JlptChip` are **deleted**: the reader's dictionary redesign was their last consumer, and their `--lgc-*` shape axes went with them.
 
-Don't build anything new on these. The teardown is: point the `@theme` colour aliases at the new tokens, delete those three CSS files and the stranded `shared/ui` primitives.
+Don't build anything new on these. The teardown is: point the `@theme` colour aliases at the new tokens, delete those three CSS files and the stranded `shared/ui` primitives. In the meantime the standing rule is **delete an outgoing file when you remove its last import, and leave the shared token layer alone** — a primitive nothing imports is worse than one that's merely outgoing.
 
 ---
 
@@ -142,11 +142,11 @@ All state is in **React Context providers**, mounted by `AppShell`. Nothing in l
 |---|---|---|
 | `AuthProvider` | Current user, login/signup/logout flows. **Token storage = "memory + httpOnly cookie"**: the access token lives in-memory only ([`lib/auth/tokenStore.ts`](lib/auth/tokenStore.ts)), the refresh token is an httpOnly cookie set by the backend (never readable by JS). On boot, a silent `/api/auth/refresh` re-mints the access token from the cookie. Session-invalidation hook in [`lib/api.ts`](lib/api.ts) auto-signs-out on unrecoverable 401/403. See [`../../docs/AUTH.md`](../../docs/AUTH.md). | `auth_user` only (tokens are no longer in localStorage) |
 | `ThemeProvider` | The single `default` theme (no setter that persists; kept as plumbing for a future redesign) | (none — no longer persisted) |
-| `ReaderStateProvider` | Active book session (`{ activeBook, fileUrl, backendBookId?, initialCfi?, initialSpineIndex? }`), sidekick toggle, and the three cross-route pending signals (`pendingDictSearch`, `pendingCard`, `pendingBookOpen`). Reading-position sync itself lives in `ReaderView/useProgressSync` (the session just carries the backend id + restore anchor). | (none) |
-| `DictionaryStateProvider` | Search query/results + the reader sidekick's selected word. Nothing is persisted: `/dictionary` keeps its query and selection in the URL, and holding a second copy in localStorage gave two sources of truth that drifted. | `dictionary_recent_searches` (written by `pushRecentSearch`, not by the provider's state) |
+| `ReaderStateProvider` | The reader bubble's visibility (`readerBubble`), the docked-dictionary toggle (`sidekickOpen`), and the `pendingCard` hand-off to `/decks`. The **open book is not here** — the reader is `/reader/[bookId]`, so the id in the URL is the session and `ReaderView` resolves the file, restore anchor and progress sync from it. | (none) |
+| `DictionaryStateProvider` | Search query/results + the word the reader's surfaces have open (`selectedWordId`). Nothing is persisted: `/dictionary` keeps its query and selection in the URL, and holding a second copy in localStorage gave two sources of truth that drifted. A *kanji* selection isn't here — the field is a word id and a character has none, so the reader's surfaces keep that half locally (`reader/hooks/useDictSelection.ts`). | `dictionary_recent_searches` (written by `pushRecentSearch`, not by the provider's state) |
 | `BubbleProvider` | Which page-bubble (Profile/Reader) is active | (in-memory only) |
 
-The reader/dictionary/bubbles talk via **transient pending fields**: when the reader wants to look up a word, it sets `pendingDictSearch` on `ReaderStateProvider`; `AppShell` watches it, dispatches `dict.runSearch()`, then nulls the field. Same shape for `pendingCard`. Both effects guard against double-fire with a `useRef` of "last seen" — see [components/AppShell.tsx](components/AppShell.tsx).
+The reader and the dictionary talk through **`features/app-shell/hooks/useReaderActions.ts`**, not through pending fields. `requestDictLookup(word, sentence)` runs the search and opens the bubble *only* if no dictionary surface is already visible (`/dictionary`, or the reader with its column docked — a prefix test on `/reader/`, because `/reader` exactly is the shelf). `requestAddCard` opens the bubble and also sets `pendingCard`, which `/decks` consumes on mount if it happens to be there; `AppShell` clears both together on close so the card can't be created twice. The old `pendingDictSearch` / `pendingBookOpen` fields and their `fired*Ref` guards are gone — the consumer logic now lives at the call site, gated by stable function identity.
 
 ---
 
@@ -204,7 +204,7 @@ App-level features that ride on top of the architecture above. Document new feat
 - **The detail pane never blanks.** Headword, reading, pitch, pills and meanings all come from the `WordResult` the rail already holds, so switching entries repaints instantly. Only the kanji breakdown and example sentences wait on `/api/words/:id/details`, and only those two show a skeleton. `hooks/useWordDetails.ts` caches per word id and deliberately does **not** cancel a request when the selection moves on — killing them on a fast scroll caches nothing.
 - **Rail contents are normalised** by `lib/results.ts`: `/api/search` answers with four different shapes (one kanji entry, a list of them, or neither; names only sometimes). Kanji entries are selectable and get their own detail pane (`KanjiEntryDetail`); names sit at the bottom, display-only, because there's no per-name endpoint.
 - **↑/↓ walk the rail** from anywhere including the field, `/` and ⌘K focus it, `Esc` clears.
-- Reader surfaces (`DictionarySidekick`, the reader bubble, `WordDetailView`) still read the outgoing `--lgc-*` palette and are untouched. They share `DictionaryStateProvider` and `preferredHeadword` with this screen, nothing else.
+- **The reader's two lookup surfaces are built out of this screen's parts, not beside them.** `features/books/reader/dict-sidebar/` (the column docked beside the book, 320–480px) and `features/books/reader/reader-bubble/` (the floating 880×620 panel, five phases) render the same `WordRow`/`KanjiRow`, the same `RailList` and the same `EntryDetail`/`KanjiEntryDetail` — at `scale="compact"` and `scale="full"` respectively. The barrel exists to make that possible; the pieces own no width, fill, edge, scroll or padding, and the surface supplies the box. `DictionarySidekick` and `WordDetailView`, which were hand-written copies on the retired `--lgc-*` palette, are deleted.
 
 ### Decks (`features/study/decks`)
 
@@ -239,14 +239,14 @@ half.** `DecksView` switches on local `screen` state between
   column and the mobile app still have the feature.
 
 **Deck detail** (`components/DeckDetail.tsx`, still the other half of `/decks`)
-is the card list beside an empty sky panel, with a ledger below.
+is the card list beside the deck's own star map, with the ledger riding inside
+the panel as an always-visible footer.
 
-- **Nothing on it talks to a star map.** The handoff binds the list and the map
-  together — hover bubbles, star↔row hover mirroring, a collapse control that
-  hides the list to reveal the map. All deferred with the map: it would be
-  interaction with a blank rectangle. `DeckCardPanel` takes
-  `selectedId`/`onSelect`, so the map plugs into the existing selection model
-  without the panel changing.
+- **The sky panel is live.** `DeckSky` (from `features/sky`) renders the deck's
+  cards as stars, locked to this one deck, and shares `selectedCardId` with
+  `DeckCardPanel` — a star click opens the card, a row click rings the star.
+  Hover mirroring and the collapse control that hides the list remain unbuilt.
+  If the panel shows only the navy fill, the `sky_seed` hasn't loaded yet.
 - **`lib/rankProgress.ts` mirrors the backend's promotion rules.**
   `backend/src/services/cardSrsService.js` owns them; that file is a client
   copy, and retuning the thresholds there means changing both. It exists
@@ -254,10 +254,12 @@ is the card list beside an empty sky panel, with a ledger below.
   payload. Each promotion has a streak gate *and* a difficulty gate, and the
   bar shows the lower of the two so it can't read 100% on a card the server
   won't promote.
-- **The ledger counts in memory.** Card totals and the four-tier mix bar come
-  from the `cards` array the page already has — no `deck/stats` endpoint,
-  because it would return figures we're holding. Only the upgrades panel
-  fetches, and only because its limit has to be applied server-side.
+- **The ledger is the panel's footer, and it counts in memory.** It reuses the
+  /sky page's `SkyLedger` (via the sky barrel) with deck-scoped tiles — CARDS
+  and MASTERED come from the `cards` array the page already has, no
+  `deck/stats` endpoint, because it would return figures we're holding. Only
+  the recent upgrades fetch, and only because their limit has to be applied
+  server-side.
 - **Two sorts, not three.** Added and Mastery. JLPT is impossible rather than
   unwanted: `cards` has no `word_id`, so a card can't reach a JLPT level.
 - **Add card, rename and session settings survive** in the header even though
@@ -354,6 +356,33 @@ on `/authenticate`). Replaced `WorkspaceNav`, which is deleted.
   and divider are hardcoded — the handoff gives both one value for both themes.
 - Icons are inlined at the handoff's geometry; `shared/icons` is the outgoing
   lucide set and its shapes are not these. Pages reserve `pb-[140px]`.
+
+### Sky page (`/sky`, `features/sky`)
+
+The whole-sky star map: every deck a constellation, entered by clicking its
+form on the sky or its row in the panel. Replaced the study-stats tab screen,
+which was deleted (`features/study/stats` now holds only `lib/statsApi.ts` —
+the `/api/stats` fetchers the ledger and the decks/home upgrade rows read).
+
+- **`views/SkyView.tsx` is the page**; `components/SkyMap.tsx` is the
+  production map (the demo harness `Sky.tsx` remains the unrouted reference).
+  Layout mirrors deck details: 304px panel + sky box, ledger — except the
+  ledger lives *inside* the panel as an always-visible footer (`SkyLedger`).
+- **Navigation state is the URL**: `?deck={uuid}&card={uuid}`, uuids only.
+  Focus changes `push`, selection changes `replace` (dictionary precedent).
+  Escape walks card → list → all decks.
+- **Data is one request**: `GET /api/decks/user/:userId/cards` via
+  `useSkyDecks` (every deck with its cards; the sky, the panel, the search
+  index and the STARS/MASTERED counts all read it). DAYS/DUE/upgrades come
+  from `useSkyLedger` (`/api/stats/activity`, `/api/study/due/counts`,
+  `/api/stats/recent-upgrades`).
+- **Moving between tiers is a camera flight** (`useCamera.flyTo`, ~600ms,
+  interruptible). Search-result and upgrade-row clicks focus the deck, then
+  ring the star only once the flight lands (`onSettled`).
+- The header search is an in-memory filter over the loaded cards (front /
+  reading / back) — no endpoint, so results can't disagree with the map.
+- "Open in deck" / "Decks →" land on `/decks` — there is no `/decks/{id}`
+  route to deep-link a specific deck yet.
 
 ---
 

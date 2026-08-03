@@ -66,46 +66,21 @@
   --lgc-section-label-tracking: 0.16em;
   --lgc-section-label-weight:   600;
 
-  /* ── Section head — numbered "01 / 02" prefix + uppercase title ─────── */
-  --lgc-section-num-color:    var(--lgc-fg-subtle);
-  --lgc-section-num-tracking: normal;
-
-  /* ── Toolbar (page-top sticky bars: dictionary search, reader top bar) */
-  --lgc-toolbar-bg:                    color-mix(in oklab, var(--lgc-bg) 85%, transparent);
-  --lgc-toolbar-backdrop-filter:       blur(10px);
-  --lgc-toolbar-button-radius:         6px;
-  --lgc-toolbar-button-tracking:       normal;
-  --lgc-toolbar-button-text-transform: none;
-  --lgc-toolbar-button-font-family:    inherit;
+  /* The section-head, toolbar, word-detail, dictionary-row and kanji-card axes
+     that used to sit here are gone with the reader's dictionary redesign. They
+     existed for `WordDetailView`, `DictionarySidekick` and `shared/ui/SectionHead`,
+     which were the last readers of any of them; those files are deleted and the
+     reader's lookup surfaces are built from `features/dictionary`'s components on
+     the `ds-tokens.css` palette. */
 
   /* ── Form atoms ───────────────────────────────────────────────────────── */
-  --lgc-input-radius: 8px;
   --lgc-kbd-radius:   3px;
 
   /* ── Generic atom radii ───────────────────────────────────────────────── */
-  --lgc-icon-button-radius: 6px;
   --lgc-pill-radius:        9999px;
-  --lgc-divider-style:      solid;
 
   /* ── Action button — extra typography axis (joins --lgc-button-* tokens) */
   --lgc-button-font-family: inherit;
-
-  /* ── Dictionary list rows ─────────────────────────────────────────────── */
-  --lgc-row-reading-color:    var(--lgc-fg-muted);
-  --lgc-row-reading-tracking: normal;
-
-  /* ── Word detail: meaning entry numerals (the "01 / 02" digits) ───────── */
-  --lgc-meaning-num-font:        var(--lgc-font-mono);
-  --lgc-meaning-num-size:        13px;
-  --lgc-meaning-num-weight:      600;
-  --lgc-meaning-num-line-height: normal;
-  --lgc-meaning-num-min-width:   auto;
-  --lgc-meaning-num-padding-top: 2px;
-  --lgc-meaning-padding-bottom:  0;
-
-  /* ── Kanji card meanings title ────────────────────────────────────────── */
-  --lgc-kanji-meanings-color: var(--lgc-fg);
-  --lgc-kanji-meanings-size:  15px;
 
   /* ── Fonts (theme-overridable family aliases) ───────────────────────── */
   --lgc-font-display: var(--font-source-serif), Georgia, serif;

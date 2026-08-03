@@ -15,9 +15,9 @@ import { splitMora, parsePitchPositions, pitchPattern } from '@/lib/util/pitch';
  * it renders nothing at all when Kanjium has no annotation for the reading,
  * which is a sizeable slice of JMdict.
  *
- * A token-driven twin of the outgoing `shared/ui/PitchAccentDiagram`, which
- * paints with `--lgc-*` and so reads wrong on a themed canvas. The two coexist
- * until the reader migrates.
+ * Replaced `shared/ui/PitchAccentDiagram`, which painted with `--lgc-*` and so
+ * stayed light on a dark canvas. That file is deleted; the reader's lookup
+ * surfaces render this one.
  */
 export function PitchAccent({
   reading,

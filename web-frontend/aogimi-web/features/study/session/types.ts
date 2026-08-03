@@ -25,6 +25,24 @@ export type StudySessionConfig = {
   dueOnly?: boolean;
 };
 
+/**
+ * The deck a session belongs to, as the header draws it: its name plus the
+ * spine chip's glyph and colours.
+ *
+ * Resolved by the caller (`StudyView`) rather than looked up here: the glyph
+ * comes from `deckVisuals`, which lives in the *decks* sub-feature, and
+ * sub-features don't import each other. Null on the two cross-deck sessions
+ * (`/study`, `/study?due=1`), which have no single deck to name.
+ */
+export type SessionDeck = {
+  name: string;
+  /** Deterministic cover glyph — `deckVisuals(name).kamon`. */
+  kamon: string;
+  /** Cover surface + ink — `coverPalette(name)`. */
+  surface: string;
+  ink: string;
+};
+
 /** Due-card counts across every deck the user owns.
  *  Decks with nothing due are **absent** from `byDeck` — read a missing key
  *  as 0 rather than expecting an entry per deck. */

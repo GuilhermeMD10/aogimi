@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { stageColor, stageLabel } from '@/shared/components';
@@ -16,6 +16,9 @@ type Props = {
   selectedId: string | null;
   onSelect: (cardId: string | null) => void;
   onDeleteCard: (cardId: string) => void;
+  /** The always-visible footer (the ledger), slotted in by the page so the
+   *  panel stays dumb about data — the SkyMapPanel precedent. */
+  children?: ReactNode;
 };
 
 /**
@@ -31,12 +34,12 @@ type Props = {
  * JLPT is absent by design, not omission: the design's third sort chip needs a
  * level per card, and `cards` has no `word_id` to reach the dictionary through.
  */
-export function DeckCardPanel({ cards, selectedId, onSelect, onDeleteCard }: Props) {
+export function DeckCardPanel({ cards, selectedId, onSelect, onDeleteCard, children }: Props) {
   const selected = cards.find((c) => c.id === selectedId) ?? null;
 
   return (
     // Fills whatever box the page gives it — 304px beside the sky, full width
-    // and 340px tall once the layout stacks. Sizing lives with the caller.
+    // once the layout stacks. Sizing lives with the caller.
     <div className="flex h-full w-full flex-col overflow-hidden rounded-(--radius-panel) border border-(--bd-b) bg-(--scrim) shadow-[0_14px_38px_rgba(10,14,24,.10)] backdrop-blur-[14px]">
       {selected ? (
         <CardDetail
@@ -47,6 +50,7 @@ export function DeckCardPanel({ cards, selectedId, onSelect, onDeleteCard }: Pro
       ) : (
         <CardList cards={cards} onSelect={onSelect} />
       )}
+      {children}
     </div>
   );
 }

@@ -6,8 +6,8 @@ import { ResultsRail } from '../components/ResultsRail';
 import { EntryDetail } from '../components/EntryDetail';
 import { KanjiEntryDetail } from '../components/KanjiEntryDetail';
 import { useWordDetails } from '../hooks/useWordDetails';
+import { useSelectionKeys } from '../hooks/useSelectionKeys';
 import { kanjiCardDraft, wordCardDraft } from '../lib/cardDraft';
-import { sameSelection, selectionOrder } from '../lib/results';
 import type { RailContents } from '../lib/results';
 import type { Selection } from '../types';
 
@@ -32,6 +32,7 @@ export function SearchView({
   onDraftChange,
   onSubmit,
   onClear,
+  arrowKeyNav = true,
 }: {
   query: string;
   contents: RailContents;
@@ -45,6 +46,10 @@ export function SearchView({
   onDraftChange: (next: string) => void;
   onSubmit: () => void;
   onClear: () => void;
+  /** Claim the window's ↑/↓. On by default — this view *is* the screen — but a
+   *  prop rather than a given, so it can be dropped if something else on screen
+   *  ever needs the arrows more. */
+  arrowKeyNav?: boolean;
 }) {
   const { requestAddCard } = useReaderActions();
 
@@ -70,32 +75,9 @@ export function SearchView({
     paneRef.current?.scrollTo({ top: 0 });
   }, [selectionKey]);
 
-  // ↑/↓ walk the rail. Overridden inside the search field too — in a
-  // single-line input those keys only jump the caret to either end, and
-  // walking results without leaving the keyboard is the reason the rail and
-  // the entry share a screen.
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-
-      const target = e.target as HTMLElement | null;
-      if (target instanceof HTMLTextAreaElement || target?.isContentEditable) return;
-
-      const order = selectionOrder(contents);
-      if (order.length === 0) return;
-
-      e.preventDefault();
-      const current = order.findIndex((s) => sameSelection(s, selection));
-      const step = e.key === 'ArrowDown' ? 1 : -1;
-      // Clamped, not wrapping: running off the end of a list of results and
-      // landing back at the top reads as a glitch.
-      const next = Math.min(order.length - 1, Math.max(0, current + step));
-      if (next !== current) onSelect(order[next]!);
-    };
-
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [contents, selection, onSelect]);
+  // ↑/↓ walk the rail, including from inside the search field. See the hook for
+  // why it's opt-in.
+  useSelectionKeys({ contents, selection, onSelect, enabled: arrowKeyNav });
 
   return (
     <div className="flex h-full w-full font-[family-name:var(--face-ui)] font-medium">

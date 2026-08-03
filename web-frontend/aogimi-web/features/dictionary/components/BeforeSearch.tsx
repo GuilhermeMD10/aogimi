@@ -54,6 +54,8 @@ export function BeforeSearch({
             </div>
 
             <div className="mt-[34px] flex w-full justify-center">
+              {/* The only thing on the page, so it claims `/`, ⌘K and the caret
+                  — both opt-in per instance, see SearchField. */}
               <SearchField
                 variant="hero"
                 value={draft}
@@ -61,6 +63,7 @@ export function BeforeSearch({
                 onSubmit={onSubmit}
                 onClear={() => onDraftChange('')}
                 autoFocus
+                globalHotkeys
               />
             </div>
 

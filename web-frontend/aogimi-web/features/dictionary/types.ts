@@ -14,6 +14,28 @@ export type WordReading = {
   pitchAccents: string | null;
 };
 
+/**
+ * Why this entry matched a query it doesn't contain.
+ *
+ * `/api/search` tries a direct form lookup first and only deinflects when that
+ * finds nothing, so this is present *only* on hits reached through the
+ * deinflector — searching 食べた returns 食べる carrying
+ * `{ from: '食べた', path: ['past(v1)'] }`. Set by `japaneseWithDeinflection`
+ * in `backend/src/services/searchService.js`; absent on every other result, so
+ * treat it as the exception rather than a field to render unconditionally.
+ *
+ * It matters most to the reader, where a lookup is almost always an inflected
+ * surface form lifted straight off the page.
+ */
+export type Inflection = {
+  /** The surface form the user actually searched. */
+  from: string;
+  /** Deinflector rule labels, e.g. `['polite-past(v1)']`. The parenthesised
+   *  conjugation class is an internal rule tag — see `lib/inflection.ts`, which
+   *  strips it for display. */
+  path: string[];
+};
+
 export interface WordResult {
   id: number;
   is_common: boolean;
@@ -24,6 +46,8 @@ export interface WordResult {
   kanji: string[];
   readings: WordReading[];
   meanings: WordMeaning[];
+  /** Only on hits the deinflector found — see `Inflection`. */
+  inflection?: Inflection;
 }
 
 export interface KanjiInfo {

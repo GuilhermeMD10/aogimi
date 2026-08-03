@@ -30,3 +30,4 @@ Podfile.lock
 .vscode
 docs
 backend/.env
+EXPERT-AGENTS.md
