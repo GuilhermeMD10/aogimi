@@ -59,13 +59,15 @@ export { useSelectionKeys } from './hooks/useSelectionKeys';
 // ── Pure helpers ────────────────────────────────────────────────────────────
 export {
   EMPTY_RAIL,
+  contextForEntry,
   railContents,
   resolveSelection,
   sameSelection,
   selectionOrder,
   selectionParam,
+  surfaceEntry,
 } from './lib/results';
-export type { RailContents } from './lib/results';
+export type { RailContents, SurfaceEntry } from './lib/results';
 export { preferredHeadword } from './lib/headword';
 export { inflectionNote } from './lib/inflection';
 export { kanjiCardDraft, wordCardDraft } from './lib/cardDraft';
@@ -81,6 +83,7 @@ export type {
   Inflection,
   KanjiInfo,
   NameResult,
+  ReaderContext,
   SearchResponse,
   Selection,
   WordMeaning,

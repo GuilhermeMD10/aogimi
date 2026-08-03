@@ -15,6 +15,7 @@ import {
   KanjiEntryDetail,
   RailList,
   SearchField,
+  contextForEntry,
   railContents,
   useDictionaryState,
   useSelectionKeys,
@@ -22,6 +23,7 @@ import {
   wordCardDraft,
   kanjiCardDraft,
 } from '@/features/dictionary';
+import type { SurfaceEntry } from '@/features/dictionary';
 import { DictPanelHeader } from '../components/DictPanelHeader';
 import { useDictSelection } from '../hooks/useDictSelection';
 import { useCardPrefill } from './useCardPrefill';
@@ -132,6 +134,12 @@ export function BubbleContent(props: BubbleContentProps) {
   const toSelectDeck = (word: string, back: string, contextSentence?: string) =>
     setPhase({ type: 'select-deck', word, back, contextSentence });
 
+  // The book sentence is context for the word that was tapped, not for every row
+  // the results happen to contain — a lookup of 道 reaches 道路 and 鉄道, and neither
+  // is in that sentence. Falls back to the entry's own example.
+  const contextFor = (entry: SurfaceEntry, fallback?: string) =>
+    contextForEntry(entry, dict.readerContext, contents, fallback);
+
   // Enter on an empty field shouldn't ask the backend for nothing.
   const submit = () => {
     if (dict.query.trim()) void dict.runSearch(dict.query);
@@ -173,7 +181,7 @@ export function BubbleContent(props: BubbleContentProps) {
               detailsError={detailsError}
               onKanjiSelect={(literal) => void dict.runSearch(literal)}
               onAddCard={(front, back, context) =>
-                toSelectDeck(front, back, dict.lastContextSentence || context)
+                toSelectDeck(front, back, contextFor({ kind: 'word', word: selectedWord }, context))
               }
               scale="full"
               onBack={clear}
@@ -182,7 +190,11 @@ export function BubbleContent(props: BubbleContentProps) {
             <KanjiEntryDetail
               kanji={selectedKanji}
               onAddCard={(front, back, context) =>
-                toSelectDeck(front, back, dict.lastContextSentence || context)
+                toSelectDeck(
+                  front,
+                  back,
+                  contextFor({ kind: 'kanji', kanji: selectedKanji }, context),
+                )
               }
               scale="full"
               onBack={clear}
@@ -196,11 +208,19 @@ export function BubbleContent(props: BubbleContentProps) {
                 onSelect={select}
                 onAddWord={(w) => {
                   const draft = wordCardDraft(w, dict.query);
-                  toSelectDeck(draft.front, draft.back, dict.lastContextSentence);
+                  toSelectDeck(
+                    draft.front,
+                    draft.back,
+                    contextFor({ kind: 'word', word: w }, draft.context),
+                  );
                 }}
                 onAddKanji={(k) => {
                   const draft = kanjiCardDraft(k);
-                  toSelectDeck(draft.front, draft.back, dict.lastContextSentence);
+                  toSelectDeck(
+                    draft.front,
+                    draft.back,
+                    contextFor({ kind: 'kanji', kanji: k }, draft.context),
+                  );
                 }}
                 loading={dict.loading}
                 error={dict.error}
@@ -243,10 +263,12 @@ export function BubbleContent(props: BubbleContentProps) {
     <CreateCardPhase
       word={phase.word}
       initialBack={phase.back}
-      // Prefer the phase-carried context — the entry panes fill it with their
-      // first example sentence when no reader context was passed, so this covers
-      // "added from the reader" and "added from the dictionary" alike.
-      initialContext={phase.contextSentence ?? dict.lastContextSentence}
+      // The phase carries the context that was already resolved for the entry
+      // being added — the reader's sentence when it genuinely belongs to that
+      // word, the entry's own first example otherwise. There is deliberately no
+      // fallback to the raw reader sentence here: that was a second, unguarded
+      // read of it, and it put 道's sentence on a 鉄道 card.
+      initialContext={phase.contextSentence}
       deckId={phase.deckId}
       deckName={phase.deckName}
       onBack={() =>

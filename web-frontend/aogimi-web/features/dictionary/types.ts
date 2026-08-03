@@ -106,3 +106,14 @@ export interface DetailsResponse {
 export type Selection =
   | { kind: 'word'; id: number }
   | { kind: 'kanji'; literal: string };
+
+/**
+ * A sentence mined from the book, kept together with the word it was mined for.
+ *
+ * **The pairing is the whole point.** Held loose, the sentence attaches to
+ * whatever gets added next: look up 道, browse to 鉄道 in the results, add it, and
+ * the card quotes the sentence 道 was tapped in — which may not contain 鉄道 at
+ * all. Carrying the anchor word means `contextForEntry` can ask whether the
+ * sentence is actually this entry's context before attaching it.
+ */
+export type ReaderContext = { word: string; sentence: string };

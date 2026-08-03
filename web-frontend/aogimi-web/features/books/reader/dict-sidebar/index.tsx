@@ -16,6 +16,7 @@ import {
   KanjiEntryDetail,
   RailList,
   SearchField,
+  contextForEntry,
   railContents,
   useDictionaryState,
   useSelectionKeys,
@@ -23,6 +24,7 @@ import {
   wordCardDraft,
   kanjiCardDraft,
 } from '@/features/dictionary';
+import type { SurfaceEntry } from '@/features/dictionary';
 import { HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';
@@ -34,8 +36,7 @@ import { SidebarPrompt } from './SidebarPrompt';
 export default function DictSidebar({ onClose }: { onClose: () => void }) {
   const { requestAddCard } = useReaderActions();
   const { readerBubble } = useReaderState();
-  const { query, result, loading, error, lastContextSentence, setQuery, runSearch } =
-    useDictionaryState();
+  const { query, result, loading, error, readerContext, setQuery, runSearch } = useDictionaryState();
 
   // Enter on an empty field shouldn't ask the backend for nothing — the provider
   // answers that with an error, and `/dictionary` doesn't submit it either.
@@ -45,20 +46,14 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
 
   const contents = railContents(result);
   const { selection, selectedWord, selectedKanji, select, clear } = useDictSelection(contents);
-  const {
-    details,
-    loading: detailsLoading,
-    error: detailsError,
-  } = useWordDetails(selectedWord?.id ?? null);
+  const { details, loading: detailsLoading, error: detailsError } = useWordDetails(selectedWord?.id ?? null);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // The scroll container outlives what's inside it, so without this you'd open
   // an entry and land wherever the list had been scrolled to.
-  const viewKey = selection
-    ? `${selection.kind}:${'id' in selection ? selection.id : selection.literal}`
-    : 'list';
+  const viewKey = selection ? `${selection.kind}:${'id' in selection ? selection.id : selection.literal}` : 'list';
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [viewKey]);
@@ -96,9 +91,11 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const addCard = (front: string, back: string, context?: string) =>
-    // A sentence the word was tapped in beats the entry's first example.
-    requestAddCard(front, back, lastContextSentence || context);
+  // The tapped sentence beats the entry's own example — but only for the entry it
+  // is actually context for. `contextForEntry` decides; the results list reaches
+  // words that were never in the sentence.
+  const addCard = (entry: SurfaceEntry, front: string, back: string, fallback?: string) =>
+    requestAddCard(front, back, contextForEntry(entry, readerContext, contents, fallback));
 
   // Anything asked for at all — a result, a failure, or a request in flight.
   // Only a panel that has been asked nothing shows the prompt.
@@ -138,13 +135,13 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
         }
       />
 
-      {/* `pb-[140px]` clears the fixed `Dock`, which floats over the bottom of
+      {/* `pb-35` (140px) clears the fixed `Dock`, which floats over the bottom of
           this column — the reader route reserves no bottom padding of its own
           because the reading pane must fill the window.
           No horizontal padding here: the entry panes carry their own, and their
           hero's lower edge has to span the full width of the column. The two
           branches that don't (the list and the prompt) wrap themselves. */}
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto pb-[140px]">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto pb-35">
         {selectedWord ? (
           <EntryDetail
             word={selectedWord}
@@ -153,19 +150,19 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
             detailsLoading={detailsLoading}
             detailsError={detailsError}
             onKanjiSelect={(literal) => void runSearch(literal)}
-            onAddCard={addCard}
+            onAddCard={(front, back, ctx) => addCard({ kind: 'word', word: selectedWord }, front, back, ctx)}
             scale="compact"
             onBack={clear}
           />
         ) : selectedKanji ? (
           <KanjiEntryDetail
             kanji={selectedKanji}
-            onAddCard={addCard}
+            onAddCard={(front, back, ctx) => addCard({ kind: 'kanji', kanji: selectedKanji }, front, back, ctx)}
             scale="compact"
             onBack={clear}
           />
         ) : asked ? (
-          <div className="px-[18px]">
+          <div className="px-4.5">
             <RailList
               query={query}
               contents={contents}
@@ -176,11 +173,11 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
                 // row — the same guard `/dictionary`'s rail applies.
                 const sentences = details?.word.id === w.id ? details.sentences : undefined;
                 const draft = wordCardDraft(w, query, sentences);
-                addCard(draft.front, draft.back, draft.context);
+                addCard({ kind: 'word', word: w }, draft.front, draft.back, draft.context);
               }}
               onAddKanji={(k) => {
                 const draft = kanjiCardDraft(k);
-                addCard(draft.front, draft.back, draft.context);
+                addCard({ kind: 'kanji', kanji: k }, draft.front, draft.back, draft.context);
               }}
               loading={loading}
               error={error}
@@ -188,7 +185,7 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
             />
           </div>
         ) : (
-          <div className="px-[18px] pt-4">
+          <div className="px-4.5 pt-4">
             <SidebarPrompt
               onPick={(q) => {
                 setQuery(q);

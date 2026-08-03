@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { searchDictionary } from '../lib/dictApi';
-import type { SearchResponse } from '../types';
+import type { ReaderContext, SearchResponse } from '../types';
 import { pushRecentSearch } from '../lib/storage';
 
 // Single source of truth for the dictionary surface — query, results, the
@@ -26,7 +26,10 @@ type DictionaryStateContextValue = {
   loading: boolean;
   error: string | null;
   selectedWordId: number | null;
-  lastContextSentence: string | undefined;
+  /** The book sentence behind the current lookup, with the word it belongs to.
+   *  Read it through `contextForEntry` — it is not context for every entry in
+   *  the results, only for the word that was tapped. */
+  readerContext: ReaderContext | undefined;
 
   setQuery: (q: string) => void;
   setSelectedWordId: (id: number | null) => void;
@@ -45,7 +48,7 @@ export function DictionaryStateProvider({ children }: { children: React.ReactNod
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedWordId, setSelectedWordId] = useState<number | null>(null);
-  const [lastContextSentence, setLastContextSentence] = useState<string | undefined>(undefined);
+  const [readerContext, setReaderContext] = useState<ReaderContext | undefined>(undefined);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -65,7 +68,19 @@ export function DictionaryStateProvider({ children }: { children: React.ReactNod
     setError(null);
     setResult(null);
     setSelectedWordId(null);
-    if (contextSentence !== undefined) setLastContextSentence(contextSentence);
+    // A search that carries a sentence anchors it to the word it was mined for.
+    // One that doesn't drops the old anchor rather than letting it ride: typing a
+    // new word in the sidebar used to keep the *previous* tap's sentence alive,
+    // so a card for 犬 could quote the sentence 道 was tapped in. Re-running the
+    // same query (a retry after a failed search) keeps it, since that is still
+    // the same lookup.
+    setReaderContext((prev) =>
+      contextSentence !== undefined
+        ? { word: q, sentence: contextSentence }
+        : prev && prev.word === q
+          ? prev
+          : undefined,
+    );
     setQuery(q);
     try {
       const data = await searchDictionary(q, controller.signal);
@@ -88,14 +103,15 @@ export function DictionaryStateProvider({ children }: { children: React.ReactNod
     setResult(null);
     setError(null);
     setSelectedWordId(null);
+    setReaderContext(undefined);
   }, []);
 
   const value = useMemo<DictionaryStateContextValue>(
     () => ({
-      query, result, loading, error, selectedWordId, lastContextSentence,
+      query, result, loading, error, selectedWordId, readerContext,
       setQuery, setSelectedWordId, clearError, runSearch, reset,
     }),
-    [query, result, loading, error, selectedWordId, lastContextSentence, runSearch, clearError, reset],
+    [query, result, loading, error, selectedWordId, readerContext, runSearch, clearError, reset],
   );
 
   return (
