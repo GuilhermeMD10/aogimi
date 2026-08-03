@@ -1,5 +1,13 @@
 'use client';
-import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   cameraFitting,
@@ -13,7 +21,7 @@ import {
   zoomAround,
 } from '../lib/camera';
 import { CAMERA_TWEEN_MS, DRAG_SLOP_PX, ZOOM_PER_WHEEL_PX } from '../lib/config';
-import type { Bounds, Camera, Point, View, Viewport } from '../lib/types';
+import type { Bounds, Camera, Insets, Point, View, Viewport } from '../lib/types';
 
 type Drag = {
   id: number; // the pointer we are following
@@ -117,6 +125,14 @@ export type CameraOptions = {
    * a deck is the same wheel motion that got you around inside it, rather than a separate control.
    */
   onZoomOutFloor?: () => void;
+  /**
+   * How much of each viewport edge the host's overlays cover, in CSS px — a glass column on the
+   * left, a ledger below. Subtracted from the viewport before every fit and clamp, so the sky
+   * rests centred in the uncovered window rather than under the chrome. Compared **by value**:
+   * hosts build the object per render, and a change of the numbers re-fits the camera as a
+   * flight (the handover's panel-toggle refit), not a jump.
+   */
+  insets?: Insets;
 };
 
 /**
@@ -130,17 +146,25 @@ export type CameraOptions = {
  * zoom multiplier the shared code actually wants.
  */
 export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraController {
-  const { locked = false, fillViewport = false, onZoomOutFloor } = opts;
+  const { locked = false, fillViewport = false, onZoomOutFloor, insets } = opts;
   const [pose, setPose] = useState<Pose>('fit');
   const [viewport, setViewport] = useState<Viewport>(FALLBACK);
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef<Drag | null>(null);
 
+  // Normalised to a value-stable object: hosts build `insets` fresh per render, and everything
+  // below — the memos, the refit effect — must key on the numbers, not the wrapper's identity.
+  const { top = 0, right = 0, bottom = 0, left = 0 } = insets ?? {};
+  const ins = useMemo<Insets | undefined>(
+    () => (top || right || bottom || left ? { top, right, bottom, left } : undefined),
+    [top, right, bottom, left],
+  );
+
   // resolved once here, so every path below — the clamp, the zoom floor, the gesture handlers
   // reading through the ref — is confined to the same box and none can disagree about the edge
   const bounds = useMemo(
-    () => (fillViewport ? matchAspect(rawBounds, viewport) : rawBounds),
-    [rawBounds, viewport, fillViewport],
+    () => (fillViewport ? matchAspect(rawBounds, viewport, ins) : rawBounds),
+    [rawBounds, viewport, fillViewport, ins],
   );
 
   // bounds grow as the sky does and the viewport changes as the window does, but the listeners
@@ -149,11 +173,13 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
   const viewportRef = useRef(viewport);
   const lockedRef = useRef(locked);
   const escapeRef = useRef(onZoomOutFloor);
+  const insRef = useRef(ins);
   useEffect(() => {
     boundsRef.current = bounds;
     viewportRef.current = viewport;
     lockedRef.current = locked;
     escapeRef.current = onZoomOutFloor;
+    insRef.current = ins;
   });
 
   // A locked camera is not a pose that happens to be fitted — it is the *intent* to be fitted, so
@@ -170,8 +196,13 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
     () =>
       isFlight(effective)
         ? effective.flight
-        : clampCamera(effective === 'fit' ? cameraFitting(bounds, viewport) : effective, bounds, viewport),
-    [effective, bounds, viewport],
+        : clampCamera(
+            effective === 'fit' ? cameraFitting(bounds, viewport, ins) : effective,
+            bounds,
+            viewport,
+            ins,
+          ),
+    [effective, bounds, viewport, ins],
   );
 
   // The flight's departure pose, read through a ref like the bounds are. Synced after the commit,
@@ -198,7 +229,7 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
       setPose(
         lockedRef.current
           ? 'fit'
-          : clampCamera(cameraRef.current, boundsRef.current, viewportRef.current),
+          : clampCamera(cameraRef.current, boundsRef.current, viewportRef.current, insRef.current),
       );
     }
   }, []);
@@ -226,13 +257,15 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
         if (flightRef.current !== flight) return; // a newer flight or a gesture took over
         const b = boundsRef.current;
         const vp = viewportRef.current;
-        // 'fit' resolves per frame, so a flight racing a bounds change still lands on the new fit
-        const to = target === 'fit' ? cameraFitting(b, vp) : target;
+        const iv = insRef.current;
+        // 'fit' resolves per frame, so a flight racing a bounds or insets change still lands on
+        // the new fit
+        const to = target === 'fit' ? cameraFitting(b, vp, iv) : target;
         const k = Math.min(1, (now - start) / CAMERA_TWEEN_MS);
         if (k >= 1) {
           // land on the intent (or the clamped pose), so the resting state is exactly what a
           // jump would have produced — nothing downstream can tell the two apart afterwards
-          setPose(target === 'fit' ? 'fit' : clampCamera(target, b, vp));
+          setPose(target === 'fit' ? 'fit' : clampCamera(target, b, vp, iv));
           stopFlight(true);
           return;
         }
@@ -243,10 +276,31 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
     },
     [stopFlight],
   );
+  // An insets change is the host's chrome moving — a panel toggling, a tier swapping its
+  // overlays — and the camera answers it by re-fitting, as a flight rather than a jump (the
+  // handover's panel-toggle behaviour). A layout effect, so the departure pose is committed
+  // before the re-fit frame paints. Skipped on mount (nothing to depart from) and while a flight
+  // is already running — a running 'fit' target re-resolves against the new insets every frame,
+  // and restarting it would only discard its onArrive.
+  const prevInsRef = useRef(ins);
+  useLayoutEffect(() => {
+    if (prevInsRef.current === ins) return;
+    prevInsRef.current = ins;
+    if (flightRef.current) return;
+    // legitimate sync-from-external-trigger (the AppShell pending-field precedent): the flight's
+    // departure pose must be committed in response to the prop change, guarded to fire once per
+    // change — flyTo here is exactly what SkyMap's own focus-change effect already does
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    flyTo('fit');
+  }, [ins, flyTo]);
+
   const view = useMemo(() => viewOf(camera, viewport), [camera, viewport]);
   // relative to a fit of the *current* bounds, so 1.0 means "this tier, fully framed" whether that
   // tier is the whole sky or one deck. An absolute zoom would mean something different in each.
-  const relZoom = useMemo(() => camera.zoom / fitZoom(bounds, viewport), [camera.zoom, bounds, viewport]);
+  const relZoom = useMemo(
+    () => camera.zoom / fitZoom(bounds, viewport, ins),
+    [camera.zoom, bounds, viewport, ins],
+  );
 
   const fitTo = useCallback(() => setPose('fit'), []);
 
@@ -273,7 +327,7 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
     // A locked camera still tracks the press — it has to, or the slop test could never fail and a
     // sloppy click at the outer view would be read as a tap. It simply does not move.
     if (drag.moved && !lockedRef.current) {
-      setPose(clampCamera(panBy(drag.cam, dx, dy), boundsRef.current, viewportRef.current));
+      setPose(clampCamera(panBy(drag.cam, dx, dy), boundsRef.current, viewportRef.current, insRef.current));
     }
     return true;
   }, []);
@@ -312,6 +366,7 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
       }
       const b = boundsRef.current;
       const vp = viewportRef.current;
+      const iv = insRef.current;
       // the wheel's own feel is decided here. Exponential, so a notch means the same proportional
       // change at every scale — and it reaches the shared maths as a plain multiplier, which is
       // what lets a pinch gesture drive the identical code path
@@ -320,14 +375,15 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
       // Asking to pull back when there is nothing left to pull back to is what leaves a tier. Read
       // off the floor rather than from a click target, so it works the same at whatever depth.
       if (factor < 1) {
-        const floor = fitZoom(b, vp);
+        const floor = fitZoom(b, vp, iv);
         setPose((current) => {
-          const from = current === 'fit' ? cameraFitting(b, vp) : isFlight(current) ? current.flight : current;
+          const from =
+            current === 'fit' ? cameraFitting(b, vp, iv) : isFlight(current) ? current.flight : current;
           if (from.zoom <= floor + 1e-9) {
             escapeRef.current?.();
             return current;
           }
-          return clampCamera(zoomAround(from, localOf(el, e), factor, b, vp), b, vp);
+          return clampCamera(zoomAround(from, localOf(el, e), factor, b, vp, iv), b, vp, iv);
         });
         return;
       }
@@ -337,8 +393,9 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
       // clampCamera then pulls the position back in
       const local = localOf(el, e);
       setPose((current) => {
-        const from = current === 'fit' ? cameraFitting(b, vp) : isFlight(current) ? current.flight : current;
-        return clampCamera(zoomAround(from, local, factor, b, vp), b, vp);
+        const from =
+          current === 'fit' ? cameraFitting(b, vp, iv) : isFlight(current) ? current.flight : current;
+        return clampCamera(zoomAround(from, local, factor, b, vp, iv), b, vp, iv);
       });
     };
     el.addEventListener('wheel', onWheel, { passive: false });

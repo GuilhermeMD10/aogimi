@@ -125,7 +125,7 @@ export default function Sky() {
   const selectedStar = selected === null ? null : (stage.index.byId.get(selected) ?? null);
 
   return (
-    <div className="flex flex-col items-center gap-4 font-sans">
+    <div className="flex flex-col items-center gap-4">
       <SkyControls
         onSeal={sealNow}
         canSeal={!!openConstellationOf(snapshot.constellations)}

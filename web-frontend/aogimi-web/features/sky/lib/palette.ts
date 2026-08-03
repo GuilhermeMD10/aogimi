@@ -115,6 +115,26 @@ export const LINE_COLOR = SKY_PALETTES.default.line;
 export const STAR_LABEL_COLOR = '#cfd8ea';
 
 /**
+ * The deck card frames' chrome — the handover's night-theme `frameFill`/`frameBd`, `decklabel`
+ * and `gold`. Preset-independent for the same reason STAR_LABEL_COLOR is: the frame is chrome,
+ * and the sky is night under every hue and in both themes, so its glass is always faint white on
+ * near-black. Same standing hex exception the rest of this file carries. The gold pair (the due
+ * pill's fill and edge) is precomputed here rather than derived, so the renderer never parses a
+ * hex per frame.
+ */
+export const FRAME_CHROME = {
+  fill: 'rgba(255, 255, 255, 0.035)',
+  fillHover: 'rgba(255, 255, 255, 0.075)',
+  bd: 'rgba(255, 255, 255, 0.16)',
+  bdHover: 'rgba(255, 255, 255, 0.40)',
+  /** The deck name (`T.decklabel`); the subtitle and counts take STAR_LABEL_COLOR. */
+  deckLabel: '#e8edf8',
+  gold: '#ffe085',
+  goldFill: 'rgba(255, 224, 133, 0.16)',
+  goldBd: 'rgba(255, 224, 133, 0.42)',
+} as const;
+
+/**
  * The selection ring — white, and preset-independent.
  *
  * It used to be the reference's button gold (#ffe085), which was already a hair off `default`'s

@@ -9,18 +9,19 @@ import { useCamera } from '../hooks/useCamera';
 import { useSkyDraw, useSkyStage } from '../hooks/useSkyFrame';
 import { buildSky, todayBucket, type SkyDeckSource } from '../lib/buildSky';
 import { openConstellationOf } from '../lib/generator';
-import type { FocusPath, Star } from '../lib/types';
+import type { FocusPath, Insets, Star } from '../lib/types';
 import { SkyCanvas } from './SkyCanvas';
+import { type DeckFrameData, FALLBACK_COVER } from './SkyFrames';
 
 /**
- * The whole sky — every deck at once, as the /sky page draws it. The production sibling of the
- * demo harness in `Sky.tsx`, and of `DeckSky`, whose one deck this map renders at identical
- * positions when it focuses it (placement is keyed on (seed, deck uuid, card uuid); the
- * render-local `did` here is layout only).
+ * The whole sky — every deck at once, as the /decks stage draws it. The production sibling of
+ * the demo harness in `Sky.tsx`. Placement is keyed on (seed, deck uuid, card uuid); the
+ * render-local `did` here is layout only.
  *
  * Two tiers, both already in the lib (`tiers.ts`): the outer view is a locked chooser — every
- * deck a soft form under the star budget, a tap picks one — and a focused deck is the honest
- * zoom-crossfade interior `DeckSky` shows. What this component adds over the demo is the seam to
+ * deck a soft form under the star budget, wearing its card frame on the grid, a tap picks one —
+ * and a focused deck is the honest zoom-crossfade interior. What this component adds over the
+ * demo is the seam to
  * a host that speaks uuids: focus and selection arrive as (deck uuid, card uuid) props and leave
  * through the same vocabulary, so the host can keep them in the URL without ever storing a
  * render-local index.
@@ -36,6 +37,28 @@ import { SkyCanvas } from './SkyCanvas';
 const OUTER: FocusPath = [];
 const noop = () => {};
 
+/**
+ * Per-deck display data for the outer view's card frames — everything a frame shows that the
+ * engine cannot derive from the cards it was fed. Keyed by deck uuid on the `frameMeta` prop.
+ * A missing map, entry or field degrades rather than errors: counts fall back to the deck's own
+ * cards, the cover to a neutral tile lettered with the deck name's first character, the due pill
+ * to a dash. The deck's *name* is not here on purpose — `SkyDeckSource` already carries it.
+ */
+export type SkyFrameMeta = {
+  /** null draws the pill dashed — "the host has no figure", which is not the same as 0. */
+  dueCount: number | null;
+  /** The cover tile, as the decks feature paints it: fill, glyph ink, and the glyph itself. */
+  coverColor: string;
+  coverInk: string;
+  coverGlyph: string;
+  /** The mono line under the deck name. Omitted → the line is simply not drawn. */
+  subtitle?: string;
+  /** Overrides for the counts otherwise derived from the deck's cards — for a host whose
+   *  authoritative figures differ from what it fed the sky. */
+  cardCount?: number;
+  masteredCount?: number;
+};
+
 type Props = {
   /** `users.sky_seed` — see useSkySeed. */
   seed: string;
@@ -50,6 +73,15 @@ type Props = {
   onSelectCard: (cardId: string | null) => void;
   /** The flight into (or out of) the current focus has landed. */
   onSettled?: () => void;
+  /** Frame display data by deck uuid — see SkyFrameMeta. The frames render without it. */
+  frameMeta?: ReadonlyMap<string, SkyFrameMeta>;
+  /**
+   * How much of each viewport edge the host's overlays cover, in CSS px — the glass column, the
+   * ledger, the title chrome. Applied to every camera fit and clamp at either tier; compared by
+   * value, and a change re-fits the camera as a flight (the panel-toggle behaviour), so the host
+   * simply states the current chrome and the sky settles into what is left.
+   */
+  insets?: Insets;
 };
 
 export function SkyMap({
@@ -60,6 +92,8 @@ export function SkyMap({
   onFocusDeck,
   onSelectCard,
   onSettled,
+  frameMeta,
+  insets,
 }: Props) {
   const { palette } = useSkyHue();
   // `today` read inside the memo on purpose: a rebuild just after midnight opens a fresh day
@@ -73,7 +107,7 @@ export function SkyMap({
   const stage = useSkyStage(snapshot, focus, palette.ranks);
 
   // the outer view is a chooser, so it is immobile; inside a single deck the boundary is the
-  // container itself (fillViewport) — both exactly as the demo and DeckSky establish them
+  // container itself (fillViewport) — both exactly as the demo establishes them
   const locked = focusedDid === null;
   const singleDeck = focusedDid !== null || snapshot.decks.length <= 1;
   const leave = useCallback(() => onFocusDeck(null), [onFocusDeck]);
@@ -83,9 +117,38 @@ export function SkyMap({
     // wheel-out resting at a focused deck's fit means "leave" — the same motion that got you
     // around inside it. At the outer view there is nothing above to escape to.
     onZoomOutFloor: focusedDid !== null ? leave : undefined,
+    insets,
   });
 
   const frame = useSkyDraw(stage, focus, cam.camera, cam.view);
+
+  // The outer view's card frames: the layout's boxes joined to each deck's display data. Memoised
+  // like the snapshot is — the canvas gates them to the outer tier, and SkyFrames is a memo, so a
+  // stable array here keeps the whole layer out of the per-frame work.
+  const frames = useMemo<DeckFrameData[]>(() => {
+    const out: DeckFrameData[] = [];
+    decks.forEach((deck, did) => {
+      const place = stage.layout.places.get(did);
+      if (!place) return; // a deck with no placeable cards has no box, so no frame
+      const meta = frameMeta?.get(deck.key);
+      let mastered = 0;
+      for (const c of deck.cards) if (c.mastery >= 3) mastered++;
+      out.push({
+        did,
+        frame: place.frame,
+        name: deck.name,
+        cardCount: meta?.cardCount ?? deck.cards.length,
+        masteredCount: meta?.masteredCount ?? mastered,
+        dueCount: meta?.dueCount ?? null,
+        coverColor: meta?.coverColor ?? FALLBACK_COVER.color,
+        coverInk: meta?.coverInk ?? FALLBACK_COVER.ink,
+        // spread, not charAt: the glyph may be an astral-plane character
+        coverGlyph: meta?.coverGlyph ?? [...deck.name][0] ?? '·',
+        subtitle: meta?.subtitle ?? null,
+      });
+    });
+    return out;
+  }, [decks, frameMeta, stage.layout]);
 
   /* ---------- the flight between tiers ---------- */
 
@@ -144,6 +207,7 @@ export function SkyMap({
       cam={cam}
       selected={selectedStarId}
       openTip={openTip}
+      frames={frames}
       onEnterDeck={enterDeck}
       onStarClick={starClick}
       onMiss={miss}

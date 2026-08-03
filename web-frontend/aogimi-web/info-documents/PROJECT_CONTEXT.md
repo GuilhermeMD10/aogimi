@@ -113,7 +113,7 @@ web-frontend/langecko-web/
 Two themes, `light` ("Ink on paper") and `dark` ("Midnight"), selected by `html[data-theme]`.
 
 - **Colour + shape tokens**: `--ink`, `--soft`, `--muted`, `--faint`, `--card`, `--cardalt`, `--bd`, `--btn`, `--track`/`--fill`, `--cover-1..4`, `--stage-new`/`-recent`/`-learned`/`-mastered`, `--radius-*`. Read them as `text-(--ink)`, `bg-(--card)`.
-- **Type**: `--face-jp`, `--face-ui`, `--face-mono` → M PLUS 1 (jp + ui) and Space Mono. Named `--face-*`, not `--font-*`, so a role never reads as one of the `--font-mplus1`/`--font-space-mono` variables `next/font` emits in `app/layout.tsx`. **Only weights 500 and 700 ship**, so use `font-medium` / `font-bold` — a `font-semibold` gets synthesised.
+- **Type**: `--face-jp`, `--face-ui`, `--face-mono` → Noto Sans JP (jp) and Switzer (ui + mono — the 2026-08 font audition retired Space Mono; the approved look wears Switzer everywhere, and the roles stay separate so re-splitting is a one-line change in ds-tokens.css). Switzer is a Fontshare family, self-hosted from `app/fonts/`. Named `--face-*`, not `--font-*`, so a role never reads as one of the `--font-switzer`/`--font-noto-sans-jp` variables `next/font` emits in `app/layout.tsx`. **No 600 cut ships in either family** (Switzer 400/500/700, Noto Sans JP 500/700), so use `font-medium` / `font-bold` — a `font-semibold` gets synthesised.
 - **Not mirrored into Tailwind's `@theme`.** Components read the tokens directly. `@theme` holds only what Tailwind itself must know: the `rounded-*` radius scale, and the shadcn colour namespace (`--color-popover`, `--color-border`, …) that the two surviving shadcn components paint with. Those are pointed at the filled `--paper-*` group, and `--color-border` reaches past shadcn — the `*` rule in the base layer makes it every element's default border colour.
 - **Cards are transparent by design** — shadow and layout separate surfaces, not a fill. `--bd` is transparent too, so hairline dividers are invisible until you fill it. Filling `--card`/`--cardalt`/`--bd` switches the whole app to filled cards with no markup change. For something that needs a real fill *now*, use the `--paper-*` group (`PaperCard`) rather than filling the shared three.
 - **Primitives are React components**, not CSS classes: `shared/components/` (`Button`, `Card`, `CardHeader`, `Chip`, `CoverTile`, `Eyebrow`, `MonoAction`, `PaperCard`, `ProgressTrack`, `Skeleton`, `SkyBar`, `StageDot`, plus `HAIRLINE`/`DASHED`). They read tokens and know nothing about the theme — there is never a light and a dark variant of a component, because the palette swaps underneath it.
@@ -200,63 +200,66 @@ App-level features that ride on top of the architecture above. Document new feat
 
 ### Decks (`features/study/decks`)
 
-**`/decks` is the deck shelf; the deck *detail* is still the same route's other
-half.** `DecksView` switches on local `screen` state between
-`components/DeckList.tsx` (the grid) and `components/DeckDetail.tsx`. There is
-no `/decks/{id}`.
+**`/decks` is the sky stage: the whole star map and the decks page fused into
+one full-viewport screen** (`views/DecksView.tsx`, no page scroll). Every deck
+is a constellation wrapped in a "deck card" frame; clicking a frame flies the
+camera into the deck and opens a glass column; clicking a star (or list row)
+swaps the column to the card's detail. The old deck grid, the deck detail
+screen and the `/sky` route are all deleted in its favour.
 
-- **`DeckList` is the page**, not a list: it owns the 1300 px column, renders
-  `TopBar` itself the way home does, and composes `DecksHeader` + a
-  `minmax(330px, 1fr)` auto-fill grid of `DeckCard`s. Order is the backend's
-  `created_at DESC`.
-- **The deck card has its own surface tokens** (`--deck-paper`, `--deck-bd`,
-  `--deck-sky`, …) rather than the app-wide `--card` / `--bd`, which are
-  transparent. It's the one component that needs a real fill and edge, because
-  it's a single clipped object with a dark panel over paper. Don't "unify" these
-  back into the shared tokens — that repaints home and the dictionary. Full
-  reasoning in `DECISIONS.md`.
-- **The sky panel is deliberately empty**, exactly like home's sky bubble. The
-  star map is a separate component with separate data.
-- **The card is one stretched target.** The deck name is the only control; its
-  `::after` covers the card so any dead space opens the deck too. The `...`
-  menu sits above that overlay at `z-10` — nesting it *inside* the target would
-  swallow its clicks. The due badge is display-only for the same reason.
-- **Due counts are one request for the whole screen.**
-  `hooks/useDeckDueCounts.ts` wraps `/api/study/due/counts`, which returns the
-  header total and the per-deck map together. A deck missing from `byDeck` has
-  nothing due — that's why the hook exposes `loading` separately.
-- **`last_card` comes from the backend**, not from fetching cards. The deck row
-  carries the most recently added card; see `backend-connections.txt`.
-- **Deck descriptions don't exist on the web** — dropped with the redesign. The
-  column and the mobile app still have the feature.
-
-**Deck detail** (`components/DeckDetail.tsx`, still the other half of `/decks`)
-is the card list beside the deck's own star map, with the ledger riding inside
-the panel as an always-visible footer.
-
-- **The sky panel is live.** `DeckSky` (from `features/sky`) renders the deck's
-  cards as stars, locked to this one deck, and shares `selectedCardId` with
-  `DeckCardPanel` — a star click opens the card, a row click rings the star.
-  Hover mirroring and the collapse control that hides the list remain unbuilt.
-  If the panel shows only the navy fill, the `sky_seed` hasn't loaded yet.
+- **Navigation state is the URL**: `/decks?deck={uuid}&card={uuid}`, uuids
+  only. Focus changes `push`, selection changes `replace` (dictionary
+  precedent); a stale uuid degrades to the outer view; Escape walks
+  confirm → card → deck. Search results and upgrade rows focus the deck, then
+  ring the star only once the camera flight lands (`onSettled`).
+- **The sky is `SkyMap`** (from `@/features/sky`) with two host-supplied
+  extras: `frameMeta` (per-deck due count via `hooks/useDeckDueCounts.ts` — one
+  `/api/study/due/counts` call for frames, chrome and ledger — plus
+  `deckVisuals` cover colour/glyph and a "STARTED MAR 2026" subtitle) and
+  `insets`, the camera's chrome allowance per tier (sky 105/54/245/54, ledger
+  collapsed 180 bottom; focused 88/70/95 with left 474 column-open / 70
+  hidden).
+- **Suspended chrome** (`components/StageChrome.tsx`): brand mark top-left;
+  top-right "Study N due" (all decks → `/study?due=1`, deck-scoped →
+  `/study?deck={id}`) plus "New deck" (glass popover form, provider
+  `createDeck`) at the outer tier or the delete-deck danger button inside one.
+  Destructive acts confirm through `components/NightConfirm.tsx`.
+- **The bottom ledger** (`components/StageLedger.tsx`, outer tier only): DAYS
+  STUDIED / STARS IN YOUR SKY / DUE TODAY / MASTERED, the all-decks mastery mix
+  (`components/MixBar.tsx`), and recent-upgrade rows; click toggles
+  expanded/collapsed. Stars/mastered/mix are counted off the cards already in
+  memory; days + upgrades come from `hooks/useSkyLedger.ts` (`/api/stats/*`).
+- **The glass column** (`components/GlassColumn.tsx`, 404px, deck tier):
+  back chevron (card → list, list → sky), all-decks search
+  (`components/CardSearch.tsx`, in-memory filter — no endpoint, so results
+  can't disagree with the map), the card list (SORT chips Added/Mastery,
+  cycling desc → asc → off), a collapsible deck-info footer (stat tiles, mix,
+  deck-scoped upgrades via `hooks/useDeckUpgrades.ts`), and the card detail
+  (meanings, IN CONTEXT, the `lib/rankProgress.ts` mastery meter, dictionary
+  lookup + delete-card actions). The « button collapses the whole column to a
+  "≡ CARDS" handle and the camera re-fits.
+- **Data is one request**: `GET /api/decks/user/:userId/cards` via
+  `hooks/useSkyDecks.ts` — the sky, the column, the search index and the
+  ledger counts all read the same rows. Mutations go through `DecksProvider`
+  (summaries) *and* the hook's optimistic `hideDeck`/`hideCard` + `refresh`,
+  so frames, stars and lists can never hold a ghost.
+- **The night chrome palette is `lib/nightChrome.ts`, not tokens.** The stage
+  is night in both themes, so all glass on it is light-on-dark always — the
+  `--dock-*` reasoning, kept as feature-local constants. Rank dots/bars/pills
+  read `stageColor()` so the list chrome and the stars agree.
 - **`lib/rankProgress.ts` mirrors the backend's promotion rules.**
   `backend/src/services/cardSrsService.js` owns them; that file is a client
-  copy, and retuning the thresholds there means changing both. It exists
-  because `last_outcomes` and `difficulty` already ride along in the cards
-  payload. Each promotion has a streak gate *and* a difficulty gate, and the
-  bar shows the lower of the two so it can't read 100% on a card the server
-  won't promote.
-- **The ledger is the panel's footer, and it counts in memory.** It reuses the
-  /sky page's `SkyLedger` (via the sky barrel) with deck-scoped tiles — CARDS
-  and MASTERED come from the `cards` array the page already has, no
-  `deck/stats` endpoint, because it would return figures we're holding. Only
-  the recent upgrades fetch, and only because their limit has to be applied
-  server-side.
+  copy, and retuning the thresholds there means changing both. Each promotion
+  has a streak gate *and* a difficulty gate, and the bar shows the lower of
+  the two so it can't read 100% on a card the server won't promote.
 - **Two sorts, not three.** Added and Mastery. JLPT is impossible rather than
   unwanted: `cards` has no `word_id`, so a card can't reach a JLPT level.
-- **Add card, rename and session settings survive** in the header even though
-  the handoff treats this page as read-only apart from its two deletes — they
-  were existing capability and the only route to either.
+- **The reader's pending-card hand-off lands here**: `DecksView` consumes
+  `ReaderStateProvider.pendingCard` on mount (handled-ref guard) and runs
+  `components/PendingCardOverlay/` over the stage; submit creates the card,
+  refreshes the sky and focuses that deck via the URL.
+- **Deck descriptions don't exist on the web** — dropped with the redesign.
+  The column and the mobile app still have the feature.
 
 ### Settings, Help & Credits (`features/settings`)
 
@@ -331,9 +334,11 @@ presentational.
 The fixed bottom nav on every signed-in screen, composed by `AppShell` (hidden
 on `/authenticate`). Replaced `WorkspaceNav`, which is deleted.
 
-- **Reader · Dictionary · Decks │ Sky · Home · Profile.** Sky gained an entry
-  (`/sky` existed as a route with no nav item); Settings lost one — pre-decided
-  when settings was redesigned, and `/profile`'s Settings button is the way in.
+- **Reader · Dictionary · Decks │ Home · Profile.** Settings lost its entry —
+  pre-decided when settings was redesigned, and `/profile`'s Settings button is
+  the way in. Sky briefly had one and lost it when the star map merged into
+  `/decks`: the sky *is* the decks page now, and two entries to one destination
+  is one too many.
 - `next/link`, not `router.push` on a `<button>`, so middle-click and
   open-in-new-tab work and prefetch happens. Active state is
   `aria-current="page"` plus a `--dock-active` tile; `/` matches exactly, the
@@ -349,32 +354,24 @@ on `/authenticate`). Replaced `WorkspaceNav`, which is deleted.
 - Icons are inlined at the handoff's geometry; `shared/icons` is the outgoing
   lucide set and its shapes are not these. Pages reserve `pb-[140px]`.
 
-### Sky page (`/sky`, `features/sky`)
+### Sky engine (`features/sky`)
 
-The whole-sky star map: every deck a constellation, entered by clicking its
-form on the sky or its row in the panel. Replaced the study-stats tab screen,
-which was deleted (`features/study/stats` now holds only `lib/statsApi.ts` —
-the `/api/stats` fetchers the ledger and the decks/home upgrade rows read).
+**There is no `/sky` route** — the star map is the `/decks` page (see the
+Decks entry above). What remains here is the engine: `lib/` (pure TypeScript,
+written to be copied to mobile — see `lib/README.md`), the web-binding hooks
+(`useCamera`, `useSkyFrame`, `useSkySeed`), and the SVG renderer
+(`SkyCanvas`/`SkyStars`/`SkyClouds`/`SkyFrames`). The barrel's production
+surface is `SkyMap` (uuid-keyed focus/selection, `frameMeta`, `insets`) plus
+`useSkySeed`; the demo harness `Sky.tsx` remains the unrouted reference. The
+route's other former tenant — the study-stats tab screen — is also gone
+(`features/study/stats` holds only `lib/statsApi.ts`, the `/api/stats`
+fetchers the stage's ledger and the decks/home upgrade rows read).
 
-- **`views/SkyView.tsx` is the page**; `components/SkyMap.tsx` is the
-  production map (the demo harness `Sky.tsx` remains the unrouted reference).
-  Layout mirrors deck details: 304px panel + sky box, ledger — except the
-  ledger lives *inside* the panel as an always-visible footer (`SkyLedger`).
-- **Navigation state is the URL**: `?deck={uuid}&card={uuid}`, uuids only.
-  Focus changes `push`, selection changes `replace` (dictionary precedent).
-  Escape walks card → list → all decks.
-- **Data is one request**: `GET /api/decks/user/:userId/cards` via
-  `useSkyDecks` (every deck with its cards; the sky, the panel, the search
-  index and the STARS/MASTERED counts all read it). DAYS/DUE/upgrades come
-  from `useSkyLedger` (`/api/stats/activity`, `/api/study/due/counts`,
-  `/api/stats/recent-upgrades`).
 - **Moving between tiers is a camera flight** (`useCamera.flyTo`, ~600ms,
-  interruptible). Search-result and upgrade-row clicks focus the deck, then
-  ring the star only once the flight lands (`onSettled`).
-- The header search is an in-memory filter over the loaded cards (front /
-  reading / back) — no endpoint, so results can't disagree with the map.
-- "Open in deck" / "Decks →" land on `/decks` — there is no `/decks/{id}`
-  route to deep-link a specific deck yet.
+  interruptible); the host selects after the flight via `onSettled`. Insets
+  changes re-fit as the same flight.
+- `sky_seed` (`users.sky_seed`, migration 025) is the account's one immutable
+  16-hex seed; `useSkySeed` fetches it off the profile and caches per user.
 
 ---
 

@@ -1,32 +1,39 @@
 import type { Metadata } from 'next';
-import { M_PLUS_1, Space_Mono } from 'next/font/google';
+import { Noto_Sans_JP } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import { AuthProvider } from '@/features/auth';
 import { ThemeProvider, AppShell } from '@/features/app-shell';
 import { MobileGate } from '@/features/mobile-gate';
 
 // ── Faces ───────────────────────────────────────────────────────────────────
-// Two families, and that's the whole set. Inter, Source Serif 4 and Geist Mono
-// shipped alongside these until the last screen migrated; they went with the
-// `--lgc-*` palette they backed.
+// Two families, and that's the whole set — picked in the 2026-08 font
+// audition, replacing M PLUS 1 + Space Mono. Switzer is the UI face AND the
+// mono role's face (the audition judged the app with no mono accents, and
+// that whole is what was chosen); Noto Sans JP is the Japanese face.
+// ds-tokens.css keeps the three roles separate so re-splitting any of them
+// is a one-line change there.
 //
-// M PLUS 1 covers Japanese *and* Latin, so it serves as both --face-jp and
-// --face-ui today; ds-tokens.css keeps those two roles separate so splitting
-// the Japanese face off later is a one-line change there. Only 500 and 700
-// ship — the handoff's "one family, two weights" instruction — so keep call
-// sites on `font-medium` / `font-bold`; a `font-semibold` gets synthesised.
+// Switzer is a Fontshare (ITF) family, so it self-hosts from app/fonts/ —
+// next/font/google doesn't carry it. Neither family ships a 600 cut: keep
+// call sites on `font-medium` / `font-bold`; a `font-semibold` gets
+// synthesised. Both are on the /credits inventory — keep that in step with
+// what loads here.
 
-const mplus1 = M_PLUS_1({
-  variable: '--font-mplus1',
-  subsets: ['latin'],
-  weight: ['500', '700'],
+const switzer = localFont({
+  variable: '--font-switzer',
   display: 'swap',
+  src: [
+    { path: './fonts/Switzer-400.woff2', weight: '400', style: 'normal' },
+    { path: './fonts/Switzer-500.woff2', weight: '500', style: 'normal' },
+    { path: './fonts/Switzer-700.woff2', weight: '700', style: 'normal' },
+  ],
 });
 
-const spaceMono = Space_Mono({
-  variable: '--font-space-mono',
+const notoSansJp = Noto_Sans_JP({
+  variable: '--font-noto-sans-jp',
   subsets: ['latin'],
-  weight: ['400', '700'],
+  weight: ['500', '700'],
   display: 'swap',
 });
 
@@ -75,7 +82,7 @@ export default function RootLayout({
       data-theme="light"
       data-sky-hue="default"
       suppressHydrationWarning
-      className={`${mplus1.variable} ${spaceMono.variable} h-full antialiased`}
+      className={`${switzer.variable} ${notoSansJp.variable} h-full antialiased`}
     >
       <body className="h-full">
         {/* Deliberately a raw <script>, not next/script: this has to execute

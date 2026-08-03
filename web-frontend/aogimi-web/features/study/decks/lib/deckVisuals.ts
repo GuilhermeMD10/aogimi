@@ -1,6 +1,6 @@
 // Deterministic deck cover visuals — hashed from the deck name so the same
-// deck always lands on the same color/kamon pair. Used by DeckList,
-// DeckDetail, and the profile page's deck preview.
+// deck always lands on the same color/kamon pair. Used by the /decks stage's
+// frame covers, the home cards, the study screen and the profile deck preview.
 
 const DECK_COLORS = [
   '#6B5A45',

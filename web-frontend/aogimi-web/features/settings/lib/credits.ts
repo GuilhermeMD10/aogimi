@@ -63,40 +63,22 @@ export const CREDITS: CreditSection[] = [
     ],
   },
   {
-    // Everything `app/layout.tsx` actually loads: the redesign faces
-    // (M PLUS 1, Space Mono) plus the outgoing trio that leaves with the old
-    // design system. Keep this list in sync with the next/font imports there.
+    // Everything `app/layout.tsx` actually loads — the two faces the 2026-08
+    // font audition settled on. Keep this list in sync with the next/font
+    // imports there.
     heading: 'Typography',
     entries: [
       {
-        name: 'M PLUS 1',
-        license: 'SIL Open Font License 1.1',
-        owner: 'Coji Morishita',
-        url: 'https://fonts.google.com/specimen/M+PLUS+1',
+        name: 'Switzer',
+        license: 'ITF Free Font License',
+        owner: 'Indian Type Foundry',
+        url: 'https://www.fontshare.com/fonts/switzer',
       },
       {
-        name: 'Space Mono',
+        name: 'Noto Sans JP',
         license: 'SIL Open Font License 1.1',
-        owner: 'Colophon Foundry',
-        url: 'https://fonts.google.com/specimen/Space+Mono',
-      },
-      {
-        name: 'Inter',
-        license: 'SIL Open Font License 1.1',
-        owner: 'Rasmus Andersson',
-        url: 'https://rsms.me/inter/',
-      },
-      {
-        name: 'Source Serif 4',
-        license: 'SIL Open Font License 1.1',
-        owner: 'Adobe',
-        url: 'https://fonts.google.com/specimen/Source+Serif+4',
-      },
-      {
-        name: 'Geist Mono',
-        license: 'SIL Open Font License 1.1',
-        owner: 'Vercel',
-        url: 'https://vercel.com/font',
+        owner: 'Google',
+        url: 'https://fonts.google.com/noto/specimen/Noto+Sans+JP',
       },
     ],
   },

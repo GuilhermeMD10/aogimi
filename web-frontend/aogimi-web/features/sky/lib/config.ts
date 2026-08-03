@@ -29,7 +29,6 @@
  */
 export const FIELD_ASPECT = 1.45;
 export const STAR_PX = 3; // stars keep this pixel radius at any zoom level
-export const MIN_VIEW = 260; // smallest side of the sky's boundary box, before it grows into it
 
 /* ---------- camera ---------- */
 // there is no MIN_ZOOM constant: the zoom-out floor is the sky's own fit zoom, so you can
@@ -256,16 +255,42 @@ export const SELECT_GLOW_SCALE = 5.6;
 
 /* ---------- decks ---------- */
 /**
- * The moat between two decks' cells, in **world units**. World rather than screen px on purpose:
- * it survives every zoom, so decks hold their separation at the outermost view exactly as they do
- * inside one. A screen-px gap would close as you pulled back and the decks would fuse into a smear.
+ * The gap between two deck cells on the grid, in **world units** (the handover's `gap`). World
+ * rather than screen px on purpose: it survives every zoom, so decks hold their separation at the
+ * outermost view exactly as they do inside one. A screen-px gap would close as you pulled back
+ * and the decks would fuse into a smear.
  *
- * Wide next to GROUP_CLEARANCE (60), because it has a harder job: that one only has to stop two
- * sessions reading as one, while this has to stop two whole decks doing it.
+ * Narrow next to the old ring's 240 moat, deliberately: the frames now do the separating — each
+ * deck wears a drawn card, so the space between decks only has to read as a gutter between cards,
+ * not as the void that keeps two anonymous forms from fusing.
  */
-export const DECK_GAP = 240;
-/** Margin between a deck's outermost star and the edge of its cell. */
+export const DECK_GRID_GAP = 76;
+/** Margin between a deck's outermost star and the edge of its focused box. */
 export const DECK_PAD = 40;
+/**
+ * The deck card frame's bands, in world units (the handover's `FR = { pad, head, foot }`): the
+ * margin between the outermost star and the frame's edge, the header band above (cover tile,
+ * name, subtitle), and the footer band below (counts, due pill). Layout geometry *and* renderer
+ * geometry — `layoutDecks` sizes the grid cells from these and `SkyFrames` draws the bands from
+ * the same numbers, which is what keeps the card and its cell in agreement.
+ */
+export const FRAME_PAD = 86;
+export const FRAME_HEAD = 134;
+export const FRAME_FOOT = 104;
+/** A frame is never narrower than its deck's name needs (the handover's `minFrameW`):
+ *  FRAME_MIN_W plus FRAME_MIN_W_PER_CHAR per character of the name. */
+export const FRAME_MIN_W = 250;
+export const FRAME_MIN_W_PER_CHAR = 30;
+/**
+ * The aspect (width over height) the grid's shape is chosen against — a stand-in for the
+ * landscape stage the unified page fits the sky into. The layout cannot read the real viewport
+ * (it runs before the camera exists, and a layout that answered to the window's width would
+ * re-arrange the chooser on every resize), so the candidate grid shapes are scored against this
+ * nominal window instead and the camera's fit absorbs the per-device remainder, exactly as
+ * FIELD_ASPECT's does. 2.3 is the common laptop band (1280–2560px wide) with the handover's
+ * sky-level overlay insets (T105/B245/L54/R54) taken off: 2.2–2.6 across that band.
+ */
+export const GRID_ASPECT = 2.3;
 
 /* ---------- the outer view's star budget ---------- */
 /**
@@ -330,8 +355,8 @@ export const GAP_FILL_QUOTA = 0.8;
 export const FULCRAL_SCALE = 1.55;
 /** Stars of a deck that is not the focused one, relative to the focused deck's. */
 export const UNFOCUSED_STAR_SCALE = 0.86;
-/** ...and how far the rest of an unfocused deck fades once one deck has focus. */
-export const UNFOCUSED_DECK_OPACITY = 0.28;
+/** ...and how far the rest of an unfocused deck fades once one deck has focus (handover: .24). */
+export const UNFOCUSED_DECK_OPACITY = 0.24;
 
 /* ---------- star form ---------- */
 /**

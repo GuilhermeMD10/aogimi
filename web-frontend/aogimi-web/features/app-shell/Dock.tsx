@@ -77,11 +77,6 @@ const ICONS: Record<DockKey, React.ReactNode> = {
       <path d="M8 5h8a2 2 0 0 1 2 2v9" />
     </Glyph>
   ),
-  sky: (
-    <Glyph>
-      <path d="M12 3l2.3 5.2 5.7.6-4.3 3.8 1.2 5.6-4.9-2.9-4.9 2.9 1.2-5.6L3 8.8l5.7-.6z" />
-    </Glyph>
-  ),
   home: (
     <Glyph>
       <path d="M4 11l8-6.5 8 6.5" />

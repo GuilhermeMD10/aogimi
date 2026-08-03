@@ -4,7 +4,7 @@ import { memo, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useSt
 import { toWorld } from '../lib/camera';
 import { NO_FULCRAL } from '../lib/cluster';
 import { CLOUD_DRIFT_MS, LINK_REACH, STAR_POP_MS, UNFOCUSED_DECK_OPACITY } from '../lib/config';
-import { deckAt, type SkyLayout } from '../lib/layout';
+import { deckAt, frameAt, type SkyLayout } from '../lib/layout';
 import { labelOpAt } from '../lib/lod';
 import { type SkyPalette, hueFor, rgbOf } from '../lib/palette';
 import { pickStar } from '../lib/picking';
@@ -12,6 +12,7 @@ import type { DeckDraw, SkyFrame } from '../lib/tiers';
 import type { Bounds, FocusPath, Star, View } from '../lib/types';
 
 import { SkyClouds } from './SkyClouds';
+import { type DeckFrameData, SkyFrames } from './SkyFrames';
 import { SkyStars } from './SkyStars';
 import { type CameraController, localOf } from '../hooks/useCamera';
 
@@ -39,8 +40,11 @@ const SKY_CSS = `
   .sky-new { animation: sky-new 1.7s ease-in-out infinite; }
   .sky-drift { animation: sky-turn ${CLOUD_DRIFT_MS}ms linear infinite; }
   .sky-deck { transition: opacity .45s ease; }
+  /* the deck frame's hover brighten. fill/stroke only — neither is a function of zoom, so the
+     no-transitions-on-camera-driven-values rule is not in play */
+  .sky-frame { transition: fill .28s ease, stroke .28s ease; }
   @media (prefers-reduced-motion: reduce) {
-    .sky-edge, .sky-star, .sky-open, .sky-hover, .sky-new, .sky-drift, .sky-deck {
+    .sky-edge, .sky-star, .sky-open, .sky-hover, .sky-new, .sky-drift, .sky-deck, .sky-frame {
       animation: none; transition: none;
     }
   }
@@ -252,6 +256,12 @@ type Props = {
   selected: number | null;
   /** Newest star of the open session, which the reach ring is drawn around. */
   openTip: Star | null;
+  /**
+   * The outer view's deck card frames, already resolved to display data (SkyMap's job). Optional
+   * because the demo host never shows the chooser; drawn only while
+   * the focus is the outer view — a focused deck wears no frame, per the handover.
+   */
+  frames?: DeckFrameData[];
   /** A press at the outer view chooses a deck rather than a star. */
   onEnterDeck: (did: number) => void;
   onStarClick: (star: Star) => void;
@@ -272,6 +282,7 @@ export function SkyCanvas({
   cam,
   selected,
   openTip,
+  frames,
   onEnterDeck,
   onStarClick,
   onMiss,
@@ -279,6 +290,7 @@ export function SkyCanvas({
 }: Props) {
   const { attach, camera, view, viewport, dragging, relZoom, onPointerDown, onPointerMove, onPointerUp } = cam;
   const [hovered, setHovered] = useState<number | null>(null); // star id, stable across re-orderings
+  const [hoveredDeck, setHoveredDeck] = useState<number | null>(null); // did, outer view only
   const hidden = frame.phase === 'hidden';
   const u = view.worldPerPx;
   const focusedDid = focus.length ? focus[0] : null;
@@ -308,7 +320,18 @@ export function SkyCanvas({
 
   const handlePointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
     // the sky is moving under the cursor, so a hover readout would only flicker
-    if (onPointerMove(e)) return setHovered(null);
+    if (onPointerMove(e)) {
+      setHovered(null);
+      setHoveredDeck(null);
+      return;
+    }
+    if (focusedDid === null) {
+      // the chooser's subject is the deck frame — resolved by coordinates like a star pick is,
+      // so the frames themselves never carry pointer handlers
+      const world = toWorld(localOf(e.currentTarget, e), camera, viewport);
+      setHoveredDeck(frameAt(layout, world));
+      return;
+    }
     setHovered(pickAt(e)?.id ?? null);
   };
 
@@ -317,8 +340,12 @@ export function SkyCanvas({
     if (!wasTap || hidden) return; // a drag is not a click
     if (focusedDid === null) {
       const world = toWorld(localOf(e.currentTarget, e), camera, viewport);
+      // the frame is the primary target; deckAt keeps a press in the gutter meaningful too
       const did = deckAt(layout, world);
-      if (did !== null) onEnterDeck(did);
+      if (did !== null) {
+        setHoveredDeck(null);
+        onEnterDeck(did);
+      }
       return;
     }
     const star = pickAt(e);
@@ -378,7 +405,10 @@ export function SkyCanvas({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      onPointerLeave={() => setHovered(null)}
+      onPointerLeave={() => {
+        setHovered(null);
+        setHoveredDeck(null);
+      }}
     >
       <style>{SKY_CSS}</style>
       <defs>{glow}</defs>
@@ -397,6 +427,12 @@ export function SkyCanvas({
           vectorEffect="non-scaling-stroke"
           strokeDasharray="4 8"
         />
+      )}
+
+      {/* The deck card frames, under the constellations they wrap. Outer view only: a focused
+          deck wears no frame, and the dimmed context decks lose theirs with the tier. */}
+      {!hidden && focusedDid === null && frames && frames.length > 0 && (
+        <SkyFrames frames={frames} hovered={hoveredDeck} />
       )}
 
       {/* One transform per deck, which is the whole of what the layout does to a deck's contents.

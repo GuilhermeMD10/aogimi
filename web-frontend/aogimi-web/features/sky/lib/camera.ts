@@ -1,17 +1,35 @@
 import { MAX_ZOOM } from './config';
 import { clamp } from './geometry';
-import type { Bounds, Camera, Point, View, Viewport } from './types';
+import type { Bounds, Camera, Insets, Point, View, Viewport } from './types';
 
 /**
  * Pan/zoom maths over a window onto the sky. Pure functions of (camera, bounds, viewport), with
  * no notion of what is drawn, what device is drawing it, or what gesture moved it — a wheel and
  * a pinch both arrive here as a plain zoom multiplier.
+ *
+ * Every fit- and clamp-shaped function also takes optional `Insets` — the host's overlays,
+ * subtracted from the viewport so the sky rests centred in the *uncovered* window. Only where the
+ * camera settles knows about them: `toWorld`/`viewOf` map the full element, because the sky is
+ * still drawn (and picked) under the chrome, just not parked there.
  */
 
 export const boundsCentre = (b: Bounds): Point => ({
   x: (b.minX + b.maxX) / 2,
   y: (b.minY + b.maxY) / 2,
 });
+
+/** The viewport with the insets taken off — what a fit must actually fit into. Floored at 1px so
+ *  a host whose window shrank under its own chrome degrades instead of dividing through. */
+const innerW = (vp: Viewport, ins?: Insets) => Math.max(1, vp.width - (ins ? ins.left + ins.right : 0));
+const innerH = (vp: Viewport, ins?: Insets) => Math.max(1, vp.height - (ins ? ins.top + ins.bottom : 0));
+
+/**
+ * Where the centre of the inset window sits, as a world offset from what the camera's own centre
+ * shows. Asymmetric insets shift the resting point — a panel on the left pushes the sky right —
+ * and dividing by the zoom is what keeps that shift a fixed number of *pixels* at every scale.
+ */
+const insetShift = (zoom: number, ins?: Insets): Point =>
+  ins ? { x: (ins.left - ins.right) / (2 * zoom), y: (ins.top - ins.bottom) / (2 * zoom) } : { x: 0, y: 0 };
 
 /**
  * Grow a box to the viewport's own aspect ratio, about its centre. Exactly one axis grows and
@@ -20,12 +38,13 @@ export const boundsCentre = (b: Bounds): Point => ({
  * rectangle instead of one letterboxed inside the other. Degenerate inputs pass through untouched
  * rather than dividing through the maths.
  */
-export const matchAspect = (b: Bounds, vp: Viewport): Bounds => {
+export const matchAspect = (b: Bounds, vp: Viewport, ins?: Insets): Bounds => {
   const w = b.maxX - b.minX;
   const h = b.maxY - b.minY;
   if (w <= 0 || h <= 0 || vp.width <= 0 || vp.height <= 0) return b;
 
-  const aspect = vp.width / vp.height;
+  // the inset window's aspect, so the boundary matches the box the sky actually rests in
+  const aspect = innerW(vp, ins) / innerH(vp, ins);
   const { x, y } = boundsCentre(b);
   const halfW = Math.max(w, h * aspect) / 2;
   const halfH = Math.max(h, w / aspect) / 2;
@@ -40,11 +59,12 @@ export const matchAspect = (b: Bounds, vp: Viewport): Bounds => {
  * viewport that is not square simply shows a little space past the boundary. That is also what
  * makes the fully zoomed-out view sit centred and immobile: at this zoom neither axis has slack.
  */
-export const fitZoom = (b: Bounds, vp: Viewport) =>
-  Math.min(MAX_ZOOM, vp.width / (b.maxX - b.minX), vp.height / (b.maxY - b.minY));
+export const fitZoom = (b: Bounds, vp: Viewport, ins?: Insets) =>
+  Math.min(MAX_ZOOM, innerW(vp, ins) / (b.maxX - b.minX), innerH(vp, ins) / (b.maxY - b.minY));
 
 /** Zoom is bounded below by the sky, above by MAX_ZOOM. */
-export const clampZoom = (z: number, b: Bounds, vp: Viewport) => clamp(z, fitZoom(b, vp), MAX_ZOOM);
+export const clampZoom = (z: number, b: Bounds, vp: Viewport, ins?: Insets) =>
+  clamp(z, fitZoom(b, vp, ins), MAX_ZOOM);
 
 /** Viewport px -> world, under a given camera. */
 export const toWorld = (local: Point, cam: Camera, vp: Viewport): Point => ({
@@ -99,8 +119,15 @@ export const panBy = (cam: Camera, dxPx: number, dyPx: number): Camera => ({
  * against a zoom limit; the limits are applied here rather than to the result, because the
  * pinning maths needs the final zoom.
  */
-export const zoomAround = (cam: Camera, local: Point, factor: number, b: Bounds, vp: Viewport): Camera => {
-  const zoom = clampZoom(cam.zoom * factor, b, vp);
+export const zoomAround = (
+  cam: Camera,
+  local: Point,
+  factor: number,
+  b: Bounds,
+  vp: Viewport,
+  ins?: Insets,
+): Camera => {
+  const zoom = clampZoom(cam.zoom * factor, b, vp, ins);
   if (zoom === cam.zoom) return cam;
 
   const anchor = toWorld(local, cam, vp);
@@ -111,11 +138,13 @@ export const zoomAround = (cam: Camera, local: Point, factor: number, b: Bounds,
   };
 };
 
-/** Centre on the sky's box, pulled back exactly far enough to hold all of it. */
-export const cameraFitting = (b: Bounds, vp: Viewport): Camera => ({
-  ...boundsCentre(b),
-  zoom: fitZoom(b, vp),
-});
+/** Centre on the sky's box within the inset window, pulled back exactly far enough to hold it. */
+export const cameraFitting = (b: Bounds, vp: Viewport, ins?: Insets): Camera => {
+  const zoom = fitZoom(b, vp, ins);
+  const centre = boundsCentre(b);
+  const shift = insetShift(zoom, ins);
+  return { x: centre.x - shift.x, y: centre.y - shift.y, zoom };
+};
 
 /** Decelerating ease for camera flights: most of the distance early, a soft landing. */
 export const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
@@ -142,20 +171,21 @@ export const tweenCamera = (from: Camera, to: Camera, k: number): Camera => ({
  * Confine the viewport to the sky's box, in all three degrees of freedom.
  *
  * Zoom is floored at fitZoom, so you cannot pull back past the boundary into empty space.
- * Position may then travel only as far as the slack between the box and the viewport allows;
- * where the sky is narrower than the viewport that slack is zero, so the camera pins to the
- * centre and that axis stops panning. At the zoom floor both slacks are zero by construction,
- * which is why the fully zoomed-out view sits centred and immobile.
+ * Position may then travel only as far as the slack between the box and the *inset window*
+ * allows; where the sky is narrower than the window that slack is zero, so the camera pins to
+ * the (inset-shifted) centre and that axis stops panning. At the zoom floor both slacks are zero
+ * by construction, which is why the fully zoomed-out view sits fitted and immobile.
  *
  * Returns `cam` untouched when already legal, so an in-bounds gesture causes no extra render.
  */
-export const clampCamera = (cam: Camera, b: Bounds, vp: Viewport): Camera => {
-  const zoom = clampZoom(cam.zoom, b, vp);
+export const clampCamera = (cam: Camera, b: Bounds, vp: Viewport, ins?: Insets): Camera => {
+  const zoom = clampZoom(cam.zoom, b, vp, ins);
   const centre = boundsCentre(b);
-  const slackX = Math.max(0, (b.maxX - b.minX) / 2 - vp.width / (2 * zoom));
-  const slackY = Math.max(0, (b.maxY - b.minY) / 2 - vp.height / (2 * zoom));
+  const shift = insetShift(zoom, ins);
+  const slackX = Math.max(0, (b.maxX - b.minX) / 2 - innerW(vp, ins) / (2 * zoom));
+  const slackY = Math.max(0, (b.maxY - b.minY) / 2 - innerH(vp, ins) / (2 * zoom));
 
-  const x = clamp(cam.x, centre.x - slackX, centre.x + slackX);
-  const y = clamp(cam.y, centre.y - slackY, centre.y + slackY);
+  const x = clamp(cam.x, centre.x - shift.x - slackX, centre.x - shift.x + slackX);
+  const y = clamp(cam.y, centre.y - shift.y - slackY, centre.y - shift.y + slackY);
   return x === cam.x && y === cam.y && zoom === cam.zoom ? cam : { x, y, zoom };
 };
