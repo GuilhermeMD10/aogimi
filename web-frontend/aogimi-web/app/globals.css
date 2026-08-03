@@ -2,98 +2,75 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* ── Design tokens (redesign — light + dark) ───────────────────────────── */
-/* Loaded before the outgoing --lgc-* layer so that layer keeps winning any
-   accidental overlap while pages are still migrating. No name is shared, so
-   in practice the two never meet. */
+/* ── Design tokens (light + dark) ───────────────────────────────────────── */
+/* The only palette. The outgoing `--lgc-*` layer (`styles/themes/default.css`
+   + `styles/shape-defaults.css` + `styles/primitives.css`) is gone — every
+   screen reads the tokens below. */
 @import "../styles/ds-tokens.css";
 
-/* ── Color tokens (--lgc-*) — OUTGOING ─────────────────────────────────── */
-/* Deleted once the last page reads ds-tokens.css instead. */
-@import "../styles/themes/default.css";
-
-/* ── Shape tokens ──────────────────────────────────────────────────────── */
-@import "../styles/shape-defaults.css";
-
-/* ── Shared primitives + utilities ─────────────────────────────────────── */
-@import "../styles/primitives.css";
+/* ── Shared utilities ──────────────────────────────────────────────────── */
 @import "../styles/utilities.css";
 
 /* ── Sync-state tokens ─────────────────────────────────────────────────── */
 @import "../styles/sync-tokens.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Themes are chosen by `html[data-theme]`, not by a `.dark` class or the OS
+   preference, so `dark:` has to mean the same thing the rest of the app means.
+   Nothing uses it today — the tokens swap underneath components instead — but
+   pointing it at the real selector keeps a future `dark:` from silently
+   following `prefers-color-scheme` and disagreeing with the theme switch. */
+@custom-variant dark (html[data-theme="dark"] &);
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   DESIGN TOKENS — Tailwind v4 alias layer
-   Maps `--lgc-*` and `--font-*` CSS variables onto Tailwind's color/font
-   namespaces. So `bg-lgc-bg`, `text-lgc-fg-muted`, `font-display`, etc. all
-   work, and per-theme overrides flow through automatically.
+   TAILWIND ALIAS LAYER
+   Only what Tailwind itself has to know about: the radius scale behind
+   `rounded-*`, and the shadcn color namespace.
+
+   The design tokens are deliberately NOT mirrored here. Components read them
+   directly — `text-(--ink)`, `bg-(--paper)`, `font-[family-name:var(--face-ui)]`
+   — so there is one name per value and no alias to keep in step.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 @theme inline {
-  /* ── Aogimi color tokens ─────────────────────────────────────────── */
-  --color-lgc-bg:            var(--lgc-bg);
-  --color-lgc-bg-elev:       var(--lgc-bg-elev);
-  --color-lgc-bg-sunken:     var(--lgc-bg-sunken);
+  /* ── shadcn system ────────────────────────────────────────────────────
+     Two shadcn components survive — `shared/ui/sheet.tsx` and the ghost
+     `Button` it closes with, used by the study session's config sheet. They
+     paint with `bg-popover` / `text-foreground` / `border-border` rather than
+     token call sites, so those names need somewhere to point.
 
-  --color-lgc-fg:            var(--lgc-fg);
-  --color-lgc-fg-muted:      var(--lgc-fg-muted);
-  --color-lgc-fg-subtle:     var(--lgc-fg-subtle);
+     Mapped at the filled `--paper-*` group, not `--card`/`--cardalt`/`--bd`:
+     those three are transparent app-wide (shadow separates a card from the
+     canvas), and a sheet sliding over the page has nothing behind it to
+     separate against. Same reasoning as `PaperCard`.
 
-  --color-lgc-border:        var(--lgc-border);
-  --color-lgc-border-strong: var(--lgc-border-strong);
+     `--color-border` is the one that reaches past shadcn: the `*` rule in the
+     base layer applies it as every element's default border color, so a bare
+     `border` utility now draws a theme-aware hairline instead of the old
+     light-only `#E5E3DE`. Call sites that need a visible edge still say so
+     with `HAIRLINE`. */
+  --color-background:           var(--bg);
+  --color-foreground:           var(--ink);
+  --color-card:                 var(--paper);
+  --color-card-foreground:      var(--ink);
+  --color-popover:              var(--paper);
+  --color-popover-foreground:   var(--ink);
+  --color-primary:              var(--btn);
+  --color-primary-foreground:   var(--btn-ink);
+  --color-secondary:            var(--paper-tile);
+  --color-secondary-foreground: var(--ink);
+  --color-muted:                var(--paper-tile);
+  --color-muted-foreground:     var(--muted);
+  --color-accent:               var(--tint-b);
+  --color-accent-foreground:    var(--ink);
+  --color-destructive:          var(--danger);
+  --color-border:               var(--paper-bd);
+  --color-input:                var(--paper-bd);
+  --color-ring:                 var(--ink);
 
-  --color-lgc-accent:        var(--lgc-accent);
-  --color-lgc-accent-soft:   var(--lgc-accent-soft);
-  --color-lgc-accent-fg:     var(--lgc-accent-fg);
-
-  --color-lgc-error:         var(--lgc-error);
-
-  /* ── shadcn system (wired to Aogimi tokens) ──────────────────────── */
-  --color-background:                 var(--lgc-bg);
-  --color-foreground:                 var(--lgc-fg);
-  --color-card:                       var(--lgc-bg-elev);
-  --color-card-foreground:            var(--lgc-fg);
-  --color-popover:                    var(--lgc-bg-elev);
-  --color-popover-foreground:         var(--lgc-fg);
-  --color-primary:                    var(--lgc-accent);
-  --color-primary-foreground:         var(--lgc-accent-fg);
-  --color-secondary:                  var(--lgc-bg-sunken);
-  --color-secondary-foreground:       var(--lgc-fg);
-  --color-muted:                      var(--lgc-bg-sunken);
-  --color-muted-foreground:           var(--lgc-fg-muted);
-  --color-accent:                     var(--lgc-accent-soft);
-  --color-accent-foreground:          var(--lgc-fg);
-  --color-destructive:                var(--lgc-error);
-  --color-border:                     var(--lgc-border);
-  --color-input:                      var(--lgc-border-strong);
-  --color-ring:                       var(--lgc-accent);
-
-  /* shadcn sidebar — wired to Aogimi */
-  --color-sidebar:                    var(--lgc-bg-sunken);
-  --color-sidebar-foreground:         var(--lgc-fg);
-  --color-sidebar-primary:            var(--lgc-accent);
-  --color-sidebar-primary-foreground: var(--lgc-accent-fg);
-  --color-sidebar-accent:             var(--lgc-bg-elev);
-  --color-sidebar-accent-foreground:  var(--lgc-fg);
-  --color-sidebar-border:             var(--lgc-border);
-  --color-sidebar-ring:               var(--lgc-accent);
-
-  --color-chart-1: oklch(0.65 0.12 25);
-  --color-chart-2: oklch(0.60 0.10 160);
-  --color-chart-3: oklch(0.55 0.08 250);
-  --color-chart-4: oklch(0.50 0.06 85);
-  --color-chart-5: oklch(0.45 0.04 300);
-
-  /* ── Typography — alias Tailwind font-* classes onto theme tokens ─── */
-  --font-ui:      var(--lgc-font-ui);
-  --font-display: var(--lgc-font-display);
-  --font-mono:    var(--lgc-font-mono);
-  --font-jp:      var(--lgc-font-jp);
-  --font-body:    var(--lgc-font-body);
-
-  /* ── Radii ────────────────────────────────────────────────────────── */
+  /* ── Radii ────────────────────────────────────────────────────────────
+     Behind `rounded-md` / `rounded-lg` / `rounded-2xl`. The role-named scale
+     in ds-tokens.css (`--radius-tile`, `--radius-card`, …) is the one new work
+     should reach for; these stay for the call sites that predate it. */
   --radius-sm:  4px;
   --radius-md:  6px;
   --radius-lg:  10px;
@@ -117,32 +94,13 @@
     display: none;
   }
 
+  /* Page canvas + the default face, both app-wide chrome rather than something
+     a page paints. The background is split across the two elements: base
+     gradient on <html>, star tiles on <body>, so each `background-size` list is
+     a single value. See ds-tokens.css for why one combined declaration
+     doesn't work. */
   html {
-    font-family: var(--lgc-font-ui);
-  }
-
-  /* Display headings use the serif/display font */
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--lgc-font-display);
-  }
-
-  /* UI chrome stays in the UI font */
-  button,
-  input,
-  select,
-  textarea,
-  nav {
-    font-family: var(--lgc-font-ui);
-  }
-
-  /* Page canvas. Owned by the new token layer, so it is theme-aware for every
-     route — the background is app-wide chrome, not something a page paints.
-     `bg-background`/`text-foreground` (which resolve to the outgoing --lgc-*
-     palette, light-only) are deliberately gone from here.
-     Split across the two elements: base gradient on <html>, star tiles on
-     <body>, so each background-size list is a single value. See ds-tokens.css
-     for why one combined declaration doesn't work. */
-  html {
+    font-family: var(--face-ui);
     background-color: var(--bg);
     background-image: var(--page-base);
     background-size: cover;
@@ -157,6 +115,21 @@
     background-repeat: repeat;
     background-attachment: fixed;
     box-shadow: var(--page-vignette);
+  }
+
+  /* Form controls don't inherit `font-family` from their container — the UA
+     stylesheet gives them the platform font — so they need saying explicitly.
+     There is deliberately NO `h1..h6` rule: headings that want the Japanese
+     face say `--face-jp` at the call site, and one that says nothing should
+     inherit from its screen rather than be overridden by a global. A rule here
+     beats an inherited face no matter what the wrapper sets, which is exactly
+     how four migrated headings ended up rendering in the outgoing display
+     serif. */
+  button,
+  input,
+  select,
+  textarea {
+    font-family: var(--face-ui);
   }
 }
 

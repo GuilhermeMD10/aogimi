@@ -80,6 +80,13 @@ at 20% opacity.
 | 2   | Learned  | `#FF7AC4` | `#e0489c`    | 6.4    | .20  | dot + 4-arm cross                 |
 | 3   | Mastered | `#F4DC82` | `#c9962a`    | 7.6    | .26  | double 4-point sparkle, twinkling |
 
+**The Ink-on-paper column is not implemented, deliberately.** As shipped, the rank colours are a
+**hue preset** the reader picks (`SKY_PALETTES` in `lib/palette.ts`: Aogimi — the Midnight column
+above — plus Ginga silver, Ember dusk, Aurora field), and each preset is one value per rank used in
+**both** themes: the sky is night in both (§5), and the app's `--stage-*` mastery chrome follows the
+chosen preset rather than the theme. See DECISIONS.md, "Sky hue presets". Radius, glow and
+silhouette are preset-independent — they are what makes a rank legible without colour.
+
 ### 2.1 Screen radius
 
 ```

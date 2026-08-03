@@ -197,8 +197,9 @@ outranks the older docs where they disagree.
 - [ ] `display_name` in the TopBar and greeting — the auth context carries only
       `{ id, username }`, so a real display name needs a shared profile source
       rather than a fetch per consumer.
-- [ ] Delete `--lgc-*`, `styles/primitives.css`, and the stranded `shared/ui`
-      primitives once every screen has migrated.
+- [x] ~~Delete `--lgc-*`, `styles/primitives.css`, and the stranded `shared/ui`
+      primitives once every screen has migrated.~~ Done — see **Teardown — the
+      `--lgc-*` system** at the end of this file.
 
 ---
 
@@ -479,11 +480,12 @@ explicitly warns against. No schema change, so no migration and no
 
 **Still deferred**
 
-- [ ] Deck detail, the create/edit form (`DeckForm`) and `PendingCardOverlay`
+- [x] ~~Deck detail, the create/edit form (`DeckForm`) and `PendingCardOverlay`
       still read `--lgc-*`. Opening a deck drops into the old visual language —
       the first seam that sits *inside* one route rather than between two.
       `DeckForm` is shared with detail, so restyling it there would half-migrate
-      that screen; left alone on purpose.
+      that screen; left alone on purpose.~~ All three migrated (detail + form in
+      the deck-details pass, `PendingCardOverlay` in the teardown).
 - [ ] The star map. `clustering-spec.md` in the handoff bundle is the spec; the
       panel is the correctly-sized container it mounts into.
 - [ ] Deleting a deck cascades to every card in it and asks nothing first.
@@ -573,6 +575,8 @@ reaching the `::uuid` cast and surfacing as a 500.
 - **The mastery ramp is the established `--stage-*`.** This handoff proposes a
   third ramp (the violet→pink→gold sky one) and argues for it app-wide; that
   belongs with the map, when star colours actually exist.
+  **Resolved 2026-08-03 in the sky's favour** — `--stage-*` now *is* the sky's
+  rank ramp, per preset. See "Sky hue presets" at the end of this file.
 - **`DeckForm` was restyled onto the redesign tokens.** It was the last
   `--lgc-*` island on two otherwise-migrated screens, and no handoff draws it.
 - **`relativeTime` moved to `lib/util/`.** `features/home/lib/relativeTime.ts`
@@ -593,7 +597,8 @@ under the context sentence. None exist; `back` is one column and there is no
 - [ ] The star map, in both the panel and the deck cards' sky.
 - [ ] `/decks/{id}` as a real route — would also give the breadcrumb a link
       instead of a callback and let the page 404 on an unknown deck.
-- [ ] `PendingCardOverlay` is the last `--lgc-*` surface left in this feature.
+- [x] ~~`PendingCardOverlay` is the last `--lgc-*` surface left in this feature.~~
+      Migrated in the teardown pass; the feature is fully token-driven.
 - [ ] A confirm step on the two destructive actions.
 
 ---
@@ -868,10 +873,167 @@ problem is pre-existing and in an un-migrated feature.
 - [ ] Password reset, now that an address exists to send to.
 - [ ] Per-field 409 attribution would need `lib/api.ts` to carry the error
       `code` instead of flattening to a message string.
-- [ ] **Deleting the outgoing `--lgc-*` system is NOT unblocked by this pass.**
+- [x] ~~**Deleting the outgoing `--lgc-*` system is NOT unblocked by this pass.**
       44 files still read it, across `features/study/session` (13),
       `features/study/stats` (5), `features/books/reader`,
       `features/books/library`, `features/onboarding`, `features/mobile-gate`
       and `features/dictionary/views` — i.e. the reader/library, the study
       runner and sky, the three screens still on REDESIGN.md's list. The
-      deletion is one pass to run after those three.
+      deletion is one pass to run after those three.~~ Run — see the section
+      below. By the time it happened the count was down to 18 files, and a third
+      of those turned out to be unreachable.
+
+---
+
+## Teardown — the `--lgc-*` system
+
+The deletion pass the redesign was building toward. Also the "fix the font
+leaks" pass, because the two turned out to be the same problem: the leaks
+existed *because* two systems were live.
+
+**Decisions**
+
+- **Dead consumers were deleted, not migrated.** Four `features/study/session`
+  components read the old palette and no route reached any of them:
+  `StudyDisplaySettings` (not even barrel-exported), `PresetPicker` (only that
+  screen used it), `StudyAllHardestButton` and `StateBreakdown` (exported,
+  never mounted). Migrating them would have meant inventing new-token visuals
+  for screens nobody can open — and `StateBreakdown` painted with
+  `text-lgc-success` / `text-lgc-warning`, names the bridge never defined, so
+  it has been rendering colourless the whole time and "migrating" it would have
+  meant picking colours that never existed. Same call for the stranded
+  `shared/ui` set (`SectionCard`, `ActionRow`, `Field`, `ReaderProgressBar`,
+  and the shadcn `sidebar` + the five files only it imported, plus
+  `hooks/use-mobile.ts`). Deleting is the only way the old system is gone
+  rather than reincarnated under new names.
+- **`shared/ui` survives as two files.** `sheet.tsx` + `button.tsx`, because
+  `SessionConfigSheet` uses the radix sheet and rebuilding it token-native is a
+  design change, not a token change. They paint with shadcn's colour namespace,
+  so `globals.css`'s `@theme` keeps that bridge — re-pointed from `--lgc-*` at
+  the filled `--paper-*` group. Everything else in `@theme` went: the
+  `--color-lgc-*` aliases, the `--font-ui`/`--display`/`--jp`/`--body`/`--mono`
+  aliases (no call sites left), the sidebar tokens, and the five unused chart
+  colours.
+- **`--color-border` is the one alias that reaches past shadcn.** The base
+  layer's `* { @apply border-border }` makes it every element's default border
+  colour. It used to be the light-only `#E5E3DE`, which drew a pale line on the
+  dark canvas; now it's `--paper-bd` and correct in both themes. Call sites that
+  want a *visible* edge still say so with `HAIRLINE`.
+- **The `h1..h6` rule is gone rather than re-pointed.** It was
+  `font-family: var(--lgc-font-display)` — Source Serif 4 — and a rule on the
+  element beats a face inherited from a wrapper, so four migrated headings
+  (`HelpView`, `CreditsView`, `DeleteAccountDialog`, `LibraryShelf`) rendered in
+  the outgoing serif no matter what their screen set. Deleting it makes headings
+  inherit; the ones that want the Japanese face already say `--face-jp`
+  explicitly. `html` carries `--face-ui`, and form controls still need it said
+  out loud because the UA stylesheet doesn't let them inherit.
+- **`dark:` was re-pointed, not dropped.** It was defined as `.dark *`, a class
+  this app never sets, so every `dark:` class in `shared/ui` was inert. Dropping
+  the declaration would have handed `dark:` back to `prefers-color-scheme`,
+  which disagrees with the theme switch — a worse trap than the dead one. It is
+  now `html[data-theme="dark"] &`. `button.tsx`'s stale `dark:` branches were
+  stripped in the same edit, since they'd have started firing.
+- **Three webfonts came out**: Inter, Source Serif 4, Geist Mono. The build now
+  ships M PLUS 1 + Space Mono only. Note M PLUS 1 loads **500 and 700 only**, so
+  `font-semibold` is synthesised — the surviving `font-semibold` call sites are
+  all in the unrouted `features/sky` demo harness.
+- **`lgc_device_id` and `lgc_last_user_id` stay.** They're localStorage keys, not
+  tokens. Renaming them would orphan every existing install's device identity
+  and its "whose local data is this" check.
+
+**Not changed**
+
+- `components.json`'s shadcn aliases (`components` → `@/components`, `ui` →
+  `@/components/ui`, `hooks` → `@/hooks`) point at directories that don't exist
+  — the real shadcn files live in `shared/ui`, and `@/hooks` was deleted with
+  `use-mobile.ts`. They were already wrong before this pass and only matter to a
+  future `npx shadcn add`.
+- The lower half of `PROJECT_CONTEXT.md` (its directory tree, the "where each
+  concern lives" and "common tasks" tables) still describes the pre-feature-
+  refactor layout. Only the token rows were corrected here.
+
+**Still deferred**
+
+- [ ] A type scale. There are still ~40 distinct arbitrary sizes
+      (`text-[13.5px]` ×46, `text-[13px]` ×45, `text-[10px]` ×42, …) and no type
+      tokens — only the three `--face-*` families. A future change to type
+      *proportions* means touching hundreds of call sites unless a scale lands
+      first.
+- [ ] `SessionConfigSheet` off the radix sheet, which would let `shared/ui` and
+      the whole shadcn `@theme` bridge go too.
+- [ ] Light theme's `--bg` (`#f3f2ef`, warm paper) is never visible on the page
+      canvas: `--page-base` paints an opaque cool blue-grey gradient over it.
+      Components still use `bg-(--bg)` as an opaque surface, so light mode reads
+      as warm-paper panels on a cool sky. Reconciling the two is a palette
+      decision, not a cleanup.
+
+---
+
+## Sky hue presets — one ladder for the sky and the chrome (2026-08-03)
+
+Four named skies the reader picks on `/settings` (`default` "Aogimi", `ginga`
+"Ginga silver", `ember` "Ember dusk", `aurora` "Aurora field"), each one four
+rank colours plus a line colour and a background tint. Defined once in
+`features/sky/lib/palette.ts` (`SKY_PALETTES`); chosen by
+`features/app-shell/providers/SkyHueProvider`, which stamps
+`html[data-sky-hue="…"]` and persists `aogimi-sky-hue`.
+
+**The deferral at "The mastery ramp is the established `--stage-*`" (deck-detail
+section, above) is resolved — in the sky's favour.** That entry parked the
+question of a third ramp until star colours actually existed. They exist now, so
+rather than keep two ladders that mean the same thing in different colours, the
+`--stage-*` tokens *became* the sky's ranks: `--stage-new` / `-recent` /
+`-learned` / `-mastered` are now written by the four `html[data-sky-hue]` blocks
+at the bottom of `ds-tokens.css`, and every existing consumer (`stageColor`,
+rank pills, the mix bar, progress gradients, ledger dots — ~30 call sites)
+picked the change up with no edit. A star and its rank pill are now the same
+colour, which is the whole point.
+
+**Presets are theme-independent, by owner decision.** One hex per rank, used in
+both light and dark. `--stage-mastered` previously had a per-theme value
+(`#c9962a` light / `#F4DC82` dark, so gold stayed legible on both canvases);
+that split **collapses** — the preset value wins in both themes. The knowing
+cost: the pale ranks (ginga's `#DCE6EC` and aurora's `#DCD0E4` Learned) are
+low-contrast on the light theme's paper. Accepted; there is deliberately **no
+per-theme compensation**, because a compensation layer is exactly the split this
+replaced. The two copies of the ramp (TS + CSS) are a documented mirror, the
+same standing pairing as `rankProgress.ts` ↔ `cardSrsService.js` — the sky's lib
+is plain TypeScript copied to mobile as-is and can't read CSS, and the chrome
+can't read the sky's module.
+
+**The canvas background is now two layers**: the preset's tint at 30% thrown
+across the top-left, over the near-black Midnight base. The base hexes are
+written out in `SkyCanvas` rather than read from `--sky-1/2/3`, because those go
+pale in the light theme and the star map is night in both (guide §5) — the same
+standing hex exception the rest of `palette.ts` carries.
+
+**The selection ring moved from gold to white.** `SELECT_COLOR` was `#ffe085`,
+already a hair off `default`'s mastered `#F4DC82` and landing on top of ginga's
+mastered amber `#E0A448` — a gold ring around a gold star reads as "more
+mastered" rather than as chrome. White is in no preset's ramp, is maximum
+contrast on every one of the four skies, and joins the white chrome the canvas
+already draws (bounds rect, reach ring, hover readout, specular highlight).
+Hover still takes the star's own colour, so the two remain distinct.
+
+**Rejected from the proposal, after assessment**
+
+- **Nebula veils and the dust layer.** The veils are bbox-sized decoratives —
+  the guide's §11 failure-mode list is explicit that culling and sizing run off
+  the tight box and `sd`, never the bbox — and the dust layer is ~220
+  uncullable shapes repainted every frame, against a per-frame budget currently
+  measured at ~2ms for a zoom step. The presets' nebula quads therefore aren't
+  stored; each preset keeps only the one value they were needed for, `tint`.
+- **A light-theme rank column** (the proposal's H1) and the "Ink on paper"
+  background block, both superseded by the theme-independence decision above.
+- Radius and glow stay preset-independent (`RANK_R_PX`, `RANK_GLOW`): they carry
+  meaning — a rank is legible by silhouette alone — and a preset must repaint
+  the sky without changing what a shape says.
+
+**Threaded, not global.** The palette reaches the canvas as an explicit prop
+(`SkyMap` / `DeckSky` → `SkyCanvas` → `SkyStars`, and as `ranks` into
+`indexSky`/`buildClouds`). No module-level "active palette" setter in
+`features/sky/lib/`: that would be mutable state in the copy-to-mobile lib,
+invisible to React's dependency graph and shared across SSR requests. Cloud
+tints live in the quadtrees, so switching hue re-indexes once (~26ms at the
+5000-card quota) and every frame after it is as cheap as before — tinting in the
+per-frame `cloudFrame` walk would have moved that cost onto every pan.

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Smartphone } from 'lucide-react';
+import { cn } from '@/lib/util/cn';
 
 // Hard gate: only desktops / laptops get the web app. Everything
 // touch-first (phones AND tablets) is redirected to the native app
@@ -30,50 +31,62 @@ function isTabletOrPhone(): boolean {
   return false;
 }
 
+// The device class is a value read out of `navigator` / `matchMedia` — an
+// external store, not React state — so it's read with the hook built for that
+// rather than an effect that calls `setState`.
+//
+// This is what makes the gate hydration-safe. `getServerSnapshot` is what both
+// the server render and the hydration pass see, so the tree they build always
+// agrees; React then re-reads `getSnapshot` on the client and swaps in the real
+// answer. The old shape did the same thing with a three-state `boolean | null`
+// and a mount effect, which tripped `react-hooks/set-state-in-effect`.
+//
+// `subscribe` is a no-op: a device does not stop being a phone mid-session.
+// Rotating or resizing doesn't change any of the four signals, and re-gating a
+// user mid-visit would be worse behaviour than not.
+const subscribe = () => () => {};
+const getServerSnapshot = () => false;
+
 // TODO: drop real URLs in once the apps are listed.
 const APP_STORE_URL = '#';
 const PLAY_STORE_URL = '#';
 
 export function MobileGate({ children }: { children: React.ReactNode }) {
-  // Render children on the server pass — UA detection only happens on
-  // the client. Without this guard, hydration would see "blocked? false"
-  // server-side and possibly "true" client-side, mismatching the tree.
-  const [blocked, setBlocked] = useState<boolean | null>(null);
-  useEffect(() => {
-    setBlocked(isTabletOrPhone());
-  }, []);
+  const blocked = useSyncExternalStore(subscribe, isTabletOrPhone, getServerSnapshot);
 
-  if (blocked === null) return <>{children}</>;
   if (!blocked) return <>{children}</>;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-lgc-bg px-6 py-10">
+    <div className="flex min-h-screen items-center justify-center px-6 py-10 font-[family-name:var(--face-ui)]">
       <div className="w-full max-w-sm text-center">
-        <div
-          className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-lgc-bg-elev shadow-sm"
-          style={{ border: '1px solid var(--lgc-border)' }}
-        >
-          <Smartphone size={28} className="text-lgc-accent" />
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-(--radius-card) border border-(--paper-bd) bg-(--paper-tile)">
+          <Smartphone size={28} strokeWidth={1.7} className="text-(--accent)" />
         </div>
 
-        <h1 className="mb-2 text-2xl font-medium tracking-tight text-lgc-fg font-display">
+        <h1 className="mb-2 text-[26px] leading-tight font-bold tracking-[-0.01em] text-(--ink)">
           Get Aogimi for mobile
         </h1>
-        <p className="mb-8 text-[15px] leading-snug text-lgc-fg-muted">
+        <p className="mb-8 text-[15px] leading-snug text-(--soft)">
           The web app is built for laptops and tablets. On your phone, the
           native app gives you the full reader, dictionary, and decks.
         </p>
 
+        {/* Not `Button`: that one is `w-fit` and these are a full-width stacked
+            pair, and both are real navigations to an external store rather than
+            in-app links, so they stay plain anchors. */}
         <div className="flex flex-col gap-2.5">
           <a
             href={APP_STORE_URL}
-            className="rounded-lg bg-lgc-accent px-6 py-3 text-sm font-semibold text-lgc-accent-fg transition hover:opacity-90"
+            className={cn(STORE_LINK, 'bg-(--btn) text-(--btn-ink) hover:opacity-90')}
           >
             Download on the App Store
           </a>
           <a
             href={PLAY_STORE_URL}
-            className="rounded-lg border border-lgc-border bg-lgc-bg-elev px-6 py-3 text-sm font-semibold text-lgc-fg transition hover:bg-lgc-bg-sunken"
+            className={cn(
+              STORE_LINK,
+              'border border-(--paper-bd) text-(--ink) hover:bg-(--paper-tile)',
+            )}
           >
             Get it on Google Play
           </a>
@@ -82,3 +95,9 @@ export function MobileGate({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+const STORE_LINK = cn(
+  'rounded-(--radius-button) px-6 py-3 text-[14px] font-bold',
+  'transition-[background-color,opacity] duration-120 ease-[ease]',
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+);

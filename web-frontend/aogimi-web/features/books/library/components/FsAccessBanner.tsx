@@ -5,6 +5,7 @@ import { FolderOpen, X } from 'lucide-react';
 import {
   supportsDirectoryPicker,
   getPersistedDirectory,
+  queryPermissionState,
   verifyPermission,
 } from '@/features/books/lib/fsAccess';
 
@@ -21,15 +22,10 @@ export default function FsAccessBanner({ onReconnected }: { onReconnected?: () =
     (async () => {
       const handle = await getPersistedDirectory();
       if (!handle) return;
-      // Check if we already have permission
-      try {
-        const opts = { mode: 'read' as const };
-        const state = await (handle as any).queryPermission(opts);
-        if (state === 'prompt') setShow(true);
-        // 'granted' → already good, 'denied' → don't show either
-      } catch {
-        // API not available
-      }
+      // Only `'prompt'` is actionable: `'granted'` is already working, and
+      // `'denied'` means the reconnect button would be a dead end. `null` is
+      // "the API isn't there to ask", same treatment.
+      if ((await queryPermissionState(handle)) === 'prompt') setShow(true);
     })();
   }, []);
 
@@ -46,22 +42,23 @@ export default function FsAccessBanner({ onReconnected }: { onReconnected?: () =
   if (!show) return null;
 
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-lgc-border bg-lgc-bg-elev px-4 py-2.5 text-[12px]">
-      <FolderOpen size={14} className="shrink-0 text-lgc-accent" />
-      <span className="flex-1 text-lgc-fg-muted">
+    <div className="flex items-center gap-2.5 rounded-(--radius-input) border border-(--paper-bd) bg-(--paper) px-4 py-2.5 font-[family-name:var(--face-ui)] text-[12.5px]">
+      <FolderOpen size={14} strokeWidth={1.8} className="shrink-0 text-(--accent)" />
+      <span className="flex-1 text-(--soft)">
         Reconnect your library folder for automatic file matching.
       </span>
       <button
         type="button"
         onClick={handleReconnect}
-        className="rounded-md bg-lgc-accent px-3 py-1 text-[11px] font-semibold text-lgc-accent-fg transition hover:opacity-90"
+        className="cursor-pointer rounded-(--radius-button) bg-(--btn) px-3 py-1.5 text-[11.5px] font-bold text-(--btn-ink) transition-opacity duration-120 ease-[ease] hover:opacity-90"
       >
         Reconnect
       </button>
       <button
         type="button"
         onClick={() => setShow(false)}
-        className="text-lgc-fg-muted transition-colors hover:text-lgc-fg"
+        aria-label="Dismiss"
+        className="cursor-pointer text-(--muted) transition-colors duration-120 ease-[ease] hover:text-(--ink)"
       >
         <X size={13} />
       </button>

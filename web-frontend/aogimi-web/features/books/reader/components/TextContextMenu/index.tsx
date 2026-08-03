@@ -7,7 +7,7 @@
 // exist in the app — no store, no anchoring — so the row is left out rather
 // than stubbed.
 
-import { forwardRef, useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useLayoutEffect, useRef } from 'react';
 import { Search, BookPlus } from 'lucide-react';
 import { HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
@@ -32,8 +32,14 @@ export type TextContextMenuProps = {
 export const TextContextMenu = forwardRef<HTMLDivElement, TextContextMenuProps>(
   function TextContextMenu({ x, y, onLookup, onAddCard, onClose }, ref) {
     const innerRef = useRef<HTMLDivElement>(null);
-    const [pos, setPos] = useState({ left: x, top: y });
 
+    // The clamped position is written straight to the node instead of going
+    // through state. It can't be state: the correction is computed *from* the
+    // rendered box, so a `setPos` here is a render→measure→render loop — which
+    // is what `react-hooks/set-state-in-effect` is pointing at. A layout effect
+    // runs after the DOM update and before paint, so the pre-clamp `x`/`y` in
+    // `style` below is never seen; it only has to be there so the very first
+    // measurement happens near the pointer rather than at the origin.
     useLayoutEffect(() => {
       const el = innerRef.current;
       if (!el) return;
@@ -50,17 +56,18 @@ export const TextContextMenu = forwardRef<HTMLDivElement, TextContextMenuProps>(
       if (top + rect.height > vh - EDGE_PAD) top = vh - EDGE_PAD - rect.height;
       if (top < EDGE_PAD) top = EDGE_PAD;
 
-      setPos({ left, top });
+      el.style.left = `${left}px`;
+      el.style.top = `${top}px`;
     }, [x, y]);
 
     return (
       <div
         ref={(el) => {
-          (innerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+          innerRef.current = el;
           if (typeof ref === 'function') ref(el);
-          else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = el;
+          else if (ref) ref.current = el;
         }}
-        style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 60 }}
+        style={{ position: 'fixed', left: x, top: y, zIndex: 60 }}
         className={cn(
           'w-56 rounded-(--radius-input) border bg-(--bg) p-1.5 shadow-(--card-shadow-float)',
           HAIRLINE,

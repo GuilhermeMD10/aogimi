@@ -1,27 +1,28 @@
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    AOGIMI DESIGN TOKENS
-   The palette for the redesign, from `design_handoff_aogimi_home`. Two themes
-   — `light` ("Ink on paper") and `dark` ("Midnight") — selected by
-   `html[data-theme]`.
+   The palette, from `design_handoff_aogimi_home`. Two themes — `light`
+   ("Ink on paper") and `dark` ("Midnight") — selected by `html[data-theme]`.
 
-   This file runs ALONGSIDE the outgoing `--lgc-*` system in
-   `themes/default.css` + `shape-defaults.css`. The two never collide because
-   no name is shared: pages that haven't been redesigned keep reading `--lgc-*`,
-   redesigned pages read the tokens below. When the last page has migrated,
-   the old files are deleted and nothing here changes.
+   This is now the only palette. The outgoing `--lgc-*` system it used to run
+   alongside — `themes/default.css`, `shape-defaults.css`, `primitives.css` and
+   the three webfonts they carried — is deleted, along with the four screens
+   that were the last things reading it.
 
-   Components read these as `text-(--ink)`, `bg-(--card)`. They are
-   deliberately NOT registered in globals.css's `@theme` block: shadcn already
-   claims `--color-card`, `--color-muted`, `--color-accent` and `--color-border`
-   there, so registering `--card` / `--muted` / `--accent` / `--bd` as Tailwind
-   colors would silently overwrite the outgoing system's own bridge and break
-   every un-migrated page.
+   Components read these directly: `text-(--ink)`, `bg-(--paper)`,
+   `font-[family-name:var(--face-ui)]`. They are deliberately NOT mirrored into
+   globals.css's `@theme` block. The reason has changed but the rule hasn't:
+   it used to be that shadcn's `--color-card` / `--color-muted` / `--color-bd`
+   already claimed those names and re-registering would break un-migrated
+   screens. Now it's simply that an alias is a second name for one value and
+   something that has to be kept in step. `@theme` holds only what Tailwind
+   itself must know — the `rounded-*` scale, and the shadcn color namespace the
+   two surviving shadcn components paint with.
 
-   The type roles are `--face-*`, not `--font-*`, for the same reason: that
-   `@theme` block already defines `--font-ui`, `--font-jp` and `--font-mono`
-   pointing at the outgoing faces. Declaring them again here emitted two
-   competing values for each into one stylesheet, leaving which face won up to
-   Tailwind's output order.
+   The type roles stay `--face-*` rather than `--font-*`: `--font-mplus1` and
+   `--font-space-mono` are what `next/font` emits in app/layout.tsx, so a
+   `--font-ui` next to them reads as another next/font variable when it is a
+   role. (It was also a hard collision while the old `@theme` bound those
+   names to the outgoing faces.)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 /* ── Theme-invariant ─────────────────────────────────────────────────────── */
@@ -45,11 +46,19 @@
   --cover-4-ink:       #e9f6f1;
   --cover-shadow:      0 10px 22px rgba(0, 0, 0, .24);
 
-  /* Mastery ladder. Only `mastered` shifts between themes (gold has to stay
-     legible on both canvases) — the other three read fine either way. */
-  --stage-new:         #AEB4BE;
-  --stage-recent:      #4E8088;
-  --stage-learned:     #3E5D86;
+  /* Mastery ladder — the fallback ramp only.
+     The live values come from the `html[data-sky-hue="…"]` blocks at the bottom
+     of this file: the ladder now follows the reader's sky hue preset, in both
+     themes, so a star and its rank pill are the same colour. This copy is the
+     `default` preset, and it is what SSR and the first paint use before the
+     pre-paint script has stamped the attribute (`:root` is one specificity step
+     below `html[…]`, so any preset block wins over it). Nothing else should
+     override these — `--stage-mastered` used to have a per-theme value and no
+     longer does, deliberately. */
+  --stage-new:         #7E78E0;
+  --stage-recent:      #A98BFF;
+  --stage-learned:     #FF7AC4;
+  --stage-mastered:    #F4DC82;
 
   /* ── Paper surfaces (deck card + profile) ────────────────────────────────
      A deliberately separate surface group, not a reuse of --card / --cardalt /
@@ -180,7 +189,6 @@ html[data-theme="light"] {
   --bd-b:              rgba(20, 20, 20, .09);
 
   --covtrack:          rgba(255, 255, 255, .16);
-  --stage-mastered:    #c9962a;
 
   /* Paper surfaces — see the invariant block above for why these are their own. */
   --paper:              #ffffff;
@@ -265,7 +273,6 @@ html[data-theme="dark"] {
   --bd-b:              rgba(255, 255, 255, .12);
 
   --covtrack:          rgba(0, 0, 0, .18);
-  --stage-mastered:    #F4DC82;
   --gold:              #ffe085;
 
   /* Paper surfaces. Shadows deepen to the theme's floating values rather than
@@ -282,6 +289,54 @@ html[data-theme="dark"] {
   --sky-2:             #0c1526;
   --sky-3:             #05070f;
   --page-vignette:     inset 0 0 220px 60px rgba(4, 7, 14, .55);
+}
+
+/* ── Sky hue presets — the mastery ladder ─────────────────────────────────────
+   A DOCUMENTED MIRROR of `SKY_PALETTES` in `features/sky/lib/palette.ts`:
+   four hexes per preset, in rank order (New / Recent / Learned / Mastered).
+   Change one, change both — the same standing pairing as
+   `study/decks/lib/rankProgress.ts` ↔ `backend/.../cardSrsService.js`. The sky
+   can't read CSS (its lib is plain TypeScript, copied to mobile as-is) and the
+   ~30 chrome call sites can't read the sky's module, so the two copies are the
+   seam and this comment is the contract.
+
+   `html[data-sky-hue]` is written by `SkyHueProvider` (and by the pre-paint
+   script in app/layout.tsx, so the first paint is already right); the fallback
+   when it is absent is the `default` ramp in `:root` above.
+
+   These are a **separate axis from the theme**: one hex per rank, used in both
+   light and dark. The ladder is the sky's ladder, and a star that is pink does
+   not become blue because the page went to paper. The knowing cost is contrast
+   on the pale ranks — ginga's and aurora's Learned are near-white and sit light
+   on the light theme's paper. Accepted by the owner; there is deliberately no
+   per-theme compensation, because that is the split this replaced. */
+
+html[data-sky-hue="default"] {
+  --stage-new:         #7E78E0;
+  --stage-recent:      #A98BFF;
+  --stage-learned:     #FF7AC4;
+  --stage-mastered:    #F4DC82;
+}
+
+html[data-sky-hue="ginga"] {
+  --stage-new:         #48545C;
+  --stage-recent:      #8494A0;
+  --stage-learned:     #DCE6EC;
+  --stage-mastered:    #E0A448;
+}
+
+html[data-sky-hue="ember"] {
+  --stage-new:         #4B316F;
+  --stage-recent:      #83405C;
+  --stage-learned:     #C25A45;
+  --stage-mastered:    #F0A13C;
+}
+
+html[data-sky-hue="aurora"] {
+  --stage-new:         #5E324D;
+  --stage-recent:      #A863A8;
+  --stage-learned:     #DCD0E4;
+  --stage-mastered:    #52D46A;
 }
 
 /* ── Page background ─────────────────────────────────────────────────────── */

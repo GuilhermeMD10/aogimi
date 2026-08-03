@@ -27,7 +27,7 @@ The app ships as a single Next.js client. There's a separate Expo mobile app (`m
 
 No state library (Redux/Zustand/Jotai). State lives in **React Context providers**.
 
-No CSS-in-JS. Themed surfaces use either Tailwind classes that resolve to `--lgc-*` tokens, or raw `style={{ background: 'var(--lgc-bg)' }}`. Both go through the same source.
+No CSS-in-JS. Themed surfaces read the design tokens directly — `bg-(--paper)`, `text-(--ink)`, or raw `style={{ background: 'var(--bg)' }}`. Both go through the same source (`styles/ds-tokens.css`).
 
 ---
 
@@ -62,11 +62,10 @@ web-frontend/langecko-web/
 │   ├── OnboardingExplainerModal/ Auth-flow explainer wrapper
 │   └── providers/                Auth, Reader state, Bubble routing, Dictionary, Theme
 │
-├── styles/                       Design-token CSS
-│   ├── themes/                   default.css — the sole color-token palette
-│   ├── shape-defaults.css        Shape tokens (borders, shadows, radii, fonts)
-│   ├── primitives.css            .lgc-card, .lgc-button, .lgc-button-secondary, .lgc-chip, .lgc-section-label, …
-│   └── utilities.css             Vertical text, custom scrollbar, selection
+├── styles/                       Design-token CSS — three files, that's all
+│   ├── ds-tokens.css             The palette: colour, shape, type, page canvas (light + dark)
+│   ├── sync-tokens.css           Book sync-state colours (synced / unsynced / to-import)
+│   └── utilities.css             Reader highlights, word hover, vertical text, selection
 │
 ├── lib/                          Domain logic, no React
 │   ├── api.ts                    apiUrl, apiGet, apiSend, apiSendVoid, fetchJson
@@ -107,30 +106,23 @@ web-frontend/langecko-web/
 
 ## Theming
 
-**A redesign is landing screen by screen, so two token systems run in parallel.** They never collide because no name is shared — a screen reads one set or the other, and the old one is deleted when the last screen has migrated.
+**One token system: `styles/ds-tokens.css`.** The redesign's incremental migration is over — the outgoing `--lgc-*` layer is deleted, and so are the three webfonts and the four screens that were the last things reading it. If you find a `--lgc-*` reference in a doc, it's history; the only surviving `lgc` strings in the codebase are two localStorage keys (`lgc_device_id`, `lgc_last_user_id`), which are **not** renamed because renaming them would orphan every existing install's device identity.
 
-### Incoming — the redesign (`styles/ds-tokens.css`)
+### The palette (`styles/ds-tokens.css`)
 
 Two themes, `light` ("Ink on paper") and `dark` ("Midnight"), selected by `html[data-theme]`.
 
 - **Colour + shape tokens**: `--ink`, `--soft`, `--muted`, `--faint`, `--card`, `--cardalt`, `--bd`, `--btn`, `--track`/`--fill`, `--cover-1..4`, `--stage-new`/`-recent`/`-learned`/`-mastered`, `--radius-*`. Read them as `text-(--ink)`, `bg-(--card)`.
-- **Type**: `--face-jp`, `--face-ui`, `--face-mono`. Named `--face-*`, *not* `--font-*`, because `globals.css`'s `@theme` block already defines `--font-ui`/`--font-jp`/`--font-mono` for the outgoing faces — declaring them twice emitted two competing values into one stylesheet.
-- **Not registered in Tailwind's `@theme`**: shadcn already owns `--color-card`, `--color-muted`, `--color-accent` and `--color-border` there, so registering `--card`/`--muted`/`--accent`/`--bd` as Tailwind colours would overwrite the outgoing bridge and break every un-migrated screen.
-- **Cards are transparent by design** — shadow and layout separate surfaces, not a fill. `--bd` is transparent too, so hairline dividers are invisible until you fill it. Filling `--card`/`--cardalt`/`--bd` switches the whole app to filled cards with no markup change.
-- **Primitives are React components**, not CSS classes: `shared/components/` (`Button`, `Card`, `CardHeader`, `Chip`, `CoverTile`, `Eyebrow`, `MonoAction`, `ProgressTrack`, `Skeleton`, `StageDot`). They read tokens and know nothing about the theme — there is never a light and a dark variant of a component, because the palette swaps underneath it.
+- **Type**: `--face-jp`, `--face-ui`, `--face-mono` → M PLUS 1 (jp + ui) and Space Mono. Named `--face-*`, not `--font-*`, so a role never reads as one of the `--font-mplus1`/`--font-space-mono` variables `next/font` emits in `app/layout.tsx`. **Only weights 500 and 700 ship**, so use `font-medium` / `font-bold` — a `font-semibold` gets synthesised.
+- **Not mirrored into Tailwind's `@theme`.** Components read the tokens directly. `@theme` holds only what Tailwind itself must know: the `rounded-*` radius scale, and the shadcn colour namespace (`--color-popover`, `--color-border`, …) that the two surviving shadcn components paint with. Those are pointed at the filled `--paper-*` group, and `--color-border` reaches past shadcn — the `*` rule in the base layer makes it every element's default border colour.
+- **Cards are transparent by design** — shadow and layout separate surfaces, not a fill. `--bd` is transparent too, so hairline dividers are invisible until you fill it. Filling `--card`/`--cardalt`/`--bd` switches the whole app to filled cards with no markup change. For something that needs a real fill *now*, use the `--paper-*` group (`PaperCard`) rather than filling the shared three.
+- **Primitives are React components**, not CSS classes: `shared/components/` (`Button`, `Card`, `CardHeader`, `Chip`, `CoverTile`, `Eyebrow`, `MonoAction`, `PaperCard`, `ProgressTrack`, `Skeleton`, `SkyBar`, `StageDot`, plus `HAIRLINE`/`DASHED`). They read tokens and know nothing about the theme — there is never a light and a dark variant of a component, because the palette swaps underneath it.
 - **Page canvas** is app-wide chrome, set in `globals.css`: base gradient on `<html>`, star tiles on `<body>`. Split across two elements because a single 43-layer `background` would need a 43-entry `background-size` list (a shorter list gets cycled by the spec).
+- **Base-layer type**: `html` carries `--face-ui` and there is deliberately **no `h1..h6` rule**. A global heading face beats an inherited one no matter what a screen's wrapper sets, which is exactly how four migrated headings ended up rendering in the old display serif. Form controls (`button`, `input`, `select`, `textarea`) do need the face said explicitly — the UA stylesheet gives them the platform font instead of inheriting.
 
-Theme choice persists in the `aogimi-theme` localStorage key, applied by a pre-paint `<script>` in `app/layout.tsx` — an effect would fire after paint and flash. Falls back to `prefers-color-scheme`. It moves to a `users.theme` column later. The switch itself lives in `TopBar`'s profile pill.
+Theme choice persists in the `aogimi-theme` localStorage key, applied by a pre-paint `<script>` in `app/layout.tsx` — an effect would fire after paint and flash. Falls back to `prefers-color-scheme`. It moves to a `users.theme` column later. The switch is the Appearance card on `/settings`.
 
-**Un-migrated screens look wrong in dark mode.** They read the light-only `--lgc-*` palette while the canvas follows the theme. That's the accepted cost of migrating screen by screen.
-
-### Outgoing — `--lgc-*` (delete when the last screen migrates)
-
-1. **`--lgc-*` colour tokens** in `styles/themes/default.css` (`:root` + `html[data-theme="default"]`, which no longer matches anything since the attribute is now `light`/`dark`; the `:root` binding is what keeps it alive).
-2. **Shape tokens** in `styles/shape-defaults.css`.
-3. **Primitive classes** `.lgc-card`, `.lgc-button`, `.lgc-chip`, `.lgc-section-label` in `styles/primitives.css`, plus the old primitives in `shared/ui/` — now down to `SectionCard`, `ActionRow`, `Field` and `ReaderProgressBar`. `InfoRow`, `SectionHead`, `PitchAccentDiagram` and `JlptChip` are **deleted**: the reader's dictionary redesign was their last consumer, and their `--lgc-*` shape axes went with them.
-
-Don't build anything new on these. The teardown is: point the `@theme` colour aliases at the new tokens, delete those three CSS files and the stranded `shared/ui` primitives. In the meantime the standing rule is **delete an outgoing file when you remove its last import, and leave the shared token layer alone** — a primitive nothing imports is worse than one that's merely outgoing.
+`dark:` is redefined in `globals.css` as `html[data-theme="dark"] &`, not shadcn's `.dark *` (a class this app never sets) and not `prefers-color-scheme`. Nothing uses it — the tokens swap underneath components instead — but if you do reach for it, it now means what the theme switch means.
 
 ---
 
@@ -210,8 +202,8 @@ App-level features that ride on top of the architecture above. Document new feat
 
 **`/decks` is the deck shelf; the deck *detail* is still the same route's other
 half.** `DecksView` switches on local `screen` state between
-`components/DeckList.tsx` (the redesigned grid) and `components/DeckDetail.tsx`
-(un-migrated, still `--lgc-*`). There is no `/decks/{id}`.
+`components/DeckList.tsx` (the grid) and `components/DeckDetail.tsx`. There is
+no `/decks/{id}`.
 
 - **`DeckList` is the page**, not a list: it owns the 1300 px column, renders
   `TopBar` itself the way home does, and composes `DecksHeader` + a
@@ -391,7 +383,7 @@ the `/api/stats` fetchers the ledger and the decks/home upgrade rows read).
 - **`'use client'` everywhere a component uses hooks**. RSC opportunities exist (static layout shells) but haven't been pursued.
 - **Domain types live in `lib/types/`**; `lib/<x>Api.ts` only contains fetch helpers.
 - **`lib/util/cn.ts`** is the Tailwind class merger. shadcn's `components.json` aliases `utils` to `@/lib/util/cn` — this means new shadcn-generated code uses the right path.
-- **No hex literals in components.** One acceptable exception: `JlptChip`'s per-level palette (5 hardcoded colors by design). Everything else reads `--lgc-*` tokens.
+- **No hex literals in components.** One acceptable exception: `JlptChip`'s per-level palette (5 hardcoded colors by design). Everything else reads the design tokens. A one-off value that exists to make a *single* component work may stay hardcoded there with a comment saying why it isn't a token — widening the palette every screen reads is the more expensive mistake.
 - **No inline `borderRadius: <pixel>` on token-relevant surfaces.** Use Tailwind `rounded-*` (which reads `--radius-*`) or `style={{ borderRadius: 'var(--radius-md)' }}`. Pure decorative shapes (`'50%'`, `999`) are fine.
 - **Document new features in the Features section above.** When a new app-level feature lands (something a user can name — "shortcuts", "highlights sync", "deck import", …), add a subsection: what it is, entry-point files, where state lives, any non-obvious behaviour. Keep entries terse; deep details belong in the source.
 
@@ -401,8 +393,8 @@ the `/api/stats` fetchers the ledger and the decks/home upgrade rows read).
 
 | Concern | Files |
 |---|---|
-| **Design tokens** | `styles/themes/default.css` (colors), `styles/shape-defaults.css` (shape) |
-| **Token primitives** | `styles/primitives.css` (`.lgc-card`, `.lgc-button`, `.lgc-button-secondary`, `.lgc-chip`, …) |
+| **Design tokens** | `styles/ds-tokens.css` (colour, shape, type, page canvas — the whole palette) |
+| **Token primitives** | `shared/components/` — React components, not CSS classes (`Button`, `Card`, `PaperCard`, `Chip`, `Eyebrow`, …) |
 | **Auth flow** | `components/providers/AuthProvider.tsx`, `app/authenticate/page.tsx`, `lib/userApi.ts` |
 | **Reader chrome** | `components/reader/*`, `components/views/ReaderView/*` |
 | **Library / book sync** | `components/library/*`, `components/views/ReaderView/*`, `lib/booksApi.ts`, `lib/devicesApi.ts`, `components/books/utils/booksDb.ts` (sole `aogimi` IDB factory), `lib/epubIdentity.ts` |
@@ -417,8 +409,8 @@ the `/api/stats` fetchers the ledger and the decks/home upgrade rows read).
 
 | Task | Start at |
 |---|---|
-| Change a primary button's look across the whole app | [styles/primitives.css](styles/primitives.css) `.lgc-button` + tokens in [styles/shape-defaults.css](styles/shape-defaults.css) |
-| Change a color across the whole app | Edit the `--lgc-*` token in [styles/themes/default.css](styles/themes/default.css). |
+| Change a primary button's look across the whole app | [shared/components/Button.tsx](../shared/components/Button.tsx) — `BASE` + the `VARIANTS` map. |
+| Change a color across the whole app | Edit the token in [styles/ds-tokens.css](../styles/ds-tokens.css), in **both** the `light` and `dark` blocks. |
 | Wire a new backend endpoint | Add types in [lib/types/](lib/types/), fetch helper in `lib/<domain>Api.ts`, update [backend-connections.txt](backend-connections.txt). |
 | Add a new page route | New folder under `app/`, add `page.tsx`. Auth-gated routes hide naturally — `AppShell` redirects when there's no user. |
 | Cancel an in-flight fetch | Pass an `AbortSignal` to the API call; clean up in `useEffect`. |

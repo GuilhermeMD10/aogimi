@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { ReaderStateProvider, useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
+import { SkyHueProvider } from '@/features/app-shell/providers/SkyHueProvider';
 import { DictionaryStateProvider } from '@/features/dictionary';
 import { DecksProvider } from '@/features/study/decks';
 import Dock from '@/features/app-shell/Dock';
@@ -32,13 +33,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (loading || needsRedirect) return null;
 
   return (
-    <ReaderStateProvider>
-      <DictionaryStateProvider>
-        <DecksProvider>
-          <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
-        </DecksProvider>
-      </DictionaryStateProvider>
-    </ReaderStateProvider>
+    <SkyHueProvider>
+      <ReaderStateProvider>
+        <DictionaryStateProvider>
+          <DecksProvider>
+            <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
+          </DecksProvider>
+        </DictionaryStateProvider>
+      </ReaderStateProvider>
+    </SkyHueProvider>
   );
 }
 

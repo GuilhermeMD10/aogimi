@@ -114,7 +114,9 @@ function SheetTitle({
     <SheetPrimitive.Title
       data-slot="sheet-title"
       className={cn(
-        "font-heading text-base font-medium text-foreground",
+        // Was `font-heading`, a name no token ever defined — it resolved to
+        // nothing and the title inherited whatever the page had.
+        "font-[family-name:var(--face-ui)] text-base font-bold text-foreground",
         className
       )}
       {...props}

@@ -1,19 +1,28 @@
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    UTILITIES — token-driven decorative bits that aren't full primitives.
-   Reader highlights, vertical Japanese text, custom scrollbar, selection.
+   Reader highlights, word hover, vertical Japanese text, selection.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-/* Highlight colors for reader text */
+/* Highlight colors for reader text. Hardcoded rather than tokenised: a
+   highlight lands on the *book's* page, which carries its own light / dark /
+   sepia background from `readerConstants.THEMES` and doesn't follow the app
+   theme, so there is nothing here for a token to swap. */
 .hl-1 { background: linear-gradient(transparent 55%, rgba(255, 213, 79, 0.55) 55%); }
 .hl-2 { background: linear-gradient(transparent 55%, rgba(129, 199, 132, 0.45) 55%); }
 .hl-3 { background: linear-gradient(transparent 55%, rgba(244, 143, 177, 0.45) 55%); }
 
+/* Per-word hover in the reader. Mixed out of `--ink` rather than given a token
+   of its own — same reasoning as `HAIRLINE`: deriving it keeps it correct in
+   both themes without widening the palette with a name that only ever means
+   "tint this word". */
 .word-hover {
   cursor: pointer;
   border-radius: 2px;
   transition: background 120ms;
 }
-.word-hover:hover { background: var(--lgc-accent-soft); }
+.word-hover:hover {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+}
 
 /* Vertical Japanese text */
 .vtxt {
@@ -24,23 +33,12 @@
   letter-spacing: 0.04em;
 }
 
-/* Custom scrollbar (opt-in with .lgc-scroll) */
-.lgc-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
-.lgc-scroll::-webkit-scrollbar-thumb {
-  background: var(--lgc-border-strong);
-  border-radius: 99px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-.lgc-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--lgc-fg-subtle);
-  background-clip: padding-box;
-  border: 2px solid transparent;
-}
-.lgc-scroll::-webkit-scrollbar-track { background: transparent; }
-
-/* Selection */
+/* Selection. Was the outgoing palette's light-only pair, which in Midnight put
+   near-black text on an 8%-black wash — a selection you couldn't read. */
 ::selection {
-  background: var(--lgc-accent-soft);
-  color: var(--lgc-fg);
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+  color: var(--ink);
 }
+
+/* The `.lgc-scroll` opt-in scrollbar is gone with the outgoing palette. It had
+   no call sites, and the `*` rule in globals.css hides scrollbars app-wide. */

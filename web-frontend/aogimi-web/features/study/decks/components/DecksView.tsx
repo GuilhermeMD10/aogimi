@@ -258,7 +258,9 @@ export default function DecksView() {
     if (loading) {
       return (
         <div className="flex min-h-full items-center justify-center">
-          <p className="text-sm text-lgc-fg-muted">Loading deck&hellip;</p>
+          <p className="font-[family-name:var(--face-ui)] text-[13.5px] text-(--muted)">
+            Loading deck&hellip;
+          </p>
         </div>
       );
     }

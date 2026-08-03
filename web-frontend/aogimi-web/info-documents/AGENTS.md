@@ -38,9 +38,10 @@ for pagination) so a malicious book can't run JS in our origin — do not add
 
 - `'use client'` wherever a component uses hooks.
 - Domain types in `lib/types/`; `lib/<x>Api.ts` holds fetch helpers only.
-- No hex literals in components (exception: `JlptChip`); no inline
-  `borderRadius: <px>` on token-relevant surfaces — use `--lgc-*` tokens /
-  `rounded-*` classes.
+- No hex literals in components (exception: `JlptChip`, and a one-off value that
+  exists to make a single component work — comment why it isn't a token); no
+  inline `borderRadius: <px>` on token-relevant surfaces — use the
+  `styles/ds-tokens.css` tokens / `rounded-*` classes.
 - `lib/util/cn.ts` is the Tailwind class merger (aliased as `utils`).
 - Don't run git commits/pushes or destructive DB ops — the human handles
   those.

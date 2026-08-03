@@ -90,8 +90,9 @@ when the apps are listed.
   data has. Read `node_modules/next/dist/docs/` before writing route
   code. Heed deprecation notices.
 - **Hex literals in components are not allowed** except `JlptChip`
-  (per-level palette, hardcoded by design) and theme decoration atoms.
-  Use `--lgc-*` tokens.
+  (per-level palette, hardcoded by design), theme decoration atoms, and
+  a one-off value that exists to make a single component work (comment
+  why it isn't a token). Use the `styles/ds-tokens.css` tokens.
 - **No inline `borderRadius: <px>` on theme-relevant surfaces.** Use
   `rounded-*` Tailwind or `var(--radius-md)`. Pure decoratives (`'50%'`,
   `999`) are fine.
@@ -107,7 +108,9 @@ when the apps are listed.
 
 ## Naming history
 
-The project was called "Aogimi" / "langecko" earlier — the CSS
-variable prefix is still `--lgc-*`, the localStorage prefix is a mix
-of `lgc_*` and `aogimi_*`, and the design canvas folder is
-`aogimi-DS/`. These are stable identifiers, not branding.
+The project was called "Aogimi" / "langecko" earlier. The `--lgc-*` CSS
+variable prefix is **gone** — the whole outgoing token layer was deleted
+once the last screen migrated. What survives is the localStorage prefix,
+a mix of `lgc_*` (`lgc_device_id`, `lgc_last_user_id`) and `aogimi_*`.
+Those are stable identifiers, not branding, and renaming them would
+orphan existing installs' device identity.

@@ -1,6 +1,11 @@
 'use client';
 import { useMemo } from 'react';
 
+// By file path, not through the app-shell barrel: the provider imports `lib/palette` from this
+// feature, and going via barrels either way would close a module cycle (the ThemeProvider /
+// PendingCardOverlay precedent).
+import { useSkyHue } from '@/features/app-shell/providers/SkyHueProvider';
+
 import { useCamera } from '../hooks/useCamera';
 import { useSkyDraw, useSkyStage } from '../hooks/useSkyFrame';
 import { buildSky, todayBucket, type SkyCard } from '../lib/buildSky';
@@ -45,12 +50,13 @@ type Props = {
 };
 
 export function DeckSky({ seed, deckKey, deckName, cards, selectedCardId, onSelectCard }: Props) {
+  const { palette } = useSkyHue();
   const snapshot = useMemo(
     () => buildSky({ seed, today: todayBucket(), decks: [{ key: deckKey, name: deckName, cards }] }),
     [seed, deckKey, deckName, cards],
   );
 
-  const stage = useSkyStage(snapshot, DECK_FOCUS);
+  const stage = useSkyStage(snapshot, DECK_FOCUS, palette.ranks);
   const cam = useCamera(stage.bounds, { fillViewport: true });
   const frame = useSkyDraw(stage, DECK_FOCUS, cam.camera, cam.view);
 
@@ -65,6 +71,7 @@ export function DeckSky({ seed, deckKey, deckName, cards, selectedCardId, onSele
     <SkyCanvas
       frame={frame}
       layout={stage.layout}
+      palette={palette}
       bounds={cam.bounds}
       focus={DECK_FOCUS}
       tinted={false}

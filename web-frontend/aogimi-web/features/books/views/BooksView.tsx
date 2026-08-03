@@ -175,7 +175,10 @@ export default function BooksView() {
     } catch {
       setError('Failed to delete book');
     }
-  }, []);
+    // `setBooks` / `setError` come from `useSyncBooks`, which returns raw
+    // `useState` setters — React guarantees those are stable, so listing them
+    // can't re-create the callback. The two dep lists above already do.
+  }, [setBooks, setError]);
 
   const handleMarkFinished = useCallback(async (book: Book) => {
     if (book.progress === 100) return;
@@ -183,7 +186,7 @@ export default function BooksView() {
     if (book.backendId) {
       await updateBookProgress(book.backendId, { progress: 100 }).catch(() => {});
     }
-  }, []);
+  }, [setBooks]);
 
   const handleRenameBook = useCallback(async (book: Book, title: string) => {
     const trimmed = title.trim();
@@ -194,7 +197,7 @@ export default function BooksView() {
     } else if (book.backendId) {
       await apiUpdateBookTitle(book.backendId, trimmed).catch(() => {});
     }
-  }, []);
+  }, [setBooks]);
 
   // Opening a book is a navigation now, not a state flip: the reader owns the
   // file, the restore anchor and the progress sync, keyed off the id in its URL.
@@ -239,29 +242,32 @@ export default function BooksView() {
       {deletingBook && (
         <>
           <div className="fixed inset-0 z-40 bg-black/60" onClick={() => setDeletingBook(null)} />
-          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-lgc-border-strong bg-lgc-bg p-6 shadow-2xl">
-            <div className="mb-1 flex items-center gap-2 text-red-500">
-              <Trash2 size={16} />
-              <h2 className="text-[15px] font-medium font-display">Delete book</h2>
+          <div className="fixed top-1/2 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-(--radius-panel) border border-(--paper-bd) bg-(--paper) p-6 font-[family-name:var(--face-ui)] shadow-(--card-shadow-float)">
+            {/* `--danger`, not `text-red-500`: the destructive pair shifts with
+                the theme so it stays legible on both canvases. */}
+            <div className="mb-1.5 flex items-center gap-2 text-(--danger)">
+              <Trash2 size={16} strokeWidth={1.9} />
+              <h2 className="text-[16px] leading-none font-bold">Delete book</h2>
             </div>
-            <p className="mb-1 text-[13px] text-lgc-fg-muted">
-              Are you sure you want to delete <strong className="text-lgc-fg">{deletingBook.title}</strong>?
+            <p className="mb-1 text-[13px] text-(--soft)">
+              Are you sure you want to delete{' '}
+              <strong className="font-bold text-(--ink)">{deletingBook.title}</strong>?
             </p>
-            <p className="mb-5 text-[12px] text-lgc-fg-subtle">
+            <p className="mb-5 text-[12.5px] leading-relaxed text-(--muted)">
               This will permanently remove this book and its local file from this device. This action cannot be undone.
             </p>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setDeletingBook(null)}
-                className="rounded-md border border-lgc-border px-3 py-1.5 text-[13px] text-lgc-fg transition-colors hover:bg-lgc-bg-sunken"
+                className="cursor-pointer rounded-(--radius-button) border border-(--paper-bd) px-4 py-2 text-[13px] font-bold text-(--ink) transition-colors duration-120 ease-[ease] hover:bg-(--paper-tile)"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => handleDeleteBook(deletingBook)}
-                className="rounded-md bg-red-500 px-4 py-1.5 text-[13px] font-medium text-white transition-opacity hover:opacity-90"
+                className="cursor-pointer rounded-(--radius-button) border border-(--danger-bd) px-4 py-2 text-[13px] font-bold text-(--danger) transition-colors duration-120 ease-[ease] hover:bg-(--danger-bg)"
               >
                 Delete
               </button>
@@ -270,7 +276,7 @@ export default function BooksView() {
         </>
       )}
 
-      {showOnboarding && <OnboardingExplainerModal userId={user.id} onDismiss={() => setShowOnboarding(false)} />}
+      {showOnboarding && <OnboardingExplainerModal onDismiss={() => setShowOnboarding(false)} />}
     </div>
   );
 }

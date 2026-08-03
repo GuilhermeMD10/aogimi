@@ -18,6 +18,7 @@ import {
 import { boundsCross, inBounds, segmentInBounds, skyBounds } from './geometry';
 import type { SkyLayout } from './layout';
 import { MIN_LAYER_OP, SKY_FULL, type SkyLayers, type SkyPhase, layersAt } from './lod';
+import type { RankRamp } from './palette';
 import type { Bounds, FocusPath, Point, SkySnapshot, Star } from './types';
 
 /**
@@ -59,7 +60,9 @@ export type SkyIndex = {
   localBoxes: Map<number, Bounds>;
 };
 
-export const indexSky = (snap: SkySnapshot): SkyIndex => {
+/** `ranks` is the active hue preset's ramp: the trees carry each node's blended tint, so the index
+ *  depends on the palette as well as on the data. See buildClouds. */
+export const indexSky = (snap: SkySnapshot, ranks: RankRamp): SkyIndex => {
   const byId = new Map<number, Star>();
   for (const s of snap.stars) byId.set(s.id, s);
 
@@ -90,7 +93,7 @@ export const indexSky = (snap: SkySnapshot): SkyIndex => {
   }
 
   const deckTrees = new Map<number, Cloud>();
-  for (const cloud of buildClouds(snap.stars, dids, (s) => s.did)) deckTrees.set(cloud.gid, cloud);
+  for (const cloud of buildClouds(snap.stars, dids, (s) => s.did, ranks)) deckTrees.set(cloud.gid, cloud);
 
   // in constellation order, so a deck's sessions draw in the order they were studied
   const sessionTrees = new Map<number, Cloud[]>();
@@ -100,6 +103,7 @@ export const indexSky = (snap: SkySnapshot): SkyIndex => {
     snap.stars,
     snap.constellations.map((c) => c.id),
     (s) => s.cid,
+    ranks,
   )) {
     const did = deckOfCid.get(cloud.gid);
     if (did === undefined) continue;
