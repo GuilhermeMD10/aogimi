@@ -19,7 +19,7 @@ in the wrong directory.** Web-specific code lives in `components/sky/`.
 | `picking.ts` | which star is under a point, by coordinates rather than by hit-testing nodes |
 | `cluster.ts` | a quadtree per session, and which of its nodes to draw at a given zoom |
 | `lod.ts` | which of the three layers — clouds, lines, stars — is up at a given zoom |
-| `palette.ts` | what colour a star or a cloud is, and its gradient stops |
+| `palette.ts` | the four hue presets, what colour a star or a cloud is, and its gradient stops |
 | `cards.ts` | placeholder card content for `addStar`'s optional `card`, default deck names, `clip()` |
 | `config.ts` | every tweakable, in one place |
 | `types.ts` | the shared vocabulary |
@@ -129,7 +129,15 @@ The shared code takes numbers and returns numbers. A host provides:
 3. **A zoom multiplier.** `zoomAround` takes a factor, deliberately — not a wheel delta. Web turns
    `deltaY` into `Math.exp(-deltaY * ZOOM_PER_WHEEL_PX)`; a pinch handler passes its scale change
    straight through. Neither gesture's feel leaks into the shared maths.
-4. **A renderer.** `viewOf` returns the visible world rectangle as numbers. SVG formats that into
+4. **A hue preset.** One of `SKY_PALETTES` (`palette.ts`), which the host resolves from the reader's
+   setting and **passes down explicitly** — the ramp is an argument to `groupTint`, `starColor`,
+   `buildClouds` and `indexSky`, never a module read. There is deliberately no "set the active
+   palette" call: mutable module state here would be shared across SSR requests on the web and
+   invisible to React's dependency graph, and the cloud tints live in the quadtrees, so the palette
+   has to be a *dependency* of building them. Switching preset re-indexes once (~26ms at the
+   5000-card quota) and costs nothing per frame afterwards. Presets carry colour only — radius,
+   glow and silhouette are the same in every sky, because they are what makes a rank legible.
+5. **A renderer.** `viewOf` returns the visible world rectangle as numbers. SVG formats that into
    a `viewBox` (see `viewBoxOf` in `SkyCanvas.tsx`); a Skia or Canvas host uses it as a transform.
    For the cloud layer it also needs a soft radial falloff per lobe — SVG does it with a gradient
    per lobe keyed on `Lobe.id`, which is why that id has to be stable; a Canvas host would use

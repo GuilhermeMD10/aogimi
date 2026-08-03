@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { CardModel, DeckSummary } from '../../types';
+import { Button, Eyebrow, HAIRLINE } from '@/shared/components';
+import { cn } from '@/lib/util/cn';
+import type { DeckSummary } from '../../types';
 import {
   MAX_CARDS_PER_DECK,
   MAX_CARD_BACK,
@@ -9,6 +11,14 @@ import {
   MAX_DECK_NAME,
   deckQuotaMessage,
 } from '../../lib/limits';
+
+// Shared field shell. Both text inputs and the read-only front box are the same
+// box; only the fill differs, so that stays at the call site.
+const FIELD = cn(
+  'w-full rounded-(--radius-input) border border-(--paper-bd) px-3.5 py-2.5',
+  'font-[family-name:var(--face-ui)] text-[14px] text-(--ink) placeholder:text-(--faint)',
+  'outline-none focus:border-(--ink)',
+);
 
 export type PendingCardFlow =
   | { phase: 'select-deck'; word: string; initialBack?: string; contextSentence?: string }
@@ -80,8 +90,11 @@ export function PendingCardOverlay({
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="lgc-card w-full max-w-sm p-6">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 font-[family-name:var(--face-ui)] backdrop-blur-sm">
+      {/* `--paper`, not `--card`: that group is transparent app-wide because a
+          card is separated from the page by shadow, and a dialog floating over
+          a scrim has nothing behind it to separate against. */}
+      <div className="w-full max-w-sm rounded-(--radius-panel) border border-(--paper-bd) bg-(--paper) p-6 shadow-(--card-shadow-float)">
         {flow.phase === 'select-deck' ? (
           <SelectDeckPhase
             word={flow.word}
@@ -134,21 +147,18 @@ function SelectDeckPhase({
 
   return (
     <>
-      <h2
-        className="text-base font-medium text-lgc-fg font-display"
-      >
-        Add as flashcard
-      </h2>
-      <p className="mt-1 text-sm text-lgc-fg-muted">
-        Front: <span className="font-medium text-lgc-fg">&ldquo;{word}&rdquo;</span>
+      <h2 className="text-[17px] leading-tight font-bold text-(--ink)">Add as flashcard</h2>
+      <p className="mt-1 text-[13.5px] text-(--soft)">
+        Front:{' '}
+        <span className="font-[family-name:var(--face-jp)] font-bold text-(--ink)">
+          {word}
+        </span>
       </p>
 
-      <p className="mt-4 text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
-        Select a deck
-      </p>
+      <Eyebrow className="mt-4 mb-2">Select a deck</Eyebrow>
 
       {decks.length > 0 ? (
-        <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
+        <ul className="max-h-48 space-y-1.5 overflow-y-auto">
           {decks.map((deck) => {
             // A deck at the card quota can't take this card, so it isn't
             // offered — picking it would advance the flow to a form that
@@ -160,10 +170,20 @@ function SelectDeckPhase({
                   type="button"
                   onClick={() => onSelectDeck(deck.id)}
                   disabled={full}
-                  className="w-full rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-left text-sm transition-colors hover:bg-lgc-accent-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lgc-bg"
+                  className={cn(
+                    'flex w-full items-baseline gap-2.5 rounded-(--radius-input) border px-3.5 py-2.5 text-left',
+                    'transition-[border-color] duration-120 ease-[ease]',
+                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+                    full
+                      ? 'cursor-not-allowed opacity-45'
+                      : 'cursor-pointer hover:border-(--accent)',
+                    HAIRLINE,
+                  )}
                 >
-                  <span className="font-medium text-lgc-fg">{deck.name}</span>
-                  <span className="ml-2 text-xs text-lgc-fg-muted">
+                  <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-(--ink)">
+                    {deck.name}
+                  </span>
+                  <span className="shrink-0 font-[family-name:var(--face-mono)] text-[10.5px] text-(--muted)">
                     {full
                       ? 'full'
                       : `${deck.card_count} card${deck.card_count !== 1 ? 's' : ''}`}
@@ -174,11 +194,11 @@ function SelectDeckPhase({
           })}
         </ul>
       ) : (
-        <p className="mt-2 text-sm text-lgc-fg-muted">No decks yet &mdash; create one below.</p>
+        <p className="text-[13px] text-(--muted)">No decks yet &mdash; create one below.</p>
       )}
 
       {atDeckQuota ? (
-        <p className="mt-3 text-xs text-lgc-fg-muted">{deckQuotaMessage(decks.length)}</p>
+        <p className="mt-3 text-[12.5px] text-(--muted)">{deckQuotaMessage(decks.length)}</p>
       ) : showNewDeck ? (
         <form onSubmit={onCreateDeck} className="mt-3 flex gap-2">
           <input
@@ -186,19 +206,27 @@ function SelectDeckPhase({
             value={newDeckName}
             onChange={(e) => setNewDeckName(e.target.value)}
             placeholder="New deck name"
+            aria-label="New deck name"
             maxLength={MAX_DECK_NAME}
-            className="flex-1 rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
+            className={cn(FIELD, 'min-w-0 flex-1 bg-transparent')}
             autoFocus
           />
-          <button type="submit" disabled={!newDeckName.trim()} className="lgc-button">
+          <Button type="submit" disabled={!newDeckName.trim()}>
             Create
-          </button>
+          </Button>
         </form>
       ) : (
         <button
           type="button"
           onClick={() => setShowNewDeck(true)}
-          className="lgc-button-secondary mt-3 w-full justify-center"
+          className={cn(
+            'mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5',
+            'rounded-(--radius-input) border px-3 py-2.5 text-[13.5px] font-bold text-(--soft)',
+            'transition-[border-color,color] duration-120 ease-[ease]',
+            'hover:border-(--accent) hover:text-(--accent)',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+            HAIRLINE,
+          )}
         >
           + New deck
         </button>
@@ -207,7 +235,10 @@ function SelectDeckPhase({
       <button
         type="button"
         onClick={onCancel}
-        className="mt-4 text-xs text-lgc-fg-muted underline transition-colors hover:text-lgc-fg"
+        className={cn(
+          'mt-4 cursor-pointer font-[family-name:var(--face-mono)] text-[11px] tracking-[0.08em] uppercase',
+          'text-(--muted) transition-colors duration-120 ease-[ease] hover:text-(--ink)',
+        )}
       >
         Cancel
       </button>
@@ -234,61 +265,63 @@ function CreateCardPhase({
 
   return (
     <>
-      <h2
-        className="text-base font-medium text-lgc-fg font-display"
-      >
-        New card
-      </h2>
+      <h2 className="text-[17px] leading-tight font-bold text-(--ink)">New card</h2>
       {deck && (
-        <p className="mt-0.5 text-xs text-lgc-fg-muted">
-          Adding to &ldquo;{deck.name}&rdquo;
-        </p>
+        <p className="mt-0.5 text-[12.5px] text-(--muted)">Adding to {deck.name}</p>
       )}
 
-      <form onSubmit={onSubmit} className="mt-4 space-y-3">
+      <form onSubmit={onSubmit} className="mt-4 space-y-3.5">
         <div>
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
-            Front
-          </label>
-          <div className="mt-1 rounded-md border border-lgc-border bg-lgc-bg-sunken px-3 py-2 text-sm text-lgc-fg">
+          <Eyebrow className="mb-1.5">Front</Eyebrow>
+          <div
+            className={cn(
+              FIELD,
+              'bg-(--paper-tile) font-[family-name:var(--face-jp)] text-[17px]',
+            )}
+          >
             {flow.word}
           </div>
         </div>
         <div>
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
-            Back
-          </label>
+          <Eyebrow className="mb-1.5">Back</Eyebrow>
           <textarea
             value={pendingBack}
             onChange={(e) => setPendingBack(e.target.value)}
-            placeholder="Write the back side..."
+            placeholder="Write the back side…"
+            aria-label="Card back"
             maxLength={MAX_CARD_BACK}
-            className="mt-1 w-full resize-none rounded-md border border-lgc-border bg-lgc-bg px-3 py-2 text-sm text-lgc-fg placeholder:text-lgc-fg-subtle focus:border-lgc-border-strong focus:outline-none"
+            className={cn(FIELD, 'resize-none bg-transparent leading-[1.5]')}
             rows={3}
             autoFocus
           />
         </div>
         {flow.contextSentence && (
           <div>
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-lgc-fg-muted">
-              Context
-            </label>
-            <div className="mt-1 rounded-md border border-lgc-border bg-lgc-bg-sunken px-3 py-2 text-[13px] leading-relaxed text-lgc-fg-muted">
+            <Eyebrow className="mb-1.5">Context</Eyebrow>
+            <div
+              className={cn(
+                FIELD,
+                'bg-(--paper-tile) text-[13px] leading-relaxed text-(--soft)',
+              )}
+            >
               {flow.contextSentence}
             </div>
           </div>
         )}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pt-1">
           <button
             type="button"
             onClick={onCancel}
-            className="text-xs text-lgc-fg-muted underline transition-colors hover:text-lgc-fg"
+            className={cn(
+              'cursor-pointer font-[family-name:var(--face-mono)] text-[11px] tracking-[0.08em] uppercase',
+              'text-(--muted) transition-colors duration-120 ease-[ease] hover:text-(--ink)',
+            )}
           >
             Cancel
           </button>
-          <button type="submit" disabled={!pendingBack.trim()} className="lgc-button">
+          <Button type="submit" disabled={!pendingBack.trim()}>
             Add card
-          </button>
+          </Button>
         </div>
       </form>
     </>

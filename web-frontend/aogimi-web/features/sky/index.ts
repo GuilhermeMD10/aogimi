@@ -36,5 +36,14 @@ export { SkyGenerator } from './lib/generator';
 export { useSkyGenerator } from './hooks/useSkyGenerator';
 export type { SkyController } from './hooks/useSkyGenerator';
 
+/**
+ * The hue presets. The sky owns the palette; `SkyHueProvider` owns which one is chosen and the
+ * `html[data-sky-hue]` attribute, and `styles/ds-tokens.css` mirrors these four ramps so the
+ * mastery chrome outside the canvas follows the sky. (The provider itself imports `lib/palette` by
+ * path rather than through this barrel — a barrel both ways would be a cycle.)
+ */
+export { DEFAULT_SKY_HUE, SKY_HUES, SKY_PALETTES } from './lib/palette';
+export type { SkyHue, SkyPalette } from './lib/palette';
+
 export type { CardContent } from './lib/cards';
 export type { Deck, FocusPath, SkySnapshot, Star } from './lib/types';

@@ -10,7 +10,7 @@ import {
   SELECT_GLOW_SCALE,
   SELECT_HALO_PX,
 } from '../lib/config';
-import { SELECT_COLOR, STAR_LABEL_COLOR, starColor } from '../lib/palette';
+import { SELECT_COLOR, STAR_LABEL_COLOR, type RankRamp, starColor } from '../lib/palette';
 import {
   CROSS_ARMS,
   coreRadius,
@@ -39,6 +39,9 @@ import type { Star } from '../lib/types';
 
 type Props = {
   stars: Star[];
+  /** The active hue preset's four rank colours. A module const inside SKY_PALETTES, so it is
+   *  reference-stable and the DeckLayer memo above survives it. */
+  ranks: RankRamp;
   /** Survivors standing in for a collapsed group. Drawn larger, and never dimmed. */
   fulcral: ReadonlySet<number>;
   /** Whether this deck is the focused one. An unfocused deck's stars carry less ink. */
@@ -54,7 +57,7 @@ type Props = {
   labelOp: number;
 };
 
-export function SkyStars({ stars, fulcral, focused, relZoom, u, hovered, selected, labelOp }: Props) {
+export function SkyStars({ stars, ranks, fulcral, focused, relZoom, u, hovered, selected, labelOp }: Props) {
   const labelled = focused && labelOp > 0.01;
   return (
     <g style={{ pointerEvents: 'none' }}>
@@ -68,7 +71,7 @@ export function SkyStars({ stars, fulcral, focused, relZoom, u, hovered, selecte
         const form = silhouetteOf(s.mastery);
         const r = rPx * u;
         const cr = coreRadius(rPx, form) * u * (s.id === hovered || isSelected ? 1.22 : 1);
-        const colour = starColor(s.mastery);
+        const colour = starColor(s.mastery, ranks);
         const glow = glowOf(s.mastery);
 
         return (
@@ -138,8 +141,9 @@ export function SkyStars({ stars, fulcral, focused, relZoom, u, hovered, selecte
               />
             )}
 
-            {/* 5 · the selected star: a wider ring in the chrome's gold, over an amplified glow.
-                What ties the open card in the panel to its point of light in the sky. */}
+            {/* 5 · the selected star: a wider ring in the chrome's white, over an amplified glow.
+                What ties the open card in the panel to its point of light in the sky. White rather
+                than a hue, so it cannot be mistaken for a rank under any preset — see SELECT_COLOR. */}
             {isSelected && (
               <>
                 <circle

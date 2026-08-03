@@ -1,5 +1,37 @@
 import { getDb, HANDLES_STORE } from './booksDb';
 
+// ── Typing the parts of the API TypeScript doesn't ship ──────────────────────
+//
+// The File System Access API is only *partly* in TypeScript's DOM lib as of 5.9.
+// `FileSystemDirectoryHandle.values()` is there but lives in the
+// `dom.asynciterable` lib, which is why that name is in tsconfig's `lib` array.
+// The permission methods and `showDirectoryPicker` aren't declared at all — they
+// were `any` casts until now.
+//
+// Declared here rather than in a global `.d.ts` because this file is the only
+// place in the app that touches the raw API: everything else goes through the
+// helpers below, so the shim and its consumers stay in one file.
+
+/** Not in lib.dom — the spec's `FileSystemPermissionMode`. */
+type FsPermissionMode = 'read' | 'readwrite';
+
+declare global {
+  interface FileSystemHandle {
+    queryPermission(descriptor?: { mode?: FsPermissionMode }): Promise<PermissionState>;
+    requestPermission(descriptor?: { mode?: FsPermissionMode }): Promise<PermissionState>;
+  }
+
+  interface Window {
+    /** Optional on purpose: Firefox and Safari don't implement it, which is
+     *  exactly what `supportsDirectoryPicker()` reports. */
+    showDirectoryPicker?: (options?: {
+      id?: string;
+      mode?: FsPermissionMode;
+      startIn?: FileSystemHandle | string;
+    }) => Promise<FileSystemDirectoryHandle>;
+  }
+}
+
 // ── Feature detection ────────────────────────────────────────────────────────
 
 /** Whether the File System Access API (showDirectoryPicker) is available. */
@@ -14,9 +46,12 @@ const DIR_KEY = 'library-dir';
 
 /** Show the directory picker and persist the handle for later reconnection. */
 export async function pickDirectory(): Promise<FileSystemDirectoryHandle | null> {
-  if (!supportsDirectoryPicker()) return null;
+  // Read it into a local so the optional-method check narrows it for the call
+  // below — this doubles as the `supportsDirectoryPicker()` guard.
+  const showPicker = typeof window === 'undefined' ? undefined : window.showDirectoryPicker;
+  if (!showPicker) return null;
   try {
-    const handle = await (window as any).showDirectoryPicker({ mode: 'read' });
+    const handle = await showPicker.call(window, { mode: 'read' });
     const db = await getDb();
     await db.put(HANDLES_STORE, handle, DIR_KEY);
     return handle;
@@ -37,14 +72,31 @@ export async function getPersistedDirectory(): Promise<FileSystemDirectoryHandle
   }
 }
 
+const READ = { mode: 'read' as const };
+
+/**
+ * Current read-permission state without prompting, or `null` if the API isn't
+ * there to ask. Separate from `verifyPermission` because the two callers want
+ * different things: the banner needs to distinguish `'prompt'` (offer to
+ * reconnect) from `'denied'` (say nothing), which a boolean can't carry.
+ */
+export async function queryPermissionState(
+  handle: FileSystemDirectoryHandle,
+): Promise<PermissionState | null> {
+  try {
+    return await handle.queryPermission(READ);
+  } catch {
+    return null;
+  }
+}
+
 /** Check / request read permission on a handle. Returns true if granted. */
 export async function verifyPermission(
   handle: FileSystemDirectoryHandle,
 ): Promise<boolean> {
   try {
-    const opts = { mode: 'read' as const };
-    if ((await (handle as any).queryPermission(opts)) === 'granted') return true;
-    if ((await (handle as any).requestPermission(opts)) === 'granted') return true;
+    if ((await handle.queryPermission(READ)) === 'granted') return true;
+    if ((await handle.requestPermission(READ)) === 'granted') return true;
     return false;
   } catch {
     return false;
@@ -79,7 +131,10 @@ async function walkDirectory(
   dirHandle: FileSystemDirectoryHandle,
   results: File[],
 ): Promise<void> {
-  for await (const entry of (dirHandle as any).values()) {
+  // `values()` needs tsconfig's `dom.asynciterable` lib. The two casts below
+  // stay: `FileSystemHandle` is a base interface, not a discriminated union, so
+  // `kind` doesn't narrow it to the file / directory subtype on its own.
+  for await (const entry of dirHandle.values()) {
     if (entry.kind === 'file') {
       const fileHandle = entry as FileSystemFileHandle;
       const name = fileHandle.name.toLowerCase();

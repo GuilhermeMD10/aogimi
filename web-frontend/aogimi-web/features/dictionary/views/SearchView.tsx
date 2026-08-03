@@ -80,7 +80,12 @@ export function SearchView({
   useSelectionKeys({ contents, selection, onSelect, enabled: arrowKeyNav });
 
   return (
-    <div className="flex h-full w-full font-[family-name:var(--face-ui)] font-medium">
+    // Capped and centred on the same 1300px column every other page in the app
+    // uses (Home, /decks, /profile, and this route's own `BeforeSearch`), so the
+    // two panes line up with the rest of the app instead of running to the
+    // viewport edges. The cap sits on the outer row, not the panes: the rail
+    // keeps its fixed 380px and the entry takes what's left of the column.
+    <div className="mx-auto flex h-full w-full max-w-[1300px] font-[family-name:var(--face-ui)] font-medium">
       <ResultsRail
         query={query}
         draft={draft}

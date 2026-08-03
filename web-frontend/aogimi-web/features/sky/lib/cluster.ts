@@ -14,7 +14,7 @@ import {
 } from './config';
 import { boundsCross, dist2, skyBounds } from './geometry';
 import { SpatialGrid, pointBox } from './grid';
-import { type GroupTint, RANKS, groupTint, rankOf } from './palette';
+import { type GroupTint, RANKS, type RankRamp, groupTint, rankOf } from './palette';
 import type { Bounds, Point, Star } from './types';
 
 /**
@@ -205,6 +205,7 @@ const build = (
   gid: number,
   busiest: number,
   all: Lobe[],
+  ranks: RankRamp,
 ): Lobe => {
   let sx = 0;
   let sy = 0;
@@ -279,7 +280,7 @@ const build = (
     // straight count/cap collapses the moment one sky has far bigger groups than another.
     weight: Math.log(1 + points.length) / Math.log(1 + busiest),
     grain: 0, // needs the whole sky to normalise against; filled in by buildClouds
-    tint: groupTint(hist),
+    tint: groupTint(hist, ranks),
     angle,
     aspect,
     hot: nHot ? { x: hx / nHot, y: hy / nHot } : null,
@@ -302,7 +303,7 @@ const build = (
   for (let q = 0; q < 4; q++) {
     if (!quads[q].length) continue;
     lobe.children.push(
-      build(quads[q], quadrant(cell, q, midX, midY), depth + 1, `${id}.${q}`, gid, busiest, all),
+      build(quads[q], quadrant(cell, q, midX, midY), depth + 1, `${id}.${q}`, gid, busiest, all, ranks),
     );
   }
   return lobe;
@@ -320,8 +321,18 @@ const packing = (lobe: Lobe) => lobe.n / (lobe.sd * lobe.sd);
  *
  * Cheap enough to run whenever the data changes, which includes a click: `count` feeds the
  * histograms, so a review does change the answer.
+ *
+ * `ranks` is the active hue preset's ramp — the only thing here a colour choice reaches. It is an
+ * argument rather than a module read so a hue switch is a visible dependency: change it and the
+ * trees are rebuilt (a one-off, ~26ms at quota), which is where cloud tinting belongs. Tinting in
+ * the per-frame walk instead would pay for it on every frame of every gesture.
  */
-export const buildClouds = (stars: Star[], groupIds: number[], keyOf: (s: Star) => number): Cloud[] => {
+export const buildClouds = (
+  stars: Star[],
+  groupIds: number[],
+  keyOf: (s: Star) => number,
+  ranks: RankRamp,
+): Cloud[] => {
   const byGid = new Map<number, Star[]>();
   for (const s of stars) {
     const gid = keyOf(s);
@@ -340,7 +351,7 @@ export const buildClouds = (stars: Star[], groupIds: number[], keyOf: (s: Star) 
     if (!group?.length) continue;
     // skyBounds with no padding is the tight box, which is what the root cell is squared around
     const cell = squareCell(skyBounds(group, 0, 0));
-    out.push({ gid, root: build(group, cell, 0, `${gid}`, gid, busiest, all) });
+    out.push({ gid, root: build(group, cell, 0, `${gid}`, gid, busiest, all, ranks) });
   }
 
   // grain needs every node before any of them can be scored, so it is a second pass rather than

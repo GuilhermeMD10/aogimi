@@ -71,6 +71,16 @@ export function useMangaReaderEngine({ blob, initialSpineIndex, onRelocate }: Us
   const [panel, setPanel] = useState<Panel>(null);
 
   // ── Init view ───────────────────────────────────────────────────────────
+  // Same shape, and the same sanctioned lint exception, as the two sibling
+  // engines (`useTextReaderEngine`, `EpubReader`): the resets synchronise React
+  // with an external system (foliate + the blob) that can't be read during
+  // render, and they clear the *previous* book's state before a new one loads.
+  // Unconditional, so there's no cascade — and every later write in the async
+  // body is guarded by its own `dead` flag.
+  //
+  // This file went un-flagged until the ref writes above it were fixed; the
+  // plugin stopped at those.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
@@ -163,6 +173,7 @@ export function useMangaReaderEngine({ blob, initialSpineIndex, onRelocate }: Us
       }
     };
   }, [blob]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ── Navigation ──────────────────────────────────────────────────────────
   const goToSpine = useCallback(
@@ -197,23 +208,24 @@ export function useMangaReaderEngine({ blob, initialSpineIndex, onRelocate }: Us
   );
 
   // ── Keyboard ────────────────────────────────────────────────────────────
-  const advanceRef = useRef(advancePage);
-  const goBackRef = useRef(goBackPage);
-  advanceRef.current = advancePage;
-  goBackRef.current = goBackPage;
-
+  // Depends on the two callbacks rather than mirroring them into refs. The refs
+  // existed to keep this effect's dep list empty, but writing `ref.current`
+  // during render is exactly what `react-hooks/refs` forbids — and the thing it
+  // was buying is worth very little: `advancePage`/`goBackPage` only change when
+  // `viewMode` does, i.e. on a user toggle, so the listener re-registers on a
+  // click rather than on every frame.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       switch (e.key) {
-        case 'ArrowLeft': case 'ArrowDown': advanceRef.current(); break;
-        case 'ArrowRight': case 'ArrowUp': goBackRef.current(); break;
+        case 'ArrowLeft': case 'ArrowDown': advancePage(); break;
+        case 'ArrowRight': case 'ArrowUp': goBackPage(); break;
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [advancePage, goBackPage]);
 
   return {
     // refs

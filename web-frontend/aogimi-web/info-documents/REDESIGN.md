@@ -14,21 +14,23 @@ Status:
 | Home | `/` | **Done** — reference implementation |
 | Reader chrome | `/reader/[bookId]` | **Done** — `ReaderShell`, `ReaderPanel`, `ReaderIconButton`, `ContentsPanel`, `SettingsPanel`, `TextContextMenu` |
 | Reader dictionary | `/reader/[bookId]` | **Done** — the docked `dict-sidebar/` and the 5-phase `reader-bubble/`, both built from `features/dictionary`'s components |
-| Library / shelf | `/reader` | Not started — `BooksView`, `FsAccessBanner` still on `--lgc-*` |
+| Library / shelf | `/reader` | Shelf itself is done (`LibraryShelf`, `LibraryCards`, `LibraryEmpty`); `BooksView`'s delete dialog and `FsAccessBanner` are on the new tokens but have had no handoff pass |
 | Dictionary | `/dictionary` | **Done** — empty state + rail/entry split |
 | Word detail | — | Folded into `/dictionary`; `/word/[id]` deleted |
 | Decks | `/decks` | **Done** — list **and** detail (detail is still a state of `DecksView`, not a route) |
-| Study runner | `/study` | Route extracted, visuals not started |
+| Study runner | `/study` | Route extracted, all token-driven, but no handoff pass — `SessionConfigSheet` is still the radix sheet |
 | Sky (star map) | `/sky` | **Done** — the multi-deck star map (`features/sky`, `SkyView`) replaced the stats tabs, which were deleted (their `statsApi` fetchers survive) |
 | Profile | `/profile` | **Done** |
 | Settings / help / credits | `/settings`, `/help`, `/credits` | **Done** — three routes, one shared shell |
 | Auth | `/authenticate` | **Done** — split screen, mode is local state |
 | Bottom nav (dock) | — | **Done** — `features/app-shell/Dock.tsx` replaced `WorkspaceNav` |
 
-**Two screens remain: the library shelf and the study runner.** Until both
-migrate, the outgoing `--lgc-*` system stays — see §2's deletion note. The reader
-*itself* is finished: its chrome migrated with the shell, and its two dictionary
-surfaces are now `features/books/reader/dict-sidebar/` and
+**No screen reads the old palette any more — the `--lgc-*` teardown is done**
+(see §2). What's left is *design* work, not migration: the library shelf's
+dialogs and the study runner are token-driven but have never had a handoff pass,
+so they're correct in both themes without matching a design. The reader *itself*
+is finished: its chrome migrated with the shell, and its two dictionary surfaces
+are now `features/books/reader/dict-sidebar/` and
 `features/books/reader/reader-bubble/`, sharing `/dictionary`'s rows, list and
 entry panes through `scale`.
 
@@ -120,33 +122,37 @@ Write them with Tailwind v4's var shorthand: `text-(--ink)`, `bg-(--card)`,
   key, and is applied by a pre-paint `<script>` in `app/layout.tsx`. An effect
   can't do this — it fires after paint and flashes. The switch is the
   Appearance card on `/settings` (TopBar's pill toggle is gone).
-- **Un-migrated screens look wrong in dark mode** (light-only `--lgc-*` text on
-  a themed canvas). Known and accepted; not a bug to chase.
+- Every screen is token-driven, so **dark mode is correct everywhere**. The
+  "un-migrated screens look wrong in dark mode" caveat that used to live here is
+  retired — if you find a screen that looks wrong in Midnight now, it *is* a bug.
 
-### Outgoing — do not build on this
+### Outgoing — gone
 
-`--lgc-*` in `styles/themes/default.css` + `styles/shape-defaults.css`, the
-`.lgc-card` / `.lgc-button` / `.lgc-chip` / `.lgc-section-label` classes in
-`styles/primitives.css`, and the old primitives in `shared/ui/` (`SectionCard`,
-`ActionRow`, `Field`, `ReaderProgressBar`). Leave them alone on screens you
-aren't redesigning; delete nothing until the last screen migrates.
+**The `--lgc-*` teardown is done.** `styles/themes/default.css`,
+`styles/shape-defaults.css` and `styles/primitives.css` are deleted; so are
+`shared/ui/{SectionCard,ActionRow,Field,ReaderProgressBar}` and the stranded
+shadcn set (`sidebar`, `separator`, `tooltip`, `skeleton`, `input`,
+`context-menu`, plus `hooks/use-mobile.ts`, which only `sidebar` imported). The
+three webfonts the old palette carried — Inter, Source Serif 4, Geist Mono —
+came out of `app/layout.tsx` with it, leaving M PLUS 1 + Space Mono.
 
-`shared/ui/{InfoRow,SectionHead,PitchAccentDiagram,JlptChip}` **are gone** — the
-reader's dictionary redesign was their last consumer, and a primitive nothing
-imports is worse than one that's merely outgoing. Their `--lgc-*` axes went with
-them (the `toolbar-*`, `meaning-num-*`, `row-reading-*`, `kanji-meanings-*`,
-`section-num-*`, `icon-button-radius`, `divider-style` and `input-radius` blocks
-in `shape-defaults.css`). `kbd-radius` and `pill-radius` were already dead before
-that pass and were left for the wholesale deletion. **Rule of thumb: delete an
-outgoing file when you remove its last import; leave the shared token layer
-alone.**
+`shared/ui/` is down to **`sheet.tsx` + `button.tsx`**, kept because the study
+session's `SessionConfigSheet` uses the radix sheet. They paint with the shadcn
+colour namespace, which `globals.css`'s `@theme` now points at the `--paper-*`
+group. Still **don't add to `shared/ui/`** — new primitives go in
+`shared/components/`.
 
-**Not yet — 21 files still read it** (`grep -rl 'lgc-' features app shared`,
-minus three that only mention it in a comment), concentrated in
-`features/study/session` (5), `features/study/decks` (3), `features/onboarding`,
-`features/mobile-gate`, `features/books/library` + `BooksView`, plus
-`shared/ui`'s four survivors. That maps to the two screens still on the list
-above. The deletion is a single pass to run *after* those, not alongside them.
+Four screens were the last readers and were migrated in the same pass:
+`PendingCardOverlay`, the onboarding explainer, `MobileGate`, and
+`SessionConfigSheet` — plus `BooksView`'s delete dialog, `FsAccessBanner` and two
+loading strings. Four `features/study/session` components that read the old
+palette (`StudyDisplaySettings`, `PresetPicker`, `StudyAllHardestButton`,
+`StateBreakdown`) were **deleted rather than migrated**: no route reached any of
+them, and two weren't even barrel-exported.
+
+The one thing that deliberately survives the rename is the localStorage keys
+`lgc_device_id` and `lgc_last_user_id`. Renaming those would orphan every
+existing install's device identity — they are storage keys, not tokens.
 
 ---
 
@@ -302,12 +308,11 @@ style preference.
   that reads as palette goes in `ds-tokens.css`. A value that exists to make a
   single component work stays hardcoded in that component, with a comment saying
   why: a new token widens the palette every screen reads, which is the more
-  expensive mistake. (`JlptChip` is the standing exception in the outgoing
-  system.)
+  expensive mistake. (`JlptChip` is the standing exception.)
 - **No inline `borderRadius: <px>`** on token-relevant surfaces — use a
   `--radius-*` token.
-- **Don't sweep `--lgc-*`** out of screens you aren't redesigning.
-- **Don't add to `shared/ui/`** — it's the outgoing set.
+- **Don't add to `shared/ui/`** — it's down to the radix `sheet` + `button` the
+  study config sheet needs. New primitives go in `shared/components/`.
 
 ## 9. When the screen is done, update
 

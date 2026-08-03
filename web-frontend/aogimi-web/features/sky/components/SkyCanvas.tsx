@@ -1,12 +1,12 @@
 'use client';
-import { memo, type PointerEvent as ReactPointerEvent, useEffect, useState } from 'react';
+import { memo, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from 'react';
 
 import { toWorld } from '../lib/camera';
 import { NO_FULCRAL } from '../lib/cluster';
 import { CLOUD_DRIFT_MS, LINK_REACH, STAR_POP_MS, UNFOCUSED_DECK_OPACITY } from '../lib/config';
 import { deckAt, type SkyLayout } from '../lib/layout';
 import { labelOpAt } from '../lib/lod';
-import { LINE_COLOR, RANK_COLORS, hueFor } from '../lib/palette';
+import { type SkyPalette, hueFor, rgbOf } from '../lib/palette';
 import { pickStar } from '../lib/picking';
 import type { DeckDraw, SkyFrame } from '../lib/tiers';
 import type { Bounds, FocusPath, Star, View } from '../lib/types';
@@ -47,21 +47,42 @@ const SKY_CSS = `
 `;
 
 /**
- * The glow behind a star, one gradient per rank. Static — the palette does not change at runtime —
- * so these are built once rather than per frame like the cloud gradients, which take their colours
- * from data. The stops are softer than the reference's (.5/.16): the glow was reading as a halo
- * field, so its intensity comes down together with its radius (STAR_GLOW_SCALE).
+ * The glow behind a star, one gradient per rank. Built per *palette* rather than per frame: the
+ * reader can change hue preset, but nothing about the camera touches these — the cloud gradients
+ * are the ones that take their colours from data. The stops are softer than the reference's
+ * (.5/.16): the glow was reading as a halo field, so its intensity comes down together with its
+ * radius (STAR_GLOW_SCALE). The ids stay `sky-glow-{rank}` — SkyStars fills against them by rank.
  */
-const GLOW_DEFS = RANK_COLORS.map((colour, rank) => (
-  <radialGradient key={rank} id={`sky-glow-${rank}`}>
-    <stop offset="0%" stopColor={colour} stopOpacity={0.34} />
-    <stop offset="38%" stopColor={colour} stopOpacity={0.1} />
-    <stop offset="100%" stopColor={colour} stopOpacity={0} />
-  </radialGradient>
-));
+const glowDefs = (ranks: SkyPalette['ranks']) =>
+  ranks.map((colour, rank) => (
+    <radialGradient key={rank} id={`sky-glow-${rank}`}>
+      <stop offset="0%" stopColor={colour} stopOpacity={0.34} />
+      <stop offset="38%" stopColor={colour} stopOpacity={0.1} />
+      <stop offset="100%" stopColor={colour} stopOpacity={0} />
+    </radialGradient>
+  ));
+
+/**
+ * The sky itself: a tint of the preset's own colour thrown across the top-left of a near-black base,
+ * so each hue reads as a different night rather than as recoloured stars on one.
+ *
+ * The base is the guide's own `T.bg` (§5) as literals rather than the `--sky-1/2/3` tokens (which it
+ * is within a shade of, in Midnight). Deliberate: the star map is night in **both** themes, and
+ * those tokens go pale in Ink on paper — reading them would put the sky on a daylight canvas. Same
+ * standing hex exception the rest of `palette.ts` carries.
+ */
+const skyBackground = (tint: string) => {
+  const [r, g, b] = rgbOf(tint);
+  return (
+    `radial-gradient(115% 95% at 32% 6%, rgba(${r}, ${g}, ${b}, .30) 0%, rgba(0, 0, 0, 0) 62%),` +
+    ' radial-gradient(120% 100% at 30% 8%, #16223c 0%, #0d1526 42%, #05070f 100%)'
+  );
+};
 
 type DeckLayerProps = {
   deck: DeckDraw;
+  /** The active hue preset. A module const out of SKY_PALETTES, so the memo below survives it. */
+  palette: SkyPalette;
   /** Whether some other deck holds the focus, so this one fades to context. */
   dimmed: boolean;
   tinted: boolean;
@@ -86,6 +107,7 @@ type DeckLayerProps = {
  */
 const DeckLayer = memo(function DeckLayer({
   deck,
+  palette,
   dimmed,
   tinted,
   relZoom,
@@ -145,7 +167,7 @@ const DeckLayer = memo(function DeckLayer({
             y1={l.a.y}
             x2={l.b.x}
             y2={l.b.y}
-            stroke={tinted ? hueFor(l.cid) : LINE_COLOR}
+            stroke={tinted ? hueFor(l.cid) : palette.line}
             strokeOpacity={deck.focused ? 0.42 : 0.38}
             strokeWidth={deck.focused ? 1 : 1.2}
             vectorEffect="non-scaling-stroke"
@@ -162,6 +184,7 @@ const DeckLayer = memo(function DeckLayer({
         <g opacity={deck.preview.op}>
           <SkyStars
             stars={deck.preview.stars}
+            ranks={palette.ranks}
             // the empty set on purpose: the 1.55× fulcral boost is for stand-ins that must be
             // findable at the outer view; here it made them out of the ordinary, and rank
             // alone is highlight enough
@@ -181,6 +204,7 @@ const DeckLayer = memo(function DeckLayer({
       <g opacity={deck.layers.starOp}>
         <SkyStars
           stars={deck.stars}
+          ranks={palette.ranks}
           fulcral={deck.fulcral}
           focused={deck.focused}
           relZoom={relZoom}
@@ -213,6 +237,10 @@ const DeckLayer = memo(function DeckLayer({
 type Props = {
   frame: SkyFrame;
   layout: SkyLayout;
+  /** The reader's hue preset, resolved by the host (`useSkyHue`) and threaded explicitly rather
+   *  than read from a module: the lib is copied to mobile as-is and a mutable "active palette"
+   *  there would be invisible to React and shared across SSR requests. */
+  palette: SkyPalette;
   /** The world box the camera is confined to, drawn so the pan limit is visible rather than felt. */
   bounds: Bounds;
   focus: FocusPath;
@@ -237,6 +265,7 @@ type Props = {
 export function SkyCanvas({
   frame,
   layout,
+  palette,
   bounds,
   focus,
   tinted,
@@ -256,6 +285,9 @@ export function SkyCanvas({
   const focusedDeck = frame.decks.find((d) => d.focused) ?? null;
   // a function of zoom alone, like the layer crossfade — it lands on the same frame as the viewBox
   const labelOp = labelOpAt(camera.zoom);
+  // per palette, not per frame: nothing camera-derived reaches either of them
+  const glow = useMemo(() => glowDefs(palette.ranks), [palette]);
+  const background = useMemo(() => skyBackground(palette.tint), [palette]);
 
   /**
    * A press means different things at different tiers, and that is the whole interaction: at the
@@ -332,7 +364,7 @@ export function SkyCanvas({
       viewBox={viewBoxOf(view)}
       style={{
         display: 'block',
-        background: 'radial-gradient(circle at 50% 45%, #0b1020 0%, #000 80%)',
+        background,
         touchAction: 'none', // we own the gesture; stop the browser scrolling the page instead
         cursor: hidden
           ? 'default'
@@ -349,7 +381,7 @@ export function SkyCanvas({
       onPointerLeave={() => setHovered(null)}
     >
       <style>{SKY_CSS}</style>
-      <defs>{GLOW_DEFS}</defs>
+      <defs>{glow}</defs>
 
       {/* the edge of what the camera may reach — the whole grid at the outer view, one deck inside it */}
       {!hidden && (
@@ -376,6 +408,7 @@ export function SkyCanvas({
         <DeckLayer
           key={deck.did}
           deck={deck}
+          palette={palette}
           dimmed={focusedDid !== null && !deck.focused}
           tinted={tinted}
           relZoom={relZoom}

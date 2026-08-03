@@ -7,6 +7,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/shared/ui/sheet';
+import { Button } from '@/shared/components';
+import { cn } from '@/lib/util/cn';
 import type { StudyMode } from '../types';
 
 // Per-deck session config — mirror of mobile SessionConfigSheet.
@@ -101,39 +103,36 @@ export function SessionConfigSheet({
               max={MAX_SIZE}
               value={sizeText}
               onChange={(e) => setSizeText(e.target.value)}
-              className="w-24 rounded-md border border-lgc-border bg-lgc-bg-sunken px-3 py-2 text-center text-sm text-lgc-fg"
+              className={cn(
+                'w-24 rounded-(--radius-input) border border-(--paper-bd) bg-(--paper-tile) px-3 py-2',
+                'text-center text-[14px] text-(--ink) outline-none focus:border-(--ink)',
+              )}
             />
-            <div className="mt-1.5 text-xs text-lgc-fg-subtle">
+            <div className="mt-1.5 font-[family-name:var(--face-mono)] text-[11px] text-(--faint)">
               Between {MIN_SIZE} and {MAX_SIZE}
             </div>
           </Section>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-lgc-border p-4">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="rounded-md border border-lgc-border px-4 py-2 text-sm font-medium text-lgc-fg hover:bg-lgc-bg-elev"
-          >
+        <div className="flex justify-end gap-2.5 border-t border-(--paper-bd) p-4">
+          <Button variant="secondary" onClick={() => onOpenChange(false)}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="rounded-md bg-lgc-accent px-4 py-2 text-sm font-semibold text-lgc-accent-fg hover:opacity-90"
-          >
-            Save
-          </button>
+          </Button>
+          <Button onClick={handleSave}>Save</Button>
         </div>
       </SheetContent>
     </Sheet>
   );
 }
 
+// Not `Eyebrow`: that one is `--faint` at 11.5px with 0.14em tracking, which is
+// a column opener on a page. These label the two halves of a form inside a
+// panel and have to read as the stronger of the two texts in their row, so they
+// carry `--muted` and tighter tracking.
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2 pt-2">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-lgc-fg-muted">
+      <div className="font-[family-name:var(--face-mono)] text-[11px] font-bold tracking-[0.16em] uppercase text-(--muted)">
         {label}
       </div>
       {children}
@@ -154,18 +153,23 @@ function ModeRow({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left text-sm transition-colors ${
+      className={cn(
+        'flex w-full cursor-pointer items-center gap-3 rounded-(--radius-input) border px-3 py-2.5',
+        'text-left text-[14px] text-(--ink) transition-colors duration-120 ease-[ease]',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
         selected
-          ? 'border-lgc-border-strong bg-lgc-bg-elev text-lgc-fg'
-          : 'border-lgc-border text-lgc-fg hover:bg-lgc-bg-elev'
-      }`}
+          ? 'border-(--ink) bg-(--paper-tile) font-bold'
+          : 'border-(--paper-bd) hover:bg-(--paper-tile)',
+      )}
+      aria-pressed={selected}
     >
       <span
-        className={`inline-flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-          selected ? 'border-lgc-fg' : 'border-lgc-border'
-        }`}
+        className={cn(
+          'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2',
+          selected ? 'border-(--ink)' : 'border-(--paper-bd)',
+        )}
       >
-        {selected && <span className="h-2 w-2 rounded-full bg-lgc-fg" />}
+        {selected && <span className="h-2 w-2 rounded-full bg-(--ink)" />}
       </span>
       <span className="flex-1">{label}</span>
     </button>

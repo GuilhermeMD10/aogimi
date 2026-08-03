@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { viewBounds } from '../lib/camera';
 import { CULL_SLACK } from '../lib/config';
 import { type SkyLayout, layoutDecks } from '../lib/layout';
+import type { RankRamp } from '../lib/palette';
 import { type SkyFrame, type SkyIndex, indexSky, skyFrame } from '../lib/tiers';
 import type { Bounds, Camera, FocusPath, SkySnapshot, View } from '../lib/types';
 
@@ -29,12 +30,19 @@ export type SkyStage = {
   bounds: Bounds;
 };
 
-export function useSkyStage(sky: SkySnapshot, focus: FocusPath): SkyStage {
+/**
+ * `ranks` is the active hue preset's ramp. It belongs to the data half rather than the per-frame
+ * one: a cloud's tint is blended from the ranks of the stars it hides, and those aggregates are
+ * baked into the quadtrees. So a hue switch re-indexes once (~26ms at the 5000-card quota) and
+ * every frame after it is as cheap as before — the alternative, tinting inside `cloudFrame`, would
+ * move that cost onto every frame of every pan.
+ */
+export function useSkyStage(sky: SkySnapshot, focus: FocusPath, ranks: RankRamp): SkyStage {
   const { stars, links, constellations, decks } = sky;
 
   const index = useMemo(
-    () => indexSky({ stars, links, constellations, decks }),
-    [stars, links, constellations, decks],
+    () => indexSky({ stars, links, constellations, decks }, ranks),
+    [stars, links, constellations, decks, ranks],
   );
   const layout = useMemo(() => layoutDecks(index.localBoxes), [index]);
 

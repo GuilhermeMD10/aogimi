@@ -1,6 +1,10 @@
 'use client';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 
+// By file path, not through the app-shell barrel: the provider imports `lib/palette` from this
+// feature, and going via barrels either way would close a module cycle.
+import { useSkyHue } from '@/features/app-shell/providers/SkyHueProvider';
+
 import { useCamera } from '../hooks/useCamera';
 import { useSkyDraw, useSkyStage } from '../hooks/useSkyFrame';
 import { buildSky, todayBucket, type SkyDeckSource } from '../lib/buildSky';
@@ -57,6 +61,7 @@ export function SkyMap({
   onSelectCard,
   onSettled,
 }: Props) {
+  const { palette } = useSkyHue();
   // `today` read inside the memo on purpose: a rebuild just after midnight opens a fresh day
   const snapshot = useMemo(() => buildSky({ seed, today: todayBucket(), decks }), [seed, decks]);
 
@@ -65,7 +70,7 @@ export function SkyMap({
   const focusedDid = focusedDeckKey === null ? null : (didByKey.get(focusedDeckKey) ?? null);
   const focus = useMemo<FocusPath>(() => (focusedDid === null ? OUTER : [focusedDid]), [focusedDid]);
 
-  const stage = useSkyStage(snapshot, focus);
+  const stage = useSkyStage(snapshot, focus, palette.ranks);
 
   // the outer view is a chooser, so it is immobile; inside a single deck the boundary is the
   // container itself (fillViewport) — both exactly as the demo and DeckSky establish them
@@ -132,6 +137,7 @@ export function SkyMap({
     <SkyCanvas
       frame={frame}
       layout={stage.layout}
+      palette={palette}
       bounds={cam.bounds}
       focus={focus}
       tinted={false}

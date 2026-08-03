@@ -2,18 +2,6 @@
 
 import { useId, useState } from 'react';
 
-/**
- * One labelled input. Local to `features/auth` on purpose — it's the only form
- * of its kind in the redesigned app, and the bar for `shared/components` is a
- * second consumer.
- *
- * Two things the handoff asks for that are load-bearing:
- *  - the mono micro-label above the field, not a floating placeholder;
- *  - focus is a border-colour change to `--btn`, plus a fill change from
- *    `--cardalt` to `--paper`. `--cardalt` is transparent app-wide, so the
- *    unfocused input reads as its border alone; `--paper` is the filled-surface
- *    group, which is what gives focus something visible to switch to.
- */
 export function AuthField({
   label,
   type = 'text',
@@ -42,7 +30,7 @@ export function AuthField({
     <div>
       <label
         htmlFor={id}
-        className="mb-2 block font-[family-name:var(--face-mono)] text-[9.5px] tracking-[0.18em] text-(--faint)"
+        className="mb-2 block font-(family-name:--face-mono) text-[12px] tracking-[0.18em] text-black"
       >
         {label}
       </label>
@@ -55,14 +43,7 @@ export function AuthField({
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
           required={required}
-          className={[
-            'h-[50px] w-full rounded-(--radius-input) border border-(--bd) bg-(--cardalt) px-4',
-            'font-[family-name:var(--face-ui)] text-[15px] text-(--ink)',
-            'outline-none placeholder:text-(--faint)',
-            'transition-[background-color,border-color] duration-120 ease-[ease]',
-            'focus:border-(--btn) focus:bg-(--paper)',
-            reveal ? 'pr-16' : '',
-          ].join(' ')}
+          className="bg-white w-full rounded-md p-2.5 focus:outline-none"
         />
         {reveal && (
           <button
@@ -72,10 +53,9 @@ export function AuthField({
             aria-label={shown ? 'Hide password' : 'Show password'}
             aria-controls={id}
             className={[
-              'absolute top-1.5 right-1.5 flex h-[38px] cursor-pointer items-center rounded-[9px] px-3',
-              'font-[family-name:var(--face-mono)] text-[10px] tracking-[0.14em] text-(--muted)',
+              'absolute top-1.5 right-1.5 flex h-9.5 cursor-pointer items-center rounded-[9px] px-3',
+              'font-(family-name:--face-mono) text-[10px] tracking-[0.14em] text-(--muted)',
               'transition-colors duration-120 ease-[ease] hover:bg-(--paper-tile) hover:text-(--ink)',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
             ].join(' ')}
           >
             {shown ? 'HIDE' : 'SHOW'}

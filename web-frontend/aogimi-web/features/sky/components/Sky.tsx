@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { fitZoom } from '../lib/camera';
 import { openConstellationOf, openTipOf } from '../lib/generator';
+import { SKY_PALETTES } from '../lib/palette';
 import type { FocusPath, Star } from '../lib/types';
 
 import { SkyCanvas } from './SkyCanvas';
@@ -12,6 +13,10 @@ import { SkyStats } from './SkyStats';
 
 /** The demo screen's own box. Not a component constant — SkyCanvas fills whatever it is given. */
 const DEMO_BOX = { width: 820, height: 520 };
+/** The demo draws the default preset rather than reading `useSkyHue`: it is routed nowhere, so it
+ *  must not require the app-shell provider to be above it. A module const, so the frame cache and
+ *  the DeckLayer memo see a stable reference exactly as they do in production. */
+const DEMO_PALETTE = SKY_PALETTES.default;
 import { useCamera } from '../hooks/useCamera';
 import { useSkyDraw, useSkyStage } from '../hooks/useSkyFrame';
 import { useSkyGenerator } from '../hooks/useSkyGenerator';
@@ -35,7 +40,7 @@ export default function Sky() {
 
   // the trees and the deck arrangement, and with them the world box the camera may not leave.
   // Depends on the data and the focus, never on where the camera happens to be pointing.
-  const stage = useSkyStage(snapshot, focus);
+  const stage = useSkyStage(snapshot, focus, DEMO_PALETTE.ranks);
 
   // the outer view is a chooser, so it is immobile — every deck is on screen at once by construction
   // and there is nothing a pan could reach. Inside a deck the camera is free within that deck's box.
@@ -165,6 +170,7 @@ export default function Sky() {
           <SkyCanvas
             frame={frame}
             layout={stage.layout}
+            palette={DEMO_PALETTE}
             bounds={cam.bounds}
             focus={focus}
             tinted={tinted}

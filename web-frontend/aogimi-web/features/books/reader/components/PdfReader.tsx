@@ -15,7 +15,7 @@ export const PdfReader = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center text-sm text-lgc-fg-muted">
+      <div className="flex h-full items-center justify-center font-[family-name:var(--face-ui)] text-[13.5px] text-(--muted)">
         Loading PDF reader…
       </div>
     ),
