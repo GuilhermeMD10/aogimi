@@ -58,6 +58,9 @@ export type SkyIndex = {
   sessionTrees: Map<number, Cloud[]>;
   /** Each deck's tight box in its own local space, which is what the packer lays out. */
   localBoxes: Map<number, Bounds>;
+  /** Deck names by did — the one non-geometric input the packer needs: a name floors its deck's
+   *  frame width, and the frame footprint is what sizes the grid's cells. */
+  names: Map<number, string>;
 };
 
 /** `ranks` is the active hue preset's ramp: the trees carry each node's blended tint, so the index
@@ -92,6 +95,9 @@ export const indexSky = (snap: SkySnapshot, ranks: RankRamp): SkyIndex => {
     if (stars?.length) localBoxes.set(did, skyBounds(stars, 0, 0));
   }
 
+  const names = new Map<number, string>();
+  for (const d of snap.decks) names.set(d.id, d.name);
+
   const deckTrees = new Map<number, Cloud>();
   for (const cloud of buildClouds(snap.stars, dids, (s) => s.did, ranks)) deckTrees.set(cloud.gid, cloud);
 
@@ -112,7 +118,7 @@ export const indexSky = (snap: SkySnapshot, ranks: RankRamp): SkyIndex => {
     else sessionTrees.set(did, [cloud]);
   }
 
-  return { byId, byDeck, linksByDeck, deckTrees, sessionTrees, localBoxes };
+  return { byId, byDeck, linksByDeck, deckTrees, sessionTrees, localBoxes, names };
 };
 
 /** Everything one deck contributes to a frame, in that deck's own local coordinates. */

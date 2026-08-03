@@ -1,5 +1,5 @@
 // Decks sub-feature public surface.
-export { default as DecksView } from './components/DecksView';
+export { DecksView } from './views/DecksView';
 export { DecksProvider } from './providers/DecksProvider';
 export { getUserDecks, getUserDecksWithCards } from './lib/decksApi';
 export * as decksApi from './lib/decksApi';

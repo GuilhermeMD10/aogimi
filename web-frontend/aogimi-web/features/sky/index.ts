@@ -10,25 +10,24 @@
  *                 fetch, and the demo's interactive generator wrapper.
  *   `components/` the SVG renderer.
  *
- * Wired today: **deck details** — `DeckSky`, locked to its one deck, sharing the page's card
- * selection — and **the /sky page** — `SkyView`, the whole sky with every deck a constellation.
- * `Sky` below is the demo harness that prefigured the page, routed nowhere.
+ * Wired today: **the /decks stage** (`features/study/decks/views/DecksView`), which composes
+ * `SkyMap` with its own glass chrome — the /sky route and the deck-details `DeckSky` both merged
+ * into it. `Sky` below is the demo harness that prefigured the page, routed nowhere.
  */
 
-// The /sky page: the whole-sky view the route renders.
-export { SkyView } from './views/SkyView';
+// The map itself, for a host composing its own page around it: uuid-keyed focus/selection,
+// per-deck frame meta, and the overlay insets the camera fits inside.
+export { SkyMap } from './components/SkyMap';
+export type { SkyFrameMeta } from './components/SkyMap';
+export type { Insets } from './lib/types';
 
-// Deck details: the locked single-deck sky + the seam that feeds it.
-export { DeckSky } from './components/DeckSky';
+// The seam that feeds a sky: the account's one immutable seed.
 export { useSkySeed } from './hooks/useSkySeed';
 
-// The panel's always-visible ledger footer — presentational, shared by /sky and deck details.
-export { SkyLedger } from './components/SkyLedger';
-export type { LedgerTile } from './components/SkyLedger';
 export { buildSky, dayBucketOf, todayBucket } from './lib/buildSky';
 export type { SkyCard, SkyDeckSource } from './lib/buildSky';
 
-// The demo composition root — the reference wiring for the /sky page, not routed.
+// The demo composition root — the reference wiring for the /decks stage, not routed.
 export { default as Sky } from './components/Sky';
 
 // The generator, for a caller building a sky outside React.

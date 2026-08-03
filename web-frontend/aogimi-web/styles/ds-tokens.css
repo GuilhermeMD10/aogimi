@@ -18,8 +18,8 @@
    itself must know — the `rounded-*` scale, and the shadcn color namespace the
    two surviving shadcn components paint with.
 
-   The type roles stay `--face-*` rather than `--font-*`: `--font-mplus1` and
-   `--font-space-mono` are what `next/font` emits in app/layout.tsx, so a
+   The type roles stay `--face-*` rather than `--font-*`: `--font-switzer` and
+   `--font-noto-sans-jp` are what `next/font` emits in app/layout.tsx, so a
    `--font-ui` next to them reads as another next/font variable when it is a
    role. (It was also a hard collision while the old `@theme` bound those
    names to the outgoing faces.)
@@ -101,15 +101,18 @@
   --radius-panel:     18px;   /* decks panel */
   --radius-chip:      20px;
 
-  /* Type. Three separate roles even though --face-jp and --face-ui resolve to
-     the same family today — splitting the Japanese face off later is then a
-     one-line change here rather than a sweep through components.
-     `--font-mplus1` / `--font-space-mono` are what next/font emits in
+  /* Type. Three separate roles even though --face-ui and --face-mono resolve
+     to the same family today (the 2026-08 audition retired Space Mono — the
+     approved look wears Switzer everywhere) — re-splitting a role later is
+     then a one-line change here rather than a sweep through components.
+     `--font-switzer` / `--font-noto-sans-jp` are what next/font emits in
      app/layout.tsx; the system stacks behind them cover the gap before the
-     webfont lands. */
-  --face-jp:          var(--font-mplus1), 'Hiragino Sans', 'Yu Gothic', sans-serif;
-  --face-ui:          var(--font-mplus1), system-ui, sans-serif;
-  --face-mono:        var(--font-space-mono), ui-monospace, monospace;
+     webfont lands. --face-mono falls back to sans, not monospace: its call
+     sites are eyebrows and counters, and a glyph miss should degrade to the
+     UI look rather than to Courier. */
+  --face-jp:          var(--font-noto-sans-jp), 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  --face-ui:          var(--font-switzer), system-ui, sans-serif;
+  --face-mono:        var(--font-switzer), system-ui, sans-serif;
 
   /* Motion. The handoff is explicit: this is the only transition on the page,
      and nothing else animates. */

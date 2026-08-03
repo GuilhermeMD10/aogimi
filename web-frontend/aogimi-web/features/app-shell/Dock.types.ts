@@ -2,18 +2,19 @@
  * The dock's routes, in render order.
  *
  * Two changes from the `WorkspaceNav` set this replaces:
- *  - **Sky is in.** `/sky` has existed as a route since the stats screen was
- *    renamed; it just had no nav entry.
  *  - **Settings is out.** Pre-decided when settings was redesigned: the panel
  *    is reached from `/profile`'s Settings button, and DECISIONS.md recorded
  *    that the nav's settings button would leave "when that refactor lands".
  *    This is that refactor.
+ *  - **Sky came and went.** It earned an entry when `/sky` became the star
+ *    map, and lost it when that map merged into `/decks` — the sky *is* the
+ *    decks page now, so a second entry would be the same destination twice.
  *
  * Profile is deliberately not in this list — it renders an avatar rather than
  * an icon, so it's spelled out in the component.
  */
 
-export type DockKey = 'reader' | 'dictionary' | 'decks' | 'sky' | 'home';
+export type DockKey = 'reader' | 'dictionary' | 'decks' | 'home';
 
 export type DockItem = {
   key: DockKey;
@@ -29,7 +30,4 @@ export const DOCK_PRIMARY: DockItem[] = [
 ];
 
 /** Right of the divider. Profile follows these, built in the component. */
-export const DOCK_SECONDARY: DockItem[] = [
-  { key: 'sky', label: 'Sky', path: '/sky' },
-  { key: 'home', label: 'Home', path: '/' },
-];
+export const DOCK_SECONDARY: DockItem[] = [{ key: 'home', label: 'Home', path: '/' }];

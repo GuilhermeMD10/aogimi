@@ -44,7 +44,7 @@ export function useSkyStage(sky: SkySnapshot, focus: FocusPath, ranks: RankRamp)
     () => indexSky({ stars, links, constellations, decks }, ranks),
     [stars, links, constellations, decks, ranks],
   );
-  const layout = useMemo(() => layoutDecks(index.localBoxes), [index]);
+  const layout = useMemo(() => layoutDecks(index.localBoxes, index.names), [index]);
 
   // focusing a deck is what shrinks the camera's world: pan is confined to that deck's own box, so
   // you can look around inside it and cannot wander off into a neighbour

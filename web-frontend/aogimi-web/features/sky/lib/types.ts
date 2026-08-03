@@ -102,6 +102,15 @@ export type Camera = { x: number; y: number; zoom: number };
 export type Viewport = { width: number; height: number };
 
 /**
+ * How much of each viewport edge the host's overlays cover, in the same px the Viewport measures
+ * in — a glass column on the left, a ledger along the bottom, a title above. The camera subtracts
+ * these before fitting or confining, so "fitted" means centred in the *uncovered* window rather
+ * than half-hidden under the chrome. Purely presentational: nothing about placement, layout or
+ * what is drawn reads them, only where the camera comes to rest.
+ */
+export type Insets = { top: number; right: number; bottom: number; left: number };
+
+/**
  * The world rectangle currently on screen. Kept as numbers rather than a ready-made SVG
  * viewBox string, because only one renderer wants that formatting and every renderer wants
  * the rectangle.

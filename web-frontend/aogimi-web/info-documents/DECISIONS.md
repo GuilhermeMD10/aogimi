@@ -1037,3 +1037,46 @@ invisible to React's dependency graph and shared across SSR requests. Cloud
 tints live in the quadtrees, so switching hue re-indexes once (~26ms at the
 5000-card quota) and every frame after it is as cheap as before — tinting in the
 per-frame `cloudFrame` walk would have moved that cost onto every pan.
+
+## Sky × decks merge — one stage at `/decks` (2026-08-03)
+
+**The deck list, the deck detail and the `/sky` route are erased in favour of
+one full-viewport sky stage at `/decks`** (`features/study/decks/views/
+DecksView.tsx`). Every deck renders as a framed constellation at the outer
+tier; entering one opens the glass column (search, card list, deck info, card
+detail); the URL (`?deck={uuid}&card={uuid}`) is the only navigation state,
+carried over verbatim from the outgoing `SkyView`. Deleted outright:
+`DeckList`, `DeckCard`, `DeckCardPanel`, `DecksHeader`, `DeckForm`,
+`DeckDetail`, the old `components/DecksView`, `app/sky/`, `SkyView`,
+`SkyMapPanel`, `SkyLedger`, `SkySearch`, `DeckSky`, and the sky feature's
+copies of `useSkyDecks`/`useSkyLedger` (moved into the decks feature — they
+are view-layer data hooks over the decks API, not engine code). The Dock's Sky
+entry went with the route: the sky *is* the decks page now.
+
+Dropped from the prototype, deliberately, with reasons:
+
+- **JLPT sort chip / badge** — `cards` carries no `word_id`, so a card cannot
+  reach a JLPT level. Impossible, not unwanted (the deck-detail redesign's
+  standing call).
+- **PACE** ("at this pace, mastered by…") — nothing records review velocity to
+  project from; no sessions table, no per-review log the client can read.
+- **SESSIONS ledger stat** — same gap: no session entity exists to count.
+- **The "⋯" overflow menu** (New constellation / Import a deck / Manage decks
+  / Sky settings) — none of its items exist as features; a menu of stubs is
+  worse than no menu. "New deck" became a first-class chrome button instead
+  (owner's request).
+- **The example translation** in IN CONTEXT — `context_sentence` stores the
+  sentence alone.
+- **The per-deck session-config button** (mode + size, `SessionConfigSheet`)
+  — deliberately dropped from the page with the deck-detail header it lived
+  in. The component and `useDeckOverrides` stay in `features/study/session`,
+  orphaned but alive: `/study?deck={id}` still resolves and applies the saved
+  overrides, and the sheet is the ready-made UI if a new mount is wanted.
+- **Add-card and rename-deck UI** — the old detail header's other tenants.
+  Card creation still flows in through the reader hand-off
+  (`PendingCardOverlay`); rename has no surface for now.
+
+The stage's glass palette (`lib/nightChrome.ts`) is feature-local constants,
+not `ds-tokens.css` tokens: the sky is night in both themes, so the chrome
+never varies by theme — the `--dock-*` reasoning. Rank colours are not in it;
+dots, bars and pills read `stageColor()` so the chrome and the stars agree.

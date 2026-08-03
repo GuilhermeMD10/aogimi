@@ -7,12 +7,12 @@ import { useAuth } from '@/features/auth/providers/AuthProvider';
  * Row 1 — the greeting and the sky shortcut, as one banner.
  *
  * The sky panel is **empty on purpose**. The star map is its own component with
- * its own data and isn't built yet; this is the outlined, clickable bubble it
- * will eventually fill edge to edge. No placeholder text, no icon, no label —
- * anything put here now would have to be taken out again.
+ * its own data and isn't mounted here yet; this is the outlined, clickable
+ * bubble it will eventually fill edge to edge. No placeholder text, no icon,
+ * no label — anything put here now would have to be taken out again.
  *
- * `/sky` is the stats screen: the same slot in the app, renamed for what it's
- * becoming.
+ * `/decks` is where the sky lives now — the whole-sky stage the /sky route
+ * merged into.
  */
 export function HeroBanner() {
   const { user } = useAuth();
@@ -31,7 +31,7 @@ export function HeroBanner() {
       </div>
 
       <Link
-        href="/sky"
+        href="/decks"
         aria-label="Open your star map"
         className="relative block min-h-[250px] overflow-hidden rounded-(--radius-pill) border-[1.5px] border-(--sky-border) bg-transparent shadow-(--sky-shadow) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
       />

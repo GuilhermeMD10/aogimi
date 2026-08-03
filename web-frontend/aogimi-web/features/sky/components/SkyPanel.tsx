@@ -79,7 +79,7 @@ export function SkyPanel({ decks, focus, stars, selected, onEnterDeck, onSelectS
   return (
     // fills the height its parent gives it, like the canvas beside it — neither half of the row
     // decides how tall the row is
-    <div className="flex h-full w-64 flex-none flex-col overflow-hidden rounded-lg border border-white/20 bg-white/4 font-sans">
+    <div className="flex h-full w-64 flex-none flex-col overflow-hidden rounded-lg border border-white/20 bg-white/4">
       {/* ---------- header: what tier this is, and the way up ---------- */}
       <div className="flex flex-none items-center gap-2 border-b border-white/10 px-3 py-2.5">
         {state !== 'decks' && (
@@ -93,7 +93,7 @@ export function SkyPanel({ decks, focus, stars, selected, onEnterDeck, onSelectS
           </button>
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-white/90">
+          <div className="truncate text-sm font-bold text-white/90">
             {state === 'decks' ? 'Decks' : (deck?.name ?? `Deck ${focus}`)}
           </div>
           <div className="text-[10px] uppercase tracking-widest text-white/40">
@@ -159,7 +159,7 @@ export function SkyPanel({ decks, focus, stars, selected, onEnterDeck, onSelectS
       {state === 'card' && selected && (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
           <div className="flex items-center justify-between gap-2">
-            <div className="truncate text-lg font-semibold text-white/95">{selected.front}</div>
+            <div className="truncate text-lg font-bold text-white/95">{selected.front}</div>
             <span className="flex flex-none items-center gap-1.5 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/70">
               {rankDot(selected.mastery)}
               {RANK_LABELS[rankOf(selected.mastery)]}

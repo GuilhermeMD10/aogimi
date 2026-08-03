@@ -18,11 +18,11 @@ import type { DeckSummary } from '../types';
 //   - Cross-feature consumers (profile preview, reader's pending-card
 //     "select deck" panel) read the list directly without prop-drilling.
 //   - Card add/delete can update `card_count` optimistically in the
-//     same place that owns the canonical list, so the deck list and a
-//     mounted deck detail can't drift apart between fetches.
-// Per-deck *card* state (the full cards array used by DeckDetail) is
-// still loaded on demand inside DecksView — that's the slower, larger
-// payload and only one deck is ever active at a time.
+//     same place that owns the canonical list, so the summaries and the
+//     /decks stage can't drift apart between fetches.
+// The full card inventory (every deck's cards array, which the /decks
+// stage's sky needs whole) is not here — that's `useSkyDecks`, the
+// stage's own one-fetch data mount over the heavier endpoint.
 
 type DecksContextValue = {
   /** Lightweight list with card_count. Null while loading the first time. */

@@ -30,7 +30,7 @@ export function AuthField({
     <div>
       <label
         htmlFor={id}
-        className="mb-2 block font-(family-name:--face-mono) text-[12px] tracking-[0.18em] text-black"
+        className="mb-2 block font-(family-name:--face-mono) text-[12px] tracking-[0.18em] text-(--ink)"
       >
         {label}
       </label>
@@ -43,7 +43,7 @@ export function AuthField({
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
           required={required}
-          className="bg-white w-full rounded-md p-2.5 focus:outline-none"
+          className="w-full rounded-md bg-(--paper) p-2.5 text-(--ink) focus:outline-none"
         />
         {reveal && (
           <button
