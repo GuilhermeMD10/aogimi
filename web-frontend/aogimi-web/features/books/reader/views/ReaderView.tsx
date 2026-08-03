@@ -24,7 +24,7 @@ import type { BookProgressRecord } from '@/features/books/types';
 import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
 import { useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
 import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';
-import { DictionarySidekick } from '@/features/dictionary';
+import DictSidebar from '@/features/books/reader/dict-sidebar';
 
 /** Everything the readers need, resolved once from the id in the URL. */
 type OpenBook = {
@@ -220,7 +220,7 @@ export default function ReaderView({ bookId }: { bookId: string }) {
           aria-label="Dictionary"
           style={{ width: '25%', minWidth: 320, maxWidth: 480, flexShrink: 0 }}
         >
-          <DictionarySidekick onClose={() => setSidekickOpen(false)} />
+          <DictSidebar onClose={() => setSidekickOpen(false)} />
         </aside>
       )}
     </div>

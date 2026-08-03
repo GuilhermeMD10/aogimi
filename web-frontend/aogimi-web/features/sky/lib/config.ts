@@ -43,6 +43,13 @@ export const DRAG_SLOP_PX = 3; // movement beyond this makes a press a drag, not
 export const HIT_PX = 7;
 export const HOVER_HALO_PX = 11; // ring drawn around the hovered star
 /**
+ * How long the camera takes to fly between tiers (entering a deck, returning to the whole sky).
+ * One flight length rather than a distance-scaled one: the two flights it is used for both span
+ * roughly one tier, and a constant keeps the gesture's rhythm predictable. Interruptible — any
+ * pan or zoom takes over mid-flight — so the ceiling on how long it can feel is the reader's own.
+ */
+export const CAMERA_TWEEN_MS = 600;
+/**
  * How long a star takes to pop in when it is first shown. One constant because two things need to
  * agree on it: the CSS keyframe that plays it, and the timer that marks the star seen afterwards.
  * Marking any earlier drops the class mid-flight and cancels the animation it was meant to allow.

@@ -220,7 +220,7 @@ together, so switching between hits is a keystroke instead of a navigation.
   selected row. The `dictionary_state` localStorage mirror (query + result +
   selected word) is **gone**: it was a second copy of the same facts, and
   landing on a bare `/dictionary` would rehydrate a stale result behind the
-  empty state. Recents keep their own key. The reader sidekick loses its
+  empty state. Recents keep their own key. The reader's docked column loses its
   restore-across-reload, which in practice never fired — a full reload signs you
   out in local dev anyway.
 - **New queries `push`, selection changes `replace`.** The rail stays on screen,
@@ -282,14 +282,102 @@ together, so switching between hits is a keystroke instead of a navigation.
 
 **Still deferred**
 
-- [ ] Reader surfaces (`DictionarySidekick`, the reader bubble, `WordDetailView`)
-      still read `--lgc-*`. They share only `DictionaryStateProvider` and
-      `preferredHeadword` with this screen; migrate them with the reader.
-- [ ] `relativeAge` here and `relativeTime` in `features/home/lib/` are the same
-      function. They belong in `lib/util/` together, once something wants a third.
+- [x] ~~Reader surfaces still read `--lgc-*`; migrate them with the reader.~~
+      **Done** — see *Redesign — reader dictionary* below. They no longer share
+      "only the provider and `preferredHeadword`" with this screen: they render
+      the same rows, the same `RailList` and the same entry panes, at
+      `scale="compact"` (docked) and `scale="full"` (bubble).
+- [x] ~~`relativeAge` here and `relativeTime` in `features/home/lib/` are the same
+      function.~~ **Done** — both live in `lib/util/relativeTime.ts`.
 - [ ] Below 1000 px the rail should become a full-width list with the entry as a
       second view. Not built — `MobileGate` blocks below 700 px and the target is
       ≥1280 px, so it's a narrow-desktop gap, not a mobile one.
+
+---
+
+## Redesign — reader dictionary
+
+The reader's two lookup surfaces, rebuilt on `ds-tokens.css` out of
+`/dictionary`'s components rather than beside them.
+
+- **`features/books/reader/dict-sidebar/`** — the docked column (was
+  `features/dictionary/views/DictionarySidekick.tsx`).
+- **`features/books/reader/reader-bubble/`** — the floating panel, all five
+  phases (search, word entry, kanji entry, select-deck, create-card).
+- Both are the reader's own code now. A lookup surface belongs to the screen it
+  serves; only the *pieces* are shared.
+
+**Decisions**
+
+- **One shared scale prop, not narrow components.** `EntryDetail`,
+  `KanjiEntryDetail` and `KanjiCard` take `scale: 'full' | 'compact'`
+  (`lib/entryScale.ts`). Two component sets would have drifted the moment either
+  gained a field.
+- **The bubble uses `full`, the docked column `compact`.** The bubble is 880px —
+  wider than the column's 320–480 ceiling and comparable to `/dictionary`'s own
+  entry pane — so `compact`'s stacked hero and full-width "Add to deck" would be
+  an 800px button. The rule is "scale follows available width", which is what
+  makes `/dictionary` and the bubble agree.
+- **Form phases run in a centred 520px column** (`PhaseBody`). A deck list
+  stretched across 880px reads as a banner; the leftover width is the point.
+- **The field lives in the chrome on both surfaces**, on its own row under the
+  identity. At 320px a title + field + close button on one line leaves the field
+  ~200px, and it's the control the panel exists for. Both use
+  `DictPanelHeader` — the bubble previously carried four copies of its own
+  header, one per phase, and they had already drifted.
+- **`useSelectionKeys` and `SearchField`'s hotkeys are opt-in, and the reader
+  opts out of the global ones.** `/` and ⌘K belong to a field that owns its
+  screen; in the reader the screen has a book in it. ↑/↓ *is* claimed by the
+  docked column (nothing else on the route wants it) and dropped while the bubble
+  is up. The bubble claims it only when it owns the dictionary state — with a
+  surface behind it, that surface is already listening.
+- **The word half of the selection stays in `DictionaryStateProvider`; the kanji
+  half is local**, stored with the result object it was picked from. `runSearch`
+  clears the word id and hands back a new result, so both halves invalidate
+  together with no effect. Validating the literal against the *current* results
+  alone wasn't enough: searching しょく after opening 食 finds 食 among the kana
+  query's kanji hits and would silently reopen it.
+- **Neither surface auto-selects the first row.** `/dictionary` does, because its
+  rail stays on screen; here the entry replaces the list, so a search must land
+  on the list or the list is unreachable.
+- **Add-card prefill resolves late, on purpose.** A card started from the reader
+  starts from a *selection* — `食べました`, about which nothing is known yet — and
+  the context-menu click has to open something immediately, so the request
+  carries an empty back. `useCardPrefill` fills it during the deck-selection
+  step, from the shared provider when the bubble ran that search itself and from
+  its own private request when `dictVisibleBehind` forbids touching shared state.
+  Read once at the select-deck → create-card transition, so the textarea is
+  seeded from a value that is already final.
+- **Only the back is prefilled.** The front stays the string that was selected.
+  `食べる` on a card where `食べました` was highlighted is the better flashcard and
+  the worse surprise, and the front isn't editable in the form.
+- **Four defects fixed in the rebuild**: kanji hits were dropped by the old
+  column (a kanji query with no word hits rendered a blank pane); there was no
+  loading state at all; the empty state advertised an `S` shortcut that was never
+  implemented (chip dropped, shortcut not added); and reader add-card arrived
+  with an empty back.
+- **Deck creation and card submit now surface their errors.** Both used to
+  swallow them — a bare `catch {}` and a `setSubmitting(false)` — so a quota or a
+  dropped connection looked like nothing had happened.
+- **`Esc` is honest now.** It closes either surface, guarded on
+  `defaultPrevented` (the field's own Esc clears the text first) and, for the
+  docked column, on focus being inside it — the reader's popovers listen for Esc
+  too, and one keypress shouldn't dismiss two things.
+- **The docked column is opaque (`--bg`), unlike `/dictionary`'s rail.** The pane
+  beside it paints the *book's* page colour, which is a reading preference
+  independent of the app theme; a transparent column would put the app canvas's
+  star field against a sepia page. Same reason `ReaderShell`'s toolbar is opaque.
+- **The column reserves `pb-[140px]`**; the reading pane does not. The `Dock` is
+  fixed and floats over the bottom of both, but a reading pane that stops 140px
+  early is worse than a dock over its last line.
+
+**Not changed**
+
+- `/decks`' `PendingCardOverlay` is still on `--lgc-*`. It's the *other* consumer
+  of `pendingCard` and belongs to the decks screen, not this pass.
+- PDF has no lookup at all and manga renders the toggle but can't feed it (no
+  text to select in a fixed-layout page). The column opens over manga and shows
+  its prompt.
 
 ---
 

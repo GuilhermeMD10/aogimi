@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 import { TopBar } from '@/features/app-shell/TopBar';
-import { DeckSky, useSkySeed, type SkyCard } from '@/features/sky';
+import { DeckSky, SkyLedger, useSkySeed, type SkyCard } from '@/features/sky';
+import { stageColor } from '@/shared/components';
 import type { CardState, Deck } from '../types';
 import { DeckForm } from './DeckForm';
 import { DeckCardPanel } from './DeckCardPanel';
-import { DeckLedger } from './DeckLedger';
 import { useDeckDueCount } from '../hooks/useDeckDueCount';
+import { useDeckUpgrades } from '../hooks/useDeckUpgrades';
 import {
   MAX_CARDS_PER_DECK,
   MAX_CARD_BACK,
@@ -35,7 +36,9 @@ const SKY_RANK: Record<CardState, number> = { new: 0, seen: 1, learned: 2, maste
 
 /**
  * One deck, opened: the card panel with the star map beside it, and the
- * ledger underneath.
+ * ledger riding inside the panel as its always-visible footer — the /sky
+ * page's structural idea, so reading progress never costs a scroll below
+ * the 70vh sky row.
  *
  * **The sky panel is the deck's own star map** (`DeckSky`, `features/sky`) —
  * locked to this deck, every card a star, one constellation per UTC day of
@@ -61,6 +64,16 @@ export function DeckDetail({
   const [mode, setMode] = useState<FormMode>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const { dueCount } = useDeckDueCount(deck.id);
+
+  // The ledger footer's figures. CARDS and MASTERED are counted off the
+  // in-memory array — the same source everything on this page renders from,
+  // so a `deck/stats` endpoint would return numbers we're already holding.
+  // Only the upgrades fetch, because their limit is applied server-side.
+  const masteredCount = useMemo(
+    () => deck.cards.reduce((n, c) => n + ((c.state ?? 'new') === 'mastered' ? 1 : 0), 0),
+    [deck.cards],
+  );
+  const { upgrades, loading: upgradesLoading } = useDeckUpgrades(deck.id);
 
   const skySeed = useSkySeed();
   // The sky's projection of the cards array. Memoised on the array itself —
@@ -153,7 +166,9 @@ export function DeckDetail({
         {/* Panel + sky. Below 1100px the panel drops under the sky at full
             width, which is also where the sky gives up most of its height. */}
         <div className="flex h-[70vh] min-h-[480px] w-full flex-col items-stretch gap-4 max-[1100px]:h-auto max-[1100px]:min-h-0 min-[1101px]:flex-row">
-          <div className="min-[1101px]:w-[304px] min-[1101px]:shrink-0 max-[1100px]:order-2 max-[1100px]:h-[340px] max-[1100px]:w-full">
+          {/* 440px stacked (was 340px before the footer moved in) — the /sky
+              page's figure, so the list keeps usable height under the ledger. */}
+          <div className="min-[1101px]:w-[304px] min-[1101px]:shrink-0 max-[1100px]:order-2 max-[1100px]:h-[440px] max-[1100px]:w-full">
             <DeckCardPanel
               cards={deck.cards}
               selectedId={selectedCardId}
@@ -162,7 +177,23 @@ export function DeckDetail({
                 onDeleteCard(cardId);
                 setSelectedCardId(null);
               }}
-            />
+            >
+              {/* Deck-scoped figures where /sky shows whole-sky ones. Three
+                  tiles, not four — there is no session entity to count, the
+                  same reason the decks page dropped `studied N×`. A promotion
+                  row can only name a card in this deck, so the deckId arm of
+                  the click is inert. */}
+              <SkyLedger
+                title="THIS DECK"
+                tiles={[
+                  { label: 'CARDS', value: deck.cards.length, color: 'var(--ink)' },
+                  { label: 'DUE TODAY', value: dueCount, color: 'var(--gold)' },
+                  { label: 'MASTERED', value: masteredCount, color: stageColor('mastered') },
+                ]}
+                upgrades={upgradesLoading ? null : upgrades.slice(0, 3)}
+                onUpgradeClick={(_deckId, cardId) => setSelectedCardId(cardId)}
+              />
+            </DeckCardPanel>
           </div>
 
           {/* The deck's star map. The div keeps its `--deck-sky` fill as the
@@ -181,13 +212,6 @@ export function DeckDetail({
             )}
           </div>
         </div>
-
-        <DeckLedger
-          deckId={deck.id}
-          cards={deck.cards}
-          dueCount={dueCount}
-          onSelectCard={setSelectedCardId}
-        />
       </div>
     </div>
   );

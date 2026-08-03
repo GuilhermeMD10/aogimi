@@ -1,5 +1,5 @@
 import { apiGet, apiSend, apiSendVoid } from '@/lib/api';
-import type { CardRecord, DeckRecord } from '../types';
+import type { CardRecord, DeckRecord, DeckWithCards } from '../types';
 
 // Feature-local API for decks/cards/reviews. Routed through `lib/api`
 // helpers so session-invalidation works uniformly; the file stays
@@ -22,6 +22,22 @@ export async function getUserDecks(
 
 export async function getDeck(id: string, signal?: AbortSignal): Promise<DeckRecord> {
   return apiGet<DeckRecord>(`/api/decks/${id}`, signal);
+}
+
+/**
+ * Every deck with its full card inventory, one round trip — the sky page's mount query, where
+ * each card is a star and a per-deck fan-out would be one request per deck. Don't reach for this
+ * to read a count or one deck's cards; the narrower endpoints above exist for exactly that.
+ */
+export async function getUserDecksWithCards(
+  userId: number,
+  signal?: AbortSignal,
+): Promise<DeckWithCards[]> {
+  const { decks } = await apiGet<{ decks: DeckWithCards[] }>(
+    `/api/decks/user/${userId}/cards`,
+    signal,
+  );
+  return decks;
 }
 
 export async function updateDeck(

@@ -27,6 +27,11 @@ export interface LastCard {
   created_at: string;
 }
 
+/** One deck with its full card inventory, as `GET /api/decks/user/:userId/cards` returns them —
+ *  the same deck row as the list endpoint, plus the same card rows as the per-deck endpoint.
+ *  Built for the sky page, which needs every card of every deck in one round trip. */
+export type DeckWithCards = DeckRecord & { cards: CardRecord[] };
+
 export type CardState = 'new' | 'seen' | 'learned' | 'mastered';
 
 export interface CardRecord {

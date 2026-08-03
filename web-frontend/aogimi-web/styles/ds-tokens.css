@@ -157,6 +157,18 @@ html[data-theme="light"] {
   --danger-bg:         rgba(194, 69, 44, .08);
   --danger-bd:         rgba(194, 69, 44, .28);
 
+  /* Caution. The middle of the study runner's three grade buttons: Again is
+     --danger, Hard is this, Easy is --btn. The other two already had tokens and
+     this one didn't, which is why it's a group rather than a literal in the
+     session component. Distinct from --gold, which it sits close to here and
+     nowhere near in Midnight (#ffe085): --gold means "reading progress on a
+     book cover", so sharing one would tie a grade button's colour to a change
+     in the book palette. Shifts with the theme for the same reason --danger
+     does. */
+  --warn:              #a87d22;
+  --warn-bg:           rgba(168, 129, 31, .12);
+  --warn-bd:           rgba(181, 134, 46, .30);
+
   /* Glass + tints. The deck-detail card panel and everything layered inside
      it: a translucent surface, two hover/selected tints, and two border
      weights. Unlike --card / --bd these carry real values, because a panel
@@ -240,6 +252,11 @@ html[data-theme="dark"] {
   --danger:            #e0715a;
   --danger-bg:         rgba(224, 113, 90, .14);
   --danger-bd:         rgba(224, 113, 90, .34);
+
+  /* Caution lightens in Midnight for the same reason danger does. */
+  --warn:              #e0b85a;
+  --warn-bg:           rgba(224, 184, 90, .14);
+  --warn-bd:           rgba(224, 184, 90, .34);
 
   --scrim:             rgba(28, 28, 34, .86);
   --tint-a:            rgba(255, 255, 255, .14);

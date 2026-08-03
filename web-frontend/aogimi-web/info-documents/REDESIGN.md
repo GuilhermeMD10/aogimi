@@ -12,19 +12,25 @@ Status:
 | Screen | Route | State |
 |---|---|---|
 | Home | `/` | **Done** — reference implementation |
-| Reader / library | `/reader` | Not started |
+| Reader chrome | `/reader/[bookId]` | **Done** — `ReaderShell`, `ReaderPanel`, `ReaderIconButton`, `ContentsPanel`, `SettingsPanel`, `TextContextMenu` |
+| Reader dictionary | `/reader/[bookId]` | **Done** — the docked `dict-sidebar/` and the 5-phase `reader-bubble/`, both built from `features/dictionary`'s components |
+| Library / shelf | `/reader` | Not started — `BooksView`, `FsAccessBanner` still on `--lgc-*` |
 | Dictionary | `/dictionary` | **Done** — empty state + rail/entry split |
 | Word detail | — | Folded into `/dictionary`; `/word/[id]` deleted |
 | Decks | `/decks` | **Done** — list **and** detail (detail is still a state of `DecksView`, not a route) |
 | Study runner | `/study` | Route extracted, visuals not started |
-| Sky (study stats) | `/sky` | Not started |
+| Sky (star map) | `/sky` | **Done** — the multi-deck star map (`features/sky`, `SkyView`) replaced the stats tabs, which were deleted (their `statsApi` fetchers survive) |
 | Profile | `/profile` | **Done** |
 | Settings / help / credits | `/settings`, `/help`, `/credits` | **Done** — three routes, one shared shell |
 | Auth | `/authenticate` | **Done** — split screen, mode is local state |
 | Bottom nav (dock) | — | **Done** — `features/app-shell/Dock.tsx` replaced `WorkspaceNav` |
 
-**Three screens remain: reader/library, the study runner, and sky.** Until all
-three migrate, the outgoing `--lgc-*` system stays — see §2's deletion note.
+**Two screens remain: the library shelf and the study runner.** Until both
+migrate, the outgoing `--lgc-*` system stays — see §2's deletion note. The reader
+*itself* is finished: its chrome migrated with the shell, and its two dictionary
+surfaces are now `features/books/reader/dict-sidebar/` and
+`features/books/reader/reader-bubble/`, sharing `/dictionary`'s rows, list and
+entry panes through `scale`.
 
 ---
 
@@ -120,18 +126,27 @@ Write them with Tailwind v4's var shorthand: `text-(--ink)`, `bg-(--card)`,
 ### Outgoing — do not build on this
 
 `--lgc-*` in `styles/themes/default.css` + `styles/shape-defaults.css`, the
-`.lgc-card` / `.lgc-button` / `.lgc-chip` classes in `styles/primitives.css`,
-and the old primitives in `shared/ui/` (`SectionCard`, `SectionHead`,
-`ActionRow`, `InfoRow`, `Field`, `ReaderProgressBar`). Leave them alone on
-screens you aren't redesigning; delete nothing until the last screen migrates.
+`.lgc-card` / `.lgc-button` / `.lgc-chip` / `.lgc-section-label` classes in
+`styles/primitives.css`, and the old primitives in `shared/ui/` (`SectionCard`,
+`ActionRow`, `Field`, `ReaderProgressBar`). Leave them alone on screens you
+aren't redesigning; delete nothing until the last screen migrates.
 
-**Not yet — 44 files still read it** (`grep -rl 'lgc-' features app shared`),
-concentrated in `features/study/session` (13), `features/study/stats` (5),
-`features/books/reader`, `features/books/library`, `features/onboarding`,
-`features/mobile-gate` and `features/dictionary/views`. That maps to the three
-screens still on the list above. Deleting the outgoing system now would strip
-the palette off the reader, the study runner and sky simultaneously. The
-deletion is a single pass to run *after* those three, not alongside them.
+`shared/ui/{InfoRow,SectionHead,PitchAccentDiagram,JlptChip}` **are gone** — the
+reader's dictionary redesign was their last consumer, and a primitive nothing
+imports is worse than one that's merely outgoing. Their `--lgc-*` axes went with
+them (the `toolbar-*`, `meaning-num-*`, `row-reading-*`, `kanji-meanings-*`,
+`section-num-*`, `icon-button-radius`, `divider-style` and `input-radius` blocks
+in `shape-defaults.css`). `kbd-radius` and `pill-radius` were already dead before
+that pass and were left for the wholesale deletion. **Rule of thumb: delete an
+outgoing file when you remove its last import; leave the shared token layer
+alone.**
+
+**Not yet — 21 files still read it** (`grep -rl 'lgc-' features app shared`,
+minus three that only mention it in a comment), concentrated in
+`features/study/session` (5), `features/study/decks` (3), `features/onboarding`,
+`features/mobile-gate`, `features/books/library` + `BooksView`, plus
+`shared/ui`'s four survivors. That maps to the two screens still on the list
+above. The deletion is a single pass to run *after* those, not alongside them.
 
 ---
 

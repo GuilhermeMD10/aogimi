@@ -3,10 +3,11 @@
 import { useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
-import { decksApi } from '../decks';
+import { Button, coverPalette } from '@/shared/components';
+import { decksApi, deckVisuals } from '../decks';
 import { useDecks } from '../decks/providers/DecksProvider';
 import { StudyScreen, fetchDueCounts, useDeckOverrides } from '../session';
-import type { StudySessionConfig } from '../session/types';
+import type { SessionDeck, StudySessionConfig } from '../session/types';
 
 /**
  * `/study` — the study runner's own route.
@@ -68,11 +69,27 @@ export default function StudyView() {
   // Waiting on the due count or on the saved overrides.
   if (!spec) return <Notice message="Loading…" onExit={exit} muted />;
 
-  const deckName = deckId ? decks?.find((d) => d.id === deckId)?.name ?? '' : '';
+  // The header's deck identity. Resolved here rather than in the runner: the
+  // glyph comes from `deckVisuals`, which belongs to the *decks* sub-feature,
+  // and sub-features don't import each other — the orchestrator that already
+  // holds both is the place the two meet.
+  const deck = deckId ? decks?.find((d) => d.id === deckId) ?? null : null;
+  const sessionDeck: SessionDeck | null = deck
+    ? { name: deck.name, kamon: deckVisuals(deck.name).kamon, ...coverPalette(deck.name) }
+    : null;
 
   return (
     <div className="relative h-full min-h-0">
-      <StudyScreen sessionSpec={spec} title={deckName} onExit={exit} />
+      <StudyScreen
+        sessionSpec={spec}
+        deck={sessionDeck}
+        // Only read when there's no deck. The two cross-deck sessions have none
+        // to name, so the header carries their scope instead; a deck-scoped
+        // session whose row hasn't arrived yet gets the neutral label rather
+        // than a wrong claim about its scope.
+        scopeLabel={deckId ? 'Study session' : dueOnly ? 'Due today' : 'All decks'}
+        onExit={exit}
+      />
     </div>
   );
 }
@@ -127,16 +144,12 @@ function Notice({
   muted?: boolean;
 }) {
   return (
-    <div className="flex min-h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <div className={`text-sm ${muted ? 'text-lgc-fg-muted' : 'text-lgc-fg'}`}>{message}</div>
+    <div className="flex min-h-full w-full flex-col items-center justify-center gap-4.5 p-6 text-center font-[family-name:var(--face-ui)] font-medium">
+      <p className={`m-0 text-[15px] ${muted ? 'text-(--muted)' : 'text-(--soft)'}`}>{message}</p>
       {!muted && (
-        <button
-          type="button"
-          onClick={onExit}
-          className="rounded-md border border-lgc-border px-4 py-2 text-sm text-lgc-fg hover:bg-lgc-bg-elev"
-        >
+        <Button variant="secondary" onClick={onExit}>
           Back to decks
-        </button>
+        </Button>
       )}
     </div>
   );

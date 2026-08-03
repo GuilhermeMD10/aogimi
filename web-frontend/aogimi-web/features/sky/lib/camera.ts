@@ -117,6 +117,27 @@ export const cameraFitting = (b: Bounds, vp: Viewport): Camera => ({
   zoom: fitZoom(b, vp),
 });
 
+/** Decelerating ease for camera flights: most of the distance early, a soft landing. */
+export const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
+
+/**
+ * The pose a camera flight passes through at progress `k` (0..1, already eased).
+ *
+ * Zoom interpolates in log space: zoom is a ratio, so equal steps of `k` should multiply it by
+ * equal factors — interpolated linearly, a flight into a deck spends almost all of its frames
+ * nearly arrived and then lurches through the last doubling. Position interpolates linearly,
+ * which with log zoom is the plain version of the standard smooth pan-and-zoom path.
+ *
+ * Pure like the rest of this file: no clock, no easing of its own, no notion of what is flying.
+ * The host decides the duration and the curve; a mid-flight pose may legitimately sit outside
+ * the destination tier's bounds, which is why the caller must not clamp it until it lands.
+ */
+export const tweenCamera = (from: Camera, to: Camera, k: number): Camera => ({
+  x: from.x + (to.x - from.x) * k,
+  y: from.y + (to.y - from.y) * k,
+  zoom: Math.exp(Math.log(from.zoom) * (1 - k) + Math.log(to.zoom) * k),
+});
+
 /**
  * Confine the viewport to the sky's box, in all three degrees of freedom.
  *

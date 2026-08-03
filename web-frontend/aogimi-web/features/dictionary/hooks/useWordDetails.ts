@@ -1,84 +1,123 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { getWordDetails } from '../lib/dictApi';
 import type { DetailsResponse } from '../types';
 
 type Entry = { data?: DetailsResponse; error?: string };
 
+/* ── The cache ──────────────────────────────────────────────────────────────
+   Module scope, not component state, because three surfaces ask for the same
+   entries: `/dictionary`'s pane, the reader's docked column and the reader's
+   bubble. Held per component, each kept its own copy — the same word fetched up
+   to three times, and looking a word up in the reader taught the page nothing.
+   One map is also what lets `inFlight` dedupe *across* consumers.
+
+   Never evicted. The payload is small, the dictionary is immutable, and the
+   whole point is that coming back to an entry is free. It goes when the tab
+   does. */
+const cache = new Map<number, Entry>();
+
+/* Requests currently out, by word id. Two jobs: keep two consumers (or one
+   effect re-running) from starting the same fetch twice, and hold each
+   request's own controller.
+
+   A controller per request, not one per mount: a single shared controller is
+   aborted by an unmount, and under StrictMode's mount → unmount → remount that
+   happens immediately, leaving a permanently-aborted controller behind. Every
+   later fetch then failed on an already-aborted signal, nothing was written to
+   the cache, and both details sections sat on their skeletons forever. */
+const inFlight = new Map<number, AbortController>();
+
+const subscribers = new Set<() => void>();
+
+function subscribe(onChange: () => void) {
+  subscribers.add(onChange);
+  return () => {
+    subscribers.delete(onChange);
+  };
+}
+
+function write(id: number, entry: Entry) {
+  cache.set(id, entry);
+  for (const onChange of subscribers) onChange();
+}
+
 /**
- * The kanji breakdown and example sentences for one entry, cached per word id.
+ * Start the request for `id` unless the answer is already here or on its way.
  *
- * The rail already holds everything the detail pane shows above the fold, so
- * this only backs the two sections that need a second request. Walking the
- * results with ↑/↓ therefore fires one request per row you land on, and the
- * cache is what stops arrowing back up from re-fetching every one of them.
+ * **Nothing cancels this.** Two reasons, and the second is new now that the
+ * cache is shared. Cancelling when the selection moves on looks tidier and is
+ * worse: on a fast scroll every fetch is killed a moment before it would have
+ * landed, so nothing is cached and coming back re-requests the lot. And with one
+ * map behind every consumer, cancelling on *unmount* would mean closing the
+ * reader's bubble aborts a request the page behind it is still waiting on. So a
+ * request always runs to completion and the cache absorbs the result — a
+ * half-finished fetch is worth keeping, and if the consumer that asked has gone
+ * there is nobody left to disappoint.
  *
- * **Requests are not cancelled when the selection moves on.** Doing that looks
- * tidier and is worse: on a fast scroll every fetch gets killed a moment before
- * it would have landed, so nothing is cached and coming back re-requests the
- * lot. Letting them finish warms the cache for free, and `inFlight` keeps it to
- * one request per id however often the effect re-runs. Everything outstanding
- * is aborted together when the page unmounts.
+ * The controller therefore never fires today. It stays because it is the
+ * single-flight token this map is keyed on, and because the request needs a
+ * signal for the day something does want to abort one.
+ */
+function ensureDetails(id: number) {
+  if (cache.has(id)) return;
+  if (inFlight.has(id)) return;
+
+  const controller = new AbortController();
+  const { signal } = controller;
+  inFlight.set(id, controller);
+
+  getWordDetails(id, signal)
+    .then((data) => {
+      if (signal.aborted) return;
+      write(id, { data });
+    })
+    .catch((err: unknown) => {
+      if (signal.aborted) return;
+      if (err instanceof Error && err.name === 'AbortError') return;
+      write(id, { error: err instanceof Error ? err.message : 'Could not load this entry.' });
+    })
+    .finally(() => {
+      // Only if it's still ours: a stale request's `finally` can run after a
+      // fresh controller has been registered under the same id, and deleting
+      // that one would let a duplicate fetch start.
+      if (inFlight.get(id) === controller) inFlight.delete(id);
+    });
+}
+
+/**
+ * The kanji breakdown and example sentences for one entry, out of a cache
+ * shared by every surface that shows an entry.
+ *
+ * Callers already hold everything an entry shows above the fold, so this only
+ * backs the two sections that need a second request. Walking results with ↑/↓
+ * therefore fires one request per row you land on, and the cache is what stops
+ * arrowing back up from re-fetching every one of them — or the reader from
+ * re-fetching what the page has already got.
  *
  * `loading` is derived, not stored: an id with no cache entry yet *is* the
  * loading state. That keeps the hook free of synchronous setState in an effect,
- * and lets a cached id render with no intermediate frame at all.
+ * and lets a cached id render with no intermediate frame at all — including the
+ * first frame of a second consumer, which is most of the point of sharing.
+ *
+ * `useSyncExternalStore` rather than a subscription plus `setState`: the cache
+ * is exactly an external store, and `cache.get(id)` is a stable reference until
+ * that id is rewritten, which is what the snapshot contract asks for.
  */
 export function useWordDetails(id: number | null) {
-  const [entries, setEntries] = useState<Record<number, Entry>>({});
-
-  // Requests currently out, by word id. Two jobs: skip starting a duplicate
-  // when the effect re-runs (it depends on `entries`, so it fires again every
-  // time *any* request resolves), and give unmount something to abort.
-  //
-  // A controller per request, created here rather than one held for the life
-  // of the mount: a single shared controller is aborted by the cleanup below,
-  // and under StrictMode's mount → unmount → remount that happens immediately,
-  // leaving the ref holding a permanently-aborted controller. Every later
-  // fetch then failed on an already-aborted signal, nothing was ever written
-  // to the cache, and both sections sat on their skeletons forever.
-  const inFlight = useRef<Map<number, AbortController>>(new Map());
-
-  useEffect(() => {
-    const outstanding = inFlight.current;
-    return () => {
-      for (const controller of outstanding.values()) controller.abort();
-      outstanding.clear();
-    };
-  }, []);
+  const entry = useSyncExternalStore(
+    subscribe,
+    () => (id == null ? undefined : cache.get(id)),
+    // Server render: nothing is cached, so every id reads as loading — the same
+    // frame the client shows for an id nobody has asked for yet.
+    () => undefined,
+  );
 
   useEffect(() => {
     if (id == null) return;
-    if (entries[id] !== undefined) return;
-    if (inFlight.current.has(id)) return;
-
-    const controller = new AbortController();
-    const { signal } = controller;
-    inFlight.current.set(id, controller);
-
-    getWordDetails(id, signal)
-      .then((data) => {
-        if (signal.aborted) return;
-        setEntries((prev) => ({ ...prev, [id]: { data } }));
-      })
-      .catch((err: unknown) => {
-        if (signal.aborted) return;
-        if (err instanceof Error && err.name === 'AbortError') return;
-        setEntries((prev) => ({
-          ...prev,
-          [id]: { error: err instanceof Error ? err.message : 'Could not load this entry.' },
-        }));
-      })
-      .finally(() => {
-        // Only if it's still ours: an aborted request's `finally` runs after a
-        // remount has already registered a fresh controller under the same id,
-        // and deleting that one would let a duplicate fetch start.
-        if (inFlight.current.get(id) === controller) inFlight.current.delete(id);
-      });
-  }, [id, entries]);
-
-  const entry = id != null ? entries[id] : undefined;
+    ensureDetails(id);
+  }, [id]);
 
   return {
     details: entry?.data ?? null,

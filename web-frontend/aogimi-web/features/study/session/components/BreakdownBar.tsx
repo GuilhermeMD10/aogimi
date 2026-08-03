@@ -1,48 +1,62 @@
 'use client';
 
+import { stageColor, stageLabel } from '@/shared/components';
+import type { CardState } from '../../decks/types';
 import type { CardSessionEntry } from '../types';
+import { Caption } from './Caption';
 
 type Props = {
   entries: CardSessionEntry[];
 };
 
-type StateKey = 'new' | 'seen' | 'learned' | 'mastered';
+const LADDER: CardState[] = ['new', 'seen', 'learned', 'mastered'];
 
-// End-state distribution. Bar segments laid out new → mastered (low
-// → high tier) so progression reads left-to-right.
+/**
+ * Where the cards stand now the round is over — one segment per tier, laid out
+ * new → mastered so progression reads left to right.
+ *
+ * Same object as the deck ledger's mastery mix, and it reads the same
+ * `stageColor` ramp, so the two can't drift a tier apart. A tier nobody reached
+ * keeps its legend entry but paints no segment.
+ */
 export function BreakdownBar({ entries }: Props) {
-  const counts: Record<StateKey, number> = { new: 0, seen: 0, learned: 0, mastered: 0 };
-  for (const e of entries) counts[e.endState] += 1;
-  const total = entries.length;
-  if (total === 0) return null;
+  if (entries.length === 0) return null;
 
-  const segments: { key: StateKey; count: number; cls: string; label: string }[] = [
-    { key: 'new',      count: counts.new,      cls: 'bg-lgc-fg-subtle', label: 'new' },
-    { key: 'seen',     count: counts.seen,     cls: 'bg-lgc-warning',   label: 'seen' },
-    { key: 'learned',  count: counts.learned,  cls: 'bg-lgc-success opacity-60', label: 'learned' },
-    { key: 'mastered', count: counts.mastered, cls: 'bg-lgc-success',   label: 'mastered' },
-  ];
-  const visible = segments.filter((s) => s.count > 0);
+  const counts: Record<CardState, number> = { new: 0, seen: 0, learned: 0, mastered: 0 };
+  for (const e of entries) counts[e.endState] += 1;
 
   return (
-    <div>
-      <div className="flex h-2 overflow-hidden rounded-full bg-lgc-bg-sunken">
-        {visible.map((s) => (
-          <div
-            key={s.key}
-            className={`h-full ${s.cls}`}
-            style={{ flex: s.count }}
+    <section className="mt-6 border-t border-(--bd-b) pt-5.5">
+      <Caption className="mb-3">Session mix</Caption>
+
+      <div className="flex h-2.25 overflow-hidden rounded-[5px] bg-(--track)">
+        {LADDER.map((state) => (
+          <span
+            key={state}
+            title={stageLabel(state)}
+            // flex-grow 0.001 keeps an empty tier out of the bar without
+            // special-casing the layout — the deck ledger's mix bar does the
+            // same thing for the same reason.
+            style={{ flex: counts[state] || 0.001, background: stageColor(state) }}
           />
         ))}
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-1 text-xs font-mono tabular-nums">
-        {visible.map((s, i) => (
-          <span key={s.key} className={s.cls.replace('bg-', 'text-').replace('opacity-60', '')}>
-            {s.count} {s.label}
-            {i < visible.length - 1 && <span className="mx-1 text-lgc-fg-subtle"> · </span>}
+
+      <div className="mt-2.25 flex flex-wrap gap-4">
+        {LADDER.map((state) => (
+          <span
+            key={state}
+            className="inline-flex items-center gap-1.5 font-[family-name:var(--face-mono)] text-[9.5px] whitespace-nowrap text-(--muted)"
+          >
+            <span
+              aria-hidden
+              className="size-2 shrink-0 rounded-full"
+              style={{ background: stageColor(state) }}
+            />
+            {stageLabel(state)} <b className="text-(--ink) tabular-nums">{counts[state]}</b>
           </span>
         ))}
       </div>
-    </div>
+    </section>
   );
 }

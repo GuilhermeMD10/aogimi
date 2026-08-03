@@ -227,6 +227,9 @@ type Props = {
   /** A press at the outer view chooses a deck rather than a star. */
   onEnterDeck: (did: number) => void;
   onStarClick: (star: Star) => void;
+  /** A tap inside a focused deck that hit no star — empty sky, which the hosts read as "clear
+   *  the selection". Optional because the demo has nothing to clear that way. */
+  onMiss?: () => void;
   /** These stars have now finished popping in and should never pop again. */
   onSeen: (ids: number[]) => void;
 };
@@ -242,6 +245,7 @@ export function SkyCanvas({
   openTip,
   onEnterDeck,
   onStarClick,
+  onMiss,
   onSeen,
 }: Props) {
   const { attach, camera, view, viewport, dragging, relZoom, onPointerDown, onPointerMove, onPointerUp } = cam;
@@ -288,6 +292,7 @@ export function SkyCanvas({
     const star = pickAt(e);
     setHovered(star?.id ?? null);
     if (star) onStarClick(star);
+    else onMiss?.(); // empty sky: the click meant "nothing", and the hosts read that as deselect
   };
 
   /**
