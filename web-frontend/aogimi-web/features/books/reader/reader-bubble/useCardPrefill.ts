@@ -5,6 +5,7 @@ import {
   kanjiCardDraft,
   railContents,
   searchDictionary,
+  surfaceEntry,
   useDictionaryState,
   wordCardDraft,
 } from '@/features/dictionary';
@@ -71,11 +72,19 @@ export function useCardPrefill(word: string, active: boolean): string {
   return shared || own;
 }
 
-/** The top hit's card back — a word if there is one, otherwise a kanji entry. */
+/**
+ * The card back for the entry that actually carries the selected string.
+ *
+ * `surfaceEntry` does the choosing, and the reason it has to is worth keeping in
+ * view here: this used to take `contents.words[0]`, which meant highlighting 背
+ * produced a card fronted 背 and backed with 背広 — the top *ranked* hit, not the
+ * entry the front names.
+ */
 function backFor(contents: RailContents, word: string): string {
-  const top = contents.words[0];
-  if (top) return wordCardDraft(top, word).back;
+  const entry = surfaceEntry(contents, word);
+  if (!entry) return '';
 
-  const kanji = contents.kanjiEntries[0];
-  return kanji ? kanjiCardDraft(kanji).back : '';
+  return entry.kind === 'kanji'
+    ? kanjiCardDraft(entry.kanji).back
+    : wordCardDraft(entry.word, word).back;
 }
