@@ -171,6 +171,7 @@ is **not** PATCHable.
 |---|---|---|---|---|
 | POST | `/api/decks` | `{ name, description? }` | `DeckRecord` | user is `req.user.userId` |
 | GET | `/api/decks/user/:userId` | — | `DeckRecord[]` | `:userId` ↔ token user |
+| GET | `/api/decks/user/:userId/cards` | — | `{ decks: (DeckRecord & { cards: CardRecord[] })[] }` | `:userId` ↔ token user |
 | GET | `/api/decks/:id` | — | `DeckRecord` | `deckOwnedBy` |
 | PUT | `/api/decks/:id` | `{ name?, description? }` | `DeckRecord` | `deckOwnedBy` |
 | DELETE | `/api/decks/:id` | — | `{ message }` | `deckOwnedBy` (cascades to cards) |
@@ -198,6 +199,14 @@ a deck.
 
 `description` is still a column and the mobile app still reads and writes it.
 The web dropped the feature with the decks redesign and ignores the field.
+
+`GET /api/decks/user/:userId/cards` is the bulk read behind the /sky page: every
+deck the user owns (same rows and order as `GET /api/decks/user/:userId`), each
+carrying its full card list under `cards` (same `CardRecord` shape and
+`created_at DESC` order as `GET /api/decks/:id/cards`; empty decks carry
+`cards: []`). Two queries server-side — the deck list plus one pooled card
+query — instead of a per-deck fan-out. Unpaginated; bounded by the per-user
+card quota.
 
 ### Cards (nested)
 
