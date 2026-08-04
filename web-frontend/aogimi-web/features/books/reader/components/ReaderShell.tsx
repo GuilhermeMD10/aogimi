@@ -7,8 +7,8 @@
 // `popover` for whichever panel is open, `children` for the reading surface —
 // so the shell never branches on reader type. Everything in the centre is
 // optional, and that is how a more limited engine degrades: a PDF has no table
-// of contents and no text selection, so it simply passes no `tools`; a book with
-// no location count passes no `page`. Nothing here has to know why.
+// of contents, so it simply passes fewer `tools`; a book with no location count
+// passes no `page`. Nothing here has to know why.
 //
 // The toolbar sits on `--bg` rather than `--card`: `--card` is transparent by
 // design, and a toolbar that lets the page text scroll through it is not a
@@ -20,6 +20,24 @@ import { useState, type ReactNode } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { HAIRLINE, SkyBar } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
+
+// ── Title ───────────────────────────────────────────────────────────────────
+
+/** Longest title the toolbar prints in full. */
+const TITLE_MAX = 25;
+
+/**
+ * A character cap, not a CSS one. The title sits in the toolbar's `1fr` column
+ * next to the author and can't shrink (it must not wrap or squeeze mid-word), so
+ * a long one used to widen that column and shove the centred progress cluster
+ * off-centre — a filename-derived title on a PDF reaches halfway across the bar.
+ * Cutting the string is what bounds the column; `title={…}` on the span still
+ * carries the whole thing for hover.
+ */
+function clampTitle(title: string): string {
+  if (title.length <= TITLE_MAX) return title;
+  return `${title.slice(0, TITLE_MAX).trimEnd()}…`;
+}
 
 // ── Icon button ─────────────────────────────────────────────────────────────
 
@@ -238,7 +256,7 @@ export function ReaderShell({
           </ReaderIconButton>
           <div className="flex min-w-0 items-baseline gap-2.5">
             <span className="shrink-0 text-lg font-bold whitespace-nowrap text-(--ink)" title={title}>
-              {title}
+              {clampTitle(title)}
             </span>
             {author && (
               <span className="min-w-0 flex-1 truncate text-[12.5px] text-(--muted)">{author}</span>

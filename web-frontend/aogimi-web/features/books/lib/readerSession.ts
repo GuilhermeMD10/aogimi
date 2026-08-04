@@ -12,12 +12,12 @@ function progressKey(filename: string): string {
 }
 
 export type ReaderProgressSnapshot = {
-  /** EPUB CFI of the current position. Empty string for fixed-layout (manga)
-   *  books, which restore by `spineIndex` instead. */
+  /** EPUB CFI of the current position. `page-N` for PDFs. Empty string for
+   *  fixed-layout (manga) books, which restore by `spineIndex` instead. */
   cfi: string;
-  /** 0–100, derived from foliate's reading fraction. */
+  /** 0–100, derived from foliate's reading fraction (page/total for PDFs). */
   progress: number;
-  /** Current spine (chapter / page) index. */
+  /** Current spine (chapter / page) index; the 1-based page for PDFs. */
   spineIndex: number;
   /** Total spine items — sent so the backend `total_spine_items` stays set. */
   totalSpineItems: number;

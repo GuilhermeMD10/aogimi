@@ -17,6 +17,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isAuthPage = pathname === '/authenticate';
 
+  // An open book owns the whole window: the reading pane fills it (the route
+  // reserves no bottom padding, unlike every other screen), so the dock would
+  // float over the page text rather than below it. Leaving a book is the
+  // toolbar's back button, and the dock comes back with the shelf.
+  //
+  // A prefix test, not equality — `/reader` *is* the shelf and keeps its dock;
+  // `/reader/<bookId>` is a book.
+  const isOpenBook = pathname.startsWith('/reader/');
+
   // Pages whose render set depends on the auth-vs-route relationship. We
   // stash the same predicate the effect uses so the early-return below
   // doesn't drift from the redirect condition.
@@ -37,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ReaderStateProvider>
         <DictionaryStateProvider>
           <DecksProvider>
-            <ShellContent isAuthPage={isAuthPage}>{children}</ShellContent>
+            <ShellContent showDock={!isAuthPage && !isOpenBook}>{children}</ShellContent>
           </DecksProvider>
         </DictionaryStateProvider>
       </ReaderStateProvider>
@@ -45,7 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ShellContent({ isAuthPage, children }: { isAuthPage: boolean; children: React.ReactNode }) {
+function ShellContent({ showDock, children }: { showDock: boolean; children: React.ReactNode }) {
   const { readerBubble, setReaderBubble, setPendingCard } = useReaderState();
 
   // addCard bubble close also clears `pendingCard`. Without this the
@@ -63,7 +72,7 @@ function ShellContent({ isAuthPage, children }: { isAuthPage: boolean; children:
     <main className="h-full w-full">
       {children}
 
-      {!isAuthPage && <Dock />}
+      {showDock && <Dock />}
 
       {readerBubble && (readerBubble.mode === 'dict' ? (
         <ReaderBubble mode="dict" onClose={() => setReaderBubble(null)} />

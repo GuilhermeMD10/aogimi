@@ -13,10 +13,12 @@ export type ProgressTarget = {
 };
 
 export type ProgressSnapshot = {
-  /** EPUB CFI. Empty string for fixed-layout (manga) books. */
+  /** EPUB CFI; `page-N` for PDFs (see `lib/pdfPosition`); empty string for
+   *  fixed-layout (manga) books, which restore by `spineIndex`. */
   cfi: string;
   /** 0–100. */
   progress: number;
+  /** Spine item for EPUBs (0-based), page number for PDFs (1-based). */
   spineIndex: number;
   totalSpineItems: number;
 };
