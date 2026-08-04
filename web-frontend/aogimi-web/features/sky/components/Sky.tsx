@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { fitZoom } from '../lib/camera';
 import { openConstellationOf, openTipOf } from '../lib/generator';
-import { SKY_PALETTES } from '../lib/palette';
+import { SKY_PALETTES, skyBackground } from '../lib/palette';
 import type { FocusPath, Star } from '../lib/types';
 
 import { SkyCanvas } from './SkyCanvas';
@@ -17,6 +17,10 @@ const DEMO_BOX = { width: 820, height: 520 };
  *  must not require the app-shell provider to be above it. A module const, so the frame cache and
  *  the DeckLayer memo see a stable reference exactly as they do in production. */
 const DEMO_PALETTE = SKY_PALETTES.default;
+/** The demo draws the sky in a bordered box rather than over the page, so it supplies the night
+ *  itself — SkyCanvas is transparent (see the note on its `<svg>`). A module const for the same
+ *  reason the palette is: nothing here should mint a fresh style object per render. */
+const DEMO_SKY_BG = skyBackground(DEMO_PALETTE.tint);
 import { useCamera } from '../hooks/useCamera';
 import { useSkyDraw, useSkyStage } from '../hooks/useSkyFrame';
 import { useSkyGenerator } from '../hooks/useSkyGenerator';
@@ -166,7 +170,10 @@ export default function Sky() {
           onBack={back}
           onLogReview={logReview}
         />
-        <div className="overflow-hidden rounded-lg border border-white/20" style={{ width: DEMO_BOX.width }}>
+        <div
+          className="overflow-hidden rounded-lg border border-white/20"
+          style={{ width: DEMO_BOX.width, background: DEMO_SKY_BG }}
+        >
           <SkyCanvas
             frame={frame}
             layout={stage.layout}

@@ -6,7 +6,7 @@ import { NO_FULCRAL } from '../lib/cluster';
 import { CLOUD_DRIFT_MS, LINK_REACH, STAR_POP_MS, UNFOCUSED_DECK_OPACITY } from '../lib/config';
 import { deckAt, frameAt, type SkyLayout } from '../lib/layout';
 import { labelOpAt } from '../lib/lod';
-import { type SkyPalette, hueFor, rgbOf } from '../lib/palette';
+import { type SkyPalette, hueFor } from '../lib/palette';
 import { pickStar } from '../lib/picking';
 import type { DeckDraw, SkyFrame } from '../lib/tiers';
 import type { Bounds, FocusPath, Star, View } from '../lib/types';
@@ -65,23 +65,6 @@ const glowDefs = (ranks: SkyPalette['ranks']) =>
       <stop offset="100%" stopColor={colour} stopOpacity={0} />
     </radialGradient>
   ));
-
-/**
- * The sky itself: a tint of the preset's own colour thrown across the top-left of a near-black base,
- * so each hue reads as a different night rather than as recoloured stars on one.
- *
- * The base is the guide's own `T.bg` (§5) as literals rather than the `--sky-1/2/3` tokens (which it
- * is within a shade of, in Midnight). Deliberate: the star map is night in **both** themes, and
- * those tokens go pale in Ink on paper — reading them would put the sky on a daylight canvas. Same
- * standing hex exception the rest of `palette.ts` carries.
- */
-const skyBackground = (tint: string) => {
-  const [r, g, b] = rgbOf(tint);
-  return (
-    `radial-gradient(115% 95% at 32% 6%, rgba(${r}, ${g}, ${b}, .30) 0%, rgba(0, 0, 0, 0) 62%),` +
-    ' radial-gradient(120% 100% at 30% 8%, #16223c 0%, #0d1526 42%, #05070f 100%)'
-  );
-};
 
 type DeckLayerProps = {
   deck: DeckDraw;
@@ -297,9 +280,8 @@ export function SkyCanvas({
   const focusedDeck = frame.decks.find((d) => d.focused) ?? null;
   // a function of zoom alone, like the layer crossfade — it lands on the same frame as the viewBox
   const labelOp = labelOpAt(camera.zoom);
-  // per palette, not per frame: nothing camera-derived reaches either of them
+  // per palette, not per frame: nothing camera-derived reaches it
   const glow = useMemo(() => glowDefs(palette.ranks), [palette]);
-  const background = useMemo(() => skyBackground(palette.tint), [palette]);
 
   /**
    * A press means different things at different tiers, and that is the whole interaction: at the
@@ -383,7 +365,12 @@ export function SkyCanvas({
     /* Fills whatever box the host gives it — the camera works off the ResizeObserver in `attach`,
        never off these attributes, so the only requirement is that the parent has a size. Styling is
        inline rather than class-based so the canvas carries no dependency on the host's CSS
-       framework; a host that wants a border or a radius puts it on the parent. */
+       framework; a host that wants a border or a radius puts it on the parent.
+
+       **Transparent, deliberately** — the night behind the stars is the host's, not the canvas's.
+       On /decks that host is the page itself (`--page-base` in ds-tokens.css), so the map has no
+       edge and the chrome floating over it shares its plane; a host that draws the sky in a box of
+       its own paints `skyBackground(palette.tint)` on the parent (see `Sky.tsx`). */
     <svg
       ref={attach}
       width="100%"
@@ -391,7 +378,6 @@ export function SkyCanvas({
       viewBox={viewBoxOf(view)}
       style={{
         display: 'block',
-        background,
         touchAction: 'none', // we own the gesture; stop the browser scrolling the page instead
         cursor: hidden
           ? 'default'

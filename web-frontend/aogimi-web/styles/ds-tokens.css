@@ -288,8 +288,12 @@ html[data-theme="dark"] {
   --paper-shadow-hover: 0 20px 50px rgba(0, 0, 0, .6);
 
   --star-gold:         244, 220, 130;
-  --sky-1:             #16203a;
-  --sky-2:             #0c1526;
+  /* The page's three stops, centre outwards — an indigo horizon burning out to
+     near-black, not the old navy dome (and no longer the star map's own values;
+     the map is transparent over this, see the Page background block). --sky-3 is
+     also <html>'s background-color, so it must stay the darkest of the three. */
+  --sky-1:             #332886;
+  --sky-2:             #06084b;
   --sky-3:             #05070f;
   --page-vignette:     inset 0 0 220px 60px rgba(4, 7, 14, .55);
 }
@@ -352,13 +356,53 @@ html[data-sky-hue="aurora"] {
    pseudo-element and no z-index, and both are viewport-fixed so they don't
    drift while scrolling.
 
-   Values lifted from the prototype's `bgSky` rather than regenerated, per the
-   handoff. Must stay *barely* perceptible. */
+   Star values lifted from the prototype's `bgSky` rather than regenerated, per
+   the handoff. Must stay *barely* perceptible.
 
+   ── This canvas is what /decks sits on ────────────────────────────────────
+   The star map paints no background of its own (see the `<svg>` note in
+   `features/sky/components/SkyCanvas.tsx`) — it is transparent over whatever
+   the page is, and /decks draws no stage panel behind it. So this declaration
+   is the night the constellations hang in, on every screen, which is what makes
+   the top bar and the decks read as one plane. It is **not** a mirror of the
+   sky's own `skyBackground()`: that function survives only for hosts that draw
+   the map in a box of their own (the demo harness), and the two are free to
+   diverge. Change the look here.
+
+   Both layers are viewport-fixed, so the horizon sits in the same place on
+   /decks and /profile alike.
+
+   ── Per theme, not one formula ────────────────────────────────────────────
+   The two themes are genuinely different backgrounds now, not one geometry with
+   swapped stops: Midnight is a wide, low horizon glow with a white wash across
+   the middle, paper is the pale sky dome from the handoff. So `--page-base` is
+   declared twice rather than built from tokens that swap underneath. The three
+   stops still come from `--sky-1/2/3` in the theme blocks above, so a palette
+   change is still a palette-block edit.
+
+   `<html>`'s `background-color` is `--sky-3`, the outermost stop — the fill
+   behind overscroll, and the one colour the gradient is guaranteed to end on. */
+
+/* Paper. Midnight (the pinned theme) overrides it below. */
 :root {
   --page-base: radial-gradient(130% 120% at 44% 18%,
     var(--sky-1) 0%, var(--sky-1) 10%, var(--sky-2) 52%, var(--sky-3) 108%);
+}
 
+html[data-theme="dark"] {
+  /* The wash fades to white-at-zero-alpha, never the keyword `transparent`
+     (= rgba(0,0,0,0)): a white → black-at-zero ramp can pick up a grey cast on
+     the way down. Same rule glass.css states for its specular lines. */
+  --page-base:
+    radial-gradient(205% 30% at 47% 46%,
+      rgba(255, 255, 255, .24) 0%, rgba(255, 255, 255, 0) 62%),
+    radial-gradient(210% 35% at 47% 48%,
+      var(--sky-1) 0%, var(--sky-2) 26%, var(--sky-3) 100%);
+}
+
+/* The star tiles are theme-independent — one field, `--star-gold`/`--star-blue`
+   carry the per-theme alpha-safe channels. */
+:root {
   --page-stars:
     radial-gradient(1.42px 1.42px at 66.53% 2.81%, rgba(var(--star-gold), 0.16) 50%, transparent 51%),
     radial-gradient(0.89px 0.89px at 28.99% 77.87%, rgba(var(--star-blue), 0.09) 50%, transparent 51%),

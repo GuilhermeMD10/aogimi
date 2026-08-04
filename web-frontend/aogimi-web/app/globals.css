@@ -100,13 +100,18 @@
   }
 
   /* Page canvas + the default face, both app-wide chrome rather than something
-     a page paints. The background is split across the two elements: base
-     gradient on <html>, star tiles on <body>, so each `background-size` list is
-     a single value. See ds-tokens.css for why one combined declaration
-     doesn't work. */
+     a page paints. The background is split across the two elements: base night
+     gradient on <html> (whose layers all take `cover`, so the size list stays
+     one value), star tiles on <body> at their tile size. See ds-tokens.css for
+     why one combined declaration doesn't work, and for why this canvas is what
+     the star map hangs in.
+
+     The flat fill is `--sky-3`, the gradient's own outermost stop, rather than
+     `--bg`: it is what overscroll and any unpainted sliver land on, so it should
+     be the colour the gradient ends on and not the app's surface grey. */
   html {
     font-family: var(--face-ui);
-    background-color: var(--bg);
+    background-color: var(--sky-3);
     background-image: var(--page-base);
     background-size: cover;
     background-repeat: no-repeat;
