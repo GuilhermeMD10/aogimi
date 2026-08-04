@@ -88,9 +88,10 @@ added maintenance surface for features that weren't being used.
 
 ## Reading-position sync (re-added — 2026-06)
 
-Resume-where-you-left-off was brought back for **EPUB** (PDF deferred).
-Deliberately *not* the naive "POST on every page turn" — it buffers locally and
-flushes sparingly to keep backend write load low.
+Resume-where-you-left-off was brought back for **EPUB**, and extended to **PDF**
+in 2026-08 (see the PDF sub-section below). Deliberately *not* the naive "POST on
+every page turn" — it buffers locally and flushes sparingly to keep backend write
+load low.
 
 **How it works**
 - Position is captured from foliate's `relocate` event in the reader engines and
@@ -119,8 +120,42 @@ flushes sparingly to keep backend write load low.
   the backend remains the cross-device source. Position only — no
   highlights/bookmarks came back.
 
+### PDF reading position (2026-08)
+
+The old deferral said this needed "a `page` / scroll column on `book_progress`".
+It doesn't — **the mobile PDF reader had already solved it** by encoding the page
+into the CFI slot, and the web now writes the same thing
+(`features/books/reader/lib/pdfPosition.ts`):
+
+```
+cfi_position      = 'page-N'   spine_index = N   (1-based page)
+total_spine_items = page count progress    = round(page/total * 100)
+```
+
+**Decisions**
+- **Match mobile's encoding rather than adding a column.** Cross-device resume
+  (phone → desktop) falls out of it, no migration is involved, and the backend
+  needed no change at all — `progressSchema` and the `COALESCE` UPDATE already
+  take these four fields. `spine_index` is `smallint` (validated to 32767), which
+  is a fine ceiling for page counts, and total pages are separately in the
+  `page_count` identity column.
+- **`spine_index` is format-polymorphic**: 0-based spine item for EPUBs, 1-based
+  page for PDFs. Documented at every snapshot type.
+- **Page granularity only.** Where inside a page you were is not stored, so
+  reopening lands at the top of the page. An offset *would* need a new column, and
+  a page is a good enough anchor.
+- **The restored page is reported immediately on open**, before any page turn.
+  `useProgressSync`'s first-position-seeds-only rule then absorbs it, so opening a
+  PDF cannot write back its own restored position — and the `pagechanging` that
+  the restore jump provokes is deduped by page, not swallowed as the seed.
+- **Layout before jump.** Assigning a scale makes pdf.js scroll the current page
+  into view, so `page-width` is applied first and the page set second; the reverse
+  order re-anchors on the page the restore just left.
+
 **Still deferred**
-- [ ] PDF reading position (needs a `page` / scroll column on `book_progress`).
+- [ ] Intra-page scroll offset for PDFs (needs a column; page anchor is enough).
+- [ ] Stored highlights for PDFs — the selection menu works, but nothing anchors a
+  highlight to a text range yet (same gap as the EPUB reader).
 
 ---
 
@@ -368,17 +403,21 @@ The reader's two lookup surfaces, rebuilt on `ds-tokens.css` out of
   beside it paints the *book's* page colour, which is a reading preference
   independent of the app theme; a transparent column would put the app canvas's
   star field against a sepia page. Same reason `ReaderShell`'s toolbar is opaque.
-- **The column reserves `pb-[140px]`**; the reading pane does not. The `Dock` is
-  fixed and floats over the bottom of both, but a reading pane that stops 140px
-  early is worse than a dock over its last line.
+- ~~**The column reserves `pb-[140px]`**; the reading pane does not.~~ Superseded
+  (2026-08): the `Dock` is now hidden on `/reader/<bookId>` entirely — an open book
+  owns the window — so neither surface reserves dock clearance. The column keeps a
+  small `pb-6` as end-of-scroll breathing room.
 
 **Not changed**
 
 - `/decks`' `PendingCardOverlay` is still on `--lgc-*`. It's the *other* consumer
   of `pendingCard` and belongs to the decks screen, not this pass.
-- PDF has no lookup at all and manga renders the toggle but can't feed it (no
-  text to select in a fixed-layout page). The column opens over manga and shows
-  its prompt.
+- ~~PDF has no lookup at all~~ — as of 2026-08 the PDF reader has the same
+  right-click selection menu the EPUB reader does, reading pdf.js's text layer
+  (`hooks/useSelectionMenu.ts`, shared helpers in `lib/selectionText.ts`), so
+  lookups and add-card feed the docked column. Manga still renders the toggle but
+  can't feed it (no text to select in a fixed-layout page); the column opens over
+  manga and shows its prompt.
 
 ---
 
@@ -1080,3 +1119,33 @@ The stage's glass palette (`lib/nightChrome.ts`) is feature-local constants,
 not `ds-tokens.css` tokens: the sky is night in both themes, so the chrome
 never varies by theme — the `--dock-*` reasoning. Rank colours are not in it;
 dots, bars and pills read `stageColor()` so the chrome and the stars agree.
+
+---
+
+## Book title / author fallbacks at import (2026-08-04)
+
+A PDF with no `/Info /Title` (common) used to land in the library as the literal
+"Untitled", and every PDF as "Unknown author" — the PDF extractor never reads
+`/Info /Author` at all.
+
+**Decisions**
+- **Fix at the import boundary, not at display.** `bookStore.importBook` resolves
+  both fields once, so the IDB record, the backend row and every surface agree,
+  and the library's "Edit title" still overrides. The extractors were changed to
+  report `''` for absent metadata (they previously baked in the placeholders) —
+  an extractor reports what the file says; the boundary decides what to show.
+- **Title falls back to the filename cut at the first `.`** — that drops the
+  extension along with any `v2`/date/scan-tool suffix. `'Untitled'` survives only
+  as the last resort (a file called `.pdf`), because the backend requires a
+  non-empty title.
+- **No author means no author line.** The placeholder is gone rather than
+  replaced; every surface already renders the author conditionally.
+- **No backfill.** Rows imported before this keep "Untitled" / "Unknown author"
+  until they're re-imported or renamed. Deliberately out of scope — a sweep over
+  existing rows would have to guess which stored titles were placeholders.
+
+**Not done**
+- [ ] Junk-title heuristic. Real `/Info /Title` values are often
+  `"Microsoft Word - draft3.docx"` or a LaTeX class name; only blank/whitespace
+  counts as missing today.
+- [ ] Reading `/Info /Author` for PDFs that do carry one.

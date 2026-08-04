@@ -73,6 +73,21 @@ export interface BookRecord {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
+/**
+ * Display title for a file whose own metadata carries none — plenty of PDFs
+ * have no `/Info /Title`, and an EPUB can ship without a `dc:title`. Cut at the
+ * first `.`, which drops the extension along with any `v2` / date / scan-tool
+ * suffix that follows one; the filename is usually the closest thing to a title
+ * such a file has.
+ *
+ * `'Untitled'` remains the last resort (a file named `.pdf`, or one that is all
+ * dots) because the backend requires a non-empty title. The user can always fix
+ * it from the library's "Edit title" action.
+ */
+function titleFromFilename(filename: string): string {
+  return filename.split('.')[0]?.trim() || 'Untitled';
+}
+
 /** Fallback cover colors assigned round-robin on import */
 const COVER_PALETTE = [
   '#6B5A45', '#2E5D4E', '#8E3B36', '#263B5C',
@@ -131,8 +146,14 @@ export async function importBook(
 
   // Branch by file type. EPUB path uses the jszip OPF extractor; PDF path
   // uses pdf.js for title + first-page cover. Both fall back gracefully.
-  let title = 'Untitled';
-  let author = 'Unknown author';
+  //
+  // Both start empty and are resolved after extraction: a missing title
+  // becomes the filename (see `titleFromFilename`), and a missing author stays
+  // empty, which every surface reads as "print no author line" rather than
+  // printing a placeholder. The PDF extractor doesn't read `/Info /Author` at
+  // all, so that is every PDF.
+  let title = '';
+  let author = '';
   let coverImage: string | undefined;
   let hasCover = false;
   let fileHash: string | undefined;
@@ -194,6 +215,9 @@ export async function importBook(
     publisher = data?.publisher ?? undefined;
     if (data?.fingerprintVersion != null) fingerprintVersion = data.fingerprintVersion;
   }
+
+  // Whitespace-only counts as absent — a `/Title` of " " is not a title.
+  if (!title.trim()) title = titleFromFilename(file.name);
 
   const db = await getDb();
 

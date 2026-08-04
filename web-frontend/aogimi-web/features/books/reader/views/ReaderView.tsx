@@ -17,6 +17,7 @@ import { Button } from '@/shared/components';
 import { EpubReader } from '@/features/books/reader/components/EpubReader';
 import { PdfReader } from '@/features/books/reader/components/PdfReader';
 import { useProgressSync, type ProgressTarget } from '@/features/books/reader/hooks/useProgressSync';
+import { parsePdfPageCfi } from '@/features/books/reader/lib/pdfPosition';
 import { getAllBooks, getBookFile, ensureBackendBook } from '@/features/books/lib/bookStore';
 import { getUserBooks } from '@/features/books/lib/booksApi';
 import { getReaderProgress } from '@/features/books/lib/readerSession';
@@ -112,7 +113,8 @@ export default function ReaderView({ bookId }: { bookId: string }) {
 
         // Restore anchor: whichever of the local snapshot and the backend row
         // is newer. Same device ⇒ local; switched device ⇒ backend. Manga
-        // carries no CFI, so spine index is what the fixed-layout reader uses.
+        // carries no CFI, so spine index is what the fixed-layout reader uses;
+        // a PDF's page rides in the CFI slot as `page-N` (decoded below).
         const snapshot = getReaderProgress(local.filename);
         const remoteAt = record?.last_read_at ? Date.parse(record.last_read_at) : 0;
         const useLocal = snapshot != null && snapshot.updatedAt >= remoteAt;
@@ -188,6 +190,16 @@ export default function ReaderView({ bookId }: { bookId: string }) {
 
   const { book } = status;
 
+  // PDFs store their position as `page-N` in the same slot the EPUB CFI uses
+  // (see `lib/pdfPosition`), so the anchor resolved above needs no second
+  // source — just decoding. `spineIndex` is the fallback because that column
+  // holds the page number too, and a row written before the CFI landed (or by
+  // a client that only set the index) still knows the page.
+  const initialPdfPage = book.isPdf
+    ? (parsePdfPageCfi(book.initialCfi) ??
+       (book.initialSpineIndex && book.initialSpineIndex > 0 ? book.initialSpineIndex : null))
+    : null;
+
   return (
     <div className="flex h-full min-h-0 flex-row">
       <div className="flex h-full min-h-0 flex-1 flex-col">
@@ -196,9 +208,13 @@ export default function ReaderView({ bookId }: { bookId: string }) {
             fileUrl={book.fileUrl}
             bookTitle={book.title}
             bookAuthor={book.author}
+            onLookup={handleLookup}
+            onAddCard={handleAddCard}
             onBack={goBack}
             sidekickOpen={sidekickOpen}
             onToggleSidekick={toggleSidekick}
+            initialPage={initialPdfPage}
+            onRelocate={recordProgress}
           />
         ) : (
           <EpubReader

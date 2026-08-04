@@ -15,7 +15,11 @@ export interface EpubIdentity {
 }
 
 export interface EpubData extends EpubIdentity {
+  /** OPF `dc:title`, or `''` when the file carries none. Deciding what to
+   *  *show* instead is the import boundary's job (`bookStore.importBook`
+   *  falls back to the filename) — an extractor reports what the file says. */
   title: string;
+  /** OPF `dc:creator`, or `''` when the file carries none. */
   creator: string;
   /** Base64 data URL (e.g. `data:image/jpeg;base64,…`) or undefined if not found. */
   coverImage?: string;
@@ -72,8 +76,8 @@ export async function extractEpubData(
     dcIdentifier: opf.dcIdentifier,
     language: opf.language,
     publisher: opf.publisher,
-    title: opf.title || 'Untitled',
-    creator: opf.creator || 'Unknown author',
+    title: opf.title || '',
+    creator: opf.creator || '',
     coverImage,
     fingerprintVersion: FINGERPRINT_VERSION,
   };
@@ -104,8 +108,8 @@ function emptyData(fileHash: string): EpubData {
     dcIdentifier: null,
     language: null,
     publisher: null,
-    title: 'Untitled',
-    creator: 'Unknown author',
+    title: '',
+    creator: '',
     coverImage: undefined,
     fingerprintVersion: FINGERPRINT_VERSION,
   };
