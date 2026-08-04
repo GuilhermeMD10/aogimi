@@ -25,18 +25,13 @@ export function AccountCard() {
   return (
     <PaperCard aria-labelledby="profile-account">
       <div className="px-6 pt-5 pb-3.5">
-        <h2
-          id="profile-account"
-          className="font-[family-name:var(--face-ui)] text-[22px] font-bold text-(--ink)"
-        >
-          Account
+        <h2 id="profile-account" className="font-[family-name:var(--face-ui)] text-[22px] font-bold text-(--ink)">
+          Simao
         </h2>
       </div>
 
       <div className="flex items-center gap-3.5 border-t border-(--paper-bd) px-6 py-4">
-        <span className="font-[family-name:var(--face-ui)] text-[14.5px] font-bold text-(--ink)">
-          Email
-        </span>
+        <span className="font-[family-name:var(--face-ui)] text-[14.5px] font-bold text-(--ink)">Email</span>
         <span className="ml-auto truncate font-[family-name:var(--face-mono)] text-[12.5px] text-(--muted)">
           {/* Email isn't collected at signup yet, so "—" is the common case. */}
           {loading ? '' : (email ?? '—')}
