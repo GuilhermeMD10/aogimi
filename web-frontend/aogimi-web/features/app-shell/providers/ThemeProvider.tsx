@@ -34,11 +34,32 @@ type ThemeContextValue = {
   nextTheme: AppTheme;
   setTheme: (theme: AppTheme) => void;
   toggle: () => void;
+  /** True while `FORCED_THEME` pins the app. `setTheme` / `toggle` are no-ops
+   *  and any picker rendering them should present itself as unavailable. */
+  locked: boolean;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const DEFAULT_THEME: AppTheme = 'light';
+
+/**
+ * ── DARK LOCK (temporary) ──────────────────────────────────────────────────
+ * The glassmorphism pass is being designed against Midnight only, so the whole
+ * app is pinned here until the light palette gets its own pass.
+ *
+ * Set this back to `null` to lift it. Nothing else has to change: `THEMES`, the
+ * palettes in `ds-tokens.css`, the picker on /settings and every consumer of
+ * `useTheme()` are all still wired and still correct — this constant is the only
+ * thing standing between them and a working switch. The stored `aogimi-theme`
+ * key is never written while the lock is on, so a user's pre-lock choice is
+ * exactly where they left it.
+ *
+ * Mirrored by `FORCED` in the pre-paint script in `app/layout.tsx`, which has to
+ * carry its own copy (it runs as a plain string before any module loads).
+ * **Change one, change both.**
+ */
+const FORCED_THEME: AppTheme | null = 'dark';
 
 /** Must match the key the pre-paint script in `app/layout.tsx` reads. */
 const STORAGE_KEY = 'aogimi-theme';
@@ -56,6 +77,7 @@ const FORCED_LIGHT_PATHNAME = '/authenticate';
  *  Reading localStorage instead would duplicate the script's fallback logic
  *  and risk drifting from it. */
 function readInitialTheme(): AppTheme {
+  if (FORCED_THEME) return FORCED_THEME;
   if (typeof document === 'undefined') return DEFAULT_THEME;
   const root = document.documentElement;
   const attr = root.getAttribute('data-user-theme') ?? root.getAttribute('data-theme');
@@ -92,12 +114,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute('data-theme', forceLight ? 'light' : theme);
   }, [forceLight, theme]);
 
+  // Both writers bail while the lock is on — and bail before `persist`, so the
+  // stored preference survives the lock untouched.
   const setTheme = useCallback((next: AppTheme) => {
+    if (FORCED_THEME) return;
     setThemeState(next);
     persist(next);
   }, []);
 
   const toggle = useCallback(() => {
+    if (FORCED_THEME) return;
     setThemeState((current) => {
       const i = THEME_NAMES.indexOf(current);
       const next = THEME_NAMES[(i + 1) % THEME_NAMES.length] ?? DEFAULT_THEME;
@@ -110,7 +136,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const nextTheme = THEME_NAMES[(i + 1) % THEME_NAMES.length] ?? DEFAULT_THEME;
 
   return (
-    <ThemeContext.Provider value={{ theme, nextTheme, setTheme, toggle }}>
+    <ThemeContext.Provider value={{ theme, nextTheme, setTheme, toggle, locked: FORCED_THEME !== null }}>
       {children}
     </ThemeContext.Provider>
   );

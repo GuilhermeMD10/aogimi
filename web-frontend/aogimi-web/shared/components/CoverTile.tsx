@@ -1,5 +1,6 @@
 import { cn } from '@/lib/util/cn';
 import { coverPalette } from './coverPalette';
+import { GLASS_SHEEN } from './glass';
 
 type Props = {
   /** Rendered vertically down the spine — unless `image` is set. */
@@ -14,6 +15,9 @@ type Props = {
   percent?: number;
   /** The lifted drop shadow. On for a hero cover, off inside a grid. */
   raised?: boolean;
+  /** Lay the glass edge treatment over the cover — the library's covers all do.
+   *  Purely decorative and `pointer-events: none`, so it never eats a click. */
+  sheen?: boolean;
   /** Sizing lives with the caller: a fixed box on the hero, `aspect-[96/140]`
    *  in the library grid. */
   className?: string;
@@ -26,7 +30,15 @@ type Props = {
 // `book_progress` has one `title` column, so there is no second string to put
 // here even though the design shows a Japanese spine beside an English
 // heading.
-export function CoverTile({ title, seed, image, percent, raised = false, className }: Props) {
+export function CoverTile({
+  title,
+  seed,
+  image,
+  percent,
+  raised = false,
+  sheen = false,
+  className,
+}: Props) {
   const { surface, ink } = coverPalette(seed);
   const clamped = percent === undefined ? null : Math.max(0, Math.min(100, percent));
 
@@ -63,6 +75,9 @@ export function CoverTile({ title, seed, image, percent, raised = false, classNa
           <div className="h-full" style={{ width: `${clamped}%`, background: ink }} />
         </div>
       )}
+
+      {/* Last, so it sits over both the art and the strip. */}
+      {sheen && <span aria-hidden className={GLASS_SHEEN} />}
     </div>
   );
 }

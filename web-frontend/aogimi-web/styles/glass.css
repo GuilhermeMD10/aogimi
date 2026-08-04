@@ -1,0 +1,207 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GLASS
+   The frosted-surface recipe, from the "Aogimi — Reader Glass" handoff. One
+   file on purpose: **this is the tweak surface.** Every number the look depends
+   on is in the `:root` block below, and every rule under it is composed from
+   those variables — so re-balancing the glass is editing one block, not hunting
+   through components.
+
+   ── Values ────────────────────────────────────────────────────────────────
+   The handoff derives everything from three params: `blur` px, `r` =
+   reflection/100, `k` = depth/25. These are the resolved Midnight values it
+   ships as final — **blur 13, reflection 25%, depth 0**. The formulas are kept
+   in the comments beside each value so a re-derive doesn't need the handoff
+   open. `depth = 0` means there is deliberately no drop shadow: `--glass-inset`
+   and `--glass-inset-sm` are inset-only lists. When depth comes back, its
+   `0 (8k)px (32k)px rgba(0,0,0, min(.1k,.5))` entry goes at the FRONT of both
+   lists — a `box-shadow` can't mix a separate `none` in.
+
+   ── Not theme-aware, on purpose ───────────────────────────────────────────
+   The app is pinned to Midnight (see `FORCED_THEME` in ThemeProvider), so glass
+   has one set of values and they are white-on-dark. **The bridge is already
+   here**: every consumer reads `var(--glass-*)` and nothing reads a literal, so
+   making glass follow the theme is moving this `:root` block into
+   `html[data-theme="light"]` / `html[data-theme="dark"]` pairs — here or in
+   ds-tokens.css — and touching no component. The handoff's light-side values
+   are on record for when that happens: fill `.55` / hover `.8`, inner-glow
+   alpha `r * 0.85`.
+
+   ── The four surfaces ─────────────────────────────────────────────────────
+   All four currently share one recipe and differ only in which parts of it they
+   take. They are separate classes precisely so they can stop sharing.
+
+     .glass-surface   the continue-reading hero card — fill + blur, LARGE inner
+                      glow, both specular edges
+     .glass-sheen     the edge treatment laid OVER imagery (hero cover, every
+                      book cover) — no fill, no blur, small glow, both edges
+     .glass-button    filter chips, the import button, the ⋯ circles — fill +
+                      blur, small glow, top edge, hover brighten
+     .glass-sheet     the book card's slide-up hover panel — fill + small glow +
+                      top edge, and deliberately NO blur: it is one of up to
+                      MAX_BOOKS instances mounted at once (they sit translated
+                      off the card, not unmounted), and 50 live backdrop filters
+                      is a real cost for a blur that reads as almost nothing
+                      over cover art. Add `backdrop-filter` to the shared rule
+                      below to turn it on.
+
+   ── Layering ──────────────────────────────────────────────────────────────
+   The specular lines are one `::before` overlay at z-index 3, `pointer-events:
+   none`. It sits above card content by design (it paints nothing but 1px along
+   the very top and left edges) and above the sheen's own z-index 2.
+
+   Rules live in `@layer components` so Tailwind's `utilities` layer still wins:
+   that is what lets a selected filter chip say `bg-(--btn)` and override
+   `.glass-button`'s fill without an `!important`.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+:root {
+  --glass-blur: 13px;
+
+  /* fill: .15 night / .55 light · hover: .26 / .8 */
+  --glass-fill: rgba(255, 255, 255, 0.01);
+  --glass-fill-hover: rgba(255, 255, 255, 0.26);
+
+  /* border: 0.3 * r */
+  --glass-bd: rgba(255, 255, 255, 0.075);
+
+  /* Large inner glow — top edge 0.5r, bottom edge 0.1r, glow r * 0.45 (night). */
+  --glass-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.125),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.025),
+    inset 0 0 20px 10px rgba(255, 255, 255, 0.113);
+
+  /* Small inner glow — top 0.55r, bottom 0.15r, glow 0.3r. */
+  --glass-inset-sm:
+    inset 0 1px 0 rgba(255, 255, 255, 0.138),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.038),
+    inset 0 0 12px 2px rgba(255, 255, 255, 0.075);
+
+  /* Specular lines — peak alpha 0.8 * r. Used as background layers, so they are
+     gradients, not colours.
+
+     The fade stops are `rgba(255,255,255,0)`, never the keyword `transparent`:
+     that keyword is `rgba(0,0,0,0)`, and a white → black-at-zero-alpha ramp can
+     pick up a grey cast on the way down. Browsers premultiply now and mostly
+     hide it; saying white-at-zero costs nothing and removes the question. */
+  --glass-hl: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0)
+  );
+  --glass-vl: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.075)
+  );
+
+  /* The one transition glass owns. The rest of the app is on --transition
+     (120ms); the handoff's glass hover is slower and softer than that. */
+  --glass-transition: 180ms ease;
+}
+
+@layer components {
+  .glass-surface,
+  .glass-button,
+  .glass-sheet {
+    position: relative;
+    background: var(--glass-fill);
+    border: 1px solid var(--glass-bd);
+  }
+
+  /* Unprefixed only, deliberately. Hand-writing the `-webkit-` twin after it
+     made Lightning CSS (Next's minifier) treat the pair as one declaration and
+     emit *only* the prefixed form — which Safari understands and Firefox, which
+     has supported `backdrop-filter` unprefixed since 103 and has never
+     supported the prefix, does not. Left to itself the minifier prefixes from
+     the browserslist targets and emits both. */
+  .glass-surface,
+  .glass-button {
+    backdrop-filter: blur(var(--glass-blur));
+  }
+
+  .glass-surface {
+    box-shadow: var(--glass-inset);
+  }
+
+  .glass-button,
+  .glass-sheet {
+    box-shadow: var(--glass-inset-sm);
+  }
+
+  /* The sheet is a bottom panel clipped by its cover, so only its top edge is
+     ever visible — a full border would draw a line down the cover's sides. */
+  .glass-sheet {
+    border-width: 1px 0 0 0;
+  }
+
+  .glass-button {
+    cursor: pointer;
+    transition:
+      background var(--glass-transition),
+      border-color var(--glass-transition),
+      color var(--glass-transition);
+  }
+
+  .glass-button:hover:not(:disabled) {
+    background: var(--glass-fill-hover);
+  }
+
+  .glass-button:disabled {
+    cursor: default;
+  }
+
+  /* Over imagery: the edge treatment with nothing behind it to frost. */
+  .glass-sheen {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    border: 1px solid var(--glass-bd);
+    border-radius: inherit;
+    box-shadow: var(--glass-inset-sm);
+  }
+
+  /* ── Specular edges ──────────────────────────────────────────────────────
+     The lit top edge, and on the larger surfaces the lit left edge too.
+
+     Drawn as 1px background LAYERS on one full-size overlay, not as 1px
+     elements pinned to `top: 0` / `left: 0`. That is the whole point: a
+     `border-radius` clips its own element's background, so `border-radius:
+     inherit` here makes each line stop exactly where the host's rounded edge
+     stops — at any radius, on a 10px button or a 9999px circle alike, with no
+     `overflow: hidden` on the host (the hero can't have one; its ⋯ dropdown has
+     to escape).
+
+     Pinned 1px elements can't do that. They run the full width or height of the
+     border box, so on anything rounded the ends overhang into the corner arcs
+     as a hairline floating in empty space beside the surface — which reads as a
+     stray line ruled across the card, not as a lit edge. */
+
+  .glass-surface::before,
+  .glass-sheen::before,
+  .glass-button::before,
+  .glass-sheet::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    border-radius: inherit;
+    background-repeat: no-repeat;
+    background-position: top left;
+    background-image: var(--glass-hl);
+    background-size: 100% 1px;
+  }
+
+  /* Both edges, on the two surfaces big enough for a left one to read as one.
+     Layer order is paint order — the top line lands over the left line's start. */
+  .glass-surface::before,
+  .glass-sheen::before {
+    background-image: var(--glass-hl), var(--glass-vl);
+    background-size:
+      100% 1px,
+      1px 100%;
+  }
+}

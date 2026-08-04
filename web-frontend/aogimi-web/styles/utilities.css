@@ -42,3 +42,26 @@
 
 /* The `.lgc-scroll` opt-in scrollbar is gone with the outgoing palette. It had
    no call sites, and the `*` rule in globals.css hides scrollbars app-wide. */
+
+/* Opt back in to a visible scrollbar, for a scroller NESTED inside a page that
+   doesn't itself scroll. App-wide the `*` rule in globals.css hides scrollbars,
+   which is right when the page scroll is the window's — the browser chrome and
+   the content edge already say "there is more". An inner pane says nothing: the
+   library shelf ends mid-viewport with the dock below it, and with no thumb
+   there is no affordance at all that it moves. The handoff specifies this bar:
+   6px, 3px radius, transparent track. */
+.inner-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--paper-bd) transparent;
+}
+.inner-scroll::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+.inner-scroll::-webkit-scrollbar-thumb {
+  background: var(--paper-bd);
+  border-radius: 3px;
+}
+.inner-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
