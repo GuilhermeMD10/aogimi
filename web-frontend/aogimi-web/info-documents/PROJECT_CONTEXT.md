@@ -387,9 +387,15 @@ route's other former tenant — the study-stats tab screen — is also gone
 (`features/study/stats` holds only `lib/statsApi.ts`, the `/api/stats`
 fetchers the stage's ledger and the decks/home upgrade rows read).
 
-- **Moving between tiers is a camera flight** (`useCamera.flyTo`, ~600ms,
-  interruptible); the host selects after the flight via `onSettled`. Insets
-  changes re-fit as the same flight.
+- **Moving between tiers is a camera flight** (`useCamera.flyTo`,
+  `CAMERA_TWEEN_MS` = 400ms, interruptible); the host selects after the flight
+  via `onSettled`. Insets changes re-fit as the same flight.
+- **A card's drawn size is set by the field it sits in**, since the camera fits
+  that field to the stage. With two or more decks the grid bounds every card;
+  a lone deck has no neighbour to do it, so `layoutDecks` floors its field at
+  `SOLO_FIELD_CELLS` (2) cells per axis — otherwise the single card is drawn
+  edge to edge and grows in both axes with every card mined into it. Lower the
+  constant to make a lone card bigger; it applies to the one-deck case only.
 - `sky_seed` (`users.sky_seed`, migration 025) is the account's one immutable
   16-hex seed; `useSkySeed` fetches it off the profile and caches per user.
 
