@@ -3,8 +3,13 @@ const cardReviewRepo = require("../repositories/cardReviewRepository");
 const studyDayRepo = require("../repositories/studyDayRepository");
 const srs = require("./cardSrsService");
 
-async function createCard(deckId, { front, reading, back, notes, contextSentence }) {
-  return await cardRepo.create({ deckId, front, reading, back, notes, contextSentence });
+// NOTE: this and `updateCard` re-destructure the validated body field by field,
+// which means a field added to the zod schema but not listed here passes
+// validation, is dropped silently, and lands in the DB as the column default —
+// no error anywhere. Add new card fields in BOTH functions (and in the
+// repository) or they don't persist.
+async function createCard(deckId, { front, reading, back, notes, contextSentence, jlptLevel, meanings }) {
+  return await cardRepo.create({ deckId, front, reading, back, notes, contextSentence, jlptLevel, meanings });
 }
 
 async function getDeckCards(deckId) {
@@ -28,8 +33,9 @@ async function getCard(id) {
   return card;
 }
 
-async function updateCard(id, { front, reading, back, notes, state, contextSentence }) {
-  const card = await cardRepo.update(id, { front, reading, back, notes, state, contextSentence });
+// See the note on `createCard`: every field has to be named here too.
+async function updateCard(id, { front, reading, back, notes, state, contextSentence, jlptLevel, meanings }) {
+  const card = await cardRepo.update(id, { front, reading, back, notes, state, contextSentence, jlptLevel, meanings });
   if (!card) throw new Error("Card not found");
   return card;
 }

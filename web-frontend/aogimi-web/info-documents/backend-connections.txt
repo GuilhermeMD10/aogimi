@@ -234,13 +234,27 @@ GET /api/decks/{deckId}/cards
 
 POST /api/decks/{deckId}/cards
   Trigger:   Card creation from reader, dictionary, or deck view (manual)
-  Request:   { front, back, reading?, notes?, contextSentence? }
+  Request:   { front, back, reading?, notes?, contextSentence?,
+               meanings?, jlptLevel? }
   Response:  CardRecord
+  Note:      Request keys are camelCase (jlptLevel, contextSentence); the
+             response is snake_case (jlpt_level, context_sentence). Card
+             fields are the first place the two names differ, so don't
+             round-trip a CardRecord straight back into a POST.
+             meanings: <= 3 entries, each 1..200 chars after trim (empty
+             strings are rejected -- send a shorter array for fewer
+             meanings). jlptLevel: integer 1..5 or null.
 
 PUT /api/decks/cards/{cardId}
   Trigger:   Card edit (manual)
-  Request:   { front?, reading?, back?, notes?, state? }
+  Request:   { front?, reading?, back?, notes?, state?, contextSentence?,
+               meanings?, jlptLevel? }
   Response:  CardRecord
+  Note:      Every field COALESCEs server-side, so an absent key means
+             "leave it alone" -- and a captured jlpt_level therefore
+             CANNOT be cleared back to null through this route. Editing a
+             card's front does not recompute the tier; the snapshot is
+             allowed to go stale.
 
 DELETE /api/decks/cards/{cardId}
   Response:  void
@@ -337,11 +351,53 @@ DeckRecord shape:
 
 CardRecord shape:
   { id, deck_id, front, reading, back, notes, context_sentence,
+    jlpt_level, meanings,
     state ('new'|'seen'|'learned'|'mastered'), reviewed_times,
     difficulty, stability, last_outcomes, last_reviewed_at,
     next_due_at, created_at }
   -- A card is "due" when next_due_at IS NULL (never reviewed) or
   --  next_due_at <= now. See docs/study-due-cards.md.
+  -- jlpt_level: number|null. Snapshot of the source dictionary entry's
+  --  tier, taken once at add time (migration 026). 1 = N1 .. 5 = N5.
+  --  null means UNKNOWN, and covers BOTH "on no JLPT list" and "card
+  --  predates the column" -- the two are indistinguishable on purpose, so
+  --  render nothing rather than a placeholder. Not recomputed when the
+  --  front is edited.
+  -- meanings: string[]. First 3 English glosses, unnumbered. NEVER null
+  --  (column is NOT NULL DEFAULT '{}'), so no `?? []` is needed at read
+  --  sites. `[]` on pre-026 cards, which carry their glosses inside
+  --  `back` instead -- hence the read rule below.
+  --
+  -- READ RULE for meanings vs back, applied at every render site:
+  --    meanings.length > 0 ? <structured list> : <back verbatim>
+  --  Either/or, never both: on a card added after 026 the two hold the
+  --  SAME facts, so rendering reading + meanings + back shows everything
+  --  twice. Do NOT back-parse the legacy `back` blob (stripping a leading
+  --  kana line, regexing `^\d+\. `) -- dictionary-made cards are
+  --  parseable but hand-made and mobile-made ones follow no convention
+  --  and a parser mangles them.
+  --
+  -- `back` is still NOT NULL and still written on every create, derived
+  --  from reading + meanings by cardBack() in
+  --  features/dictionary/lib/cardDraft.ts -- the one place that knows the
+  --  format. Retiring the column is a DEFERRED follow-up; it would break
+  --  mobile's offline card queue, which still posts the flattened shape.
+  --  See mobile-frontend/aogimi-mobile/TODO.md.
+
+CardDraft shape (client-only; features/study/decks/types.ts):
+  { front, reading, meanings, jlptLevel, contextSentence? }
+  -- The add-card authoring shape every producer builds and every add-card
+  --  surface carries: the dictionary rail's row buttons, both entry panes,
+  --  and the reader's prefill. Replaced a positional
+  --  (front, back, context?) triple that had been re-declared inline in
+  --  five places, two of which had already drifted on whether `back` was
+  --  optional.
+  -- Field names match the POST body (jlptLevel, contextSentence), NOT the
+  --  cards row -- so sending one is `{ ...draft, back: cardBack(draft) }`.
+  -- Deliberately carries NO `back`: `back` is a rendering of reading +
+  --  meanings, so holding both would let them drift. Derived at the API
+  --  boundary instead, which is also what keeps the eventual `back`
+  --  retirement scoped to cardBack()'s call sites.
 
 
 ==============================================================================

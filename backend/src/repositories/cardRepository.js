@@ -7,12 +7,17 @@ const pool = require("../db");
 const DUE = "(next_due_at IS NULL OR next_due_at <= now())";
 
 module.exports = {
-  create: async ({ deckId, front, reading, back, notes, contextSentence }) => {
+  create: async ({ deckId, front, reading, back, notes, contextSentence, jlptLevel, meanings }) => {
     const result = await pool.query(
-      `INSERT INTO cards (deck_id, front, reading, back, notes, context_sentence)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO cards (deck_id, front, reading, back, notes, context_sentence, jlpt_level, meanings)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [deckId, front, reading || "", back, notes || "", contextSentence || ""]
+      // `jlpt_level` is nullable, so an absent value passes through as null
+      // (unknown tier) rather than falling back to a number. `meanings` is
+      // NOT NULL, so absent becomes the empty array — `??` not `||`, since
+      // `[]` is truthy and `||` would silently keep a caller's empty array
+      // for the wrong reason.
+      [deckId, front, reading || "", back, notes || "", contextSentence || "", jlptLevel ?? null, meanings ?? []]
     );
     return result.rows[0];
   },
@@ -128,7 +133,13 @@ module.exports = {
     return result.rows[0];
   },
 
-  update: async (id, { front, reading, back, notes, state, contextSentence }) => {
+  // Partial update: null means "leave it alone" for every field, including the
+  // two nullable-in-the-column ones. So a PUT cannot clear `jlpt_level` back to
+  // NULL — that's the same COALESCE semantics every other card field has had,
+  // and editing a card deliberately does not recompute its captured tier.
+  // `meanings` IS clearable, by sending `[]` (an empty array is a value, not a
+  // null).
+  update: async (id, { front, reading, back, notes, state, contextSentence, jlptLevel, meanings }) => {
     const result = await pool.query(
       `UPDATE cards
        SET front            = COALESCE($2, front),
@@ -136,10 +147,15 @@ module.exports = {
            back             = COALESCE($4, back),
            notes            = COALESCE($5, notes),
            state            = COALESCE($6, state),
-           context_sentence = COALESCE($7, context_sentence)
+           context_sentence = COALESCE($7, context_sentence),
+           jlpt_level       = COALESCE($8::smallint, jlpt_level),
+           meanings         = COALESCE($9::text[], meanings)
        WHERE id = $1
        RETURNING *`,
-      [id, front ?? null, reading ?? null, back ?? null, notes ?? null, state ?? null, contextSentence ?? null]
+      // The two casts are explicit because an untyped parameter inside
+      // COALESCE() has to be resolved from the other branch; spelling the type
+      // out keeps it independent of that inference.
+      [id, front ?? null, reading ?? null, back ?? null, notes ?? null, state ?? null, contextSentence ?? null, jlptLevel ?? null, meanings ?? null]
     );
     return result.rows[0];
   },
