@@ -1,4 +1,4 @@
-import { MAX_ZOOM } from './config';
+import { FOCUS_MAX_ZOOM, FOCUS_ZOOM_HEADROOM, MAX_ZOOM } from './config';
 import { clamp } from './geometry';
 import type { Bounds, Camera, Insets, Point, View, Viewport } from './types';
 
@@ -62,9 +62,25 @@ export const matchAspect = (b: Bounds, vp: Viewport, ins?: Insets): Bounds => {
 export const fitZoom = (b: Bounds, vp: Viewport, ins?: Insets) =>
   Math.min(MAX_ZOOM, innerW(vp, ins) / (b.maxX - b.minX), innerH(vp, ins) / (b.maxY - b.minY));
 
-/** Zoom is bounded below by the sky, above by MAX_ZOOM. */
-export const clampZoom = (z: number, b: Bounds, vp: Viewport, ins?: Insets) =>
-  clamp(z, fitZoom(b, vp, ins), MAX_ZOOM);
+/**
+ * The zoom ceiling a *focused deck* earns from its own spread — see FOCUS_MAX_ZOOM in config.ts.
+ * The unclamped fill-the-window zoom times a headroom factor, floored at MAX_ZOOM (a deck dense
+ * enough to fill the window at MAX_ZOOM keeps exactly today's cap) and capped at FOCUS_MAX_ZOOM
+ * (a one-star deck must not blow a single glyph up without limit). fitZoom — the resting fit, the
+ * zoom-out floor, the outer view — never reads this: only how far *in* the wheel may go changes.
+ */
+export const maxZoomFor = (b: Bounds, vp: Viewport, ins?: Insets): number => {
+  const w = b.maxX - b.minX;
+  const h = b.maxY - b.minY;
+  if (w <= 0 || h <= 0) return MAX_ZOOM; // degenerate box: keep the constant cap, not Infinity
+  const rawFit = Math.min(innerW(vp, ins) / w, innerH(vp, ins) / h);
+  return clamp(rawFit * FOCUS_ZOOM_HEADROOM, MAX_ZOOM, FOCUS_MAX_ZOOM);
+};
+
+/** Zoom is bounded below by the sky, above by the ceiling — MAX_ZOOM unless the host passes the
+ *  focused tier's adaptive one (`maxZoomFor`). */
+export const clampZoom = (z: number, b: Bounds, vp: Viewport, ins?: Insets, maxZoom = MAX_ZOOM) =>
+  clamp(z, fitZoom(b, vp, ins), maxZoom);
 
 /** Viewport px -> world, under a given camera. */
 export const toWorld = (local: Point, cam: Camera, vp: Viewport): Point => ({
@@ -126,8 +142,9 @@ export const zoomAround = (
   b: Bounds,
   vp: Viewport,
   ins?: Insets,
+  maxZoom = MAX_ZOOM,
 ): Camera => {
-  const zoom = clampZoom(cam.zoom * factor, b, vp, ins);
+  const zoom = clampZoom(cam.zoom * factor, b, vp, ins, maxZoom);
   if (zoom === cam.zoom) return cam;
 
   const anchor = toWorld(local, cam, vp);
@@ -178,8 +195,14 @@ export const tweenCamera = (from: Camera, to: Camera, k: number): Camera => ({
  *
  * Returns `cam` untouched when already legal, so an in-bounds gesture causes no extra render.
  */
-export const clampCamera = (cam: Camera, b: Bounds, vp: Viewport, ins?: Insets): Camera => {
-  const zoom = clampZoom(cam.zoom, b, vp, ins);
+export const clampCamera = (
+  cam: Camera,
+  b: Bounds,
+  vp: Viewport,
+  ins?: Insets,
+  maxZoom = MAX_ZOOM,
+): Camera => {
+  const zoom = clampZoom(cam.zoom, b, vp, ins, maxZoom);
   const centre = boundsCentre(b);
   const shift = insetShift(zoom, ins);
   const slackX = Math.max(0, (b.maxX - b.minX) / 2 - innerW(vp, ins) / (2 * zoom));

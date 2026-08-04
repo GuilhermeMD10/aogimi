@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
+import { TopBar } from '@/features/app-shell/TopBar';
 import { SkyMap, useSkySeed, type Insets, type SkyFrameMeta } from '@/features/sky';
 
 import { GlassColumn, ColumnHandle, startedLabel } from '../components/GlassColumn';
@@ -24,8 +25,9 @@ import type { CardRecord } from '../types';
 
 /**
  * `/decks` — the whole sky as the decks page: every deck a constellation in a
- * card frame, one full-viewport stage with no page scroll. The old deck grid,
- * deck detail and the `/sky` route all merged into this. Three tiers:
+ * card frame, one rounded stage panel under the shared TopBar filling the rest
+ * of the viewport (no page scroll). The old deck grid, deck detail and the
+ * `/sky` route all merged into this. Three tiers:
  *
  *   outer sky:    every framed constellation + the bottom ledger; clicking a
  *                 frame is the only way into a deck.
@@ -52,13 +54,14 @@ import type { CardRecord } from '../types';
  * column and the frames all read the same filtered projection.
  */
 
-/** Camera insets per tier — the handover's reference values. The chrome never
- *  moves, so these are constants: title band + ledger at the outer tier, the
- *  glass column (or its reopen handle) inside a deck. */
-const SKY_INSETS: Insets = { top: 105, right: 54, bottom: 245, left: 54 };
-const SKY_INSETS_LEDGER_COLLAPSED: Insets = { top: 105, right: 54, bottom: 180, left: 54 };
-const DECK_INSETS: Insets = { top: 88, right: 70, bottom: 95, left: 474 };
-const DECK_INSETS_PANEL_HIDDEN: Insets = { top: 88, right: 70, bottom: 95, left: 70 };
+/** Camera insets per tier — panel-relative (the stage is an inset rounded
+ *  panel below the TopBar, not a viewport bleed). The chrome never moves, so
+ *  these are constants: the action band at the outer tier, the glass column
+ *  (or its reopen handle) inside a deck. */
+const SKY_INSETS: Insets = { top: 96, right: 48, bottom: 216, left: 48 };
+const SKY_INSETS_LEDGER_COLLAPSED: Insets = { top: 96, right: 48, bottom: 156, left: 48 };
+const DECK_INSETS: Insets = { top: 88, right: 58, bottom: 84, left: 396 };
+const DECK_INSETS_PANEL_HIDDEN: Insets = { top: 88, right: 58, bottom: 84, left: 58 };
 
 type Confirm =
   | { kind: 'deck'; id: string; name: string }
@@ -350,119 +353,132 @@ export function DecksView() {
     [decks],
   );
 
-  /* ---------- render: one stage, everything floats over the sky ---------- */
+  /* ---------- render: TopBar column, then one stage panel — everything floats over the sky ---------- */
 
   return (
-    <div
-      className="relative h-full w-full overflow-hidden font-[family-name:var(--face-ui)] font-medium"
-      style={{ background: NIGHT.bg }}
-    >
-      {/* ── the sky itself; the night gradient is the pre-seed placeholder ── */}
-      <div className="absolute inset-0">
-        {seed && sources && sources.length > 0 && (
-          <SkyMap
-            seed={seed}
-            decks={sources}
-            focusedDeckKey={focusedDeckKey}
-            selectedCardId={selectedCardId}
-            onFocusDeck={focusDeck}
-            onSelectCard={selectCard}
-            onSettled={onSettled}
-            frameMeta={frameMeta}
-            insets={insets}
-          />
-        )}
-
-        {sources && sources.length === 0 && !loading && (
-          <p className="absolute inset-0 m-0 flex items-center justify-center px-8 text-center font-[family-name:var(--face-mono)] text-[11px] tracking-[0.1em] text-white/45">
-            Your sky is empty — save words from the reader and each one becomes a star.
-          </p>
-        )}
+    <div className="flex h-full w-full flex-col overflow-hidden font-[family-name:var(--face-ui)] font-medium">
+      {/* The shared TopBar on the same content bounds as home/profile
+          (max-w-[1300px] + px-11). The stage panel below deliberately spans
+          wider than this column — see the gutter note on the wrapper. */}
+      <div className="mx-auto w-full max-w-[1300px] shrink-0 px-11 pt-[34px]">
+        <TopBar />
       </div>
 
-      {error && (
-        <p
-          role="status"
-          className="absolute top-[74px] left-1/2 z-40 m-0 -translate-x-1/2 rounded-[11px] px-4 py-2.5 text-[12.5px] whitespace-nowrap backdrop-blur-[12px]"
-          style={{
-            background: NIGHT.panel,
-            border: `1px solid ${NIGHT.bdB}`,
-            color: NIGHT.soft,
-          }}
+      {/* A 12px gutter (px-3/pb-3), not the page margin: the panel reads as a
+          rounded floating stage that still all but fills the viewport. */}
+      <div className="min-h-0 w-full flex-1 px-3 pb-3">
+        <div
+          className="relative h-full w-full overflow-hidden rounded-[24px]"
+          style={{ background: NIGHT.bg }}
         >
-          Couldn&rsquo;t load your sky — {error}
-        </p>
-      )}
+          {/* ── the sky itself; the night gradient is the pre-seed placeholder ── */}
+          <div className="absolute inset-0">
+            {seed && sources && sources.length > 0 && (
+              <SkyMap
+                seed={seed}
+                decks={sources}
+                focusedDeckKey={focusedDeckKey}
+                selectedCardId={selectedCardId}
+                onFocusDeck={focusDeck}
+                onSelectCard={selectCard}
+                onSettled={onSettled}
+                frameMeta={frameMeta}
+                insets={insets}
+              />
+            )}
 
-      <StageChrome
-        focusedDeckId={focusedDeckKey}
-        dueCount={chromeDue}
-        atDeckQuota={deckCount >= MAX_DECKS}
-        deckCount={deckCount}
-        onCreateDeck={createDeck}
-        onRequestDeleteDeck={() => {
-          if (focusedDeck) setConfirm({ kind: 'deck', id: focusedDeck.id, name: focusedDeck.name });
-        }}
-      />
+            {sources && sources.length === 0 && !loading && (
+              <p className="absolute inset-0 m-0 flex items-center justify-center px-8 text-center font-[family-name:var(--face-mono)] text-[11px] tracking-[0.1em] text-white/45">
+                Your sky is empty — save words from the reader and each one becomes a star.
+              </p>
+            )}
+          </div>
 
-      {focusedDeck === null ? (
-        decks &&
-        decks.length > 0 && (
-          <StageLedger
-            expanded={ledgerExpanded}
-            onToggle={() => setLedgerExpanded((v) => !v)}
-            days={ledger.days}
-            stars={totals?.stars ?? null}
-            dueToday={dueLoading ? null : dueTotal}
-            mastered={totals?.mastered ?? null}
-            mix={mix}
-            upgrades={ledger.upgrades}
-            onUpgradeClick={focusAndSelect}
+          {error && (
+            <p
+              role="status"
+              className="absolute top-[74px] left-1/2 z-40 m-0 -translate-x-1/2 rounded-[11px] px-4 py-2.5 text-[12.5px] whitespace-nowrap backdrop-blur-[12px]"
+              style={{
+                background: NIGHT.panel,
+                border: `1px solid ${NIGHT.bdB}`,
+                color: NIGHT.soft,
+              }}
+            >
+              Couldn&rsquo;t load your sky — {error}
+            </p>
+          )}
+
+          <StageChrome
+            focusedDeckId={focusedDeckKey}
+            dueCount={chromeDue}
+            atDeckQuota={deckCount >= MAX_DECKS}
+            deckCount={deckCount}
+            onCreateDeck={createDeck}
+            onRequestDeleteDeck={() => {
+              if (focusedDeck) setConfirm({ kind: 'deck', id: focusedDeck.id, name: focusedDeck.name });
+            }}
           />
-        )
-      ) : panelHidden ? (
-        <ColumnHandle onOpen={() => setPanelHidden(false)} />
-      ) : (
-        <GlassColumn
-          deck={focusedDeck}
-          decks={decks ?? []}
-          selectedCard={selectedCard}
-          dueCount={focusedDue}
-          onBack={back}
-          onCollapse={() => setPanelHidden(true)}
-          onSelectCard={selectCard}
-          onSearchPick={focusAndSelect}
-          onRequestDeleteCard={(card) => setConfirm({ kind: 'card', card })}
-        />
-      )}
 
-      <PendingCardOverlay
-        flow={pendingCardFlow}
-        decks={deckSummaries ?? []}
-        onCancel={cancelPendingFlow}
-        onSelectDeck={selectDeckForPending}
-        onCreateDeckAndUse={(name) => void createDeckAndUseForPending(name)}
-        onSubmitCard={(back, ctx) => void submitPendingCard(back, ctx)}
-      />
+          {focusedDeck === null ? (
+            decks &&
+            decks.length > 0 && (
+              <StageLedger
+                expanded={ledgerExpanded}
+                onToggle={() => setLedgerExpanded((v) => !v)}
+                days={ledger.days}
+                stars={totals?.stars ?? null}
+                dueToday={dueLoading ? null : dueTotal}
+                mastered={totals?.mastered ?? null}
+                mix={mix}
+                upgrades={ledger.upgrades}
+                onUpgradeClick={focusAndSelect}
+              />
+            )
+          ) : panelHidden ? (
+            <ColumnHandle onOpen={() => setPanelHidden(false)} />
+          ) : (
+            <GlassColumn
+              deck={focusedDeck}
+              decks={decks ?? []}
+              selectedCard={selectedCard}
+              dueCount={focusedDue}
+              onBack={back}
+              onCollapse={() => setPanelHidden(true)}
+              onSelectCard={selectCard}
+              onSearchPick={focusAndSelect}
+              onRequestDeleteCard={(card) => setConfirm({ kind: 'card', card })}
+            />
+          )}
 
-      {confirm !== null &&
-        (confirm.kind === 'deck' ? (
-          <NightConfirm
-            title={`Delete “${confirm.name}”?`}
-            body="This deletes the deck and every card in it — its constellation leaves your sky. There is no undo."
-            confirmLabel="Delete deck"
-            onConfirm={runConfirm}
-            onCancel={() => setConfirm(null)}
+          <PendingCardOverlay
+            flow={pendingCardFlow}
+            decks={deckSummaries ?? []}
+            onCancel={cancelPendingFlow}
+            onSelectDeck={selectDeckForPending}
+            onCreateDeckAndUse={(name) => void createDeckAndUseForPending(name)}
+            onSubmitCard={(back, ctx) => void submitPendingCard(back, ctx)}
           />
-        ) : (
-          <NightConfirm
-            title={`Delete “${confirm.card.front}”?`}
-            body="This removes the card and its star. There is no undo."
-            confirmLabel="Delete card"
-            onConfirm={runConfirm}
-            onCancel={() => setConfirm(null)}
-          />
-        ))}
+
+          {confirm !== null &&
+            (confirm.kind === 'deck' ? (
+              <NightConfirm
+                title={`Delete “${confirm.name}”?`}
+                body="This deletes the deck and every card in it — its constellation leaves your sky. There is no undo."
+                confirmLabel="Delete deck"
+                onConfirm={runConfirm}
+                onCancel={() => setConfirm(null)}
+              />
+            ) : (
+              <NightConfirm
+                title={`Delete “${confirm.card.front}”?`}
+                body="This removes the card and its star. There is no undo."
+                confirmLabel="Delete card"
+                onConfirm={runConfirm}
+                onCancel={() => setConfirm(null)}
+              />
+            ))}
+        </div>
+      </div>
     </div>
   );
 }

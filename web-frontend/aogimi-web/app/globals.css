@@ -133,6 +133,19 @@
   }
 }
 
+/* ── pdf.js viewer (PDF reader) ─────────────────────────────────────────── */
+
+/* `pdfjs-dist/web/pdf_viewer.css` (imported by `PdfReaderClient`) sizes
+   `.page` assuming a content-box world: the box is the painted page, and its
+   9px transparent border is the gutter between pages. Tailwind's preflight
+   makes everything border-box, which would carve that gutter out of the
+   canvas instead — every page ~18px narrower than the bitmap painted into it,
+   a slight squeeze and blur. Scoped opt-out; the rules that do want
+   border-box in that stylesheet declare it themselves. */
+.pdfViewer .page {
+  box-sizing: content-box;
+}
+
 /* ── Bubble animations ──────────────────────────────────────────────────── */
 
 @keyframes bubble-enter {

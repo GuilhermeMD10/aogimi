@@ -48,7 +48,13 @@ const notoSansJp = Noto_Sans_JP({
 // the wrong ramp. (The star map itself is client-measured and never flashes.)
 // The id list mirrors `SKY_HUES` in features/sky/lib/palette.ts — inlined rather
 // than imported to keep this a plain string, exactly as the theme names are.
-const THEME_INIT = `(function(){try{var t=localStorage.getItem('aogimi-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);var h=localStorage.getItem('aogimi-sky-hue');if(['default','ginga','ember','aurora'].indexOf(h)<0){h='default';}document.documentElement.setAttribute('data-sky-hue',h);}catch(e){}})();`;
+//
+// /authenticate is the one exception: it has no dark palette, so a hard load
+// there paints light whatever the stored theme says. The user's resolved theme
+// is parked in `data-user-theme` so ThemeProvider (which mirrors this route
+// gate) can seed its state from it and restore it on nav away — the stored key
+// itself is never touched. Exact pathname match, same as AppShell's gate.
+const THEME_INIT = `(function(){try{var d=document.documentElement;var t=localStorage.getItem('aogimi-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(location.pathname==='/authenticate'){d.setAttribute('data-theme','light');d.setAttribute('data-user-theme',t);}else{d.setAttribute('data-theme',t);}var h=localStorage.getItem('aogimi-sky-hue');if(['default','ginga','ember','aurora'].indexOf(h)<0){h='default';}d.setAttribute('data-sky-hue',h);}catch(e){}})();`;
 
 export const metadata: Metadata = {
   title: 'Aogimi',

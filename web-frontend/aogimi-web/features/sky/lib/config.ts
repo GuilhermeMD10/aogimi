@@ -34,20 +34,36 @@ export const STAR_PX = 3; // stars keep this pixel radius at any zoom level
 // there is no MIN_ZOOM constant: the zoom-out floor is the sky's own fit zoom, so you can
 // never pull back past the boundary. See fitZoom() in lib/sky/camera.ts.
 export const MAX_ZOOM = 2; // px per world unit, zoomed all the way in
+/**
+ * The focused deck's ceiling adapts to how much sky the deck actually has. At MAX_ZOOM a sparse
+ * deck's box covers only a corner of the viewport and the fit *is* the ceiling, so its handful of
+ * stars sit tiny in an empty frame with nowhere further to go. The ceiling inside a focused deck
+ * is therefore `clamp(rawFit × FOCUS_ZOOM_HEADROOM, MAX_ZOOM, FOCUS_MAX_ZOOM)` (see `maxZoomFor`
+ * in camera.ts), where rawFit is the *unclamped* fill-the-window zoom: a deck too sparse to reach
+ * the window at MAX_ZOOM may zoom until it fills it, plus headroom — while a deck dense enough to
+ * fill it already keeps today's cap. FOCUS_MAX_ZOOM is the absolute ceiling that stops a one-star
+ * deck blowing a single glyph up absurdly. The resting fit (fitZoom) is untouched, so entering a
+ * deck lands exactly where it always did and wheel-out-at-fit still means "leave".
+ */
+export const FOCUS_MAX_ZOOM = 6;
+export const FOCUS_ZOOM_HEADROOM = 1.6;
 export const ZOOM_PER_WHEEL_PX = 0.0015; // exponential, so zoom feels linear at every scale
 export const DRAG_SLOP_PX = 3; // movement beyond this makes a press a drag, not a click
 // Screen-space pick radius. Being screen-space, the world distance it covers grows as you zoom
 // out, so far enough out the targets do overlap — pickStar returns the nearest, which is why that
 // stays harmless rather than ambiguous.
-export const HIT_PX = 7;
-export const HOVER_HALO_PX = 11; // ring drawn around the hovered star
+// 11 rather than the old 7: picking only ever runs inside the focused deck (SkyCanvas guards on
+// it), whose stars are now drawn larger (FOCUSED_STAR_SCALE) — the target grows with the glyph.
+// Still comfortably under MIN_DISTANCE at the fit, so neighbours stay separately clickable.
+export const HIT_PX = 20;
+export const HOVER_HALO_PX = 8; // ring drawn around the hovered star
 /**
  * How long the camera takes to fly between tiers (entering a deck, returning to the whole sky).
  * One flight length rather than a distance-scaled one: the two flights it is used for both span
  * roughly one tier, and a constant keeps the gesture's rhythm predictable. Interruptible — any
  * pan or zoom takes over mid-flight — so the ceiling on how long it can feel is the reader's own.
  */
-export const CAMERA_TWEEN_MS = 600;
+export const CAMERA_TWEEN_MS = 400;
 /**
  * How long a star takes to pop in when it is first shown. One constant because two things need to
  * agree on it: the CSS keyframe that plays it, and the timer that marks the star seen afterwards.
@@ -241,7 +257,12 @@ export const LABEL_ZOOM = LABEL_GAP_PX / STAR_GAP; // the zoom the fade complete
 export const LABEL_BAND = 1.4;
 /** A backstop for hosts whose fronts are sentences: the label is a glance, the panel is the card. */
 export const LABEL_MAX_CHARS = 18;
-export const LABEL_FONT_PX = 12; // sized for kanji, which is unreadable much below this
+// 14/500 rather than the original 12/400: sized against the focused view's larger stars
+// (FOCUSED_STAR_SCALE) — labels only ever draw inside a focused deck, so the outer view never
+// sees either. The weight must be a real cut: Switzer ships 400/500/700 and Noto Sans JP 500/700,
+// neither has a 600, so 500 is the heaviest step that stays honest in both faces.
+export const LABEL_FONT_PX = 16; // sized for kanji, which is unreadable much below 12
+export const LABEL_FONT_WEIGHT = 600;
 /** Right and slightly below the star, past its own radius. Screen px, like every offset here. */
 export const LABEL_OFFSET_X_PX = 10;
 export const LABEL_OFFSET_Y_PX = 4;
@@ -249,7 +270,7 @@ export const LABEL_OFFSET_Y_PX = 4;
 /* ---------- selection ---------- */
 /** Ring drawn around the selected star, beyond its radius. Wider than HOVER_HALO_PX on purpose:
  *  hover is a question and selection is an answer, and the two must read differently at a glance. */
-export const SELECT_HALO_PX = 13;
+export const SELECT_HALO_PX = 8;
 /** The selected star's glow swells to this multiple of its radius — the reference's amplified glow. */
 export const SELECT_GLOW_SCALE = 5.6;
 
@@ -353,7 +374,14 @@ export const GAP_FILL_SPACING = 2;
 export const GAP_FILL_QUOTA = 0.8;
 /** A fulcral star stands in for a whole collapsed group, so it carries more ink than a lone one. */
 export const FULCRAL_SCALE = 1.55;
-/** Stars of a deck that is not the focused one, relative to the focused deck's. */
+/**
+ * Stars of the focused deck itself, over the neutral base the outer view draws at. The interior is
+ * where a star is a click target and a label anchor rather than one point of a silhouette, so it
+ * carries more ink there — and HIT_PX / LABEL_FONT_PX are sized against this.
+ */
+export const FOCUSED_STAR_SCALE = 1.35;
+/** Stars of a deck that is not the focused one, relative to the neutral base — the outer view's
+ *  scale, which the focused boost above deliberately leaves untouched. */
 export const UNFOCUSED_STAR_SCALE = 0.86;
 /** ...and how far the rest of an unfocused deck fades once one deck has focus (handover: .24). */
 export const UNFOCUSED_DECK_OPACITY = 0.24;
