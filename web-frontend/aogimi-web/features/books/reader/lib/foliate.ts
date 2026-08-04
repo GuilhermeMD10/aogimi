@@ -22,8 +22,12 @@ export type FoliateTocItem = {
 };
 
 export interface FoliateSection {
+  /** The spine item's **href**. foliate has no `section.href` — epub.js builds
+   *  sections as `{ id: item.href, ... }` and view.js matches TOC targets
+   *  against `sections.map(s => s.id)`. Don't add an `href` field back: it
+   *  reads as the obvious name, is always `undefined`, and every
+   *  `if (section.href)` guard it feeds is silently dead. */
   id?: string;
-  href?: string;
   size?: number;
   linear?: string;
   createDocument?: () => Promise<Document>;
@@ -38,14 +42,20 @@ export interface FoliateBook {
   resolveHref?: (href: string) => { index: number; anchor: unknown } | undefined;
 }
 
+/** The `relocate` event's detail. There is deliberately **no top-level
+ *  `index`**: view.js `#onRelocate` emits `{ ...progress, tocItem, pageItem,
+ *  cfi, range }`, and the spine index lives in `progress.section.current`.
+ *  A declared `index` here reads as the spine index, is always `undefined`,
+ *  and silently persists 0 into `book_progress.spine_index`. */
 export interface FoliateRelocateDetail {
   cfi: string;
-  index: number;
   fraction: number;
   size?: number;
   range?: Range;
   tocItem?: { label?: string; href?: string; id?: number };
   pageItem?: { label?: string };
+  /** Spine position — `current` is the spine index. Optional because
+   *  `progress` is `{}` when foliate built no section progress. */
   section?: { current: number; total: number };
   location?: { current: number; next: number; total: number };
 }
@@ -80,7 +90,11 @@ export interface FoliateViewElement extends HTMLElement {
   renderer: FoliateRenderer;
   open(file: File | Blob): Promise<void>;
   close(): void;
-  goTo(target: string | { index: number; anchor?: unknown } | { fraction: number }): Promise<unknown>;
+  /** A plain `number` is a spine index (view.js `resolveNavigation`); a string
+   *  is an href or a CFI. */
+  goTo(
+    target: number | string | { index: number; anchor?: unknown } | { fraction: number },
+  ): Promise<unknown>;
   goLeft(): void;
   goRight(): void;
   prev(distance?: number): Promise<unknown>;

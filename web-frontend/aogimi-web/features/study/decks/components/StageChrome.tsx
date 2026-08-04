@@ -8,8 +8,10 @@ import { MAX_DECK_NAME, deckQuotaMessage } from '../lib/limits';
 import { NIGHT } from '../lib/nightChrome';
 
 /**
- * The suspended chrome over the sky: the brand mark top-left, the actions
- * top-right. What the actions are depends on the tier —
+ * The suspended chrome over the sky: the actions top-right (the brand mark is
+ * gone — the shared TopBar renders above the stage panel now). The cluster's
+ * top edge (20px) lines up with the glass column's, so the focused tier reads
+ * as one band. What the actions are depends on the tier —
  *
  *   outer sky:    "Study N due" (all decks) + "New deck" (opens the create
  *                 form as a glass popover; the reader-bubble flow shares the
@@ -80,26 +82,7 @@ export function StageChrome({
 }: Props) {
   return (
     <>
-      {/* Brand mark — the TopBar's tile-and-wordmark pair, sized down and pinned
-          light-on-night (the TopBar itself doesn't render on this page). */}
-      <Link
-        href="/"
-        aria-label="Aogimi home"
-        className={`absolute top-[18px] left-[22px] z-40 flex items-center gap-[10px] transition-opacity duration-120 ease-[ease] hover:opacity-75 ${FOCUS_RING}`}
-      >
-        <span
-          aria-hidden
-          className="flex size-[30px] items-center justify-center rounded-(--radius-cover) font-[family-name:var(--face-jp)] text-[17px]"
-          style={{ background: NIGHT.accent, color: NIGHT.ink }}
-        >
-          仰
-        </span>
-        <span className="font-[family-name:var(--face-ui)] text-[18px] font-bold" style={{ color: NIGHT.ink }}>
-          aogimi
-        </span>
-      </Link>
-
-      <div className="absolute top-[18px] right-[22px] z-40 flex items-center gap-2.5">
+      <div className="absolute top-5 right-5 z-40 flex items-center gap-2.5">
         {focusedDeckId === null ? (
           <>
             <StudyButton due={dueCount} href="/study?due=1" />

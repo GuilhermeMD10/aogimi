@@ -4,6 +4,7 @@ import { clip } from '../lib/cards';
 import {
   HOVER_HALO_PX,
   LABEL_FONT_PX,
+  LABEL_FONT_WEIGHT,
   LABEL_MAX_CHARS,
   LABEL_OFFSET_X_PX,
   LABEL_OFFSET_Y_PX,
@@ -194,6 +195,7 @@ export function SkyStars({ stars, ranks, fulcral, focused, relZoom, u, hovered, 
                 x={s.x + r + LABEL_OFFSET_X_PX * u}
                 y={s.y + LABEL_OFFSET_Y_PX * u}
                 fontSize={LABEL_FONT_PX * u}
+                fontWeight={LABEL_FONT_WEIGHT}
                 fill={STAR_LABEL_COLOR}
                 fillOpacity={(isSelected ? 1 : 0.85) * labelOp}
               >

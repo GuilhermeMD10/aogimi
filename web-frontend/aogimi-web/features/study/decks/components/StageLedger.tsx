@@ -64,7 +64,7 @@ export function StageLedger({
         aria-label="Expand the ledger"
         onClick={onToggle}
         onKeyDown={toggleKeys}
-        className="absolute bottom-24 left-1/2 z-20 w-[min(560px,calc(100%-56px))] -translate-x-1/2 cursor-pointer rounded-[16px] px-5 py-3.5 backdrop-blur-[12px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        className="absolute bottom-[84px] left-1/2 z-20 w-[min(560px,calc(100%-56px))] -translate-x-1/2 cursor-pointer rounded-[16px] px-5 py-3.5 backdrop-blur-[12px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         style={shell}
       >
         <div className="flex items-center gap-4">
@@ -90,7 +90,7 @@ export function StageLedger({
       aria-label="Collapse the ledger"
       onClick={onToggle}
       onKeyDown={toggleKeys}
-      className="absolute right-7 bottom-24 left-7 z-20 cursor-pointer rounded-[18px] backdrop-blur-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      className="absolute right-5 bottom-[84px] left-5 z-20 cursor-pointer rounded-[18px] backdrop-blur-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       style={shell}
     >
       <div className="flex items-stretch gap-[22px] px-6 py-4">

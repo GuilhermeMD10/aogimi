@@ -31,13 +31,11 @@ export const ROW_SHELL = cn(
   'transition-[border-color,color] duration-120 ease-[ease]',
 );
 
-export const ROW_IDLE =
-  'border-transparent hover:[border-color:color-mix(in_srgb,var(--muted)_35%,transparent)]';
+export const ROW_IDLE = 'border-transparent hover:[border-color:color-mix(in_srgb,var(--muted)_35%,transparent)]';
 
 export const ROW_SELECTED = 'border-(--accent)';
 
-export const ROW_FOCUS =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)';
+export const ROW_FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)';
 
 /** The class pill next to the JLPT chip. Bordered, never filled. */
 export function ClassPill({ children }: { children: string }) {
@@ -123,9 +121,7 @@ export function WordRow({
               {headword}
             </span>
             {reading && (
-              <span className="font-[family-name:var(--face-mono)] text-[11px] text-(--muted)">
-                {reading}
-              </span>
+              <span className="font-[family-name:var(--face-mono)] text-[11px] text-(--muted)">{reading}</span>
             )}
 
             {/* Why an entry you didn't type is in the list: 食べた → 食べる. The
@@ -157,9 +153,10 @@ export function WordRow({
             </span>
           )}
         </span>
+        <span>
+          <AddButton onClick={onAdd} label={`Add ${headword} to a deck`} />
+        </span>
       </button>
-
-      <AddButton onClick={onAdd} label={`Add ${headword} to a deck`} />
     </li>
   );
 }

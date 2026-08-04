@@ -1,6 +1,7 @@
 import {
   CROSS_INNER,
   CROSS_OUTER,
+  FOCUSED_STAR_SCALE,
   FULCRAL_SCALE,
   SPARKLE_ARM,
   SPARKLE_CORE,
@@ -51,7 +52,10 @@ export type StarSizing = {
 export const starRadiusPx = (mastery: number, s: StarSizing): number => {
   const base = RANK_R_PX[rankOf(mastery)];
   const swell = Math.pow(Math.max(s.relZoom, 1e-6), STAR_ZOOM_EXPONENT);
-  const deck = s.focused === false ? UNFOCUSED_STAR_SCALE : 1;
+  // three deck standings, three scales: the focused interior's stars are click targets and label
+  // anchors so they carry more ink; an unfocused deck's carry less; a host that says nothing
+  // (focused undefined) gets the neutral base, which is what the outer view's 0.86 is relative to
+  const deck = s.focused === false ? UNFOCUSED_STAR_SCALE : s.focused === true ? FOCUSED_STAR_SCALE : 1;
   return base * swell * deck * (s.fulcral ? FULCRAL_SCALE : 1);
 };
 

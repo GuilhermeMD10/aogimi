@@ -52,7 +52,6 @@ export function MangaReader({
   const engine = useMangaReaderEngine({ blob, initialSpineIndex, onRelocate });
   const {
     currentPage,
-    currentPageRef,
     total,
     viewMode,
     setViewMode,
@@ -61,23 +60,17 @@ export function MangaReader({
     advancePage,
     goBackPage,
     goToPage,
-    restorePageRef,
     toc,
     viewRef,
   } = engine;
 
   const toggle = (next: 'toc' | 'settings') => setPanel((p) => (p === next ? null : next));
 
-  // Switching to double-page has to land on an even page or the spread pairs
-  // the wrong images together.
-  const changeViewMode = (key: string) => {
-    const mode = key as ViewMode;
-    if (mode === viewMode) return;
-    let page = currentPageRef.current;
-    if (mode === 'double' && page > 1 && page % 2 === 1) page -= 1;
-    restorePageRef.current = page;
-    setViewMode(mode);
-  };
+  // No page restore on a mode switch: the mode only restyles the wrapper the
+  // <foliate-view> sits in, and the renderer holds its own position across the
+  // resize (it re-scales from a ResizeObserver). Page *pairing* comes from the
+  // book's spine, not from this setting.
+  const changeViewMode = (key: string) => setViewMode(key as ViewMode);
 
   return (
     <ReaderShell

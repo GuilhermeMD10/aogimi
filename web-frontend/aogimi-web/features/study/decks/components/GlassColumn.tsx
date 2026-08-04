@@ -94,7 +94,7 @@ export function GlassColumn({
 
   return (
     <div
-      className="absolute top-[72px] bottom-[90px] left-5 z-30 flex w-[404px] max-w-[calc(100vw-40px)] flex-col overflow-hidden rounded-[18px] backdrop-blur-[16px]"
+      className="absolute top-5 bottom-[78px] left-5 z-30 flex w-[340px] max-w-[calc(100vw-64px)] flex-col overflow-hidden rounded-[18px] backdrop-blur-[16px]"
       style={{
         background: NIGHT.glass,
         border: `1px solid ${NIGHT.bdB}`,
@@ -163,7 +163,7 @@ export function ColumnHandle({ onOpen }: { onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      className={`absolute top-[72px] left-5 z-30 rounded-[10px] px-[13px] py-[9px] font-[family-name:var(--face-mono)] text-[10.5px] tracking-[0.1em] backdrop-blur-[12px] ${FOCUS_RING}`}
+      className={`absolute top-5 left-5 z-30 rounded-[10px] px-[13px] py-[9px] font-[family-name:var(--face-mono)] text-[10.5px] tracking-[0.1em] backdrop-blur-[12px] ${FOCUS_RING}`}
       style={{
         background: NIGHT.glass,
         border: `1px solid ${NIGHT.bdA}`,

@@ -2,9 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
-import { ReaderShell } from '@/features/books/reader/components/ReaderShell';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
+// Must stay below the `pdfjs-dist` import: pdf_viewer.mjs carries no imports of
+// its own — it binds the core API from `globalThis.pdfjsLib`, which
+// `build/pdf.mjs` sets while it evaluates. Same package for both, so the
+// viewer constructor's API-version === viewer-version check always holds.
+import { EventBus, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
+import { Search, ZoomIn, ZoomOut } from 'lucide-react';
+import { ReaderIconButton, ReaderShell } from '@/features/books/reader/components/ReaderShell';
 import { THEMES } from '@/features/books/reader/lib/readerConstants';
+import 'pdfjs-dist/web/pdf_viewer.css';
 
 // Single pdfjs-dist (the root one). Bundled worker matches the API version
 // because both come from the same package.
@@ -18,211 +25,197 @@ export type PdfReaderProps = {
   bookTitle?: string;
   bookAuthor?: string;
   onBack: () => void;
+  /** Whether the dictionary sidekick is currently docked. The toolbar toggle
+   * renders in its active state while it is. */
+  sidekickOpen?: boolean;
+  /** Toggle the sidekick visibility from the reader toolbar. */
+  onToggleSidekick?: () => void;
 };
 
 /**
- * Minimal PDF reader. Loads the document with pdf.js directly, renders each
- * page to its own `<canvas>` stacked vertically, and tracks the currently-
- * visible page via IntersectionObserver for the page counter. No selection,
- * dictionary, highlights, or position persistence — just open + scroll.
+ * PDF reader built on pdf.js's own `PDFViewer`, which owns everything the old
+ * hand-rolled canvas pipeline did badly or not at all: page layout, zoom with
+ * scroll anchoring (CSS-scales the current canvases, then re-renders crisply),
+ * rendering only the pages near the viewport instead of all of them, and a
+ * real text layer — text is selectable, though nothing is wired to selection
+ * yet. This file keeps to the chrome: the shell, a page counter fed from the
+ * viewer's `pagechanging` event, and zoom buttons driving `increaseScale()` /
+ * `decreaseScale()`. Still no highlights or position persistence, and the
+ * docked dictionary remains manual-search only.
  */
 export function PdfReaderClient({
   fileUrl,
   bookTitle,
   bookAuthor,
   onBack,
+  sidekickOpen = false,
+  onToggleSidekick,
 }: PdfReaderProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const pageRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
-  const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
+  const viewerElRef = useRef<HTMLDivElement | null>(null);
+  const viewerRef = useRef<PDFViewer | null>(null);
   const [numPages, setNumPages] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(900);
-  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  /** Absolute zoom for the readout: 100 = the page's actual size, and
+   *  fit-to-width is whatever percentage the pane implies. */
+  const [scalePct, setScalePct] = useState(100);
+  const [error, setError] = useState<string | null>(null);
 
-  // Resize observer — fit each page width to the container, capped for
-  // readability on very wide screens.
+  // One lifecycle, keyed on the file: build the viewer, load the document into
+  // it, tear both down. Every state write below is an async consequence of a
+  // pdf.js promise or eventBus event syncing into React.
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      setContainerWidth(Math.min(el.clientWidth - 32, 1100));
+    const container = containerRef.current;
+    const viewerEl = viewerElRef.current;
+    if (!container || !viewerEl) return;
+
+    let dead = false;
+
+    const eventBus = new EventBus();
+    const viewer = new PDFViewer({
+      container,
+      viewer: viewerEl,
+      eventBus,
+      // No annotation layer in v1 — no forms or links rendered, and none of
+      // the icon assets its CSS would pull in. The text layer keeps its
+      // default (enabled). The link service defaults to the built-in
+      // SimpleLinkService, which is inert without link annotations.
+      annotationMode: pdfjsLib.AnnotationMode.DISABLE,
     });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+    viewerRef.current = viewer;
 
-  // Load the document. Cancellation: on unmount or fileUrl change, destroy()
-  // releases the worker job so we don't leak.
-  useEffect(() => {
-    let cancelled = false;
+    // Fit-to-width is the reader's one layout mode. Presets are evaluated at
+    // assignment, so this waits for the pages to exist and is re-applied on
+    // container resize below.
+    const onPagesInit = () => {
+      viewer.currentScaleValue = 'page-width';
+    };
+    const onPageChanging = (evt: { pageNumber: number }) => setCurrentPage(evt.pageNumber);
+    const onScaleChanging = (evt: { scale: number }) => setScalePct(Math.round(evt.scale * 100));
+    eventBus.on('pagesinit', onPagesInit);
+    eventBus.on('pagechanging', onPageChanging);
+    eventBus.on('scalechanging', onScaleChanging);
+
     const task = pdfjsLib.getDocument(fileUrl);
     task.promise
-      .then((d) => {
-        if (cancelled) {
-          void d.destroy();
+      .then((doc) => {
+        if (dead) {
+          void doc.destroy();
           return;
         }
-        setDoc(d);
-        setNumPages(d.numPages);
+        viewer.setDocument(doc);
+        setNumPages(doc.numPages);
+        // `pagechanging` fires on changes only, never for the initial page.
+        setCurrentPage(1);
       })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Failed to load PDF');
+      .catch((e: unknown) => {
+        if (!dead) setError(e instanceof Error ? e.message : 'Failed to load PDF');
       });
+
+    // The viewer doesn't re-evaluate presets when its container resizes (the
+    // standalone app re-assigns on window resize, and so must we): without
+    // this, docking the dictionary or resizing the window would leave the
+    // pages at a stale width. Numeric scales the user chose are left alone.
+    const ro = new ResizeObserver(() => {
+      if (!viewer.pdfDocument) return;
+      const value = viewer.currentScaleValue;
+      if (value === 'page-width' || value === 'page-fit' || value === 'auto') {
+        viewer.currentScaleValue = value;
+      }
+      viewer.update();
+    });
+    ro.observe(container);
+
     return () => {
-      cancelled = true;
-      task.destroy();
+      dead = true;
+      ro.disconnect();
+      eventBus.off('pagesinit', onPagesInit);
+      eventBus.off('pagechanging', onPageChanging);
+      eventBus.off('scalechanging', onScaleChanging);
+      viewerRef.current = null;
+      // Null is the viewer's own teardown path (cancels rendering, drops the
+      // page views) — its typings just don't admit it. The loading task's
+      // destroy then takes the document and worker down with it.
+      viewer.setDocument(null as unknown as PDFDocumentProxy);
+      void task.destroy();
     };
   }, [fileUrl]);
 
-  // Track most-visible page → drive the page counter.
-  useEffect(() => {
-    if (numPages === 0) return;
-    const visible = new Map<number, number>();
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          const page = Number((e.target as HTMLElement).dataset.page);
-          if (!page) continue;
-          if (e.isIntersecting) visible.set(page, e.intersectionRatio);
-          else visible.delete(page);
-        }
-        let bestPage = 0;
-        let bestRatio = 0;
-        for (const [p, r] of visible) {
-          if (r > bestRatio) {
-            bestRatio = r;
-            bestPage = p;
-          }
-        }
-        if (bestPage > 0) setCurrentPage(bestPage);
-      },
-      { threshold: [0.25, 0.5, 0.75] },
-    );
-    for (const [, node] of pageRefs.current) if (node) io.observe(node);
-    return () => io.disconnect();
-  }, [numPages]);
+  // Min/max clamping lives inside the viewer (its bounds aren't exported), so
+  // the buttons stay enabled and stepping past an end is simply a no-op.
+  const zoomOut = () => viewerRef.current?.decreaseScale();
+  const zoomIn = () => viewerRef.current?.increaseScale();
+  const zoomReset = () => {
+    const viewer = viewerRef.current;
+    if (viewer?.pdfDocument) viewer.currentScaleValue = 'page-width';
+  };
 
   return (
     <ReaderShell
       title={bookTitle ?? 'PDF'}
       author={bookAuthor}
       onBack={onBack}
-      // In-session only. The observer above tracks the visible page, so the bar
-      // fills as you scroll — but nothing stores a PDF position yet, so
-      // reopening the file starts at zero. Deferred, see DECISIONS.md.
+      // In-session only. The viewer reports the visible page as you scroll, so
+      // the bar fills — but nothing stores a PDF position yet, so reopening
+      // the file starts at zero. Deferred, see DECISIONS.md.
       percent={numPages > 0 ? (currentPage / numPages) * 100 : 0}
       page={numPages > 0 ? { current: currentPage, total: numPages } : undefined}
-      // No `onJumpToPage`, no `tools`: the pane scrolls freely with no
-      // page→offset mapping, and there's no TOC or text selection to offer.
+      // No `onJumpToPage` yet — the viewer can jump (`currentPageNumber`), it
+      // just isn't offered in this pass. No TOC or selection tools either.
+      // Zoom and the dictionary toggle are the tool cluster; the docked panel
+      // has its own search field (same reasoning as the fixed-layout manga
+      // reader, whose pages are images).
+      tools={
+        <>
+          <ReaderIconButton label="Zoom out" onClick={zoomOut}>
+            <ZoomOut size={19} strokeWidth={1.8} />
+          </ReaderIconButton>
+          {/* The readout doubles as reset — back to fit-to-width. */}
+          <ReaderIconButton label="Reset zoom to fit width" onClick={zoomReset}>
+            <span className="font-[family-name:var(--face-mono)] text-[11px] font-bold">
+              {scalePct}%
+            </span>
+          </ReaderIconButton>
+          <ReaderIconButton label="Zoom in" onClick={zoomIn}>
+            <ZoomIn size={19} strokeWidth={1.8} />
+          </ReaderIconButton>
+
+          {onToggleSidekick && (
+            <ReaderIconButton
+              label={sidekickOpen ? 'Hide dictionary' : 'Open dictionary'}
+              active={sidekickOpen}
+              onClick={onToggleSidekick}
+            >
+              <Search size={19} strokeWidth={1.8} />
+            </ReaderIconButton>
+          )}
+        </>
+      }
     >
-      <div
-        ref={containerRef}
-        className="min-h-0 flex-1 overflow-auto"
-        style={{ background: THEMES.light.bg }}
-      >
-        {error ? (
-          <div className="flex h-full items-center justify-center text-[13.5px] text-(--accent)">
-            {error}
+      <div className="min-h-0 flex-1" style={{ background: THEMES.light.bg }}>
+        {/* The old reader capped pages at ~1100px for readability; the cap
+            survives as this centred column. PDFViewer requires its scroll
+            container to be absolutely positioned, so the cap lives on the
+            relative wrapper the container insets against. */}
+        <div className="relative mx-auto h-full max-w-[1100px]">
+          <div ref={containerRef} className="absolute inset-0 overflow-auto">
+            <div ref={viewerElRef} className="pdfViewer" />
           </div>
-        ) : !doc ? (
-          <div className="flex h-full items-center justify-center text-[13.5px] text-(--muted)">
-            Opening&hellip;
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-3 py-4">
-            {Array.from({ length: numPages }, (_, i) => i + 1).map((p) => (
-              <div
-                key={p}
-                data-page={p}
-                ref={(el) => {
-                  if (el) pageRefs.current.set(p, el);
-                  else pageRefs.current.delete(p);
-                }}
-                className="shadow"
-              >
-                <PdfPage doc={doc} pageNumber={p} width={containerWidth} />
-              </div>
-            ))}
-          </div>
-        )}
+
+          {(error !== null || numPages === 0) && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center"
+              style={{ background: THEMES.light.bg }}
+            >
+              {error ? (
+                <p className="max-w-sm px-8 text-center text-[13.5px] text-(--accent)">{error}</p>
+              ) : (
+                <p className="text-[13.5px] text-(--muted)">Opening&hellip;</p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </ReaderShell>
-  );
-}
-
-/**
- * Renders a single PDF page to a `<canvas>`. Re-renders when `width` changes
- * (e.g. window resize). Owns its own cancellation so a width change mid-
- * render doesn't leak the older task.
- */
-function PdfPage({
-  doc,
-  pageNumber,
-  width,
-}: {
-  doc: PDFDocumentProxy;
-  pageNumber: number;
-  width: number;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    let page: PDFPageProxy | null = null;
-    let renderTask: ReturnType<PDFPageProxy['render']> | null = null;
-
-    (async () => {
-      try {
-        page = await doc.getPage(pageNumber);
-        if (cancelled) return;
-
-        const unscaled = page.getViewport({ scale: 1 });
-        const scale = width / unscaled.width;
-        const viewport = page.getViewport({ scale });
-        // Backing scale for crispness on retina; cap to avoid huge canvases.
-        const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 2);
-
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        canvas.width = Math.floor(viewport.width * dpr);
-        canvas.height = Math.floor(viewport.height * dpr);
-        canvas.style.width = `${viewport.width}px`;
-        canvas.style.height = `${viewport.height}px`;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-        renderTask = page.render({ canvasContext: ctx, viewport, canvas });
-        await renderTask.promise;
-        if (!cancelled) setSize({ w: viewport.width, h: viewport.height });
-      } catch {
-        // Cancellation / rendering errors are swallowed; outer doc-load error
-        // surface already covers fatal failures.
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      try { renderTask?.cancel(); } catch { /* noop */ }
-      page?.cleanup();
-    };
-  }, [doc, pageNumber, width]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        display: 'block',
-        backgroundColor: '#FFFFFF',
-        width: size?.w ?? width,
-        // Use the unscaled page's aspect ratio for the placeholder height
-        // so the layout doesn't jump while the page is rendering.
-        height: size?.h ?? width * 1.4,
-      }}
-    />
   );
 }

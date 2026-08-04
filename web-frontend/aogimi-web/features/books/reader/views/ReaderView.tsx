@@ -197,6 +197,8 @@ export default function ReaderView({ bookId }: { bookId: string }) {
             bookTitle={book.title}
             bookAuthor={book.author}
             onBack={goBack}
+            sidekickOpen={sidekickOpen}
+            onToggleSidekick={toggleSidekick}
           />
         ) : (
           <EpubReader

@@ -317,8 +317,8 @@ export function useTextReaderEngine({
             const pg = Math.max(1, Math.min(loc.total, (loc.current ?? 0) + 1));
             setGlobalPage(pg);
             setTotalLocations(loc.total);
-          } else if (typeof detail.index === 'number') {
-            setGlobalPage(detail.index + 1);
+          } else if (typeof detail.section?.current === 'number') {
+            setGlobalPage(detail.section.current + 1);
           }
 
           // tocItem is resolved by foliate from the current range, so we get
@@ -326,13 +326,15 @@ export function useTextReaderEngine({
           setChapterLabel(detail.tocItem?.label ?? '');
 
           // Forward the position for progress sync. `fraction` is the
-          // whole-book reading fraction (0–1); `index` is the spine item.
+          // whole-book reading fraction (0–1); `section.current` is the spine
+          // item (the detail has no top-level `index` — see
+          // FoliateRelocateDetail).
           const frac = typeof detail.fraction === 'number' ? detail.fraction : 0;
           setProgress(Math.max(0, Math.min(100, Math.round(frac * 100))));
           onRelocateRef.current?.({
             cfi: detail.cfi ?? '',
             progress: Math.max(0, Math.min(100, Math.round(frac * 100))),
-            spineIndex: typeof detail.index === 'number' ? detail.index : 0,
+            spineIndex: detail.section?.current ?? 0,
             totalSpineItems: spineTotal,
           });
         });
