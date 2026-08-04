@@ -8,6 +8,11 @@
    screen reads the tokens below. */
 @import "../styles/ds-tokens.css";
 
+/* ── Glass ─────────────────────────────────────────────────────────────── */
+/* The frosted-surface recipe + every number it depends on, in one file. Its
+   rules sit in `@layer components` so utilities still override them. */
+@import "../styles/glass.css";
+
 /* ── Shared utilities ──────────────────────────────────────────────────── */
 @import "../styles/utilities.css";
 

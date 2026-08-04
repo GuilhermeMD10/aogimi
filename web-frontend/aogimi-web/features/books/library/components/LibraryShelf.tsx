@@ -3,22 +3,11 @@
 // `/reader` — the library shelf. Composition, geometry and the client-side
 // filter; it fetches nothing. `BooksView` owns the data and every handler, this
 // arranges the tiles in `LibraryCards` and the empty state in `LibraryEmpty`.
-//
-// Two states, not the handoff's three. A book whose file is missing renders as a
-// <ReimportCard> inside the normal grid, so "re-import" is a property of a tile
-// rather than a screen you have to get out of:
-//
-//   no books at all   → <LibraryEmpty>
-//   anything else     → header · chips · hero · grid
-//
-// `TopBar` is rendered here rather than in the layout, the way `Home` does it:
-// shared chrome that a page opts into, so screens that haven't been redesigned
-// don't inherit it and it lines up with this column's content.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { BookOpen, Plus, Search } from 'lucide-react';
-import { Button, Card, HAIRLINE, Skeleton } from '@/shared/components';
+import { GLASS_BUTTON, GLASS_SURFACE, HAIRLINE, Skeleton } from '@/shared/components';
 import { TopBar } from '@/features/app-shell/TopBar';
 import { cn } from '@/lib/util/cn';
 import type { Book } from '@/features/books/types';
@@ -42,7 +31,13 @@ const EMPTY_FOR_FILTER: Record<Filter, string> = {
   finished: 'No finished books yet.',
 };
 
-const GRID = 'grid grid-cols-3 gap-6 min-[900px]:grid-cols-4 min-[1100px]:grid-cols-5';
+// Three columns, per the handoff. Fixed rather than responsive now that the
+// hero eats a fixed 470px: the shelf's own width no longer tracks the viewport
+// closely enough for a column count to be worth deriving from it.
+const GRID = 'grid grid-cols-3 content-start gap-[22px]';
+
+/** The hero's column. `470px` is the handoff's; it holds a 196px cover. */
+const HERO_COL = '470px';
 
 function matchesFilter(book: Book, filter: Filter): boolean {
   switch (filter) {
@@ -72,7 +67,7 @@ export type LibraryShelfProps = {
   onRename: (book: Book, title: string) => void;
   onMarkFinished: (book: Book) => void;
   onRemove: (book: Book) => void;
-  /** Below the grid — the filesystem-access banner. */
+  /** Below the grid, inside the shelf scroller — the filesystem-access banner. */
   footer?: React.ReactNode;
 };
 
@@ -157,51 +152,46 @@ export function LibraryShelf({
 
   const isEmpty = !loading && books.length === 0;
 
+  // No book is partway through (everything new, or everything finished), so
+  // there is no hero — and a 470px column of nothing beside the shelf reads as
+  // a bug. The shelf takes the full width instead.
+  const twoColumn = loading || hero !== null;
+
   return (
-    <div className="h-full w-full overflow-auto font-[family-name:var(--face-ui)] font-medium">
-      <div className="mx-auto w-full max-w-[1300px] px-11 pt-[34px] pb-[140px]">
+    <div className="flex h-full w-full flex-col overflow-hidden font-[family-name:var(--face-ui)] font-medium">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1300px] flex-1 flex-col px-11 pt-[34px] pb-[140px]">
         <TopBar />
 
-        <div className="mb-[22px] flex items-center justify-between gap-6">
+        {/* Row 1 — the page title, on its own line. */}
+        <div className="mb-[18px] flex shrink-0 items-center justify-between gap-6">
           <div className="flex items-center gap-[11px]">
             <BookOpen size={24} strokeWidth={1.7} className="shrink-0 text-(--ink)" />
-            <h1 className="text-[23px] font-bold tracking-[-0.01em] text-(--ink)">Your library</h1>
+            <h1 className="text-[23px] font-bold tracking-[-0.01em] text-(--ink)">Library</h1>
           </div>
 
           {!isEmpty && (
-            <div className="flex shrink-0 items-center gap-2">
-              <SearchField inputRef={searchRef} value={query} onChange={setQuery} />
-              <Button icon={<Plus size={16} strokeWidth={1.9} />} onClick={onImport}>
-                {importing ? 'Importing…' : 'Import book'}
-              </Button>
-            </div>
+            <button
+              type="button"
+              onClick={onImport}
+              disabled={importing}
+              className={cn(
+                GLASS_BUTTON,
+                'flex shrink-0 items-center gap-2 rounded-(--radius-button) p-2',
+                'text-[13.5px] font-bold text-(--ink)',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+                importing && 'opacity-60',
+              )}
+            >
+              <Plus size={16} strokeWidth={1.9} />
+              {importing ? 'Importing…' : ''}
+            </button>
           )}
         </div>
 
-        {error && <Banner tone="error">{error}</Banner>}
-        {!error && notice && (
-          <Banner tone="notice" onDismiss={onDismissNotice}>
-            {notice}
-          </Banner>
-        )}
-
-        {loading ? (
-          <ShelfSkeleton />
-        ) : isEmpty ? (
-          <LibraryEmpty onImport={onImport} importing={importing} />
-        ) : (
-          <>
-            {hero && (
-              <ContinueReadingCard
-                book={hero}
-                onResume={() => onOpen(hero)}
-                onLocate={() => onLocate(hero)}
-                onRename={(title) => onRename(hero, title)}
-                onRemove={() => onRemove(hero)}
-              />
-            )}
-
-            <div className="mt-8 mb-[18px] flex flex-wrap gap-2">
+        {/* Row 2 — filters at one end, search at the other. */}
+        {!isEmpty && (
+          <div className="mb-[22px] flex shrink-0 items-center justify-end gap-6">
+            <div className="flex flex-wrap gap-2 justify-between">
               {FILTERS.map((f) => (
                 <FilterChip
                   key={f}
@@ -211,42 +201,83 @@ export function LibraryShelf({
                   onClick={() => setFilter(f)}
                 />
               ))}
+              <SearchField inputRef={searchRef} value={query} onChange={setQuery} />
             </div>
-
-            {/* The shelf area always stays — a filter with no matches softens to
-                a line, it never collapses. */}
-            {grid.length > 0 ? (
-              <div className={GRID}>
-                {grid.map((book) =>
-                  book.available ? (
-                    <BookCard
-                      key={book.id}
-                      book={book}
-                      onOpen={() => onOpen(book)}
-                      onRename={(title) => onRename(book, title)}
-                      onMarkFinished={() => onMarkFinished(book)}
-                      onRemove={() => onRemove(book)}
-                    />
-                  ) : (
-                    <ReimportCard
-                      key={book.id}
-                      book={book}
-                      onReAdd={() => onLocate(book)}
-                      onRename={(title) => onRename(book, title)}
-                      onRemove={() => onRemove(book)}
-                    />
-                  ),
-                )}
-              </div>
-            ) : (
-              <p className="text-[13.5px] text-(--muted)">
-                {q ? 'Nothing matches that search.' : EMPTY_FOR_FILTER[filter]}
-              </p>
-            )}
-          </>
+          </div>
         )}
 
-        {footer && <div className="mt-8">{footer}</div>}
+        {error && <Banner tone="error">{error}</Banner>}
+        {!error && notice && (
+          <Banner tone="notice" onDismiss={onDismissNotice}>
+            {notice}
+          </Banner>
+        )}
+
+        {isEmpty ? (
+          <LibraryEmpty onImport={onImport} importing={importing} />
+        ) : (
+          <div
+            className="grid min-h-0 flex-1 gap-[30px]"
+            style={{ gridTemplateColumns: twoColumn ? `${HERO_COL} minmax(0,1fr)` : 'minmax(0,1fr)' }}
+          >
+            {loading ? (
+              <HeroSkeleton />
+            ) : (
+              hero && (
+                <ContinueReadingCard
+                  book={hero}
+                  onResume={() => onOpen(hero)}
+                  onLocate={() => onLocate(hero)}
+                  onRename={(title) => onRename(hero, title)}
+                  onRemove={() => onRemove(hero)}
+                />
+              )
+            )}
+
+            {/* The one scroller on the screen. `pr` leaves the thumb its lane so
+                it doesn't sit on top of the last column of covers. */}
+            <div className="inner-scroll min-h-0 overflow-y-auto pr-2.5 pb-8 pl-1">
+              {loading ? (
+                <div className={GRID}>
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <Skeleton key={i} className="aspect-[96/140] w-full rounded-(--radius-cover)" />
+                  ))}
+                </div>
+              ) : grid.length > 0 ? (
+                <div className={GRID}>
+                  {grid.map((book) =>
+                    book.available ? (
+                      <BookCard
+                        key={book.id}
+                        book={book}
+                        onOpen={() => onOpen(book)}
+                        onRename={(title) => onRename(book, title)}
+                        onMarkFinished={() => onMarkFinished(book)}
+                        onRemove={() => onRemove(book)}
+                      />
+                    ) : (
+                      <ReimportCard
+                        key={book.id}
+                        book={book}
+                        onReAdd={() => onLocate(book)}
+                        onRename={(title) => onRename(book, title)}
+                        onRemove={() => onRemove(book)}
+                      />
+                    ),
+                  )}
+                </div>
+              ) : (
+                /* A filter with no matches softens to a line; the shelf area
+                   never collapses. */
+                <p className="text-[13.5px] text-(--muted)">
+                  {q ? 'Nothing matches that search.' : EMPTY_FOR_FILTER[filter]}
+                </p>
+              )}
+
+              {footer && <div className="mt-8">{footer}</div>}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -271,7 +302,7 @@ function Banner({
     <div
       role={tone === 'error' ? 'alert' : 'status'}
       className={cn(
-        'mb-[22px] flex items-center gap-3 rounded-(--radius-button) border border-l-[3px] px-[18px] py-3.5',
+        'mb-[22px] flex shrink-0 items-center gap-3 rounded-(--radius-button) border border-l-[3px] px-[18px] py-3.5',
         'text-[13.5px] leading-[1.5] text-(--soft)',
         HAIRLINE,
         tone === 'error' ? 'border-l-(--accent)' : 'border-l-(--btn)',
@@ -309,7 +340,7 @@ function SearchField({
   return (
     <div
       className={cn(
-        'inline-flex min-w-[220px] items-center gap-2 rounded-(--radius-input) border px-2.5 py-2',
+        'inline-flex min-w-55 shrink-0 items-center gap-2 rounded-(--radius-input) border px-2.5 py-2',
         HAIRLINE,
       )}
     >
@@ -322,14 +353,6 @@ function SearchField({
         aria-label="Search your library"
         className="min-w-0 flex-1 bg-transparent text-[13px] text-(--ink) outline-none placeholder:text-(--faint)"
       />
-      <kbd
-        className={cn(
-          'rounded-[4px] border px-1.5 font-[family-name:var(--face-mono)] text-[10px] text-(--faint)',
-          HAIRLINE,
-        )}
-      >
-        /
-      </kbd>
     </div>
   );
 }
@@ -338,6 +361,10 @@ function SearchField({
 
 // Not the shared `Chip`: that one is a link or a static label, and these are
 // single-select controls with a pressed state and their own mono type scale.
+//
+// Glass when unselected, solid `--btn` when selected — the selected fill comes
+// from a Tailwind utility, which wins over `.glass-button` because the recipe
+// sits in `@layer components`.
 function FilterChip({
   label,
   count,
@@ -355,43 +382,33 @@ function FilterChip({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'inline-flex cursor-pointer items-center gap-1.5 rounded-(--radius-chip) border-[1.5px] px-[13px] py-[7px]',
-        'font-[family-name:var(--face-mono)] text-[11px] tracking-[0.08em] uppercase',
-        'transition-[background-color,color,border-color] duration-[180ms] ease-[ease]',
+        GLASS_BUTTON,
+        'inline-flex items-center gap-1.5 rounded-(--radius-chip) py-2 px-3',
+        'font-(family-name:--face-mono) text-[12px] uppercase',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
-        active
-          ? 'border-(--btn) bg-(--btn) text-(--btn-ink)'
-          : cn('bg-transparent text-(--soft) hover:border-(--gold)', HAIRLINE),
+        active ? 'border-primary bg-primary text-primary-foreground' : 'text-(--soft) hover:border-(--gold)',
       )}
     >
       {label}
-      <span className="text-[10.5px] opacity-70">{count}</span>
+      <span className="text-[12px] opacity-70">{count}</span>
     </button>
   );
 }
 
 // ── Loading ─────────────────────────────────────────────────────────────────
 
-// Cover blocks only, at the real aspect ratio, and the hero reserves its height
-// — so nothing shifts when the shelf arrives. The header and chips above have
-// already rendered by this point; there is never a full-page spinner.
-function ShelfSkeleton() {
+// The hero's glass shell, at its real height, so the two-column geometry is
+// already correct when the shelf arrives. The cover skeletons are rendered
+// inline in the shelf column above.
+function HeroSkeleton() {
   return (
-    <>
-      <Card className="flex gap-[22px]">
-        <Skeleton className="h-[152px] w-[104px] shrink-0" />
-        <div className="flex flex-1 flex-col gap-3">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-7 w-2/3" />
-          <Skeleton className="mt-auto h-[26px] w-full" />
-        </div>
-      </Card>
-
-      <div className={cn(GRID, 'mt-8')}>
-        {Array.from({ length: 5 }, (_, i) => (
-          <Skeleton key={i} className="aspect-[96/140] w-full rounded-(--radius-cover)" />
-        ))}
+    <div className={cn(GLASS_SURFACE, 'flex h-fit gap-[22px] self-start rounded-(--radius-panel) p-[26px]')}>
+      <Skeleton className="aspect-[96/140] w-[176px] shrink-0 rounded-(--radius-cover)" />
+      <div className="flex flex-1 flex-col gap-3">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-7 w-2/3" />
+        <Skeleton className="mt-auto h-[26px] w-full" />
       </div>
-    </>
+    </div>
   );
 }

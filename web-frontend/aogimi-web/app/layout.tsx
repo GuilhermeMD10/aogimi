@@ -54,7 +54,17 @@ const notoSansJp = Noto_Sans_JP({
 // is parked in `data-user-theme` so ThemeProvider (which mirrors this route
 // gate) can seed its state from it and restore it on nav away — the stored key
 // itself is never touched. Exact pathname match, same as AppShell's gate.
-const THEME_INIT = `(function(){try{var d=document.documentElement;var t=localStorage.getItem('aogimi-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(location.pathname==='/authenticate'){d.setAttribute('data-theme','light');d.setAttribute('data-user-theme',t);}else{d.setAttribute('data-theme',t);}var h=localStorage.getItem('aogimi-sky-hue');if(['default','ginga','ember','aurora'].indexOf(h)<0){h='default';}d.setAttribute('data-sky-hue',h);}catch(e){}})();`;
+//
+// ── DARK LOCK (temporary) ───────────────────────────────────────────────────
+// The glassmorphism pass is being designed against Midnight only, so the app
+// is pinned to `dark` until the light palette gets its own pass. `FORCED` below
+// is the switch: set it to `null` and the two lines under it come back, which
+// restores stored-preference-then-OS resolution exactly as before. The stored
+// `aogimi-theme` key is deliberately still read and never overwritten, so a
+// user's pre-lock choice is waiting for them when the lock lifts. Mirrors
+// `FORCED_THEME` in features/app-shell/providers/ThemeProvider.tsx — change one,
+// change both.
+const THEME_INIT = `(function(){try{var d=document.documentElement;var FORCED='dark';var t=localStorage.getItem('aogimi-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(FORCED){t=FORCED;}if(location.pathname==='/authenticate'){d.setAttribute('data-theme','light');d.setAttribute('data-user-theme',t);}else{d.setAttribute('data-theme',t);}var h=localStorage.getItem('aogimi-sky-hue');if(['default','ginga','ember','aurora'].indexOf(h)<0){h='default';}d.setAttribute('data-sky-hue',h);}catch(e){}})();`;
 
 export const metadata: Metadata = {
   title: 'Aogimi',
@@ -85,7 +95,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-theme="light"
+      data-theme="dark"
       data-sky-hue="default"
       suppressHydrationWarning
       className={`${switzer.variable} ${notoSansJp.variable} h-full antialiased`}
