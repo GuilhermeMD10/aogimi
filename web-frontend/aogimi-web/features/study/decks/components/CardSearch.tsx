@@ -9,8 +9,8 @@ import type { CardRecord, DeckWithCards } from '../types';
 
 /**
  * The glass column's word search: an in-memory filter over every card the page
- * already holds — all decks, not just the open one — matched on front, reading
- * and back. No endpoint and no debounce on purpose: the sky needed all the
+ * already holds — all decks, not just the open one — matched on front, reading,
+ * meanings and back. No endpoint and no debounce on purpose: the sky needed all the
  * cards anyway, so a keystroke costs a scan of arrays already in hand, and
  * results can never disagree with what the map is drawing.
  *
@@ -44,6 +44,12 @@ export function CardSearch({ decks, onPick }: Props) {
         if (
           card.front.toLowerCase().includes(q) ||
           (card.reading ?? '').toLowerCase().includes(q) ||
+          // A regression guard, not an extra: searching in English works today
+          // only because the glosses happen to live inside `back`. New cards
+          // carry them in `meanings`, so without this line a card added after
+          // migration 026 would stop being findable by its meaning the moment
+          // `back` is retired — and matching both keeps the two eras equal now.
+          card.meanings.some((m) => m.toLowerCase().includes(q)) ||
           (card.back ?? '').toLowerCase().includes(q)
         ) {
           out.push({ deckKey: deck.id, deckName: deck.name, card });

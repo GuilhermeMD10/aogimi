@@ -1,6 +1,24 @@
-import { FOCUS_MAX_ZOOM, FOCUS_ZOOM_HEADROOM, MAX_ZOOM } from './config';
+import { FOCUS_FIT_MAX_ZOOM, FOCUS_MAX_ZOOM, FOCUS_ZOOM_HEADROOM, MAX_ZOOM } from './config';
 import { clamp } from './geometry';
 import type { Bounds, Camera, Insets, Point, View, Viewport } from './types';
+
+/**
+ * A tier's two zoom limits, which are **not** the same number and never were the same idea:
+ *
+ *   fit  the cap on the *fitted* zoom — how far in a "frame the whole box" pose may resolve to,
+ *        which is also the floor for zooming out (there is nothing past the boundary to see).
+ *   max  the ceiling — how far in a gesture may go.
+ *
+ * Passed as a pair because every clamp needs both, and letting one path resolve them differently
+ * from another is exactly how a camera ends up disagreeing with itself about where the edge is.
+ */
+export type ZoomLimits = {
+  fit: number;
+  max: number;
+};
+
+/** What every tier but a focused deck uses: one constant for both. */
+export const DEFAULT_LIMITS: ZoomLimits = { fit: MAX_ZOOM, max: MAX_ZOOM };
 
 /**
  * Pan/zoom maths over a window onto the sky. Pure functions of (camera, bounds, viewport), with
@@ -58,29 +76,41 @@ export const matchAspect = (b: Bounds, vp: Viewport, ins?: Insets): Bounds => {
  * The smaller of the two axis ratios, so the box is covered on both; the longer axis of a
  * viewport that is not square simply shows a little space past the boundary. That is also what
  * makes the fully zoomed-out view sit centred and immobile: at this zoom neither axis has slack.
+ *
+ * `lim.fit` only ever *caps* the result, so the box is contained at every tier whatever the cap is:
+ * a capped fit is pulled back further than the box needs, never closer than it allows.
  */
-export const fitZoom = (b: Bounds, vp: Viewport, ins?: Insets) =>
-  Math.min(MAX_ZOOM, innerW(vp, ins) / (b.maxX - b.minX), innerH(vp, ins) / (b.maxY - b.minY));
+export const fitZoom = (b: Bounds, vp: Viewport, ins?: Insets, lim: ZoomLimits = DEFAULT_LIMITS) =>
+  Math.min(lim.fit, innerW(vp, ins) / (b.maxX - b.minX), innerH(vp, ins) / (b.maxY - b.minY));
 
 /**
- * The zoom ceiling a *focused deck* earns from its own spread — see FOCUS_MAX_ZOOM in config.ts.
- * The unclamped fill-the-window zoom times a headroom factor, floored at MAX_ZOOM (a deck dense
- * enough to fill the window at MAX_ZOOM keeps exactly today's cap) and capped at FOCUS_MAX_ZOOM
- * (a one-star deck must not blow a single glyph up without limit). fitZoom — the resting fit, the
- * zoom-out floor, the outer view — never reads this: only how far *in* the wheel may go changes.
+ * The zoom limits a *focused deck* earns from its own spread — see FOCUS_MAX_ZOOM and
+ * FOCUS_FIT_MAX_ZOOM in config.ts.
+ *
+ * The fit is the fill-the-window zoom capped at FOCUS_FIT_MAX_ZOOM rather than at MAX_ZOOM, so a
+ * deck sparse enough that MAX_ZOOM left it floating in the middle of the free window now rests
+ * filling it — while still, by fitZoom's construction, containing the whole deck. The ceiling is
+ * that fit plus a headroom factor, floored at MAX_ZOOM (a dense deck keeps exactly the cap it always
+ * had) and capped at FOCUS_MAX_ZOOM, then floored at the fit itself so the two can never invert.
  */
-export const maxZoomFor = (b: Bounds, vp: Viewport, ins?: Insets): number => {
+export const focusLimits = (b: Bounds, vp: Viewport, ins?: Insets): ZoomLimits => {
   const w = b.maxX - b.minX;
   const h = b.maxY - b.minY;
-  if (w <= 0 || h <= 0) return MAX_ZOOM; // degenerate box: keep the constant cap, not Infinity
-  const rawFit = Math.min(innerW(vp, ins) / w, innerH(vp, ins) / h);
-  return clamp(rawFit * FOCUS_ZOOM_HEADROOM, MAX_ZOOM, FOCUS_MAX_ZOOM);
+  if (w <= 0 || h <= 0) return DEFAULT_LIMITS; // degenerate box: keep the constants, not Infinity
+  const fill = Math.min(innerW(vp, ins) / w, innerH(vp, ins) / h);
+  const fit = Math.min(fill, FOCUS_FIT_MAX_ZOOM);
+  return { fit, max: Math.max(fit, clamp(fit * FOCUS_ZOOM_HEADROOM, MAX_ZOOM, FOCUS_MAX_ZOOM)) };
 };
 
-/** Zoom is bounded below by the sky, above by the ceiling — MAX_ZOOM unless the host passes the
- *  focused tier's adaptive one (`maxZoomFor`). */
-export const clampZoom = (z: number, b: Bounds, vp: Viewport, ins?: Insets, maxZoom = MAX_ZOOM) =>
-  clamp(z, fitZoom(b, vp, ins), maxZoom);
+/** Zoom is bounded below by the sky's own fit, above by the ceiling — the constants unless the host
+ *  passes the focused tier's adaptive pair (`focusLimits`). */
+export const clampZoom = (
+  z: number,
+  b: Bounds,
+  vp: Viewport,
+  ins?: Insets,
+  lim: ZoomLimits = DEFAULT_LIMITS,
+) => clamp(z, fitZoom(b, vp, ins, lim), lim.max);
 
 /** Viewport px -> world, under a given camera. */
 export const toWorld = (local: Point, cam: Camera, vp: Viewport): Point => ({
@@ -142,9 +172,9 @@ export const zoomAround = (
   b: Bounds,
   vp: Viewport,
   ins?: Insets,
-  maxZoom = MAX_ZOOM,
+  lim: ZoomLimits = DEFAULT_LIMITS,
 ): Camera => {
-  const zoom = clampZoom(cam.zoom * factor, b, vp, ins, maxZoom);
+  const zoom = clampZoom(cam.zoom * factor, b, vp, ins, lim);
   if (zoom === cam.zoom) return cam;
 
   const anchor = toWorld(local, cam, vp);
@@ -156,8 +186,13 @@ export const zoomAround = (
 };
 
 /** Centre on the sky's box within the inset window, pulled back exactly far enough to hold it. */
-export const cameraFitting = (b: Bounds, vp: Viewport, ins?: Insets): Camera => {
-  const zoom = fitZoom(b, vp, ins);
+export const cameraFitting = (
+  b: Bounds,
+  vp: Viewport,
+  ins?: Insets,
+  lim: ZoomLimits = DEFAULT_LIMITS,
+): Camera => {
+  const zoom = fitZoom(b, vp, ins, lim);
   const centre = boundsCentre(b);
   const shift = insetShift(zoom, ins);
   return { x: centre.x - shift.x, y: centre.y - shift.y, zoom };
@@ -200,9 +235,9 @@ export const clampCamera = (
   b: Bounds,
   vp: Viewport,
   ins?: Insets,
-  maxZoom = MAX_ZOOM,
+  lim: ZoomLimits = DEFAULT_LIMITS,
 ): Camera => {
-  const zoom = clampZoom(cam.zoom, b, vp, ins, maxZoom);
+  const zoom = clampZoom(cam.zoom, b, vp, ins, lim);
   const centre = boundsCentre(b);
   const shift = insetShift(zoom, ins);
   const slackX = Math.max(0, (b.maxX - b.minX) / 2 - innerW(vp, ins) / (2 * zoom));

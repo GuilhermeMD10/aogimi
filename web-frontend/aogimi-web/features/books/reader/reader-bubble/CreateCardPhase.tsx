@@ -2,8 +2,16 @@
 
 import { useState } from 'react';
 import { Check } from 'lucide-react';
-import { MAX_CARD_BACK, MAX_CARD_CONTEXT, decksApi } from '@/features/study/decks';
-import { Button, Eyebrow, HAIRLINE } from '@/shared/components';
+import {
+  MAX_CARD_CONTEXT,
+  MAX_CARD_MEANING,
+  MAX_CARD_MEANINGS,
+  MAX_CARD_READING,
+  decksApi,
+} from '@/features/study/decks';
+import type { CardDraft } from '@/features/study/decks';
+import { cardBack } from '@/features/dictionary';
+import { Button, Eyebrow, HAIRLINE, JlptChip } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { DictPanelHeader } from '../components/DictPanelHeader';
 import { PhaseBody } from './PhaseBody';
@@ -14,19 +22,45 @@ const FIELD = cn(
   'outline-none focus:border-(--ink)',
 );
 
+/** Splits the meanings textarea into the array the API takes: one gloss per
+ *  line, blank lines dropped, capped at the column's array limit.
+ *
+ *  Unnumbered — `1.` / `2.` prefixes are presentation and belong to
+ *  `cardBack()`, so they must never reach the editable value or they'd be
+ *  numbered twice. */
+function parseMeanings(value: string): string[] {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .slice(0, MAX_CARD_MEANINGS);
+}
+
 /**
  * The card itself.
  *
- * `initialBack` seeds the textarea once and is never read again, which is what
- * lets the reader's late-resolving prefill land here safely — `BubbleContent`
- * resolves it at the transition into this phase, so by the time this mounts the
- * value is final and nothing can overwrite what the user has typed. See
- * `useCardPrefill`.
+ * `draft` seeds the fields once and is never read again, which is what lets the
+ * reader's late-resolving prefill land here safely — `BubbleContent` resolves it
+ * at the transition into this phase, so by the time this mounts the value is
+ * final and nothing can overwrite what the user has typed. See `useCardPrefill`.
+ *
+ * `null` is a real case, not a defensive branch: a card started from a book
+ * selection whose lookup found nothing arrives with no draft, and the form's
+ * empty state is the answer.
+ *
+ * The editable surface is **reading + meanings**, not a free-text back. `back` is
+ * still written to the column, but it's derived from those two by `cardBack()` at
+ * the POST — the one place in the app that knows the format — so the string and
+ * the structured fields can't disagree.
+ *
+ * `word` is the front, and it comes from the phase rather than from
+ * `draft.front`: a reader-started card is fronted with the string the user
+ * highlighted (`食べました`), not the dictionary headword the prefill resolved
+ * (`食べる`). See `useCardPrefill`.
  */
 export function CreateCardPhase({
   word,
-  initialBack,
-  initialContext,
+  draft,
   deckId,
   deckName,
   onBack,
@@ -34,30 +68,65 @@ export function CreateCardPhase({
   onClose,
 }: {
   word: string;
-  initialBack: string;
-  initialContext?: string;
+  draft: CardDraft | null;
   deckId: string;
   deckName: string;
   onBack: () => void;
   onCreated: () => void;
   onClose: () => void;
 }) {
-  const [back, setBack] = useState(initialBack);
-  const [context, setContext] = useState(initialContext ?? '');
+  const [reading, setReading] = useState(draft?.reading ?? '');
+  // One textarea, one gloss per line — not three fixed inputs. Three inputs bake
+  // the cap into the layout, need add/remove-row chrome before you can delete or
+  // reorder a middle gloss, and don't fit the 520px column.
+  const [meaningsText, setMeaningsText] = useState(draft?.meanings.join('\n') ?? '');
+  const [context, setContext] = useState(draft?.contextSentence ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The JLPT tier is a snapshot of the source entry, not something the user
+  // authors — there is no correct value for them to pick. Read-only chip.
+  const jlptLevel = draft?.jlptLevel ?? null;
+
+  const meanings = parseMeanings(meaningsText);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = back.trim();
-    if (!trimmed || submitting) return;
+    if (meanings.length === 0 || submitting) return;
+
+    // Surfaced rather than silently truncated: `maxLength` can't express a
+    // per-line cap on one textarea, and quietly shortening a gloss the user
+    // typed is worse than telling them. The backend rejects it either way.
+    const tooLong = meanings.find((m) => m.length > MAX_CARD_MEANING);
+    if (tooLong) {
+      setError(`Each meaning must be ${MAX_CARD_MEANING} characters or fewer.`);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
+
+    // Built from the *edited* fields, not from `draft` — `cardBack` has to
+    // flatten what the user is actually submitting.
+    const edited: CardDraft = {
+      front: word,
+      reading: reading.trim(),
+      meanings,
+      jlptLevel,
+      contextSentence: context.trim() || undefined,
+    };
+
     try {
       await decksApi.createCard(deckId, {
-        front: word,
-        back: trimmed,
-        contextSentence: context.trim() || undefined,
+        front: edited.front,
+        reading: edited.reading,
+        meanings: edited.meanings,
+        jlptLevel: edited.jlptLevel,
+        contextSentence: edited.contextSentence,
+        // The single place a draft becomes a `back` string. Still sent because
+        // the column is still there; retiring it is a change to `cardBack`'s
+        // call sites and nothing else.
+        back: cardBack(edited),
       });
       onCreated();
     } catch (err) {
@@ -84,26 +153,51 @@ export function CreateCardPhase({
             <Eyebrow>Front</Eyebrow>
             <div
               className={cn(
-                'mt-1.5 rounded-(--radius-input) border bg-(--card) px-3.5 py-3',
-                'font-[family-name:var(--face-jp)] text-[19px] text-(--ink)',
+                'mt-1.5 flex items-center gap-2.5 rounded-(--radius-input) border bg-(--card) px-3.5 py-3',
                 HAIRLINE,
               )}
             >
-              {word}
+              <span className="min-w-0 flex-1 font-[family-name:var(--face-jp)] text-[19px] text-(--ink)">
+                {word}
+              </span>
+              {jlptLevel != null && <JlptChip level={jlptLevel} />}
             </div>
           </div>
 
           <div className="mt-4">
-            <Eyebrow>Back</Eyebrow>
+            <Eyebrow>Reading</Eyebrow>
+            <input
+              type="text"
+              value={reading}
+              onChange={(e) => setReading(e.target.value)}
+              placeholder="Kana for the front…"
+              maxLength={MAX_CARD_READING}
+              aria-label="Reading"
+              className={cn(FIELD, HAIRLINE, 'font-[family-name:var(--face-jp)] text-[15px]')}
+            />
+          </div>
+
+          <div className="mt-4">
+            <Eyebrow>Meanings · one per line</Eyebrow>
             <textarea
-              value={back}
-              onChange={(e) => setBack(e.target.value)}
-              maxLength={MAX_CARD_BACK}
-              aria-label="Card back"
+              value={meaningsText}
+              onChange={(e) => setMeaningsText(e.target.value)}
+              placeholder={'to eat\nto drink'}
+              // Per-line cap enforced on submit rather than as `maxLength`: the
+              // browser's attribute counts the whole textarea, so a total cap
+              // here would stop typing on the third gloss.
+              aria-label="Meanings, one per line"
+              aria-describedby="card-meanings-hint"
               className={cn(FIELD, HAIRLINE)}
-              rows={5}
+              rows={3}
               autoFocus
             />
+            <p
+              id="card-meanings-hint"
+              className="mt-1.5 font-[family-name:var(--face-ui)] text-[11.5px] text-(--faint)"
+            >
+              Up to {MAX_CARD_MEANINGS}, {MAX_CARD_MEANING} characters each.
+            </p>
           </div>
 
           <div className="mt-4">
@@ -136,7 +230,9 @@ export function CreateCardPhase({
             </Button>
             <Button
               type="submit"
-              disabled={!back.trim() || submitting}
+              // A card with no glosses isn't a card. This replaces the old
+              // `!back.trim()` gate on the free-text field.
+              disabled={meanings.length === 0 || submitting}
               icon={<Check size={16} strokeWidth={2} />}
             >
               {submitting ? 'Adding…' : 'Add card'}

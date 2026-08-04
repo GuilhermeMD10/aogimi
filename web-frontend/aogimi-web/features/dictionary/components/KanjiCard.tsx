@@ -1,6 +1,5 @@
 import { cn } from '@/lib/util/cn';
-import { HAIRLINE } from '@/shared/components';
-import { JlptChip } from './JlptChip';
+import { HAIRLINE, JlptChip } from '@/shared/components';
 import type { EntryScale } from '../lib/entryScale';
 import type { KanjiInfo } from '../types';
 

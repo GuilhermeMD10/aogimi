@@ -4,37 +4,50 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, ChevronLeft, ChevronUp, ChevronsLeft, Languages, Trash2 } from 'lucide-react';
 
-import { stageColor, stageLabel } from '@/shared/components';
+import { JlptChip, stageColor, stageLabel } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
-import { useDeckUpgrades } from '../hooks/useDeckUpgrades';
 import { masteryMixOf } from '../lib/masteryMix';
 import { NIGHT } from '../lib/nightChrome';
 import { masteryRank, nextState, rankProgress } from '../lib/rankProgress';
 import type { CardRecord, CardState, DeckWithCards } from '../types';
 import { CardSearch } from './CardSearch';
 import { MixBar } from './MixBar';
-import { UpgradeRows } from './UpgradeRows';
 
 /**
  * The focused deck's glass column — the left overlay of the deck tier. Top to
  * bottom: the header row (context-sensitive back chevron: card → list, list →
- * whole sky; the « button collapses the whole column), the all-decks search,
- * then either the card list over the collapsible deck-info footer, or — when a
- * star or row is selected — the card detail, which replaces both (no deck
- * stats at the card level, per the handover).
+ * whole sky; the deck name is itself the disclosure for the deck-info drawer;
+ * the « button collapses the whole column), that drawer, the all-decks search,
+ * then either the card list or — when a star or row is selected — the card
+ * detail, which replaces it.
+ *
+ * The deck's figures sit **at the top and closed by default**: they are a
+ * reference you consult, while the card list is what the column is for, so the
+ * list gets the height by default and the stats are one click away next to the
+ * name they describe. Being part of the header, the drawer stays reachable at
+ * the card level too — the header names the deck in both states.
+ *
+ * The search is a list-state control and goes with the list: inside a single
+ * card there is nothing on screen for a result to filter, and the card's own
+ * dictionary link is the lookup that belongs there.
  *
  * Purely derived from the page's focus/selection: a row click and a star click
  * are one act arriving by different fingers, so nothing here talks to the map —
  * both write the same two uuids through the same setters.
  *
+ * The handover's JLPT sort chip and JLPT badge are in: cards carry `jlpt_level`
+ * as of migration 026. Cards added before it have none, which is why the chip
+ * only draws when the level is non-null and the sort parks nulls last.
+ *
  * Dropped from the handover's spec, deliberately:
- *   - the JLPT sort chip and JLPT badge — cards carry no JLPT level;
  *   - PACE — nothing records review velocity to project from;
- *   - the example translation — `context_sentence` stores the sentence alone.
+ *   - the example translation — `context_sentence` stores the sentence alone;
+ *   - RECENT UPGRADES — the ledger at the outer tier already carries the
+ *     promotion feed, and it cost the drawer a request per deck to repeat it.
  */
 
-type SortKey = 'added' | 'mastery';
+type SortKey = 'added' | 'mastery' | 'jlpt';
 type Sort = { key: SortKey | null; dir: 1 | -1 };
 
 const MONO = 'font-[family-name:var(--face-mono)]';
@@ -59,6 +72,8 @@ type Props = {
   onSearchPick: (deckKey: string, cardId: string) => void;
   /** Opens the page's confirm step; deletion itself happens above. */
   onRequestDeleteCard: (card: CardRecord) => void;
+  /** Same, for the whole deck — the action lives in the deck-info drawer. */
+  onRequestDeleteDeck: () => void;
 };
 
 export function GlassColumn({
@@ -71,6 +86,7 @@ export function GlassColumn({
   onSelectCard,
   onSearchPick,
   onRequestDeleteCard,
+  onRequestDeleteDeck,
 }: Props) {
   // The most recently open card, kept so the list can tint and reveal its row
   // when the detail closes — the handover's "auto-scroll the selected row into
@@ -84,6 +100,9 @@ export function GlassColumn({
     if (selectedCard) setLastViewedId(selectedCard.id);
   }, [selectedCard]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  // The deck's figures: closed on arrival, so the card list keeps the height.
+  const [infoOpen, setInfoOpen] = useState(false);
 
   const started = startedLabel(deck.created_at);
   const subParts = [
@@ -112,17 +131,29 @@ export function GlassColumn({
         >
           <ChevronLeft size={17} strokeWidth={1.8} />
         </button>
-        <span className="min-w-0 flex-1">
-          <span
-            className="block truncate font-[family-name:var(--face-jp)] text-[16.5px] leading-[1.2] font-bold"
-            style={{ color: NIGHT.ink }}
-          >
-            {deck.name}
+        {/* The name IS the disclosure — the figures belong to the deck it names,
+            so there is no second control to explain. */}
+        <button
+          type="button"
+          onClick={() => setInfoOpen((v) => !v)}
+          aria-expanded={infoOpen}
+          className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-[9px] px-1.5 py-1 text-left transition-colors duration-150 ease-[ease] hover:bg-white/5 ${FOCUS_RING_IN}`}
+        >
+          <span className="min-w-0 flex-1">
+            <span
+              className="block truncate font-[family-name:var(--face-jp)] text-[16.5px] leading-[1.2] font-bold"
+              style={{ color: NIGHT.ink }}
+            >
+              {deck.name}
+            </span>
+            <span className={`block truncate ${MONO} text-[9px] tracking-[0.08em]`} style={{ color: NIGHT.muted }}>
+              {subParts.join(' · ')}
+            </span>
           </span>
-          <span className={`block truncate ${MONO} text-[9px] tracking-[0.08em]`} style={{ color: NIGHT.muted }}>
-            {subParts.join(' · ')}
+          <span aria-hidden className="shrink-0" style={{ color: NIGHT.faint }}>
+            {infoOpen ? <ChevronUp size={14} strokeWidth={1.8} /> : <ChevronDown size={14} strokeWidth={1.8} />}
           </span>
-        </span>
+        </button>
         <button
           type="button"
           onClick={onCollapse}
@@ -134,24 +165,26 @@ export function GlassColumn({
         </button>
       </div>
 
-      {/* ── search — the whole sky's cards, not just this deck's ── */}
-      <div className="shrink-0 px-[13px] pb-2.5">
-        <CardSearch decks={decks} onPick={onSearchPick} />
-      </div>
+      {/* ── the deck's figures, under the name that discloses them ── */}
+      {infoOpen && (
+        <DeckInfo deck={deck} dueCount={dueCount} onRequestDeleteDeck={onRequestDeleteDeck} />
+      )}
 
-      <div className="mx-[13px] h-px shrink-0" style={{ background: NIGHT.bdB }} />
+      {/* ── search — the whole sky's cards, not just this deck's. A list-state
+             control: inside a card there is nothing on screen to filter. ── */}
+      {!selectedCard && (
+        <>
+          <div className="shrink-0 px-[13px] pb-2.5">
+            <CardSearch decks={decks} onPick={onSearchPick} />
+          </div>
+          <div className="mx-[13px] h-px shrink-0" style={{ background: NIGHT.bdB }} />
+        </>
+      )}
 
       {selectedCard ? (
         <CardDetail card={selectedCard} onRequestDelete={() => onRequestDeleteCard(selectedCard)} />
       ) : (
-        <>
-          <CardList
-            cards={deck.cards}
-            highlightId={lastViewedId}
-            onSelect={onSelectCard}
-          />
-          <DeckInfo deck={deck} dueCount={dueCount} onPickCard={(cardId) => onSelectCard(cardId)} />
-        </>
+        <CardList cards={deck.cards} highlightId={lastViewedId} onSelect={onSelectCard} />
       )}
     </div>
   );
@@ -201,11 +234,19 @@ function CardList({
       card: c,
       added: c.created_at ? new Date(c.created_at).getTime() : 0,
       mastery: masteryRank(cardArgs(c)),
+      // Left null rather than coerced to a number: an unknown level is not a
+      // tier, and any stand-in value would rank it as one.
+      jlpt: c.jlpt_level,
     }));
     if (!sort.key) return withKeys;
     const key = sort.key;
     return [...withKeys].sort((a, b) => {
-      const diff = a[key] - b[key];
+      const av = a[key];
+      const bv = b[key];
+      // Unknown level sorts last in **both** directions — flipping the arrow
+      // shouldn't promote the cards that have nothing to sort by to the top.
+      if (av === null || bv === null) return av === bv ? 0 : av === null ? 1 : -1;
+      const diff = av - bv;
       return diff === 0 ? 0 : diff < 0 ? -sort.dir : sort.dir;
     });
   }, [cards, sort]);
@@ -229,14 +270,16 @@ function CardList({
         </span>
       </div>
 
-      {/* SORT — Added and Mastery only. The handover's JLPT chip needs a level
-          per card, and cards carry none. */}
+      {/* SORT — Added, Mastery, JLPT. The arrow is the *column's* direction, and
+          the JLPT column is the tier number, so ↓ runs N5 → N1 (easiest first);
+          cards with no level sit at the bottom either way. */}
       <div className="flex shrink-0 flex-wrap items-center gap-[5px] px-3 pb-2.5">
         <span className={`mr-0.5 ${MONO} text-[9px] tracking-[0.12em]`} style={{ color: NIGHT.faint }}>
           SORT
         </span>
         <SortChip label="Added" active={sort.key === 'added'} dir={sort.dir} onClick={() => cycle('added')} />
         <SortChip label="Mastery" active={sort.key === 'mastery'} dir={sort.dir} onClick={() => cycle('mastery')} />
+        <SortChip label="JLPT" active={sort.key === 'jlpt'} dir={sort.dir} onClick={() => cycle('jlpt')} />
       </div>
 
       <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-2.25 pt-1 pb-3">
@@ -339,8 +382,11 @@ function Row({
             </span>
           )}
         </span>
+        {/* The glosses when the card has them, `back` when it doesn't. One
+            truncated line, so joining beats the blob: `back` leads with the
+            reading, which this row already shows beside the front. */}
         <span className="mt-0.5 block truncate font-[family-name:var(--face-ui)] text-[12.5px]" style={{ color: NIGHT.muted }}>
-          {card.back}
+          {card.meanings.length > 0 ? card.meanings.join(' · ') : card.back}
         </span>
       </span>
       <span className={`shrink-0 pl-0.5 ${MONO} text-[10.5px] whitespace-nowrap`} style={{ color: NIGHT.faint }}>
@@ -350,83 +396,54 @@ function Row({
   );
 }
 
-/* ── the deck-info footer (list state only) ─────────────────────────────── */
+/* ── the deck-info drawer (under the header, closed by default) ─────────── */
 
 function DeckInfo({
   deck,
   dueCount,
-  onPickCard,
+  onRequestDeleteDeck,
 }: {
   deck: DeckWithCards;
   dueCount: number | null;
-  onPickCard: (cardId: string) => void;
+  onRequestDeleteDeck: () => void;
 }) {
-  const [open, setOpen] = useState(true);
-  const { upgrades, loading } = useDeckUpgrades(deck.id);
-
   const mix = useMemo(() => masteryMixOf(deck.cards), [deck.cards]);
   const started = startedLabel(deck.created_at);
 
   return (
-    <div className="shrink-0" style={{ borderTop: `1px solid ${NIGHT.bdB}` }}>
+    // Capped and scrollable so opening it can never crowd the list out entirely
+    // on a short viewport; `shrink-0` so the list gives up the height, not this.
+    <div
+      className="max-h-[42vh] shrink-0 overflow-y-auto px-3.5 pt-1 pb-3.5"
+      style={{ borderBottom: `1px solid ${NIGHT.bdB}` }}
+    >
+      <div className="grid grid-cols-2 gap-2">
+        <StatTile label="CARDS" value={deck.cards.length.toLocaleString()} color={NIGHT.ink} />
+        <StatTile label="MASTERED" value={mix.mastered.toLocaleString()} color={stageColor('mastered')} />
+        <StatTile
+          label="DUE TODAY"
+          value={dueCount === null ? '—' : dueCount.toLocaleString()}
+          color={NIGHT.gold}
+        />
+        <StatTile label="STARTED" value={started ?? '—'} color={NIGHT.soft} />
+      </div>
+
+      <div className="mt-3">
+        <MixBar mix={mix} barHeight={8} />
+      </div>
+
+      {/* Deleting the deck is a deck-level act, so it lives with the deck's own
+          figures rather than out on the stage chrome. The page confirms. */}
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className={`flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left ${FOCUS_RING_IN}`}
+        onClick={onRequestDeleteDeck}
+        // hover fill is NIGHT.dangerBg, spelled as a class so it stays CSS
+        className={`mt-3.5 flex w-full items-center justify-center gap-2 rounded-[10px] py-2.5 text-[12px] font-bold transition-colors duration-120 ease-[ease] hover:bg-[rgba(224,113,90,.14)] ${FOCUS_RING_IN}`}
+        style={{ border: `1px solid ${NIGHT.dangerBd}`, color: NIGHT.danger }}
       >
-        <span className="min-w-0">
-          <span className="block truncate font-[family-name:var(--face-ui)] text-[13px] font-bold" style={{ color: NIGHT.ink }}>
-            {deck.name}
-          </span>
-          <span className={`mt-0.5 block truncate ${MONO} text-[9px] tracking-[0.06em]`} style={{ color: NIGHT.muted }}>
-            {deck.cards.length.toLocaleString()} cards
-            {dueCount !== null && (
-              <>
-                {' · '}
-                <span style={{ color: NIGHT.gold }}>{dueCount.toLocaleString()} due</span>
-              </>
-            )}
-          </span>
-        </span>
-        <span
-          aria-hidden
-          className="flex size-[30px] shrink-0 items-center justify-center rounded-[8px]"
-          style={{ border: `1px solid ${NIGHT.bdB}`, background: NIGHT.tintB, color: NIGHT.soft }}
-        >
-          {open ? <ChevronDown size={14} strokeWidth={1.8} /> : <ChevronUp size={14} strokeWidth={1.8} />}
-        </span>
+        <Trash2 size={14} strokeWidth={1.8} aria-hidden />
+        Delete deck
       </button>
-
-      {open && (
-        <div className="max-h-[34vh] overflow-y-auto px-3.5 pb-3.5">
-          <div className="grid grid-cols-2 gap-2">
-            <StatTile label="CARDS" value={deck.cards.length.toLocaleString()} color={NIGHT.ink} />
-            <StatTile label="MASTERED" value={mix.mastered.toLocaleString()} color={stageColor('mastered')} />
-            <StatTile
-              label="DUE TODAY"
-              value={dueCount === null ? '—' : dueCount.toLocaleString()}
-              color={NIGHT.gold}
-            />
-            <StatTile label="STARTED" value={started ?? '—'} color={NIGHT.soft} />
-          </div>
-
-          <div className="mt-3">
-            <MixBar mix={mix} barHeight={8} />
-          </div>
-
-          <div className={`mt-3.5 mb-1 ${MONO} text-[8.5px] tracking-[0.16em]`} style={{ color: NIGHT.faint }}>
-            RECENT UPGRADES
-          </div>
-          {/* A promotion row here can only name a card in this deck, so the
-              deckId arm of the pick is inert. PACE is absent: nothing records
-              review velocity to project "at this pace" from. */}
-          <UpgradeRows
-            upgrades={loading ? null : upgrades.slice(0, 3)}
-            onPick={(_deckId, cardId) => onPickCard(cardId)}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -477,23 +494,58 @@ function CardDetail({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-2 pb-4">
-        <div>
-          <div className="font-[family-name:var(--face-jp)] text-[33px] leading-[1.15] font-bold" style={{ color: NIGHT.ink }}>
-            {card.front}
-          </div>
-          {/* No JLPT badge and no part-of-speech — neither exists on a card. */}
-          {card.reading && (
-            <div className={`mt-[7px] ${MONO} text-xs tracking-[0.05em]`} style={{ color: NIGHT.muted }}>
-              {card.reading}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-[family-name:var(--face-jp)] text-[33px] leading-[1.15] font-bold" style={{ color: NIGHT.ink }}>
+              {card.front}
             </div>
+            {card.reading && (
+              <div className={`mt-[7px] ${MONO} text-xs tracking-[0.05em]`} style={{ color: NIGHT.muted }}>
+                {card.reading}
+              </div>
+            )}
+          </div>
+          {/* The JLPT tier, snapshotted at add time (migration 026). Gated on
+              non-null rather than left to the chip's own guard: its out-of-range
+              fallback paints with `--faint`, a theme token that reads wrong on
+              this glass. Still no part-of-speech — that isn't on a card. */}
+          {card.jlpt_level !== null && (
+            <JlptChip level={card.jlpt_level} className="mt-1 shrink-0" />
           )}
         </div>
 
-        {/* One meaning, not a list — `back` is a single column. */}
+        {/* Either the glosses or `back`, never both: on a card that has
+            `meanings`, `back` is a rendering of the very same reading + glosses,
+            so drawing both would print the card's whole content twice.
+            `meanings` empty means a card older than migration 026 (or made by
+            hand, or on mobile) — those get `back` exactly as this panel has
+            always drawn it, unparsed, because the blob follows no convention
+            that survives being split. */}
         <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${NIGHT.bdB}` }}>
-          <div className="font-[family-name:var(--face-ui)] text-[15.5px] leading-[1.45]" style={{ color: NIGHT.soft }}>
-            {card.back}
-          </div>
+          {card.meanings.length > 0 ? (
+            <ol className="m-0 flex list-none flex-col gap-1.5 p-0">
+              {card.meanings.map((meaning, i) => (
+                <li
+                  key={i}
+                  className="flex gap-2 font-[family-name:var(--face-ui)] text-[15.5px] leading-[1.45]"
+                  style={{ color: NIGHT.soft }}
+                >
+                  <span
+                    aria-hidden
+                    className={`shrink-0 pt-[3px] ${MONO} text-[10px] tabular-nums`}
+                    style={{ color: NIGHT.faint }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0">{meaning}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="font-[family-name:var(--face-ui)] text-[15.5px] leading-[1.45]" style={{ color: NIGHT.soft }}>
+              {card.back}
+            </div>
+          )}
         </div>
 
         {/* The handover pairs the sentence with an italic translation. Nothing
@@ -610,6 +662,9 @@ function metaFor(card: CardRecord, key: SortKey | null): string {
       ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
       : '—';
   }
+  // Under the JLPT sort the cell is the level itself — an em dash where the
+  // chip would be absent, so the rows the sort parked at the bottom say why.
+  if (key === 'jlpt') return card.jlpt_level === null ? '—' : `N${card.jlpt_level}`;
   return `${rankProgress(cardArgs(card))}%`;
 }
 

@@ -50,6 +50,51 @@ it was parked instead of fixed inline.
   to build out. Once the SRS algorithm is local-first, the loop will
   look different from today's "POST and forget".
 
+### ⚠️ Structured card fields — mobile is behind the web (2026-08-04)
+
+**Do this next time you're in the decks/cards code.** The web frontend and
+the backend gained three structured card attributes; mobile still writes
+the old flattened shape.
+
+- **What landed** (backend migration `026_card_dictionary_fields.sql`):
+  `cards.jlpt_level smallint NULL` (1 = N1 … 5 = N5, null = unknown) and
+  `cards.meanings text[] NOT NULL DEFAULT '{}'` (the first 3 English
+  glosses, unnumbered). `cards.reading` already existed but the web only
+  *started* populating it with this change.
+- **Where the old shape lives on mobile:** `LocalCard` in
+  [components/decks/types.ts:20](components/decks/types.ts#L20), the
+  create/update payloads in
+  [components/decks/utils/cardPush.ts:31-66](components/decks/utils/cardPush.ts#L31)
+  and [:126-150](components/decks/utils/cardPush.ts#L126), and the
+  flashcard renderer
+  [components/study/ui/CardBody.tsx](components/study/ui/CardBody.tsx).
+- **Why this is not merely cosmetic drift.** `cardPush.ts` is a
+  *local-first offline queue*: cards are written to local storage and
+  POSTed later. So a card created on mobile is persisted with
+  `meanings = '{}'` and `jlpt_level = NULL`, and there is no second pass
+  that ever fills them in. Every mobile-created card is permanently
+  missing the data the web's study surfaces now render — it degrades to
+  the legacy path rather than failing loudly, which is exactly why it'll
+  go unnoticed.
+- **`back` is still required and still written.** The web keeps sending it
+  (derived from reading + meanings by `cardBack()` in the web's
+  `features/dictionary/lib/cardDraft.ts`), so mobile's current payload
+  remains *valid* — nothing is broken today. **Retiring the `back` column
+  is a deliberately deferred follow-up on the web side, and it is the
+  thing that would break mobile card sync**, including cards already
+  sitting in a user's pending queue. Migrate mobile before that lands.
+- **Read surfaces need the same either/or rule the web uses:**
+  `meanings.length > 0 ? <structured list> : <back verbatim>` — never
+  both, because on a new card the two hold the same facts. Do **not**
+  back-parse the legacy `back` blob; hand-made and mobile-made cards
+  follow no convention and a parser mangles them.
+- **JLPT chip:** `jlpt_level == null` means *unknown*, and legacy cards are
+  deliberately indistinguishable from genuinely non-JLPT words. Render
+  nothing — no placeholder, no "N—".
+- Note `user_study_prefs.display.front.jlpt` already exists server-side
+  (default `true`, since migration 022), so a mobile JLPT toggle needs no
+  backend work either.
+
 ## Theming
 
 ### Stamp theme is stripped, shell kept

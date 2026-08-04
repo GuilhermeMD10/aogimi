@@ -25,6 +25,7 @@ import {
   kanjiCardDraft,
 } from '@/features/dictionary';
 import type { SurfaceEntry } from '@/features/dictionary';
+import type { CardDraft } from '@/features/study/decks';
 import { HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';
@@ -34,7 +35,7 @@ import { useDictSelection } from '../hooks/useDictSelection';
 import { SidebarPrompt } from './SidebarPrompt';
 
 export default function DictSidebar({ onClose }: { onClose: () => void }) {
-  const { requestAddCard } = useReaderActions();
+  const { requestAddCardFromEntry } = useReaderActions();
   const { readerBubble } = useReaderState();
   const { query, result, loading, error, readerContext, setQuery, runSearch } = useDictionaryState();
 
@@ -94,8 +95,14 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
   // The tapped sentence beats the entry's own example — but only for the entry it
   // is actually context for. `contextForEntry` decides; the results list reaches
   // words that were never in the sentence.
-  const addCard = (entry: SurfaceEntry, front: string, back: string, fallback?: string) =>
-    requestAddCard(front, back, contextForEntry(entry, readerContext, contents, fallback));
+  // The draft's own `contextSentence` (an example sentence, when one is loaded)
+  // is the fallback, not the answer — `contextForEntry` prefers the tapped
+  // sentence when the entry is genuinely in it and keeps the example otherwise.
+  const addCard = (entry: SurfaceEntry, draft: CardDraft) =>
+    requestAddCardFromEntry({
+      ...draft,
+      contextSentence: contextForEntry(entry, readerContext, contents, draft.contextSentence),
+    });
 
   // Anything asked for at all — a result, a failure, or a request in flight.
   // Only a panel that has been asked nothing shows the prompt.
@@ -150,14 +157,14 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
             detailsLoading={detailsLoading}
             detailsError={detailsError}
             onKanjiSelect={(literal) => void runSearch(literal)}
-            onAddCard={(front, back, ctx) => addCard({ kind: 'word', word: selectedWord }, front, back, ctx)}
+            onAddCard={(draft) => addCard({ kind: 'word', word: selectedWord }, draft)}
             scale="compact"
             onBack={clear}
           />
         ) : selectedKanji ? (
           <KanjiEntryDetail
             kanji={selectedKanji}
-            onAddCard={(front, back, ctx) => addCard({ kind: 'kanji', kanji: selectedKanji }, front, back, ctx)}
+            onAddCard={(draft) => addCard({ kind: 'kanji', kanji: selectedKanji }, draft)}
             scale="compact"
             onBack={clear}
           />
@@ -172,13 +179,9 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
                 // Only borrow a loaded example sentence when it belongs to this
                 // row — the same guard `/dictionary`'s rail applies.
                 const sentences = details?.word.id === w.id ? details.sentences : undefined;
-                const draft = wordCardDraft(w, query, sentences);
-                addCard({ kind: 'word', word: w }, draft.front, draft.back, draft.context);
+                addCard({ kind: 'word', word: w }, wordCardDraft(w, query, sentences));
               }}
-              onAddKanji={(k) => {
-                const draft = kanjiCardDraft(k);
-                addCard({ kind: 'kanji', kanji: k }, draft.front, draft.back, draft.context);
-              }}
+              onAddKanji={(k) => addCard({ kind: 'kanji', kanji: k }, kanjiCardDraft(k))}
               loading={loading}
               error={error}
               onRetry={submit}

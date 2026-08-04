@@ -13,6 +13,10 @@ import { cn } from '@/lib/util/cn';
  * standardise on this calmer one, and that file is now deleted — the reader's
  * surfaces render this component.
  *
+ * Lives here rather than in `features/dictionary` because study is the second
+ * consumer domain: cards carry `jlpt_level` (migration 026), so the decks stage
+ * and the dictionary's rows and entries have to show the same five colours.
+ *
  * `level` is the DB's 1–5 where 1 = N1 = hardest.
  */
 const RAMP: Record<number, string> = {
@@ -44,8 +48,12 @@ export function JlptChip({ level, size = 'sm', className }: Props) {
         size === 'md' ? 'px-3 py-1 text-xs' : 'px-[9px] py-0.5 text-[10px]',
         className,
       )}
-      // An unknown level keeps the shape but drops to the neutral token, so a
-      // word outside the JLPT lists doesn't borrow a difficulty colour.
+      // A level outside 1–5 keeps the shape but drops to the neutral token, so
+      // it can't borrow a difficulty colour. Unreachable today — `level == null`
+      // returns above and the DB constrains the rest — and it is the one part of
+      // this component that isn't theme-agnostic: `--faint` is a theme token and
+      // would read wrong on the decks stage's night glass, which is night in both
+      // themes. Render sites should gate on `jlpt_level != null` regardless.
       style={
         background
           ? { background, color: PILL_INK }

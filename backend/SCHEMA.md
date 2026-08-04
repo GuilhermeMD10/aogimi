@@ -7,7 +7,11 @@ must stay in lockstep (any migration touching user-data tables also
 edits the reset script).
 
 The shape below reflects the schema after
-[`024_card_state_check.sql`](./migrations/024_card_state_check.sql), which
+[`026_card_dictionary_fields.sql`](./migrations/026_card_dictionary_fields.sql),
+which added `cards.jlpt_level` + `cards.meanings` — snapshots of the source
+dictionary entry, captured when the card is added and never recomputed (no
+backfill, so pre-026 rows are `NULL` / `'{}'`). `025` added `users.sky_seed`;
+[`024_card_state_check.sql`](./migrations/024_card_state_check.sql)
 constrained `cards.state` to the SRS ladder (see that table below).
 Row-count and field-length limits are enforced at the application layer —
 [`src/config/limits.js`](./src/config/limits.js) holds the numbers and
@@ -158,10 +162,12 @@ identity fingerprints used to match the same book across devices.
 | id | uuid | PK, DEFAULT gen_random_uuid() | |
 | deck_id | uuid | NOT NULL, FK → decks(id) ON DELETE CASCADE | |
 | front | text | NOT NULL | |
-| reading | text | NOT NULL DEFAULT '' | Kana for the front (optional) |
-| back | text | NOT NULL | Meaning / translation |
+| reading | text | NOT NULL DEFAULT '' | Kana for the front. Optional and long-standing, but the clients only started populating it alongside 026's snapshot fields — so treat it as "usually present on recently added cards, frequently `''` on older ones" rather than as reliably filled. |
+| back | text | NOT NULL | Meaning / translation, as one flattened string. **Kept as-is** — still required on write and still what existing clients read; `meanings` sits alongside it rather than replacing it. Retirement is deferred to a later change. |
 | notes | text | NOT NULL DEFAULT '' | |
 | context_sentence | text | NOT NULL DEFAULT '' | Optional in-context excerpt |
+| jlpt_level | smallint | nullable, CHECK (`jlpt_level IS NULL OR jlpt_level BETWEEN 1 AND 5`) | Snapshot of the source dictionary entry's JLPT tier (5 = N5 easiest … 1 = N1), captured at add time — added in 026. NULL = unknown, covering both "on no JLPT list" and "card predates the column"; the two are not distinguished. **Not** a live join to `words.jlpt_level`: `front` is user-editable, so a join would stop resolving after a typo fix. Editing a card does not recompute it — staleness is accepted, and a PUT can't clear it back to NULL (COALESCE write path). |
+| meanings | text[] | NOT NULL DEFAULT `'{}'::text[]`, CHECK (`coalesce(array_length(meanings, 1), 0) <= 3`) | The first few glosses off the source entry, as separate items, so a client can render them as a list instead of splitting `back` on punctuation — added in 026. `text[]`, not jsonb (flat strings, no keys). The NOT NULL DEFAULT is load-bearing: the web client types this as a non-nullable `string[]` and reads it without a `?? []` guard at ~6 sites. `coalesce` in the CHECK is required — `array_length()` returns NULL, not 0, for `'{}'`. Per-item length (`TEXT.CARD_MEANING`, 200) is zod-only; only the item count is in the DB. Clearable via `PUT` with `[]`. |
 | state | text | NOT NULL DEFAULT 'new', CHECK IN ('new','seen','learned','mastered') | SRS state. CHECK added in 024 — the update route accepted any string before, so a client could write `mastered` and skip the ladder. Also enforced in `src/validation/decks.js`. |
 | reviewed_times | int | NOT NULL DEFAULT 0 | Review counter |
 | difficulty | real | NOT NULL DEFAULT 0.30 | SRS: how hard this card is intrinsically, clamped [0.05, 0.95] |
@@ -176,6 +182,10 @@ identity fingerprints used to match the same book across devices.
 - `idx_cards_state ON (deck_id, state)`
 - `idx_cards_last_reviewed ON (deck_id, last_reviewed_at)` — for "oldest first" and time-aware ordering
 - `idx_cards_due ON (deck_id, next_due_at)` — for the due-card queries (per-deck and all-decks)
+
+026 deliberately added **no** index: neither `jlpt_level` nor `meanings` is ever
+a search predicate. Both are read as part of the row they belong to, and JLPT
+filtering happens client-side over an already-fetched deck.
 
 ---
 

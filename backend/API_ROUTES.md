@@ -212,11 +212,11 @@ card quota.
 
 | Method | Path | Body | Response | Ownership check |
 |---|---|---|---|---|
-| POST | `/api/decks/:id/cards` | `{ front, reading?, back, notes?, contextSentence? }` | `CardRecord` | `deckOwnedBy(:id)` |
+| POST | `/api/decks/:id/cards` | `{ front, reading?, back, notes?, contextSentence?, jlptLevel?, meanings? }` | `CardRecord` | `deckOwnedBy(:id)` |
 | GET | `/api/decks/:id/cards` | — | `CardRecord[]` | `deckOwnedBy(:id)` |
 | GET | `/api/decks/:id/cards/due` | — | `CardRecord[]` (due in this deck, most-overdue first) | `deckOwnedBy(:id)` |
 | GET | `/api/decks/:id/cards/due/count` | — | `{ count: number }` | `deckOwnedBy(:id)` |
-| PUT | `/api/decks/cards/:cardId` | `{ front?, reading?, back?, notes?, state?, contextSentence? }` | `CardRecord` | `cardOwnedBy` |
+| PUT | `/api/decks/cards/:cardId` | `{ front?, reading?, back?, notes?, state?, contextSentence?, jlptLevel?, meanings? }` | `CardRecord` | `cardOwnedBy` |
 | POST | `/api/decks/cards/:cardId/review` | `{ outcome: 'again' \| 'hard' \| 'easy' }` | `CardRecord` (with updated SRS columns) | `cardOwnedBy` |
 | DELETE | `/api/decks/cards/:cardId` | — | `{ message }` | `cardOwnedBy` |
 
@@ -230,6 +230,37 @@ for today.
 `CardRecord` includes the SRS columns: `difficulty`, `stability`,
 `last_outcomes`, `last_reviewed_at`, `next_due_at`, plus the legacy `notes`,
 `reviewed_times`, etc. State enum: `new | seen | learned | mastered`.
+
+**Request keys are camelCase, response keys are the raw snake_case columns.**
+That asymmetry has always been true (`contextSentence` in, `context_sentence`
+out), but `jlptLevel` is the first *card* field where the two names differ
+visibly enough to trip someone up: you **POST `jlptLevel`** and you **read
+`jlpt_level`**. Card reads are `SELECT *`, so the response is the column list
+verbatim — there is no mapping layer to fix it in.
+
+Two snapshot fields, added in migration 026 and captured from the dictionary
+entry the card was made from:
+
+- **`jlpt_level`** — `number | null`, 5 (N5, easiest) … 1 (N1). `null` means
+  unknown, which covers both "not on any JLPT list" and "card created before
+  026". Sent as `jlptLevel`, and only as a JSON **number** — the string `"3"` is
+  a 400, deliberately, so a client bug surfaces instead of being coerced away.
+  It is *not* recomputed when the card is edited: a `PUT` that changes `front`
+  leaves the old tier in place, and because the update path is `COALESCE`,
+  `{"jlptLevel": null}` is a **no-op, not a clear**.
+- **`meanings`** — `string[]`, at most 3 entries, each 1–200 chars after trim
+  (empty-string entries are rejected rather than stored; send a shorter array
+  for fewer meanings). **Never `null`** — the column is `NOT NULL DEFAULT
+  '{}'`, so a card with no captured glosses returns `[]` and clients can type
+  it as a non-nullable `string[]`. `PUT` with `[]` does clear it.
+
+`back` is unchanged and still **required** on POST — `meanings` sits beside it,
+not in place of it. Existing clients that only read `back` keep working.
+
+Two card-adjacent read surfaces deliberately do **not** carry the new fields,
+because they hand-pick their columns and neither renders a JLPT chip: the
+`last_card` object on the deck reads (`GET /api/decks/user/:userId`) and
+`GET /api/stats/recent-upgrades`.
 
 **Due cards.** A card is *due* when it has never been reviewed
 (`next_due_at IS NULL`) or its scheduled `next_due_at` has passed. Each
@@ -385,15 +416,20 @@ Every write endpoint validates its body against a zod schema
 | Devices per user | 10 | `DEVICE_QUOTA_EXCEEDED` |
 
 Field caps (characters, after trim): deck name 100 · card front/reading 200 ·
-card back/notes/context 2000 · book title/author/filename 500 · book CFI 2000 ·
-bookmark label 100 · device id 128 · device name 100 · display_name 64 ·
-email 254 · language 16.
+card back/notes/context 2000 · card meaning (one entry of `meanings`) 200 ·
+book title/author/filename 500 · book CFI 2000 · bookmark label 100 ·
+device id 128 · device name 100 · display_name 64 · email 254 · language 16.
 
 Array caps: `books/match` candidates 200 · `pageHashes`/`pagePhashes` 5000 ·
-session `deckIds` 50.
+session `deckIds` 50 · card `meanings` 3.
 
 `cards.state` is constrained to `new | seen | learned | mastered` by both the
 schema and a DB CHECK (migration 024). It used to accept any string.
+
+`cards.jlpt_level` is constrained to `1..5` (or `null`) and `cards.meanings` to
+at most 3 entries by both zod and a DB CHECK (migration 026). The **per-entry**
+200-char cap on `meanings` is zod-only — expressing it in a CHECK needs an
+`unnest`, so it lives in one place instead of two half-places.
 
 Two quota exemptions, both because the underlying write is an upsert rather
 than an insert:

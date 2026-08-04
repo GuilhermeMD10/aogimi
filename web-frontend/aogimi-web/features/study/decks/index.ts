@@ -14,9 +14,21 @@ export {
   MAX_DECKS,
   MAX_CARDS_PER_DECK,
   MAX_DECK_NAME,
-  MAX_CARD_BACK,
+  // `MAX_CARD_BACK` is deliberately NOT exported any more: no surface types a
+  // card back now, so nothing outside this feature needs the cap. `back` is
+  // derived by `cardBack()` from a capped reading plus at most
+  // MAX_CARD_MEANINGS × MAX_CARD_MEANING characters, which can't reach 2000 —
+  // the constant stays in `lib/limits.ts` because it still mirrors a live
+  // backend cap, it just has no client consumer to hand it to.
   MAX_CARD_CONTEXT,
+  MAX_CARD_READING,
+  MAX_CARD_MEANING,
+  MAX_CARD_MEANINGS,
   deckQuotaMessage,
   cardQuotaMessage,
 } from './lib/limits';
 export type { DeckRecord, DeckWithCards } from './types';
+// The add-card flow's one shape. Owned here because it describes a card and
+// ends at `createCard`; built by `features/dictionary`, carried by
+// `features/app-shell`, consumed by both add-card forms.
+export type { CardDraft, CardRecord } from './types';

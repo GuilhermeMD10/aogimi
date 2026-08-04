@@ -5,6 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
 import { TopBar } from '@/features/app-shell/TopBar';
+// The single `cards.back` flattening point, owned by the feature that builds
+// drafts. Called at the createCard boundary so the draft never carries a second
+// representation of its own reading + meanings.
+// By file path, not through `@/features/dictionary`: that barrel imports this
+// feature's barrel (for `MAX_MEANINGS_ON_CARD` and `CardDraft`), so the barrel
+// form is a cycle — dictionary → study/decks → DecksView → dictionary. It
+// happens to resolve, but the house rule is to reach past a barrel rather than
+// carry one (same reason feature code imports providers by path).
+import { cardBack } from '@/features/dictionary/lib/cardDraft';
 import { SkyMap, useSkySeed, type Insets, type SkyFrameMeta } from '@/features/sky';
 
 import { GlassColumn, ColumnHandle, startedLabel } from '../components/GlassColumn';
@@ -21,7 +30,7 @@ import { MAX_DECKS } from '../lib/limits';
 import { masteryMixOf } from '../lib/masteryMix';
 import { NIGHT } from '../lib/nightChrome';
 import { useDecks } from '../providers/DecksProvider';
-import type { CardRecord } from '../types';
+import type { CardDraft, CardRecord } from '../types';
 
 /**
  * `/decks` — the whole sky as the decks page: every deck a constellation in a
@@ -57,10 +66,16 @@ import type { CardRecord } from '../types';
 /** Camera insets per tier — stage-relative (the stage is everything below the
  *  TopBar row, edge to edge). The chrome never moves, so these are constants:
  *  the action band at the outer tier, the glass column (or its reopen handle)
- *  inside a deck. */
+ *  inside a deck.
+ *
+ *  The focused tier's `left` is the column's own right edge exactly (its 20px
+ *  offset + 340px width) and carries no gutter on purpose: the sky's dashed
+ *  boundary is meant to *meet* the glass, so entering a deck spends every pixel
+ *  the column leaves. The deck's own DECK_PAD is what keeps its outermost star
+ *  off that edge. */
 const SKY_INSETS: Insets = { top: 96, right: 48, bottom: 216, left: 48 };
 const SKY_INSETS_LEDGER_COLLAPSED: Insets = { top: 96, right: 48, bottom: 156, left: 48 };
-const DECK_INSETS: Insets = { top: 88, right: 58, bottom: 84, left: 396 };
+const DECK_INSETS: Insets = { top: 88, right: 58, bottom: 84, left: 360 };
 const DECK_INSETS_PANEL_HIDDEN: Insets = { top: 88, right: 58, bottom: 84, left: 58 };
 
 type Confirm =
@@ -199,9 +214,27 @@ export function DecksView() {
     handledPendingCardRef.current = pendingCard;
     setPendingCardFlow({
       phase: 'select-deck',
-      word: pendingCard.word,
-      initialBack: pendingCard.back,
-      contextSentence: pendingCard.contextSentence,
+      // The hand-off's `word` is the front, always — `draft` (present only when
+      // the reader resolved a dictionary entry) supplies the rest, and its own
+      // `front` is overridden so the two can't disagree about the headword.
+      // No draft = a blank card the form's Reading and Meanings fields fill in.
+      //
+      // `contextSentence` falls back to the hand-off's own: a selection-started
+      // card carries the book sentence beside the (null) draft, because there
+      // was no draft for it to ride in at click time.
+      draft: pendingCard.draft
+        ? {
+            ...pendingCard.draft,
+            front: pendingCard.word,
+            contextSentence: pendingCard.draft.contextSentence ?? pendingCard.contextSentence,
+          }
+        : {
+            front: pendingCard.word,
+            reading: '',
+            meanings: [],
+            jlptLevel: null,
+            contextSentence: pendingCard.contextSentence,
+          },
     });
     setPendingCard(null);
   }, [pendingCard, setPendingCard]);
@@ -209,33 +242,19 @@ export function DecksView() {
 
   const cancelPendingFlow = useCallback(() => setPendingCardFlow(null), []);
 
+  // Both deck-choosing paths **spread the previous flow** rather than listing
+  // its fields: picking a deck only decides `deckId`, and every rebuild that
+  // enumerated the card's fields here was a place for a newly-added one to
+  // survive the hand-off and then vanish on selection.
   const selectDeckForPending = useCallback((deckId: string) => {
-    setPendingCardFlow((prev) =>
-      prev
-        ? {
-            phase: 'create-card',
-            word: prev.word,
-            deckId,
-            initialBack: prev.initialBack,
-            contextSentence: prev.contextSentence,
-          }
-        : prev,
-    );
+    setPendingCardFlow((prev) => (prev ? { ...prev, phase: 'create-card', deckId } : prev));
   }, []);
 
   const createDeckAndUseForPending = useCallback(
     async (name: string) => {
       const deck = await providerCreateDeck({ name });
       setPendingCardFlow((prev) =>
-        prev
-          ? {
-              phase: 'create-card',
-              word: prev.word,
-              deckId: deck.id,
-              initialBack: prev.initialBack,
-              contextSentence: prev.contextSentence,
-            }
-          : prev,
+        prev ? { ...prev, phase: 'create-card', deckId: deck.id } : prev,
       );
       // The new (empty) deck earns its frame now, even if the card is cancelled.
       void refreshSky();
@@ -244,10 +263,13 @@ export function DecksView() {
   );
 
   const submitPendingCard = useCallback(
-    async (back: string, contextSentence?: string) => {
+    async (draft: CardDraft) => {
       const flow = pendingCardFlow;
       if (flow?.phase !== 'create-card') return;
-      await api.createCard(flow.deckId, { front: flow.word, back, contextSentence });
+      // The draft goes over whole; `back` is derived here and only here, by the
+      // one helper that knows the format (`cardBack`). The column is still
+      // written because mobile and every legacy read site still expect it.
+      await api.createCard(flow.deckId, { ...draft, back: cardBack(draft) });
       bumpCardCount(flow.deckId, +1);
       setPendingCardFlow(null);
       // Refresh before focusing: the new star (or a whole new deck) has to be
@@ -358,8 +380,8 @@ export function DecksView() {
   return (
     <div className="flex h-full w-full flex-col overflow-hidden font-[family-name:var(--face-ui)] font-medium">
       {/* The shared TopBar on the same content bounds as home/profile
-          (max-w-[1300px] + px-11). The stage panel below deliberately spans
-          wider than this column — see the gutter note on the wrapper. */}
+          (max-w-[1300px] + px-11). The stage below is bounded a step wider —
+          see the note on its wrapper. */}
       <div className="mx-auto w-full max-w-[1300px] shrink-0 px-11 pt-[34px]">
         <TopBar />
       </div>
@@ -368,8 +390,13 @@ export function DecksView() {
           nothing and the app's night is `--page-base` (see the Page background
           block in ds-tokens.css), so the constellations sit on the same canvas
           the TopBar above them does — there is no panel edge left to frame
-          them. */}
-      <div className="min-h-0 w-full flex-1">
+          them.
+          Bounded at 1440px — one step wider than the TopBar's 1300px column, so
+          the stage reads as the page's widest element without growing without
+          limit on an ultrawide display. The chrome (StageChrome, StageLedger,
+          GlassColumn) positions against the box inside this, so it is bounded
+          with the sky rather than pinned to the viewport edges. */}
+      <div className="mx-auto min-h-0 w-full max-w-[1440px] flex-1">
         <div className="relative h-full w-full overflow-hidden">
           {/* ── the sky itself; the page's own night shows through before the seed lands ── */}
           <div className="absolute inset-0">
@@ -447,6 +474,9 @@ export function DecksView() {
               onSelectCard={selectCard}
               onSearchPick={focusAndSelect}
               onRequestDeleteCard={(card) => setConfirm({ kind: 'card', card })}
+              onRequestDeleteDeck={() =>
+                setConfirm({ kind: 'deck', id: focusedDeck.id, name: focusedDeck.name })
+              }
             />
           )}
 
@@ -456,7 +486,7 @@ export function DecksView() {
             onCancel={cancelPendingFlow}
             onSelectDeck={selectDeckForPending}
             onCreateDeckAndUse={(name) => void createDeckAndUseForPending(name)}
-            onSubmitCard={(back, ctx) => void submitPendingCard(back, ctx)}
+            onSubmitCard={(draft) => void submitPendingCard(draft)}
           />
 
           {confirm !== null &&

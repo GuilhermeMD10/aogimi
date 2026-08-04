@@ -1,11 +1,11 @@
 'use client';
 
 import { CopyPlus } from 'lucide-react';
-import { Button, Eyebrow, HAIRLINE } from '@/shared/components';
+import { Button, Eyebrow, HAIRLINE, JlptChip } from '@/shared/components';
+import type { CardDraft } from '@/features/study/decks';
 import { cn } from '@/lib/util/cn';
 import { Constellation } from './Constellation';
 import { EntryBack } from './EntryBack';
-import { JlptChip } from './JlptChip';
 import { SectionLabel } from './SectionLabel';
 import { kanjiCardDraft } from '../lib/cardDraft';
 import { ENTRY_SCALE, type EntryScale } from '../lib/entryScale';
@@ -54,7 +54,8 @@ export function KanjiEntryDetail({
   onBack,
 }: {
   kanji: KanjiInfo;
-  onAddCard: (front: string, back: string, context?: string) => void;
+  /** Takes the whole draft — see `EntryDetail` for why it isn't positionals. */
+  onAddCard: (draft: CardDraft) => void;
   /** `full` is the `/dictionary` pane; `compact` a 320–480px column. */
   scale?: EntryScale;
   /** Present → a "← Results" control in the hero. */
@@ -69,10 +70,7 @@ export function KanjiEntryDetail({
     { label: 'Radical', value: kanji.radical },
   ].filter((f): f is { label: string; value: number } => f.value != null);
 
-  const addCard = () => {
-    const draft = kanjiCardDraft(kanji);
-    onAddCard(draft.front, draft.back, draft.context);
-  };
+  const addCard = () => onAddCard(kanjiCardDraft(kanji));
 
   return (
     <article>

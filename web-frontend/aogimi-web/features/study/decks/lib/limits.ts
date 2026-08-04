@@ -27,6 +27,25 @@ export const MAX_CARD_READING = 200;
 export const MAX_CARD_BACK = 2000;
 export const MAX_CARD_NOTES = 2000;
 export const MAX_CARD_CONTEXT = 2000;
+/** Per-gloss cap for one entry of `cards.meanings`. Backend: `TEXT.CARD_MEANING`.
+ *  A single English gloss longer than this isn't a gloss. */
+export const MAX_CARD_MEANING = 200;
+
+/** Array-length cap on `cards.meanings`. Backend: `ARRAYS.CARD_MEANINGS`, and a
+ *  DB CHECK in migration 026.
+ *
+ *  Distinct from `MAX_MEANINGS_ON_CARD` in `cardLimits.ts` even though both are
+ *  currently 3: that one is the *authoring* choice (how many glosses a
+ *  dictionary panel copies across, because more looks noisy), this one is the
+ *  API contract that mobile has to honour too. Folding them together would turn
+ *  a web layout preference into a backend limit. */
+export const MAX_CARD_MEANINGS = 3;
+
+/** JLPT tier bounds for `cards.jlpt_level`. Backend: `NUMBERS.JLPT_LEVEL_*`,
+ *  plus a DB CHECK — same belt-and-braces as `CARD_STATES` below, and for the
+ *  same reason: an out-of-range value breaks every chip that renders it. */
+export const JLPT_LEVEL_MIN = 1;
+export const JLPT_LEVEL_MAX = 5;
 
 /** The four SRS states. Backend: `CARD_STATES` + the `cards_state_check`
  *  DB constraint added in migration 024. */

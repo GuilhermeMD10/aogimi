@@ -43,7 +43,8 @@ export { EntryDetail } from './components/EntryDetail';
 export { KanjiEntryDetail } from './components/KanjiEntryDetail';
 export { KanjiCard } from './components/KanjiCard';
 export { SectionLabel } from './components/SectionLabel';
-export { JlptChip } from './components/JlptChip';
+// `JlptChip` moved to `shared/components` — study is the second consumer domain
+// now that cards carry `jlpt_level`. Import it from there, not from here.
 export { PitchAccent } from './components/PitchAccent';
 export { ENTRY_SCALE } from './lib/entryScale';
 export type { EntryScale } from './lib/entryScale';
@@ -70,8 +71,10 @@ export {
 export type { RailContents, SurfaceEntry } from './lib/results';
 export { preferredHeadword } from './lib/headword';
 export { inflectionNote } from './lib/inflection';
-export { kanjiCardDraft, wordCardDraft } from './lib/cardDraft';
-export type { CardDraft } from './lib/cardDraft';
+// The builders live here; the `CardDraft` type they produce belongs to
+// `features/study/decks`, which is where its consumer chain ends. `cardBack` is
+// the one place a draft becomes the flattened `cards.back` string.
+export { cardBack, kanjiCardDraft, wordCardDraft } from './lib/cardDraft';
 export { getWordDetails, searchDictionary } from './lib/dictApi';
 export { getRecentSearches } from './lib/storage';
 export type { RecentSearchItem } from './lib/storage';

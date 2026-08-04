@@ -118,9 +118,10 @@ export function SkyMap({
     // around inside it. At the outer view there is nothing above to escape to.
     onZoomOutFloor: focusedDid !== null ? leave : undefined,
     insets,
-    // inside a deck the ceiling adapts to its spread, so a sparse deck can fill the view; the
-    // outer chooser keeps the constant cap (moot while locked, but stated for the flight out)
-    adaptiveMaxZoom: focusedDid !== null,
+    // inside a deck both zoom limits adapt to its spread, so a sparse deck rests filling the view
+    // rather than floating in the middle of it; the outer chooser keeps the constant caps (moot
+    // while locked, but stated for the flight out)
+    adaptiveZoomLimits: focusedDid !== null,
   });
 
   const frame = useSkyDraw(stage, focus, cam.camera, cam.view);

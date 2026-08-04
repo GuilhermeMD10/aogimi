@@ -1149,3 +1149,119 @@ A PDF with no `/Info /Title` (common) used to land in the library as the literal
   `"Microsoft Word - draft3.docx"` or a LaTeX class name; only blank/whitespace
   counts as missing today.
 - [ ] Reading `/Info /Author` for PDFs that do carry one.
+
+## Structured card fields — `jlpt_level`, `reading`, `meanings` (2026-08-04)
+
+A card created from a dictionary entry used to keep almost none of that entry's
+structure: `front` (the headword) and `back` (one flattened string — the kana on
+line 1, then `1.`/`2.`/`3.` glosses). Everything else the entry knew was thrown
+away at add time. Study screens therefore had nothing to render a JLPT chip from
+and no way to lay glosses out as separate lines — the comment at
+`session/components/CardBody.tsx` said so explicitly ("nothing to split into the
+handoff's primary / secondary pair without inventing a convention"), and four
+sites in `GlassColumn.tsx` were parked on "cards carry no JLPT level".
+
+Backend migration `026_card_dictionary_fields.sql` adds `cards.jlpt_level
+smallint NULL` and `cards.meanings text[] NOT NULL DEFAULT '{}'`.
+`cards.reading` already existed and was already accepted by the API — the web
+simply never populated it. This change is the first thing that does.
+
+**Decisions**
+
+- **`CardDraft` is the one authoring shape**, owned by
+  `features/study/decks/types.ts`. It replaced a positional
+  `(front, back, context?)` triple that had been re-declared inline in five
+  places — `ReaderBubbleState`, `pendingCard`'s getter, its setter, its
+  `useState` argument, `PendingCardFlow` — two of which had already drifted on
+  whether `back` was optional. It lives in the decks feature rather than
+  `features/dictionary` (where the builders are) because it describes a *card*
+  and its consumer chain terminates at `decksApi.createCard`.
+- **`CardDraft` deliberately carries no `back`.** `back` is a *rendering* of
+  `reading` + `meanings`; holding both would be two representations of the same
+  facts travelling together, drifting the moment either is edited. It's derived
+  at the API boundary by `cardBack()` in `features/dictionary/lib/cardDraft.ts`,
+  the only thing in the app that knows the format. That is also what scopes the
+  eventual `back` retirement to one helper's call sites.
+- **Field names match the POST body, not the `cards` row** (`jlptLevel`,
+  `contextSentence`), so sending a draft is `{ ...draft, back: cardBack(draft) }`.
+  Card fields are the first place request and response names differ — don't
+  round-trip a `CardRecord` back into a POST.
+- **Two actions, not one.** `requestAddCardFromEntry(draft)` and
+  `requestAddCardFromSelection(word, contextSentence?)`. A single object-arg
+  action would force every selection-started caller (`ReaderView`, and through it
+  six engines) to invent a blank draft, which downstream would then have to tell
+  apart from a real one via a falsy check on one of its fields — the exact bug
+  `useCardPrefill` guards against. With the split, no-entry-data is `draft: null`
+  and says so, and the prefill's `active` flag is correct by construction.
+- **`contextSentence` rides beside `draft`, not inside it**, on both
+  `ReaderBubbleState` and `PendingCard` — for the same reason `word` does. A
+  selection-started card has `draft: null`, so there is nowhere inside the draft
+  for the book sentence to live, and folding it in blanks the context on exactly
+  the path that always has one.
+- **`useCardPrefill` returns `CardDraft | null`, never a blank draft.** Its
+  own-fetch guard truthy-tests the shared result, so a `{ reading: '',
+  meanings: [] }` return would read as "answered" and silently disable the
+  private fetch forever — well-typed, and broken. It also still **discards the
+  draft's `front`**: a reader-started card is fronted with the string the user
+  highlighted (`食べました`), not the headword the lookup resolved (`食べる`).
+- **Kanji cards flatten on + kun into one `、`-joined `reading`.**
+  `cards.reading` is a single column, so the distinction isn't preserved and a
+  study card can never label which is which. Chosen over a wider shape because
+  un-flattening a *populated* column later is a data migration, and the labelled
+  variant wasn't worth that bet. Kanji `meanings` are now capped at
+  `MAX_MEANINGS_ON_CARD` — the old code joined every KANJIDIC meaning into
+  `back` while the rail beside it already showed three.
+- **`reading` is `readings[0]`, not a headword-matched reading.** `assembler.js`
+  emits `kanji` and `readings` as two independently-sorted lists and JMdict's
+  `re_restr` is never exposed, so a true pairing isn't derivable client-side.
+  It's blanked when it equals the front (the kana-only-entry case).
+- **The read rule, at every render site:**
+  `meanings.length > 0 ? <structured> : <back verbatim>`. Either/or, never both —
+  on a post-026 card the two hold the same facts, so rendering reading +
+  meanings + back shows everything twice.
+- **`jlpt_level: null` means unknown, and renders nothing.** It covers both "on
+  no JLPT list" and "predates the column"; the two are indistinguishable on
+  purpose, so a placeholder would be a lie. The new JLPT sort in `GlassColumn`
+  parks nulls last in *both* directions.
+- **`JlptChip` promoted to `shared/components`** — study is its second consumer
+  domain, which is the documented threshold, and the alternative was a
+  study → dictionary feature dependency for one pill. Its fixed per-level ramp
+  stays (standing hex exception) and it gets no dark variant.
+- **The JLPT display pref cost nothing server-side.**
+  `user_study_prefs.display.front.jlpt` has existed with default `true` since
+  migration 022, with no data behind it; the web `FrontPrefs` type just omitted
+  it. This change is the missing half. No `back.meanings` toggle — the meaning is
+  the answer, and a pref that hides the answer isn't a pref.
+
+**Deferred, deliberately**
+
+- [ ] **Retiring the `back` column.** It stays NOT NULL and is still written on
+  every create. Retiring it is *not* just a column drop: it is the only place a
+  user can put a free-form answer (so `meanings[]` would have to serve double
+  duty as both dictionary glosses and hand-typed text), it's a hardcoded key in
+  `deckRepository`'s `LAST_CARD` and `statsRepository`'s `recentTierUpgrades`,
+  and — the blocker — **it would break mobile's local-first offline card queue**,
+  including cards already sitting in a user's pending queue. Migrate mobile
+  first; see `mobile-frontend/aogimi-mobile/TODO.md`.
+- [ ] **No backfill for existing cards.** Deriving a tier means joining
+  `cards.front` against `word_kanji`/`word_readings`, which is ambiguous (one
+  surface form maps to several entries at different tiers) and a wrong tier
+  renders as an authoritative chip. Splitting the legacy `back` blob is likewise
+  out: dictionary-made cards are parseable, but hand-made and mobile-made ones
+  follow no convention and a parser mangles them. Existing cards degrade to
+  exactly today's appearance. If a backfill ever happens it should be its own
+  numbered migration, matching only the exact shape the old `cardDraft` emitted.
+- [ ] **Mobile still writes the old flattened shape** — every mobile-created
+  card persists with `meanings = '{}'` and `jlpt_level = NULL`, and nothing ever
+  fills them in. Valid, not broken, and silent.
+- [ ] **Editing a card's front doesn't recompute `jlpt_level`**, and a PUT can't
+  clear a captured tier back to null (the write path is COALESCE, as for every
+  other card field). Recomputing would drag `wordRepository` into `cardService`.
+- [ ] **Per-gloss part of speech.** The dictionary carries POS per meaning and
+  `meanings text[]` discards it. `jsonb` was considered and rejected — `text[]`
+  has precedent, an expressible length CHECK and a no-parse driver mapping. If
+  POS is ever wanted on a card this becomes a migration.
+- [ ] **The bubble's remount key.** `AppShell` keys on `readerBubble.word`, so
+  adding the same headword twice from two different sources won't remount it and
+  seeded phase state won't reseed. Pre-existing; more visible now that the phase
+  seeds more.
