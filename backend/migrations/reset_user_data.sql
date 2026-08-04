@@ -134,6 +134,14 @@ CREATE TABLE cards (
   back              text         NOT NULL,
   notes             text         NOT NULL DEFAULT '',
   context_sentence  text         NOT NULL DEFAULT '',
+  -- Added in 026: snapshots of the source dictionary entry, captured at add
+  -- time. `jlpt_level` NULL = unknown (no JLPT list, or legacy card); it is
+  -- never recomputed when the card is edited. `meanings` is NOT NULL DEFAULT
+  -- '{}' so clients can type it as a non-nullable string[]. The `coalesce` in
+  -- the length CHECK is required: array_length() returns NULL for '{}'.
+  jlpt_level        smallint     CHECK (jlpt_level IS NULL OR jlpt_level BETWEEN 1 AND 5),
+  meanings          text[]       NOT NULL DEFAULT '{}'::text[]
+                                 CHECK (coalesce(array_length(meanings, 1), 0) <= 3),
   -- CHECK added in 024: the route used to accept any string here, which let a
   -- client skip the SRS ladder outright. Enforced in src/validation/decks.js too.
   state             text         NOT NULL DEFAULT 'new'

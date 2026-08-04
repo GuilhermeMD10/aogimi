@@ -35,6 +35,10 @@ module.exports = {
     CARD_BACK: 2000,
     CARD_NOTES: 2000,
     CARD_CONTEXT: 2000,
+    /** One entry of `cards.meanings` — a single dictionary gloss, not a
+     *  paragraph. Enforced by zod only: the DB CHECK bounds the item COUNT,
+     *  because per-item length in a CHECK needs an unnest (see migration 026). */
+    CARD_MEANING: 200,
 
     BOOK_TITLE: 500,
     BOOK_AUTHOR: 500,
@@ -69,6 +73,9 @@ module.exports = {
     BOOK_PAGE_HASHES: 5000,
     /** Deck ids in a study-session request. */
     SESSION_DECK_IDS: 50,
+    /** `cards.meanings` — glosses copied off the dictionary entry at add
+     *  time. Also a DB CHECK (migration 026). */
+    CARD_MEANINGS: 3,
   },
 
   // ── Numeric bounds ─────────────────────────────────────────────────────
@@ -82,6 +89,13 @@ module.exports = {
     /** PDF page count (int column) — well above any real book. */
     PAGE_COUNT_MAX: 100000,
     TEXT_LENGTH_MAX: 2147483647,
+    /** `cards.jlpt_level` — JLPT tiers, N5 (easiest) .. N1 (hardest), stored
+     *  as the bare number. Same encoding as the dictionary side's
+     *  `words.jlpt_level`. NULL is a separate, legal value meaning "unknown";
+     *  these bounds only apply when a number is present. Also a DB CHECK
+     *  (migration 026). */
+    JLPT_LEVEL_MIN: 1,
+    JLPT_LEVEL_MAX: 5,
   },
 
   // ── Query `limit` clamps ───────────────────────────────────────────────
