@@ -187,6 +187,29 @@ export const rgbOf = (hex: string): [number, number, number] => [
 ];
 
 /**
+ * The night the sky is drawn on: a tint of the preset's own colour thrown across the top-left of a
+ * near-black base, so each hue reads as a different night rather than as recoloured stars on one.
+ *
+ * The base is the guide's own `T.bg` (§5) as literals rather than the `--sky-1/2/3` tokens: the star
+ * map is night in **both** themes, and those tokens go pale in Ink on paper, so reading them would
+ * put the sky on a daylight canvas. Same standing hex exception the rest of this file carries.
+ *
+ * **`SkyCanvas` does not use this** — it paints no background at all, so the page's own canvas shows
+ * through and the map sits on the same plane as the chrome around it. On the routed app that canvas
+ * is `--page-base` in `styles/ds-tokens.css`, which is the app's night and free to look like
+ * something else entirely; this function is for hosts that draw the sky in a box of their own rather
+ * than over the page (the demo harness in `Sky.tsx`), and is the only thing still using
+ * `palette.tint`.
+ */
+export const skyBackground = (tint: string) => {
+  const [r, g, b] = rgbOf(tint);
+  return (
+    `radial-gradient(115% 95% at 32% 6%, rgba(${r}, ${g}, ${b}, .30) 0%, rgba(255, 255, 255, 0) 62%),` +
+    ' radial-gradient(120% 100% at 30% 8%, #16223c 0%, #0d1526 42%, #05070f 100%)'
+  );
+};
+
+/**
  * Channel triples per ramp, cached against the ramp itself.
  *
  * The blend below runs once per quadtree node — thousands of times per data change — and every one

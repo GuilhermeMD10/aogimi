@@ -25,9 +25,9 @@ import type { CardRecord } from '../types';
 
 /**
  * `/decks` — the whole sky as the decks page: every deck a constellation in a
- * card frame, one rounded stage panel under the shared TopBar filling the rest
- * of the viewport (no page scroll). The old deck grid, deck detail and the
- * `/sky` route all merged into this. Three tiers:
+ * card frame, on the page's own night canvas under the shared TopBar, filling
+ * the rest of the viewport (no page scroll). The old deck grid, deck detail and
+ * the `/sky` route all merged into this. Three tiers:
  *
  *   outer sky:    every framed constellation + the bottom ledger; clicking a
  *                 frame is the only way into a deck.
@@ -54,10 +54,10 @@ import type { CardRecord } from '../types';
  * column and the frames all read the same filtered projection.
  */
 
-/** Camera insets per tier — panel-relative (the stage is an inset rounded
- *  panel below the TopBar, not a viewport bleed). The chrome never moves, so
- *  these are constants: the action band at the outer tier, the glass column
- *  (or its reopen handle) inside a deck. */
+/** Camera insets per tier — stage-relative (the stage is everything below the
+ *  TopBar row, edge to edge). The chrome never moves, so these are constants:
+ *  the action band at the outer tier, the glass column (or its reopen handle)
+ *  inside a deck. */
 const SKY_INSETS: Insets = { top: 96, right: 48, bottom: 216, left: 48 };
 const SKY_INSETS_LEDGER_COLLAPSED: Insets = { top: 96, right: 48, bottom: 156, left: 48 };
 const DECK_INSETS: Insets = { top: 88, right: 58, bottom: 84, left: 396 };
@@ -364,14 +364,14 @@ export function DecksView() {
         <TopBar />
       </div>
 
-      {/* A 12px gutter (px-3/pb-3), not the page margin: the panel reads as a
-          rounded floating stage that still all but fills the viewport. */}
-      <div className="min-h-0 w-full flex-1 px-3 pb-3">
-        <div
-          className="relative h-full w-full overflow-hidden rounded-[24px]"
-          style={{ background: NIGHT.bg }}
-        >
-          {/* ── the sky itself; the night gradient is the pre-seed placeholder ── */}
+      {/* No gutter, no radius, no fill: the stage IS the page. SkyCanvas paints
+          nothing and the app's night is `--page-base` (see the Page background
+          block in ds-tokens.css), so the constellations sit on the same canvas
+          the TopBar above them does — there is no panel edge left to frame
+          them. */}
+      <div className="min-h-0 w-full flex-1">
+        <div className="relative h-full w-full overflow-hidden">
+          {/* ── the sky itself; the page's own night shows through before the seed lands ── */}
           <div className="absolute inset-0">
             {seed && sources && sources.length > 0 && (
               <SkyMap

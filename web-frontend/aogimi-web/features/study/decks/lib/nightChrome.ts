@@ -12,8 +12,9 @@
  * list chrome and the stars always agree.
  */
 export const NIGHT = {
-  /** The stage itself — the sky sits on this in both themes. */
-  bg: 'radial-gradient(120% 100% at 30% 8%, #16223c 0%, #0d1526 42%, #05070f 100%)',
+  /* The stage's own `bg` is gone: the sky is the page now. `--page-base` in
+     `styles/ds-tokens.css` is the app-wide night and SkyCanvas paints nothing,
+     so nothing here needs a fill behind the map. */
   ink: '#f2f1ee',
   soft: '#c9c8c4',
   muted: '#9b9aa2',
