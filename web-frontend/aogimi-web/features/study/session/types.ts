@@ -55,9 +55,20 @@ export type DueCounts = {
 
 export type Preset = 'easy' | 'default' | 'hard' | 'production';
 
+/** Which optional fields the prompt side shows.
+ *
+ *  Key order matches `DEFAULT_DISPLAY` in `backend/src/routes/study.js` — the
+ *  server has stored and returned a `jlpt` flag since migration 022, and this
+ *  type simply omitted it until cards had a level to show. So the toggle costs
+ *  no backend change: `/api/study/prefs` validates `display` as an open record.
+ *
+ *  There is deliberately no `back.meanings` flag. The meaning *is* the answer,
+ *  and a preference that hides the answer isn't a preference; `reading` already
+ *  covers the one field a learner might want withheld. */
 export type FrontPrefs = {
   reading: boolean;
   context: boolean;
+  jlpt: boolean;
   deckName: boolean;
 };
 

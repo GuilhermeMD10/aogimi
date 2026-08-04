@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Button, Eyebrow, HAIRLINE } from '@/shared/components';
+import { Button, Eyebrow, HAIRLINE, JlptChip } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
-import type { DeckSummary } from '../../types';
+import type { CardDraft, DeckSummary } from '../../types';
 import {
   MAX_CARDS_PER_DECK,
-  MAX_CARD_BACK,
+  MAX_CARD_MEANING,
+  MAX_CARD_MEANINGS,
+  MAX_CARD_READING,
   MAX_DECKS,
   MAX_DECK_NAME,
   deckQuotaMessage,
@@ -20,9 +22,22 @@ const FIELD = cn(
   'outline-none focus:border-(--ink)',
 );
 
+/**
+ * The hand-off in flight: which step it's on, plus the card being composed.
+ *
+ * **One `CardDraft`, not a bag of loose fields.** It used to carry `initialBack`
+ * and `contextSentence` next to `word`, and every step that rebuilt the object
+ * field-by-field was a place to silently drop one — which is exactly what
+ * happened when `meanings` and `jlptLevel` arrived. There is no separate `word`:
+ * `draft.front` is the front, so the front has one representation.
+ *
+ * The draft is never null. A hand-off with no resolved dictionary entry becomes
+ * an empty draft (blank reading, no meanings, no level) rather than an absent
+ * one, so the form has one shape to render.
+ */
 export type PendingCardFlow =
-  | { phase: 'select-deck'; word: string; initialBack?: string; contextSentence?: string }
-  | { phase: 'create-card'; word: string; deckId: string; initialBack?: string; contextSentence?: string }
+  | { phase: 'select-deck'; draft: CardDraft }
+  | { phase: 'create-card'; draft: CardDraft; deckId: string }
   | null;
 
 export interface PendingCardOverlayProps {
@@ -31,7 +46,19 @@ export interface PendingCardOverlayProps {
   onCancel: () => void;
   onSelectDeck: (deckId: string) => void;
   onCreateDeckAndUse: (name: string) => void;
-  onSubmitCard: (back: string, contextSentence?: string) => void;
+  /** The edited draft — one payload, so a new card field can't be lost between
+   *  here and `createCard`. `back` is derived at that boundary, not here. */
+  onSubmitCard: (draft: CardDraft) => void;
+}
+
+/** One gloss per line, blanks dropped. The editable value carries no `1. `
+ *  numbering: numbering is presentation, applied by `cardBack()`, and a user
+ *  who typed it back in would end up with it stored inside the gloss. */
+function parseMeanings(text: string): string[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 }
 
 export function PendingCardOverlay({
@@ -44,15 +71,18 @@ export function PendingCardOverlay({
 }: PendingCardOverlayProps) {
   const [newDeckName, setNewDeckName] = useState('');
   const [showNewDeck, setShowNewDeck] = useState(false);
-  const [pendingBack, setPendingBack] = useState('');
+  // The two editable fields, as the user types them. `meaningsText` is the
+  // newline-separated form of `draft.meanings` — a textarea, not one input per
+  // gloss, because pasting or trimming a list is the common edit.
+  const [reading, setReading] = useState('');
+  const [meaningsText, setMeaningsText] = useState('');
 
-  // Seed `pendingBack` *once* when we transition into the create-card phase
-  // with an initialBack, and clear it when the overlay closes. The ref tracks
-  // the previous phase so the user's edits aren't clobbered on every render
-  // (replaces an earlier render-body setState pattern). setState in effect is
-  // intentional — we're syncing local form state from an external prop
-  // transition; the ref-gated phase-edge check makes it one-shot per
-  // transition.
+  // Seed the form *once* when we transition into the create-card phase, and
+  // clear it when the overlay closes. The ref tracks the previous phase so the
+  // user's edits aren't clobbered on every render (replaces an earlier
+  // render-body setState pattern). setState in effect is intentional — we're
+  // syncing local form state from an external prop transition; the ref-gated
+  // phase-edge check makes it one-shot per transition.
   type Phase = NonNullable<PendingCardFlow>['phase'] | null;
   const prevPhaseRef = useRef<Phase>(null);
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -61,15 +91,22 @@ export function PendingCardOverlay({
     const prev = prevPhaseRef.current;
     prevPhaseRef.current = phase;
 
-    if (phase === 'create-card' && prev !== 'create-card' && flow?.initialBack) {
-      setPendingBack(flow.initialBack);
+    if (phase === 'create-card' && prev !== 'create-card' && flow) {
+      setReading(flow.draft.reading);
+      setMeaningsText(flow.draft.meanings.join('\n'));
     } else if (phase === null && prev !== null) {
-      setPendingBack('');
+      setReading('');
+      setMeaningsText('');
     }
   }, [flow]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!flow) return null;
+
+  const resetForm = () => {
+    setReading('');
+    setMeaningsText('');
+  };
 
   const createDeck = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,15 +115,19 @@ export function PendingCardOverlay({
     onCreateDeckAndUse(name);
     setNewDeckName('');
     setShowNewDeck(false);
-    setPendingBack('');
+    resetForm();
   };
 
   const submitCard = (e: React.FormEvent) => {
     e.preventDefault();
-    const back = pendingBack.trim();
-    if (!back) return;
-    onSubmitCard(back, flow?.contextSentence);
-    setPendingBack('');
+    const meanings = parseMeanings(meaningsText);
+    // A card with no meaning is a card with no answer — the same gate the Add
+    // button already shows as disabled.
+    if (meanings.length === 0 || meanings.length > MAX_CARD_MEANINGS) return;
+    // The draft carries `front`, `jlptLevel` and the context sentence through
+    // untouched; only the two fields the form owns are replaced.
+    onSubmitCard({ ...flow.draft, reading: reading.trim(), meanings });
+    resetForm();
   };
 
   return (
@@ -97,7 +138,7 @@ export function PendingCardOverlay({
       <div className="w-full max-w-sm rounded-(--radius-panel) border border-(--paper-bd) bg-(--paper) p-6 shadow-(--card-shadow-float)">
         {flow.phase === 'select-deck' ? (
           <SelectDeckPhase
-            word={flow.word}
+            word={flow.draft.front}
             decks={decks}
             newDeckName={newDeckName}
             setNewDeckName={setNewDeckName}
@@ -111,8 +152,10 @@ export function PendingCardOverlay({
           <CreateCardPhase
             flow={flow}
             decks={decks}
-            pendingBack={pendingBack}
-            setPendingBack={setPendingBack}
+            reading={reading}
+            setReading={setReading}
+            meaningsText={meaningsText}
+            setMeaningsText={setMeaningsText}
             onSubmit={submitCard}
             onCancel={onCancel}
           />
@@ -246,22 +289,37 @@ function SelectDeckPhase({
   );
 }
 
+/**
+ * The card as it will be stored: front and JLPT level read-only (both are the
+ * source entry's, not the author's), reading and meanings editable.
+ *
+ * There is no free-text Back field any more. `back` is a *rendering* of these
+ * two — `cardBack()` builds it at the API boundary — so a third box holding the
+ * same facts would have been the one the user edited while the structured
+ * fields quietly disagreed with it.
+ */
 function CreateCardPhase({
   flow,
   decks,
-  pendingBack,
-  setPendingBack,
+  reading,
+  setReading,
+  meaningsText,
+  setMeaningsText,
   onSubmit,
   onCancel,
 }: {
-  flow: { phase: 'create-card'; word: string; deckId: string; contextSentence?: string };
+  flow: { phase: 'create-card'; draft: CardDraft; deckId: string };
   decks: DeckSummary[];
-  pendingBack: string;
-  setPendingBack: (v: string) => void;
+  reading: string;
+  setReading: (v: string) => void;
+  meaningsText: string;
+  setMeaningsText: (v: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
 }) {
   const deck = decks.find((d) => d.id === flow.deckId);
+  const meanings = parseMeanings(meaningsText);
+  const tooMany = meanings.length > MAX_CARD_MEANINGS;
 
   return (
     <>
@@ -276,26 +334,59 @@ function CreateCardPhase({
           <div
             className={cn(
               FIELD,
-              'bg-(--paper-tile) font-[family-name:var(--face-jp)] text-[17px]',
+              'flex items-center justify-between gap-3 bg-(--paper-tile)',
             )}
           >
-            {flow.word}
+            <span className="min-w-0 font-[family-name:var(--face-jp)] text-[17px]">
+              {flow.draft.front}
+            </span>
+            {/* Read-only, and gated on non-null rather than left to the chip's
+                own guard: the level is the source entry's tier, snapshotted at
+                add time, and nothing here can derive one for a word that has
+                none. */}
+            {flow.draft.jlptLevel !== null && (
+              <JlptChip level={flow.draft.jlptLevel} className="shrink-0" />
+            )}
           </div>
         </div>
         <div>
-          <Eyebrow className="mb-1.5">Back</Eyebrow>
+          <Eyebrow className="mb-1.5">Reading</Eyebrow>
+          <input
+            type="text"
+            value={reading}
+            onChange={(e) => setReading(e.target.value)}
+            placeholder="Kana for the front (optional)"
+            aria-label="Card reading"
+            maxLength={MAX_CARD_READING}
+            className={cn(FIELD, 'bg-transparent font-[family-name:var(--face-jp)]')}
+          />
+        </div>
+        <div>
+          <Eyebrow className="mb-1.5">Meanings</Eyebrow>
           <textarea
-            value={pendingBack}
-            onChange={(e) => setPendingBack(e.target.value)}
-            placeholder="Write the back side…"
-            aria-label="Card back"
-            maxLength={MAX_CARD_BACK}
+            value={meaningsText}
+            onChange={(e) => setMeaningsText(e.target.value)}
+            placeholder="One meaning per line…"
+            aria-label="Card meanings, one per line"
+            aria-describedby="pending-card-meanings-hint"
+            // A coarse ceiling on the whole box, not the per-gloss cap: real
+            // glosses never approach it, and it exists to stop a stray paste.
+            // A single over-long gloss is the server's to reject.
+            maxLength={MAX_CARD_MEANING * MAX_CARD_MEANINGS}
             className={cn(FIELD, 'resize-none bg-transparent leading-[1.5]')}
             rows={3}
             autoFocus
           />
+          <p
+            id="pending-card-meanings-hint"
+            className="mt-1.5 font-[family-name:var(--face-mono)] text-[10.5px] text-(--muted)"
+          >
+            {tooMany
+              ? `Up to ${MAX_CARD_MEANINGS} meanings — remove ${meanings.length - MAX_CARD_MEANINGS}.`
+              : `One per line · ${meanings.length} / ${MAX_CARD_MEANINGS}`}
+          </p>
         </div>
-        {flow.contextSentence && (
+        {flow.draft.contextSentence && (
           <div>
             <Eyebrow className="mb-1.5">Context</Eyebrow>
             <div
@@ -304,7 +395,7 @@ function CreateCardPhase({
                 'bg-(--paper-tile) text-[13px] leading-relaxed text-(--soft)',
               )}
             >
-              {flow.contextSentence}
+              {flow.draft.contextSentence}
             </div>
           </div>
         )}
@@ -319,7 +410,9 @@ function CreateCardPhase({
           >
             Cancel
           </button>
-          <Button type="submit" disabled={!pendingBack.trim()}>
+          {/* The meaning is the answer, so at least one is required — the
+              reading is not (a kana-only word has none to add). */}
+          <Button type="submit" disabled={meanings.length === 0 || tooMany}>
             Add card
           </Button>
         </div>

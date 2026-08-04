@@ -288,13 +288,13 @@ html[data-theme="dark"] {
   --paper-shadow-hover: 0 20px 50px rgba(0, 0, 0, .6);
 
   --star-gold:         244, 220, 130;
-  /* The page's three stops, centre outwards — an indigo horizon burning out to
-     near-black, not the old navy dome (and no longer the star map's own values;
+  /* The page's three stops, centre outwards — an indigo core burning out to
+     true black (and no longer the star map's own values;
      the map is transparent over this, see the Page background block). --sky-3 is
      also <html>'s background-color, so it must stay the darkest of the three. */
-  --sky-1:             #332886;
-  --sky-2:             #06084b;
-  --sky-3:             #05070f;
+  --sky-1:             #49408c;
+  --sky-2:             #1b1e69;
+  --sky-3:             #000000;
   --page-vignette:     inset 0 0 220px 60px rgba(4, 7, 14, .55);
 }
 
@@ -374,8 +374,8 @@ html[data-sky-hue="aurora"] {
 
    ── Per theme, not one formula ────────────────────────────────────────────
    The two themes are genuinely different backgrounds now, not one geometry with
-   swapped stops: Midnight is a wide, low horizon glow with a white wash across
-   the middle, paper is the pale sky dome from the handoff. So `--page-base` is
+   swapped stops: Midnight is a centred indigo bloom on black with a white wash
+   over it, paper is the pale sky dome from the handoff. So `--page-base` is
    declared twice rather than built from tokens that swap underneath. The three
    stops still come from `--sky-1/2/3` in the theme blocks above, so a palette
    change is still a palette-block edit.
@@ -394,10 +394,10 @@ html[data-theme="dark"] {
      (= rgba(0,0,0,0)): a white → black-at-zero ramp can pick up a grey cast on
      the way down. Same rule glass.css states for its specular lines. */
   --page-base:
-    radial-gradient(205% 30% at 47% 46%,
-      rgba(255, 255, 255, .24) 0%, rgba(255, 255, 255, 0) 62%),
-    radial-gradient(210% 35% at 47% 48%,
-      var(--sky-1) 0%, var(--sky-2) 26%, var(--sky-3) 100%);
+    radial-gradient(115% 115% at 47% 46%,
+      rgba(255, 255, 255, .14) 0%, rgba(255, 255, 255, 0) 62%),
+    radial-gradient(120% 120% at 47% 48%,
+      var(--sky-1) 0%, var(--sky-2) 10%, var(--sky-3) 100%);
 }
 
 /* The star tiles are theme-independent — one field, `--star-gold`/`--star-blue`

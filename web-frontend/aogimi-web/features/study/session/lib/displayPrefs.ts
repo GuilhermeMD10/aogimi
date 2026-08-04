@@ -9,27 +9,34 @@ import type {
   Preset,
 } from '../types';
 
+// These mirror `DEFAULT_DISPLAY` in `backend/src/routes/study.js`, which is what
+// a user with no stored row gets — keep the `default` preset and DEFAULT_PREFS
+// in step with it, or the first session after sign-up differs from the second.
+//
+// `jlpt` is on everywhere except `hard`: the level is a difficulty *hint* about
+// the prompt, so it belongs with the reading and the context sentence that
+// `hard` also strips.
 export const DEFAULT_PREFS: DisplayPrefs = {
   preset: 'default',
-  front: { reading: false, context: true, deckName: true },
+  front: { reading: false, context: true, jlpt: true, deckName: true },
   back:  { exampleSentence: true },
 };
 
 export const PRESETS: Record<Preset, { front: FrontPrefs; back: BackPrefs }> = {
   easy: {
-    front: { reading: true,  context: true,  deckName: true },
+    front: { reading: true,  context: true,  jlpt: true,  deckName: true },
     back:  { exampleSentence: true },
   },
   default: {
-    front: { reading: false, context: true,  deckName: true },
+    front: { reading: false, context: true,  jlpt: true,  deckName: true },
     back:  { exampleSentence: true },
   },
   hard: {
-    front: { reading: false, context: false, deckName: false },
+    front: { reading: false, context: false, jlpt: false, deckName: false },
     back:  { exampleSentence: true },
   },
   production: {
-    front: { reading: false, context: false, deckName: true },
+    front: { reading: false, context: false, jlpt: true,  deckName: true },
     back:  { exampleSentence: true },
   },
 };

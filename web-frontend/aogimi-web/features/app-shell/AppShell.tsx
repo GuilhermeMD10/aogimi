@@ -78,10 +78,17 @@ function ShellContent({ showDock, children }: { showDock: boolean; children: Rea
         <ReaderBubble mode="dict" onClose={() => setReaderBubble(null)} />
       ) : (
         <ReaderBubble
+          // Pre-existing hazard, deliberately left alone: adding the *same*
+          // headword twice from two different sources (say the reader's
+          // selection and then a rail row) keeps the same key, so the bubble
+          // does not remount and its seeded phase state — the initial
+          // select-deck phase, built from the first request's draft — is not
+          // reseeded from the second request. Out of scope here; flagged so the
+          // next person to touch the key knows it isn't already handled.
           key={readerBubble.word}
           mode="addCard"
           word={readerBubble.word}
-          back={readerBubble.back}
+          draft={readerBubble.draft}
           contextSentence={readerBubble.contextSentence}
           dictVisibleBehind={readerBubble.dictVisibleBehind}
           onClose={closeAddCardBubble}

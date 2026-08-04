@@ -216,28 +216,48 @@ screen and the `/sky` route are all deleted in its favour.
   extras: `frameMeta` (per-deck due count via `hooks/useDeckDueCounts.ts` — one
   `/api/study/due/counts` call for frames, chrome and ledger — plus
   `deckVisuals` cover colour/glyph and a "STARTED MAR 2026" subtitle) and
-  `insets`, the camera's chrome allowance per tier (sky 105/54/245/54, ledger
-  collapsed 180 bottom; focused 88/70/95 with left 474 column-open / 70
-  hidden).
+  `insets`, the camera's chrome allowance per tier, T/R/B/L (sky 96/48/216/48,
+  ledger collapsed 156 bottom; focused 88/58/84 with left **360** column-open —
+  the column's own right edge, no gutter, so the sky's dashed boundary meets the
+  glass — or 58 hidden). An insets change re-fits the camera as a 400ms flight,
+  so collapsing the column glides rather than snaps.
+- **A focused deck rests filling the free window, not at MAX_ZOOM.** The deck
+  tier passes `adaptiveZoomLimits`, so `focusLimits` (in `features/sky/lib/camera.ts`)
+  resolves *both* limits from the deck's own box: the resting fit is the
+  fill-the-window zoom capped at `FOCUS_FIT_MAX_ZOOM` (4) instead of `MAX_ZOOM`
+  (2) — a sparse deck used to float in the middle of the free window — and the
+  ceiling is that fit × `FOCUS_ZOOM_HEADROOM`, clamped to
+  `MAX_ZOOM..FOCUS_MAX_ZOOM`, so there is always somewhere further in to go. The
+  fit only ever *caps*, so the whole deck is on screen at every tier.
+- **Leaving a deck by wheel takes a deliberate second push.** Wheel-out while
+  already pinned at the floor accumulates `|deltaY|` and calls `onZoomOutFloor`
+  (→ the outer tier) only past `ESCAPE_PUSH_PX` (320), decaying after
+  `ESCAPE_PUSH_DECAY_MS` (500) and cleared by any zoom-in. One notch used to
+  leave, which meant a flick aimed at the fitted view usually exited the deck.
 - **Suspended chrome** (`components/StageChrome.tsx`): brand mark top-left;
   top-right "Study N due" (all decks → `/study?due=1`, deck-scoped →
   `/study?deck={id}`) plus "New deck" (glass popover form, provider
-  `createDeck`) at the outer tier or the delete-deck danger button inside one.
-  Destructive acts confirm through `components/NightConfirm.tsx`.
+  `createDeck`) at the outer tier or the delete-deck danger button inside one
+  (the same act is also in the column's deck-info drawer; both open the same
+  confirm). Destructive acts confirm through `components/NightConfirm.tsx`.
 - **The bottom ledger** (`components/StageLedger.tsx`, outer tier only): DAYS
   STUDIED / STARS IN YOUR SKY / DUE TODAY / MASTERED, the all-decks mastery mix
   (`components/MixBar.tsx`), and recent-upgrade rows; click toggles
   expanded/collapsed. Stars/mastered/mix are counted off the cards already in
   memory; days + upgrades come from `hooks/useSkyLedger.ts` (`/api/stats/*`).
-- **The glass column** (`components/GlassColumn.tsx`, 404px, deck tier):
-  back chevron (card → list, list → sky), all-decks search
-  (`components/CardSearch.tsx`, in-memory filter — no endpoint, so results
-  can't disagree with the map), the card list (SORT chips Added/Mastery,
-  cycling desc → asc → off), a collapsible deck-info footer (stat tiles, mix,
-  deck-scoped upgrades via `hooks/useDeckUpgrades.ts`), and the card detail
-  (meanings, IN CONTEXT, the `lib/rankProgress.ts` mastery meter, dictionary
-  lookup + delete-card actions). The « button collapses the whole column to a
-  "≡ CARDS" handle and the camera re-fits.
+- **The glass column** (`components/GlassColumn.tsx`, 340px, deck tier), top to
+  bottom: back chevron (card → list, list → sky); the deck name, which is
+  itself the disclosure for the **deck-info drawer** — closed by default, so the
+  card list keeps the height — holding the stat tiles, the mastery mix and
+  **Delete deck**; the all-decks search (`components/CardSearch.tsx`, in-memory
+  filter — no endpoint, so results can't disagree with the map), rendered in the
+  list state only; then either the card list (SORT chips Added/Mastery, cycling
+  desc → asc → off) or the card detail (meanings, IN CONTEXT, the
+  `lib/rankProgress.ts` mastery meter, dictionary lookup + delete-card actions).
+  The « button collapses the whole column to a "≡ CARDS" handle and the camera
+  re-fits. The drawer's old RECENT UPGRADES block is gone — the outer tier's
+  ledger already carries the promotion feed, and repeating it cost a request per
+  deck (`hooks/useDeckUpgrades.ts` is orphaned by that, still present).
 - **Data is one request**: `GET /api/decks/user/:userId/cards` via
   `hooks/useSkyDecks.ts` — the sky, the column, the search index and the
   ledger counts all read the same rows. Mutations go through `DecksProvider`

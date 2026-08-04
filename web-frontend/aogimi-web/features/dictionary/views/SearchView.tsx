@@ -51,7 +51,7 @@ export function SearchView({
    *  ever needs the arrows more. */
   arrowKeyNav?: boolean;
 }) {
-  const { requestAddCard } = useReaderActions();
+  const { requestAddCardFromEntry } = useReaderActions();
 
   const selectedWord =
     selection?.kind === 'word' ? contents.words.find((w) => w.id === selection.id) : undefined;
@@ -100,13 +100,9 @@ export function SearchView({
           // row. Adding row 5 while row 1 is open would otherwise stamp row
           // 1's sentence onto row 5's card.
           const sentences = details?.word.id === w.id ? details.sentences : undefined;
-          const d = wordCardDraft(w, query, sentences);
-          requestAddCard(d.front, d.back, d.context);
+          requestAddCardFromEntry(wordCardDraft(w, query, sentences));
         }}
-        onAddKanji={(k) => {
-          const d = kanjiCardDraft(k);
-          requestAddCard(d.front, d.back, d.context);
-        }}
+        onAddKanji={(k) => requestAddCardFromEntry(kanjiCardDraft(k))}
         loading={loading}
         error={error}
         onRetry={() => onRun(query)}
@@ -114,10 +110,7 @@ export function SearchView({
 
       <main ref={paneRef} className="min-w-0 flex-1 overflow-y-auto pb-[120px]">
         {selectedKanji && (
-          <KanjiEntryDetail
-            kanji={selectedKanji}
-            onAddCard={(front, back, context) => requestAddCard(front, back, context)}
-          />
+          <KanjiEntryDetail kanji={selectedKanji} onAddCard={requestAddCardFromEntry} />
         )}
 
         {selectedWord && (
@@ -128,7 +121,7 @@ export function SearchView({
             detailsLoading={detailsLoading}
             detailsError={detailsError}
             onKanjiSelect={onRun}
-            onAddCard={(front, back, context) => requestAddCard(front, back, context)}
+            onAddCard={requestAddCardFromEntry}
           />
         )}
 

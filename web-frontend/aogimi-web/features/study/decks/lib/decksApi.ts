@@ -71,16 +71,39 @@ export async function getDueDeckCardCount(
   return count;
 }
 
+/**
+ * Body keys are camelCase where the column is snake_case (`contextSentence`,
+ * `jlptLevel`) — that's the established convention for this endpoint, and the
+ * *response* stays snake_case `CardRecord`. `CardDraft` is named to match, so
+ * the usual call is `{ ...draft, back: cardBack(draft) }`.
+ */
 export async function createCard(
   deckId: string,
-  params: { front: string; back: string; reading?: string; notes?: string; contextSentence?: string },
+  params: {
+    front: string;
+    back: string;
+    reading?: string;
+    notes?: string;
+    contextSentence?: string;
+    meanings?: string[];
+    jlptLevel?: number | null;
+  },
 ): Promise<CardRecord> {
   return apiSend<CardRecord>(`/api/decks/${deckId}/cards`, 'POST', params);
 }
 
 export async function updateCard(
   cardId: string,
-  params: { front?: string; reading?: string; back?: string; notes?: string; state?: string },
+  params: {
+    front?: string;
+    reading?: string;
+    back?: string;
+    notes?: string;
+    state?: string;
+    contextSentence?: string;
+    meanings?: string[];
+    jlptLevel?: number | null;
+  },
 ): Promise<CardRecord> {
   return apiSend<CardRecord>(`/api/decks/cards/${cardId}`, 'PUT', params);
 }

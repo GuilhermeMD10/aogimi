@@ -51,7 +51,7 @@ export default function ReaderView({ bookId }: { bookId: string }) {
   const user = useAuthedUser();
   const router = useRouter();
   const { sidekickOpen, toggleSidekick, setSidekickOpen } = useReaderState();
-  const { requestDictLookup, requestAddCard } = useReaderActions();
+  const { requestDictLookup, requestAddCardFromSelection } = useReaderActions();
 
   const [status, setStatus] = useState<Status>({ phase: 'opening' });
 
@@ -154,9 +154,13 @@ export default function ReaderView({ bookId }: { bookId: string }) {
     (word: string, contextSentence?: string) => requestDictLookup(word, contextSentence),
     [requestDictLookup],
   );
+  // The selection variant, not the entry one: a word tapped in the book is a raw
+  // surface string with no dictionary entry behind it yet, and the menu has to
+  // open immediately rather than wait for a lookup. The bubble's `useCardPrefill`
+  // resolves the reading, glosses and JLPT tier while the user picks a deck.
   const handleAddCard = useCallback(
-    (word: string, contextSentence?: string) => requestAddCard(word, undefined, contextSentence),
-    [requestAddCard],
+    (word: string, contextSentence?: string) => requestAddCardFromSelection(word, contextSentence),
+    [requestAddCardFromSelection],
   );
 
   if (status.phase === 'opening') {

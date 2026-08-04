@@ -35,20 +35,40 @@ export const STAR_PX = 3; // stars keep this pixel radius at any zoom level
 // never pull back past the boundary. See fitZoom() in lib/sky/camera.ts.
 export const MAX_ZOOM = 2; // px per world unit, zoomed all the way in
 /**
- * The focused deck's ceiling adapts to how much sky the deck actually has. At MAX_ZOOM a sparse
- * deck's box covers only a corner of the viewport and the fit *is* the ceiling, so its handful of
- * stars sit tiny in an empty frame with nowhere further to go. The ceiling inside a focused deck
- * is therefore `clamp(rawFit × FOCUS_ZOOM_HEADROOM, MAX_ZOOM, FOCUS_MAX_ZOOM)` (see `maxZoomFor`
- * in camera.ts), where rawFit is the *unclamped* fill-the-window zoom: a deck too sparse to reach
- * the window at MAX_ZOOM may zoom until it fills it, plus headroom — while a deck dense enough to
- * fill it already keeps today's cap. FOCUS_MAX_ZOOM is the absolute ceiling that stops a one-star
- * deck blowing a single glyph up absurdly. The resting fit (fitZoom) is untouched, so entering a
- * deck lands exactly where it always did and wheel-out-at-fit still means "leave".
+ * Both of a focused deck's zoom limits adapt to how much sky the deck actually has — see
+ * `focusLimits` in camera.ts, which resolves the pair from the deck's own box.
+ *
+ * **The resting fit** is capped at FOCUS_FIT_MAX_ZOOM rather than at MAX_ZOOM. Capped at MAX_ZOOM a
+ * sparse deck's box covered only the middle of the free window and its handful of stars sat tiny in
+ * an empty frame; the fill-the-window zoom is what the deck tier actually wants, since the box still
+ * *contains* the whole deck at any fit by construction — nothing is ever cropped, it just stops
+ * being pulled back further than the deck needs. FOCUS_FIT_MAX_ZOOM is the backstop that keeps a
+ * one- or two-star deck from resting absurdly magnified.
+ *
+ * **The ceiling** is then `clamp(fit × FOCUS_ZOOM_HEADROOM, MAX_ZOOM, FOCUS_MAX_ZOOM)`, so there is
+ * always somewhere further in to go: a dense deck (fit well under 1) keeps the MAX_ZOOM cap it
+ * always had, and a sparse one resting at the FOCUS_FIT_MAX_ZOOM cap still has FOCUS_MAX_ZOOM above
+ * it. Keep FOCUS_FIT_MAX_ZOOM × FOCUS_ZOOM_HEADROOM ≥ FOCUS_MAX_ZOOM or the headroom vanishes at
+ * the cap (focusLimits floors `max` at `fit` regardless, so it degrades rather than inverts).
  */
 export const FOCUS_MAX_ZOOM = 6;
+export const FOCUS_FIT_MAX_ZOOM = 4;
 export const FOCUS_ZOOM_HEADROOM = 1.6;
 export const ZOOM_PER_WHEEL_PX = 0.0015; // exponential, so zoom feels linear at every scale
 export const DRAG_SLOP_PX = 3; // movement beyond this makes a press a drag, not a click
+/**
+ * How hard you have to push a wheel-out that is already at the tier's floor before it means "leave"
+ * (see `onZoomOutFloor`). Not one notch: a flick meant to land back at the fitted view routinely
+ * carries a little momentum past it, and spending that momentum on navigation made zooming back out
+ * to the default feel like it always exited the deck. So the over-scroll **accumulates** while the
+ * camera is pinned at the floor and only leaves once it clears ESCAPE_PUSH_PX, in the same currency
+ * the wheel already speaks (|deltaY|, so a trackpad's many small events and a mouse's ~100px notches
+ * both count honestly). The sum decays after ESCAPE_PUSH_DECAY_MS without another wheel-out, and any
+ * wheel-*in* clears it outright — so resting at the fit is a resting place, and leaving is a
+ * deliberate second shove rather than the tail of the first.
+ */
+export const ESCAPE_PUSH_PX = 320;
+export const ESCAPE_PUSH_DECAY_MS = 500;
 // Screen-space pick radius. Being screen-space, the world distance it covers grows as you zoom
 // out, so far enough out the targets do overlap — pickStar returns the nearest, which is why that
 // stays harmless rather than ambiguous.

@@ -24,6 +24,7 @@ import {
   kanjiCardDraft,
 } from '@/features/dictionary';
 import type { SurfaceEntry } from '@/features/dictionary';
+import type { CardDraft } from '@/features/study/decks';
 import { DictPanelHeader } from '../components/DictPanelHeader';
 import { useDictSelection } from '../hooks/useDictSelection';
 import { useCardPrefill } from './useCardPrefill';
@@ -31,17 +32,30 @@ import { SelectDeckPhase } from './SelectDeckPhase';
 import { CreateCardPhase } from './CreateCardPhase';
 
 /** Local (bubble-only) flow. The dictionary state itself lives in
- *  `DictionaryStateProvider` so the other surfaces stay in sync. */
+ *  `DictionaryStateProvider` so the other surfaces stay in sync.
+ *
+ *  `word` rides alongside `draft` all the way through, and the create-card phase
+ *  fronts the card with *it* rather than with `draft.front` — see
+ *  `useCardPrefill` for why a reader-started card must keep the string the user
+ *  highlighted.
+ *
+ *  `select-deck`'s draft is nullable (a reader-started card has none yet);
+ *  `create-card`'s is not, because the select-deck → create-card transition is
+ *  where the prefill is folded in. */
 type Phase =
   | { type: 'dict' }
-  | { type: 'select-deck'; word: string; back: string; contextSentence?: string }
+  | { type: 'select-deck'; word: string; draft: CardDraft | null }
   | {
       type: 'create-card';
       word: string;
-      back: string;
+      /** Still nullable at this point, and it has to be: a reader-started card
+       *  whose lookup found nothing has no draft to show, and the form's empty
+       *  state is the honest answer. Substituting a blank draft here would put a
+       *  well-typed lie one hop from `useCardPrefill`'s "never a blank draft"
+       *  rule, which is not a place to keep one. */
+      draft: CardDraft | null;
       deckId: string;
       deckName: string;
-      contextSentence?: string;
     };
 
 export type BubbleContentProps =
@@ -49,7 +63,14 @@ export type BubbleContentProps =
   | {
       mode: 'addCard';
       word: string;
-      back: string;
+      /** `null` when the card was started from a raw reader selection, in which
+       *  case `useCardPrefill` supplies the fields. Never a blank draft — see
+       *  `ReaderBubbleState`. */
+      draft: CardDraft | null;
+      /** The book sentence for a selection-started card. Seeds the initial
+       *  `runSearch`'s `readerContext`, so `contextForEntry` can attach it to the
+       *  right row of the bubble's own dictionary. An entry-started card carries
+       *  its context inside `draft.contextSentence` instead. */
       contextSentence?: string;
       /** A dictionary surface is already on screen behind this bubble — see
        *  `ReaderBubbleState`. Suppresses the lookup below and the in-bubble
@@ -64,12 +85,7 @@ export function BubbleContent(props: BubbleContentProps) {
 
   const [phase, setPhase] = useState<Phase>(
     props.mode === 'addCard'
-      ? {
-          type: 'select-deck',
-          word: props.word,
-          back: props.back,
-          contextSentence: props.contextSentence,
-        }
+      ? { type: 'select-deck', word: props.word, draft: props.draft }
       : { type: 'dict' },
   );
 
@@ -124,15 +140,20 @@ export function BubbleContent(props: BubbleContentProps) {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [viewKey]);
 
-  // A card started from the reader carries no back — see `useCardPrefill` for
+  // A card started from the reader carries no draft — see `useCardPrefill` for
   // why it can't, and why this is where it gets one.
-  const prefilledBack = useCardPrefill(
+  //
+  // The guard is a null check on the draft, not a falsy check on one of its
+  // fields: `!props.draft` is true exactly when the request came from a
+  // selection. It used to be `!props.back`, which conflated "no entry data" with
+  // "an entry whose back happened to render empty".
+  const prefilledDraft = useCardPrefill(
     props.mode === 'addCard' ? props.word : '',
-    props.mode === 'addCard' && !props.back,
+    props.mode === 'addCard' && !props.draft,
   );
 
-  const toSelectDeck = (word: string, back: string, contextSentence?: string) =>
-    setPhase({ type: 'select-deck', word, back, contextSentence });
+  const toSelectDeck = (draft: CardDraft) =>
+    setPhase({ type: 'select-deck', word: draft.front, draft });
 
   // The book sentence is context for the word that was tapped, not for every row
   // the results happen to contain — a lookup of 道 reaches 道路 and 鉄道, and neither
@@ -180,8 +201,14 @@ export function BubbleContent(props: BubbleContentProps) {
               detailsLoading={detailsLoading}
               detailsError={detailsError}
               onKanjiSelect={(literal) => void dict.runSearch(literal)}
-              onAddCard={(front, back, context) =>
-                toSelectDeck(front, back, contextFor({ kind: 'word', word: selectedWord }, context))
+              onAddCard={(draft) =>
+                toSelectDeck({
+                  ...draft,
+                  contextSentence: contextFor(
+                    { kind: 'word', word: selectedWord },
+                    draft.contextSentence,
+                  ),
+                })
               }
               scale="full"
               onBack={clear}
@@ -189,12 +216,14 @@ export function BubbleContent(props: BubbleContentProps) {
           ) : selectedKanji ? (
             <KanjiEntryDetail
               kanji={selectedKanji}
-              onAddCard={(front, back, context) =>
-                toSelectDeck(
-                  front,
-                  back,
-                  contextFor({ kind: 'kanji', kanji: selectedKanji }, context),
-                )
+              onAddCard={(draft) =>
+                toSelectDeck({
+                  ...draft,
+                  contextSentence: contextFor(
+                    { kind: 'kanji', kanji: selectedKanji },
+                    draft.contextSentence,
+                  ),
+                })
               }
               scale="full"
               onBack={clear}
@@ -208,19 +237,17 @@ export function BubbleContent(props: BubbleContentProps) {
                 onSelect={select}
                 onAddWord={(w) => {
                   const draft = wordCardDraft(w, dict.query);
-                  toSelectDeck(
-                    draft.front,
-                    draft.back,
-                    contextFor({ kind: 'word', word: w }, draft.context),
-                  );
+                  toSelectDeck({
+                    ...draft,
+                    contextSentence: contextFor({ kind: 'word', word: w }, draft.contextSentence),
+                  });
                 }}
                 onAddKanji={(k) => {
                   const draft = kanjiCardDraft(k);
-                  toSelectDeck(
-                    draft.front,
-                    draft.back,
-                    contextFor({ kind: 'kanji', kanji: k }, draft.context),
-                  );
+                  toSelectDeck({
+                    ...draft,
+                    contextSentence: contextFor({ kind: 'kanji', kanji: k }, draft.contextSentence),
+                  });
                 }}
                 loading={dict.loading}
                 error={dict.error}
@@ -248,8 +275,24 @@ export function BubbleContent(props: BubbleContentProps) {
             word: phase.word,
             // The reader's own add-card arrives with nothing here. By now the
             // lookup has landed, so the form opens filled instead of blank.
-            back: phase.back || prefilledBack,
-            contextSentence: phase.contextSentence,
+            //
+            // **All-or-nothing (`??`), never per-field.** A per-field merge
+            // (`phase.draft.reading || prefilled.reading`) can assemble a card
+            // whose reading came from one entry and whose meanings came from
+            // another — the 背 / 背広 failure mode `useCardPrefill` documents,
+            // reintroduced one field at a time. Either the request brought a
+            // draft or the prefill did; the two are never blended.
+            //
+            // And read **exactly once**, here at the transition. That's the whole
+            // reason a late-resolving async value can seed a form safely: by the
+            // time `CreateCardPhase` mounts the value is final, so nothing can
+            // overwrite a half-typed field. Passing the hook's result down as a
+            // live prop would give that up.
+            //
+            // `phase.word` stays the front. `prefilledDraft.front` is the
+            // dictionary headword (`食べる`) where `phase.word` is what the user
+            // highlighted (`食べました`) — see `useCardPrefill`.
+            draft: phase.draft ?? prefilledDraft,
             deckId,
             deckName,
           })
@@ -262,23 +305,15 @@ export function BubbleContent(props: BubbleContentProps) {
   return (
     <CreateCardPhase
       word={phase.word}
-      initialBack={phase.back}
-      // The phase carries the context that was already resolved for the entry
+      // The draft carries the context that was already resolved for the entry
       // being added — the reader's sentence when it genuinely belongs to that
       // word, the entry's own first example otherwise. There is deliberately no
       // fallback to the raw reader sentence here: that was a second, unguarded
       // read of it, and it put 道's sentence on a 鉄道 card.
-      initialContext={phase.contextSentence}
+      draft={phase.draft}
       deckId={phase.deckId}
       deckName={phase.deckName}
-      onBack={() =>
-        setPhase({
-          type: 'select-deck',
-          word: phase.word,
-          back: phase.back,
-          contextSentence: phase.contextSentence,
-        })
-      }
+      onBack={() => setPhase({ type: 'select-deck', word: phase.word, draft: phase.draft })}
       onCreated={onClose}
       onClose={onClose}
     />

@@ -18,6 +18,7 @@ export { CardHeader } from './CardHeader';
 export { Chip } from './Chip';
 export { CoverTile } from './CoverTile';
 export { Eyebrow } from './Eyebrow';
+export { JlptChip } from './JlptChip';
 export { MonoAction } from './MonoAction';
 export { PaperCard, PAPER_GHOST } from './PaperCard';
 export { ProgressTrack } from './ProgressTrack';

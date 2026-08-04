@@ -1,11 +1,11 @@
 'use client';
 
 import { CopyPlus } from 'lucide-react';
-import { Button, Eyebrow, HAIRLINE, Skeleton } from '@/shared/components';
+import { Button, Eyebrow, HAIRLINE, JlptChip, Skeleton } from '@/shared/components';
+import type { CardDraft } from '@/features/study/decks';
 import { cn } from '@/lib/util/cn';
 import { Constellation } from './Constellation';
 import { EntryBack } from './EntryBack';
-import { JlptChip } from './JlptChip';
 import { KanjiCard } from './KanjiCard';
 import { PitchAccent } from './PitchAccent';
 import { SectionLabel } from './SectionLabel';
@@ -106,7 +106,10 @@ export function EntryDetail({
    *  examples, which is indistinguishable from a bug. */
   detailsError: string | null;
   onKanjiSelect: (literal: string) => void;
-  onAddCard: (front: string, back: string, context?: string) => void;
+  /** Takes the whole draft. The pane builds it and hands it over structured —
+   *  splatting it into positionals here is what used to throw away the reading,
+   *  the gloss list and the JLPT tier before they could reach a card. */
+  onAddCard: (draft: CardDraft) => void;
   /** `full` is the `/dictionary` pane; `compact` a 320–480px column. */
   scale?: EntryScale;
   /** Present → a "← Results" control in the hero. Omit on a surface whose list
@@ -124,10 +127,7 @@ export function EntryDetail({
   const kanjis = details?.kanjis ?? [];
   const sentences = details?.sentences ?? [];
 
-  const addCard = () => {
-    const draft = wordCardDraft(word, query, details?.sentences);
-    onAddCard(draft.front, draft.back, draft.context);
-  };
+  const addCard = () => onAddCard(wordCardDraft(word, query, details?.sentences));
 
   return (
     <article>

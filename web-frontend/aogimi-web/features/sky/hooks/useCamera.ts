@@ -10,18 +10,25 @@ import {
 } from 'react';
 
 import {
+  DEFAULT_LIMITS,
   cameraFitting,
   clampCamera,
   easeOutCubic,
   fitZoom,
+  focusLimits,
   matchAspect,
-  maxZoomFor,
   panBy,
   tweenCamera,
   viewOf,
   zoomAround,
 } from '../lib/camera';
-import { CAMERA_TWEEN_MS, DRAG_SLOP_PX, MAX_ZOOM, ZOOM_PER_WHEEL_PX } from '../lib/config';
+import {
+  CAMERA_TWEEN_MS,
+  DRAG_SLOP_PX,
+  ESCAPE_PUSH_DECAY_MS,
+  ESCAPE_PUSH_PX,
+  ZOOM_PER_WHEEL_PX,
+} from '../lib/config';
 import type { Bounds, Camera, Insets, Point, View, Viewport } from '../lib/types';
 
 type Drag = {
@@ -121,9 +128,12 @@ export type CameraOptions = {
    */
   fillViewport?: boolean;
   /**
-   * Called when a zoom-out is asked for while already fully pulled back. The gesture has nowhere
-   * left to go at this tier, which is exactly the moment it should mean "leave" — so backing out of
-   * a deck is the same wheel motion that got you around inside it, rather than a separate control.
+   * Called when a zoom-out is *pushed* while already fully pulled back. The gesture has nowhere left
+   * to go at this tier, which is exactly the moment it should mean "leave" — so backing out of a
+   * deck is the same wheel motion that got you around inside it, rather than a separate control.
+   *
+   * Not on the first notch past the floor: the over-scroll has to accumulate past ESCAPE_PUSH_PX
+   * first (see the constant), so a flick that merely lands back on the fitted view rests there.
    */
   onZoomOutFloor?: () => void;
   /**
@@ -135,13 +145,15 @@ export type CameraOptions = {
    */
   insets?: Insets;
   /**
-   * Let the zoom ceiling adapt to the bounds (`maxZoomFor`): a box too sparse to fill the window
-   * at MAX_ZOOM may zoom until it does, plus headroom, capped at FOCUS_MAX_ZOOM. The focused-deck
-   * tier turns this on — its box is one deck's own spread, and a few-card deck deserves to fill
-   * the view. Off (the default) the ceiling is the constant MAX_ZOOM, as the outer tier and the
-   * demo expect. The floor (fitZoom) is never touched, so wheel-out-at-fit still means "leave".
+   * Let both zoom limits adapt to the bounds (`focusLimits`): the resting fit fills the window
+   * instead of stopping at MAX_ZOOM (capped at FOCUS_FIT_MAX_ZOOM), and the ceiling rises with it
+   * (capped at FOCUS_MAX_ZOOM). The focused-deck tier turns this on — its box is one deck's own
+   * spread, and a few-card deck deserves to fill the view rather than float in the middle of it.
+   * Off (the default) both limits are the constant MAX_ZOOM, as the outer tier and the demo expect.
+   * The floor is still the fit, whatever the fit resolved to, so wheel-out-at-fit still means
+   * "leave" — it just contains the deck at a closer zoom than it used to.
    */
-  adaptiveMaxZoom?: boolean;
+  adaptiveZoomLimits?: boolean;
 };
 
 /**
@@ -155,7 +167,13 @@ export type CameraOptions = {
  * zoom multiplier the shared code actually wants.
  */
 export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraController {
-  const { locked = false, fillViewport = false, onZoomOutFloor, insets, adaptiveMaxZoom = false } = opts;
+  const {
+    locked = false,
+    fillViewport = false,
+    onZoomOutFloor,
+    insets,
+    adaptiveZoomLimits = false,
+  } = opts;
   const [pose, setPose] = useState<Pose>('fit');
   const [viewport, setViewport] = useState<Viewport>(FALLBACK);
   const [dragging, setDragging] = useState(false);
@@ -176,11 +194,11 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
     [rawBounds, viewport, fillViewport, ins],
   );
 
-  // the zoom ceiling every clamp below applies — resolved once here like `bounds` is, so the
-  // wheel, a pan's clamp and a flight's landing can never disagree about how far in is legal
-  const maxZoom = useMemo(
-    () => (adaptiveMaxZoom ? maxZoomFor(bounds, viewport, ins) : MAX_ZOOM),
-    [adaptiveMaxZoom, bounds, viewport, ins],
+  // the fit cap and the ceiling every clamp below applies — resolved once here like `bounds` is, so
+  // the wheel, a pan's clamp and a flight's landing can never disagree about where the edges are
+  const limits = useMemo(
+    () => (adaptiveZoomLimits ? focusLimits(bounds, viewport, ins) : DEFAULT_LIMITS),
+    [adaptiveZoomLimits, bounds, viewport, ins],
   );
 
   // bounds grow as the sky does and the viewport changes as the window does, but the listeners
@@ -190,14 +208,14 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
   const lockedRef = useRef(locked);
   const escapeRef = useRef(onZoomOutFloor);
   const insRef = useRef(ins);
-  const maxZoomRef = useRef(maxZoom);
+  const limitsRef = useRef(limits);
   useEffect(() => {
     boundsRef.current = bounds;
     viewportRef.current = viewport;
     lockedRef.current = locked;
     escapeRef.current = onZoomOutFloor;
     insRef.current = ins;
-    maxZoomRef.current = maxZoom;
+    limitsRef.current = limits;
   });
 
   // A locked camera is not a pose that happens to be fitted — it is the *intent* to be fitted, so
@@ -215,13 +233,13 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
       isFlight(effective)
         ? effective.flight
         : clampCamera(
-            effective === 'fit' ? cameraFitting(bounds, viewport, ins) : effective,
+            effective === 'fit' ? cameraFitting(bounds, viewport, ins, limits) : effective,
             bounds,
             viewport,
             ins,
-            maxZoom,
+            limits,
           ),
-    [effective, bounds, viewport, ins, maxZoom],
+    [effective, bounds, viewport, ins, limits],
   );
 
   // The flight's departure pose, read through a ref like the bounds are. Synced after the commit,
@@ -231,6 +249,12 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
   useEffect(() => {
     cameraRef.current = camera;
   });
+
+  /* ---------- leaving the tier: the accumulated over-scroll ---------- */
+
+  // How much wheel-out has been spent against the floor, and when the last of it arrived. A ref and
+  // not state: nothing renders from it, and it must survive every commit the wheel provokes.
+  const pushRef = useRef({ px: 0, at: 0 });
 
   /* ---------- flights ---------- */
 
@@ -253,7 +277,7 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
               boundsRef.current,
               viewportRef.current,
               insRef.current,
-              maxZoomRef.current,
+              limitsRef.current,
             ),
       );
     }
@@ -285,12 +309,12 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
         const iv = insRef.current;
         // 'fit' resolves per frame, so a flight racing a bounds or insets change still lands on
         // the new fit
-        const to = target === 'fit' ? cameraFitting(b, vp, iv) : target;
+        const to = target === 'fit' ? cameraFitting(b, vp, iv, limitsRef.current) : target;
         const k = Math.min(1, (now - start) / CAMERA_TWEEN_MS);
         if (k >= 1) {
           // land on the intent (or the clamped pose), so the resting state is exactly what a
           // jump would have produced — nothing downstream can tell the two apart afterwards
-          setPose(target === 'fit' ? 'fit' : clampCamera(target, b, vp, iv, maxZoomRef.current));
+          setPose(target === 'fit' ? 'fit' : clampCamera(target, b, vp, iv, limitsRef.current));
           stopFlight(true);
           return;
         }
@@ -323,8 +347,8 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
   // relative to a fit of the *current* bounds, so 1.0 means "this tier, fully framed" whether that
   // tier is the whole sky or one deck. An absolute zoom would mean something different in each.
   const relZoom = useMemo(
-    () => camera.zoom / fitZoom(bounds, viewport, ins),
-    [camera.zoom, bounds, viewport, ins],
+    () => camera.zoom / fitZoom(bounds, viewport, ins, limits),
+    [camera.zoom, bounds, viewport, ins, limits],
   );
 
   const fitTo = useCallback(() => setPose('fit'), []);
@@ -358,7 +382,7 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
           boundsRef.current,
           viewportRef.current,
           insRef.current,
-          maxZoomRef.current,
+          limitsRef.current,
         ),
       );
     }
@@ -405,36 +429,58 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
       // what lets a pinch gesture drive the identical code path
       const factor = Math.exp(-e.deltaY * ZOOM_PER_WHEEL_PX);
 
-      // Asking to pull back when there is nothing left to pull back to is what leaves a tier. Read
-      // off the floor rather than from a click target, so it works the same at whatever depth.
+      // Pushing back when there is nothing left to pull back to is what leaves a tier. Read off the
+      // floor rather than from a click target, so it works the same at whatever depth.
       // Decided here against the last *rendered* camera, never inside the setPose updater: React
       // runs updaters during render, and escaping navigates (the host's onZoomOutFloor pushes a
       // route), which is illegal mid-render. The ref lags at most one commit — a rapid burst just
-      // rests at the floor (clampCamera pins it there) and the next notch leaves.
+      // rests at the floor (clampCamera pins it there) and keeps accruing against it.
       if (factor < 1) {
-        const floor = fitZoom(b, vp, iv);
+        const lim = limitsRef.current;
+        const floor = fitZoom(b, vp, iv, lim);
         if (cameraRef.current.zoom <= floor + 1e-9) {
-          escapeRef.current?.();
+          // At the wall. Accumulate the shove instead of leaving on the first notch — a flick that
+          // merely lands back on the fitted view spends its tail here and goes no further, while a
+          // second deliberate push clears the threshold. See ESCAPE_PUSH_PX.
+          const push = pushRef.current;
+          if (e.timeStamp - push.at > ESCAPE_PUSH_DECAY_MS) push.px = 0;
+          push.at = e.timeStamp;
+          push.px += Math.abs(e.deltaY);
+          if (push.px >= ESCAPE_PUSH_PX) {
+            push.px = 0;
+            escapeRef.current?.();
+          }
           return;
         }
-        const cap = maxZoomRef.current;
+        // still room to pull back, so this is zooming, not pushing at the wall
+        pushRef.current.px = 0;
         setPose((current) => {
           const from =
-            current === 'fit' ? cameraFitting(b, vp, iv) : isFlight(current) ? current.flight : current;
-          return clampCamera(zoomAround(from, localOf(el, e), factor, b, vp, iv, cap), b, vp, iv, cap);
+            current === 'fit'
+              ? cameraFitting(b, vp, iv, lim)
+              : isFlight(current)
+                ? current.flight
+                : current;
+          return clampCamera(zoomAround(from, localOf(el, e), factor, b, vp, iv, lim), b, vp, iv, lim);
         });
         return;
       }
 
+      // any zoom-in abandons whatever was being pushed against the floor
+      pushRef.current.px = 0;
       if (lockedRef.current) return; // the outer view has nothing to zoom into but a deck
       // zoomAround applies the zoom ceiling itself (its pinning maths needs the final zoom);
       // clampCamera then pulls the position back in
       const local = localOf(el, e);
       setPose((current) => {
+        const lim = limitsRef.current;
         const from =
-          current === 'fit' ? cameraFitting(b, vp, iv) : isFlight(current) ? current.flight : current;
-        const cap = maxZoomRef.current;
-        return clampCamera(zoomAround(from, local, factor, b, vp, iv, cap), b, vp, iv, cap);
+          current === 'fit'
+            ? cameraFitting(b, vp, iv, lim)
+            : isFlight(current)
+              ? current.flight
+              : current;
+        return clampCamera(zoomAround(from, local, factor, b, vp, iv, lim), b, vp, iv, lim);
       });
     };
     el.addEventListener('wheel', onWheel, { passive: false });

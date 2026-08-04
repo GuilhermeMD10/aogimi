@@ -2,8 +2,7 @@
 
 import { CopyPlus } from 'lucide-react';
 import { cn } from '@/lib/util/cn';
-import { HAIRLINE } from '@/shared/components';
-import { JlptChip } from './JlptChip';
+import { HAIRLINE, JlptChip } from '@/shared/components';
 import { preferredHeadword } from '../lib/headword';
 import { inflectionNote } from '../lib/inflection';
 import type { KanjiInfo, WordResult } from '../types';
@@ -153,10 +152,15 @@ export function WordRow({
             </span>
           )}
         </span>
-        <span>
-          <AddButton onClick={onAdd} label={`Add ${headword} to a deck`} />
-        </span>
       </button>
+
+      {/* A sibling of the row button, never a child of it — `AddButton` is a
+          `<button>`, and a button inside a button is invalid HTML that React
+          reports as a hydration error, with the nested control's click
+          behaviour left to the browser. Matches `KanjiRow`, which already had
+          it this way; the two rows share one list and now share one structure.
+          The `<li>`'s flex is what puts them side by side. */}
+      <AddButton onClick={onAdd} label={`Add ${headword} to a deck`} />
     </li>
   );
 }
