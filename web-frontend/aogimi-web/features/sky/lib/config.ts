@@ -323,6 +323,22 @@ export const FRAME_FOOT = 104;
 export const FRAME_MIN_W = 250;
 export const FRAME_MIN_W_PER_CHAR = 30;
 /**
+ * How much field a **lone** deck's card is given, as a multiple of the cell in each axis.
+ *
+ * A card's drawn size is decided by the camera fitting the field it is in, so with more than one
+ * deck the grid itself bounds every card — a neighbour is what says "a card is about this big".
+ * A single deck has none, and the field is then exactly its own cell: the camera fits that to the
+ * stage, so the card is drawn edge to edge and keeps growing in both axes with every card mined
+ * into it. Flooring the field at this multiple of the cell caps that: the card keeps its own
+ * proportions and simply sits in more sky. 2 draws it at about half the uncovered band — the same
+ * range a card lands in on a four- or five-deck sky, so a lone deck reads as one card among the
+ * sizes you already see rather than as a poster. Lower it to make the lone card bigger.
+ *
+ * Only the one-deck case. From two decks up the grid is the limit, and applying a floor there would
+ * shrink arrangements nobody asked it to.
+ */
+export const SOLO_FIELD_CELLS = 2;
+/**
  * The aspect (width over height) the grid's shape is chosen against — a stand-in for the
  * landscape stage the unified page fits the sky into. The layout cannot read the real viewport
  * (it runs before the camera exists, and a layout that answered to the window's width would

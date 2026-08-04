@@ -7,6 +7,7 @@ import {
   FRAME_MIN_W_PER_CHAR,
   FRAME_PAD,
   GRID_ASPECT,
+  SOLO_FIELD_CELLS,
 } from './config';
 import type { Bounds, Point } from './types';
 
@@ -44,7 +45,8 @@ export type DeckPlace = {
 
 export type SkyLayout = {
   places: Map<number, DeckPlace>;
-  /** The grid plus half a gap of margin — what the sky view frames and what pan is confined to. */
+  /** The grid plus half a gap of margin — what the sky view frames and what pan is confined to.
+   *  A lone deck's field is floored at SOLO_FIELD_CELLS cells, so its card can't fill the stage. */
   bounds: Bounds;
 };
 
@@ -163,15 +165,22 @@ export const layoutDecks = (localBoxes: Map<number, Bounds>, names: Map<number, 
     });
   }
 
-  // half a gap of margin, so the outermost frames rest off the boundary instead of against it
+  // Half a gap of margin, so the outermost frames rest off the boundary instead of against it —
+  // floored, for a lone deck, at SOLO_FIELD_CELLS cells in each axis. The camera fits whatever field
+  // it is handed, so a single deck's card would otherwise be drawn at the whole stage and grow with
+  // every card mined into it: with no neighbour, the field is the only thing that can bound a card.
+  // The grid is centred on the origin, so growing the field about the origin keeps it centred.
   const margin = DECK_GRID_GAP / 2;
+  const solo = n === 1 ? SOLO_FIELD_CELLS : 0;
+  const fieldW = Math.max(gridW + 2 * margin, cellW * solo);
+  const fieldH = Math.max(gridH + 2 * margin, cellH * solo);
   return {
     places,
     bounds: {
-      minX: -gridW / 2 - margin,
-      minY: -gridH / 2 - margin,
-      maxX: gridW / 2 + margin,
-      maxY: gridH / 2 + margin,
+      minX: -fieldW / 2,
+      minY: -fieldH / 2,
+      maxX: fieldW / 2,
+      maxY: fieldH / 2,
     },
   };
 };
