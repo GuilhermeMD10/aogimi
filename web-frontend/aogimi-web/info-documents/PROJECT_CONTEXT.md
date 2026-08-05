@@ -49,8 +49,7 @@ web-frontend/langecko-web/
 │   ├── AppShell.tsx              Auth gate, providers, bubble routing
 │   ├── WorkspaceNav.tsx          Top nav (theme-dispatched)
 │   ├── WorkspaceNav.default.tsx  Default nav variant
-│   ├── home/HomeView/            "/" landing page
-│   ├── library/                  Library shelf, restore, FsAccess banner
+│   ├── library/                  Library shelf, restore, FsAccess banner — "/" landing page
 │   ├── reader/                   Text + manga readers, toolbar, panels
 │   ├── views/                    Big page-level views (Reader, Dictionary, WordDetail, Card decks)
 │   ├── page-bubbles/             Floating overlays (Profile, Reader)
@@ -112,11 +111,13 @@ web-frontend/langecko-web/
 
 Two themes, `light` ("Ink on paper") and `dark` ("Midnight"), selected by `html[data-theme]`.
 
-- **Colour + shape tokens**: `--ink`, `--soft`, `--muted`, `--faint`, `--card`, `--cardalt`, `--bd`, `--btn`, `--track`/`--fill`, `--cover-1..4`, `--stage-new`/`-recent`/`-learned`/`-mastered`, `--radius-*`. Read them as `text-(--ink)`, `bg-(--card)`.
+- **Colour + shape tokens**: `--ink`, `--soft`, `--muted`, `--faint`, `--card`, `--cardalt`, `--bd`, `--btn`, `--active`/`--active-ink`, `--track`/`--fill`, `--cover-1..4`, `--stage-new`/`-recent`/`-learned`/`-mastered`, `--radius-*`. Read them as `text-(--ink)`, `bg-(--card)`.
+- **`--active` is the one answer to "this one is selected"**, app-wide and theme-invariant (like `--accent`, and for the same reason: a marker that changes hue with the theme stops being a marker). It arrived as the dock pill's tint and was promoted because the app had been answering that question three ways — `--btn` (black on paper, white at night, so selection flipped with the theme), a `--gold` edge on the library's filter hover, and shadcn's `bg-primary`. Stated as a solid colour; glass derives the 65% density it wants (`--glass-active-fill`). Selected controls take `--active` + `--active-ink` — note `--active-ink` does **not** flip with the theme, so it is not `--btn-ink`. It is for *selection*, not for primary actions: a filled Study or Sign-in button is still `--btn`.
 - **Type**: `--face-jp`, `--face-ui`, `--face-mono` → Noto Sans JP (jp) and Switzer (ui + mono — the 2026-08 font audition retired Space Mono; the approved look wears Switzer everywhere, and the roles stay separate so re-splitting is a one-line change in ds-tokens.css). Switzer is a Fontshare family, self-hosted from `app/fonts/`. Named `--face-*`, not `--font-*`, so a role never reads as one of the `--font-switzer`/`--font-noto-sans-jp` variables `next/font` emits in `app/layout.tsx`. **No 600 cut ships in either family** (Switzer 400/500/700, Noto Sans JP 500/700), so use `font-medium` / `font-bold` — a `font-semibold` gets synthesised.
 - **Not mirrored into Tailwind's `@theme`.** Components read the tokens directly. `@theme` holds only what Tailwind itself must know: the `rounded-*` radius scale, and the shadcn colour namespace (`--color-popover`, `--color-border`, …) that the two surviving shadcn components paint with. Those are pointed at the filled `--paper-*` group, and `--color-border` reaches past shadcn — the `*` rule in the base layer makes it every element's default border colour.
 - **Cards are transparent by design** — shadow and layout separate surfaces, not a fill. `--bd` is transparent too, so hairline dividers are invisible until you fill it. Filling `--card`/`--cardalt`/`--bd` switches the whole app to filled cards with no markup change. For something that needs a real fill *now*, use the `--paper-*` group (`PaperCard`) rather than filling the shared three.
-- **Primitives are React components**, not CSS classes: `shared/components/` (`Button`, `Card`, `CardHeader`, `Chip`, `CoverTile`, `Eyebrow`, `MonoAction`, `PaperCard`, `ProgressTrack`, `Skeleton`, `SkyBar`, `StageDot`, plus `HAIRLINE`/`DASHED`). They read tokens and know nothing about the theme — there is never a light and a dark variant of a component, because the palette swaps underneath it.
+- **Primitives are React components**, not CSS classes: `shared/components/` (`Button`, `Card`, `Chip`, `CoverTile`, `Eyebrow`, `JlptChip`, `MonoAction`, `PaperCard`, `ProgressTrack`, `Skeleton`, `SkyBar`, `StageDot`, plus `HAIRLINE`/`DASHED`). They read tokens and know nothing about the theme — there is never a light and a dark variant of a component, because the palette swaps underneath it.
+- **Frosted surfaces live in `styles/glass.css`**, not in tokens and not in components — the recipe needs `::before` (the specular edge lines) and a `:hover` fill, which a React component can't express without inline styles that then lose to everything. `shared/components/glass.ts` exports the greppable class names: `GLASS_SURFACE` / `GLASS_SHEEN` / `GLASS_BUTTON` / `GLASS_SHEET` for the four surfaces, plus three modifiers — `GLASS_SCRIM` (the dark variant, **only** for glass landing on cover art), `GLASS_ACTIVE` (the selected state: `--active` tint, its dark ink, brighter edge and glow, hover neutralised) and `GLASS_PRESS` (the `translateY(1px) scale(.985)` nudge, 120ms). **One material, app-wide**: the library and the dock share the white fill at 15%, blur 13, `.075` edge and the small inner glow, so the two glass screens read as the same substance. Only the book card's slide-up sheet and a live cover's ⋯ circle take the scrim. Compose with Tailwind for geometry, radius, padding and type — utilities beat the recipe, which is why a selected branch must not also set `text-*`. `GLASS_PRESS` is opt-in rather than part of `GLASS_BUTTON` because an element has one `transform` and some already spend theirs (the book card lifts on hover); a button with its own `transition-*` utility has to name `transform` in that list or the nudge snaps instead of easing.
 - **Page canvas** is app-wide chrome, set in `globals.css`: base gradient on `<html>`, star tiles on `<body>`. Split across two elements because a single 43-layer `background` would need a 43-entry `background-size` list (a shorter list gets cycled by the spec).
 - **Base-layer type**: `html` carries `--face-ui` and there is deliberately **no `h1..h6` rule**. A global heading face beats an inherited one no matter what a screen's wrapper sets, which is exactly how four migrated headings ended up rendering in the old display serif. Form controls (`button`, `input`, `select`, `textarea`) do need the face said explicitly — the UA stylesheet gives them the platform font instead of inheriting.
 
@@ -185,7 +186,7 @@ Library mount reconciles all three: load local IndexedDB → register device →
 
 App-level features that ride on top of the architecture above. Document new features here as they land — describe what the feature is, the entry points, where state lives, and any non-obvious behaviour. Keep entries terse; details belong in the source.
 
-> Home, the `/study` route and the theme switch are described in the repo-root `CLAUDE.md` but have never been written up here. Fold them in when someone next touches them.
+> The `/study` route and the theme switch are described in the repo-root `CLAUDE.md` but have never been written up here. Fold them in when someone next touches them. (Home was the third item on this list; it was deleted on 2026-08-05 and the library shelf took `/`, so it never needed writing up.)
 
 ### Dictionary (`features/dictionary`)
 
@@ -196,6 +197,11 @@ App-level features that ride on top of the architecture above. Document new feat
 - **The detail pane never blanks.** Headword, reading, pitch, pills and meanings all come from the `WordResult` the rail already holds, so switching entries repaints instantly. Only the kanji breakdown and example sentences wait on `/api/words/:id/details`, and only those two show a skeleton. `hooks/useWordDetails.ts` caches per word id and deliberately does **not** cancel a request when the selection moves on — killing them on a fast scroll caches nothing.
 - **Rail contents are normalised** by `lib/results.ts`: `/api/search` answers with four different shapes (one kanji entry, a list of them, or neither; names only sometimes). Kanji entries are selectable and get their own detail pane (`KanjiEntryDetail`); names sit at the bottom, display-only, because there's no per-name endpoint.
 - **↑/↓ walk the rail** from anywhere including the field, `/` and ⌘K focus it, `Esc` clears.
+- **The touchable parts are the library's glass**, at the dock's values. The field is a `GLASS_SURFACE` in all three variants (hero / rail / sidebar — so the reader's docked column and bubble get it too), the prompt's history chips are `GLASS_BUTTON` + `GLASS_PRESS`, and so are the entry pane's two kanji surfaces (the header's per-character chips and the "Kanji in this word" cards — display-only cards take `GLASS_SURFACE`, since there is no hover to have). That replaced four bespoke states: an `--accent` border-and-text swap on the chips, a `--muted` 35% border mix on hovered results, an `--accent` edge on the selected one, and a `scale-105` + `--btn` fill on the add-to-deck button. One screen, one hover: the fill brightens.
+- **A result row is `GLASS_ROW`, not a pane.** The rail is a *list*, so its rows carry the glass hover fill and nothing at rest — no fill, no border, no blur, no specular edge — and `ROW_LIST` rules a hairline between them so they read as one running column. Rows spent a pass as full `GLASS_BUTTON`s and forty frosted cards made the eye count cards instead of scanning. The interactions are unchanged: hover brightens, `GLASS_PRESS` nudges, and the selected row is `GLASS_ACTIVE`. `ROW_LIST` writes its hairline colour out literally rather than composing `HAIRLINE` — Tailwind scans source text, so an interpolated class name is one it never generates — and rules the children rather than the `<ul>`, because `border-color` isn't inherited.
+- **The prompt is heading + field + chips.** The ruled "Recently looked up" column and the dashed reserved panel beside it are gone — the chips are the same history one click away, so the second list only restated it.
+- **A lit row flips every ink.** `--ink`/`--soft`/`--muted`/`--faint` are light-on-dark at night and would vanish on `--active`'s pale tint, so `ResultRow`'s `rowInk(selected)` returns one of two ink sets — the dark side being `--active-ink` at four `color-mix` densities, since Tailwind's slash-opacity can't apply to an arbitrary `var()` colour. Bordered children (`ClassPill`, the kanji tile) swap `HAIRLINE` for a dark edge mix the same way. `JlptChip` needs nothing: it is a solid pill carrying its own near-black ink.
+- **`EntryBack` is the last `--accent` border hover** in the feature (the "← Results" control the reader's two surfaces show and `/dictionary` doesn't). Not converted.
 - **The reader's two lookup surfaces are built out of this screen's parts, not beside them.** `features/books/reader/dict-sidebar/` (the column docked beside the book, 320–480px) and `features/books/reader/reader-bubble/` (the floating 880×620 panel, five phases) render the same `WordRow`/`KanjiRow`, the same `RailList` and the same `EntryDetail`/`KanjiEntryDetail` — at `scale="compact"` and `scale="full"` respectively. The barrel exists to make that possible; the pieces own no width, fill, edge, scroll or padding, and the surface supplies the box. `DictionarySidekick` and `WordDetailView`, which were hand-written copies on the retired `--lgc-*` palette, are deleted.
 
 ### Decks (`features/study/decks`)
@@ -265,8 +271,11 @@ screen and the `/sky` route are all deleted in its favour.
   so frames, stars and lists can never hold a ghost.
 - **The night chrome palette is `lib/nightChrome.ts`, not tokens.** The stage
   is night in both themes, so all glass on it is light-on-dark always — the
-  `--dock-*` reasoning, kept as feature-local constants. Rank dots/bars/pills
-  read `stageColor()` so the list chrome and the stars agree.
+  same reasoning as the dock's `--dock-glass-*` block, kept as feature-local
+  constants. Two exceptions reference tokens instead: `active`/`activeInk` are
+  `--active`, so the sort chips agree with the dock and the library about what
+  selected looks like. Rank dots/bars/pills read `stageColor()` so the list
+  chrome and the stars agree.
 - **`lib/rankProgress.ts` mirrors the backend's promotion rules.**
   `backend/src/services/cardSrsService.js` owns them; that file is a client
   copy, and retuning the thresholds there means changing both. Each promotion
@@ -354,23 +363,40 @@ presentational.
 The fixed bottom nav on every signed-in screen, composed by `AppShell` (hidden
 on `/authenticate`). Replaced `WorkspaceNav`, which is deleted.
 
-- **Reader · Dictionary · Decks │ Home · Profile.** Settings lost its entry —
+- **Reader · Dictionary · Decks │ Profile.** Settings lost its entry —
   pre-decided when settings was redesigned, and `/profile`'s Settings button is
   the way in. Sky briefly had one and lost it when the star map merged into
   `/decks`: the sky *is* the decks page now, and two entries to one destination
-  is one too many.
+  is one too many. Home went the same way for the same reason — the dashboard
+  was deleted and the shelf took `/`, so Home's entry would have been Reader's
+  destination under a second name. **Reader's path is therefore `/`**, matched
+  exactly; `/reader/<bookId>` is an open book and hides the dock outright.
 - `next/link`, not `router.push` on a `<button>`, so middle-click and
   open-in-new-tab work and prefetch happens. Active state is
-  `aria-current="page"` plus a `--dock-active` tile; `/` matches exactly, the
-  rest match their subtree.
+  `aria-current="page"` — which is also the CSS hook for the active ink *and*
+  what the pill measurement queries for; `/` matches exactly, the rest match
+  their subtree.
 - **Labels always visible** (the hover tooltip went with the icon-only
   version), and **monochrome** — the per-item brand hexes were outgoing-system
   decoration. Profile renders the `--avatar` circle the TopBar pill uses rather
   than a glyph.
-- Reads the **`--dock-*` token group**: the dock is near-black in both themes,
-  a floating object over the page rather than a surface of it, so it can't use
-  `--card` / `--muted` / `--ink`. Same justification as `--paper-*`. Its shadow
-  and divider are hardcoded — the handoff gives both one value for both themes.
+- **It is glass, not a near-black slab.** The "Dock Bar" handoff replaced the
+  `--dock-*` token group with a white-tinted frosted shell (no hover state — the
+  handoff gives hover the same fill as idle) and a lit lavender **pill that
+  slides** between entries. Colour, sheen and the three timings live in
+  `styles/glass.css` as the `--dock-glass-*` block and `.glass-dock` /
+  `.glass-dock-item` / `.glass-dock-pill`; the component owns geometry and the
+  measurement only. The `--dock-*` group is deleted from `ds-tokens.css` — its
+  whole justification was being white-on-dark in both themes, which is what
+  glass is by construction. The pill's tint is `--active`, so it and every
+  selected chip in the app move together.
+- The pill's `left`/`width` are the active item's `offsetLeft`/`offsetWidth`,
+  re-read before paint on route change and from a `ResizeObserver` +
+  `document.fonts.ready` — both are relative to the shell's padding box, which
+  is what `left` resolves against, so they agree despite the shell being
+  `translate`d and horizontally scrollable. Its vertical inset and the shell's
+  block padding are one constant (`PAD`) for the same reason.
+- The divider is hardcoded — one value, used once, white-on-dark either way.
 - Icons are inlined at the handoff's geometry; `shared/icons` is the outgoing
   lucide set and its shapes are not these. Pages reserve `pb-[140px]`.
 
@@ -385,7 +411,7 @@ surface is `SkyMap` (uuid-keyed focus/selection, `frameMeta`, `insets`) plus
 `useSkySeed`; the demo harness `Sky.tsx` remains the unrouted reference. The
 route's other former tenant — the study-stats tab screen — is also gone
 (`features/study/stats` holds only `lib/statsApi.ts`, the `/api/stats`
-fetchers the stage's ledger and the decks/home upgrade rows read).
+fetchers the stage's ledger and the decks upgrade rows read).
 
 - **Moving between tiers is a camera flight** (`useCamera.flyTo`,
   `CAMERA_TWEEN_MS` = 400ms, interruptible); the host selects after the flight

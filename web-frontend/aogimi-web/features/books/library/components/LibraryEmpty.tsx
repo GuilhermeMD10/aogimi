@@ -7,7 +7,7 @@
 // Three lines explaining the model, and a dropzone to act on it.
 
 import { UploadCloud } from 'lucide-react';
-import { DASHED, Eyebrow } from '@/shared/components';
+import { DASHED, Eyebrow, GLASS_PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 const STEPS = [
@@ -88,9 +88,12 @@ function Dropzone({ onImport, importing }: { onImport: () => void; importing: bo
       onClick={onImport}
       disabled={importing}
       className={cn(
+        GLASS_PRESS,
         'flex h-[330px] w-full cursor-pointer flex-col items-center justify-center gap-3.5 p-6 text-center',
         'rounded-(--radius-card) border-2 border-dashed',
-        'transition-opacity duration-120 disabled:cursor-default disabled:opacity-60',
+        // transform named alongside opacity so the nudge eases — the utility
+        // would otherwise replace GLASS_PRESS's own transition list.
+        'transition-[opacity,transform] duration-120 disabled:cursor-default disabled:opacity-60',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
         DASHED,
       )}

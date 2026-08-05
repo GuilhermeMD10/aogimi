@@ -18,7 +18,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import { HAIRLINE, SkyBar } from '@/shared/components';
+import { GLASS_PRESS, HAIRLINE, SkyBar } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 // ── Title ───────────────────────────────────────────────────────────────────
@@ -67,12 +67,16 @@ export function ReaderIconButton({
       aria-label={label}
       aria-pressed={active}
       className={cn(
+        GLASS_PRESS,
         'flex h-[38px] w-[38px] shrink-0 cursor-pointer items-center justify-center',
-        'rounded-(--radius-button) border transition-colors duration-150',
+        'rounded-(--radius-button) border',
+        'transition-[color,background-color,border-color,transform] duration-150',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
         'disabled:cursor-default disabled:opacity-40',
+        // A pressed toolbar toggle is the app's --active, same as a selected
+        // filter chip or the dock's current entry.
         active
-          ? 'border-(--btn) bg-(--btn) text-(--btn-ink)'
+          ? 'border-(--active) bg-(--active) text-(--active-ink)'
           : cn('bg-transparent text-(--ink) hover:bg-(--track)', HAIRLINE),
       )}
     >

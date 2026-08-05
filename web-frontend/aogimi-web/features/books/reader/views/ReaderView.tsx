@@ -148,7 +148,9 @@ export default function ReaderView({ bookId }: { bookId: string }) {
   }, [bookId, user.id]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const goBack = useCallback(() => router.push('/reader'), [router]);
+  // `/`, not `/reader` — the shelf moved to the root when the home dashboard
+  // was removed. `/reader` is only ever the `[bookId]` parent segment now.
+  const goBack = useCallback(() => router.push('/'), [router]);
 
   const handleLookup = useCallback(
     (word: string, contextSentence?: string) => requestDictLookup(word, contextSentence),
@@ -185,7 +187,7 @@ export default function ReaderView({ bookId }: { bookId: string }) {
               : status.message}
           </p>
         </div>
-        <Button href="/reader" variant="secondary">
+        <Button href="/" variant="secondary">
           Back to library
         </Button>
       </div>

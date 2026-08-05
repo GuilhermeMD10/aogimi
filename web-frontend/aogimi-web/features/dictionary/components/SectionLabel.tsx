@@ -14,7 +14,7 @@ export function SectionLabel({ en, jp }: { en: string; jp: string }) {
   return (
     <div className="mb-3.5 flex items-baseline gap-[9px]">
       <Eyebrow>{en}</Eyebrow>
-      <span className="font-[family-name:var(--face-jp)] text-[13px] text-(--faint)">{jp}</span>
+      {/* <span className="font-[family-name:var(--face-jp)] text-[20px] text-(--faint)">{jp}</span> */}
     </div>
   );
 }

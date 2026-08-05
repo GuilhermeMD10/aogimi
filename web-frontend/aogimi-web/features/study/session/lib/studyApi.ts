@@ -22,15 +22,9 @@ export async function fetchDueCounts(signal?: AbortSignal): Promise<DueCounts> {
   return apiGet<DueCounts>('/api/study/due/counts', signal);
 }
 
-/**
- * One random card out of everything due right now, across every deck.
- * `card` is null when nothing is due — a normal state, not an error.
- */
-export async function fetchRandomDueCard(
-  signal?: AbortSignal,
-): Promise<{ card: CardRecord | null }> {
-  return apiGet<{ card: CardRecord | null }>('/api/study/due/random', signal);
-}
+// `fetchRandomDueCard` (GET /api/study/due/random) lived here until the home
+// dashboard was deleted — its "study word" card was the only caller, on either
+// client. The backend route is still up and still works; nothing calls it.
 
 export async function submitReview(
   cardId: string,

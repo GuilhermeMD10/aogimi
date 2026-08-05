@@ -28,7 +28,7 @@ export function BooksReadCard() {
         >
           Books you&rsquo;ve read
         </h2>
-        <MonoAction href="/reader">LIBRARY →</MonoAction>
+        <MonoAction href="/">LIBRARY →</MonoAction>
       </div>
 
       {facts.length > 0 && (
@@ -63,7 +63,7 @@ export function BooksReadCard() {
           <p className="font-[family-name:var(--face-ui)] text-[13.5px] text-(--muted)">
             Nothing read yet — open a book in the reader.
           </p>
-          <Link href="/reader" className={PAPER_GHOST}>
+          <Link href="/" className={PAPER_GHOST}>
             Open reader
           </Link>
         </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { PaperCard } from '@/shared/components';
+import { GLASS_PRESS, PaperCard } from '@/shared/components';
 import { SKY_HUES, SKY_PALETTES } from '@/features/sky';
 import { useSkyHue } from '@/features/app-shell/providers/SkyHueProvider';
 import { cn } from '@/lib/util/cn';
@@ -36,11 +36,13 @@ export function SkyHueCard() {
                   aria-pressed={selected}
                   onClick={() => setHue(h)}
                   className={cn(
+                    GLASS_PRESS,
                     'flex items-center gap-[9px] rounded-(--radius-button) border px-3.5 py-2.5 text-[13px] leading-none font-bold',
-                    'transition-colors duration-120 ease-[ease]',
+                    // transform named explicitly — see AppearanceCard.
+                    'transition-[color,background-color,border-color,transform] duration-120 ease-[ease]',
                     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
                     selected
-                      ? 'border-(--btn) bg-(--btn) text-(--btn-ink)'
+                      ? 'border-(--active) bg-(--active) text-(--active-ink)'
                       : 'border-(--paper-bd) text-(--soft) hover:border-(--btn)',
                   )}
                 >

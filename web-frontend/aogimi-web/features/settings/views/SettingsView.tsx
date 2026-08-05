@@ -1,6 +1,7 @@
 import { Eyebrow } from '@/shared/components';
 import { AboutCard } from '../components/AboutCard';
 import { AppearanceCard } from '../components/AppearanceCard';
+import { BackgroundTweaks } from '../components/BackgroundTweaks';
 import { DataCard } from '../components/DataCard';
 import { SettingsShell } from '../components/SettingsShell';
 import { SkyHueCard } from '../components/SkyHueCard';
@@ -21,6 +22,12 @@ export default function SettingsView() {
           <AppearanceCard />
           <SkyHueCard />
         </div>
+      </div>
+      {/* TEMPORARY — the page-background audition tool. Delete this block and
+          the import; see the header of BackgroundTweaks.tsx. */}
+      <div>
+        <Eyebrow className="mb-3">Background (temp)</Eyebrow>
+        <BackgroundTweaks />
       </div>
       <div>
         <Eyebrow className="mb-3">About</Eyebrow>

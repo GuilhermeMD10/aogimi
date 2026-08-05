@@ -16,9 +16,10 @@ import type { DueCounts } from '@/features/study/session';
  *
  * Importing `fetchDueCounts` from the study/session barrel crosses between two
  * sub-features, which the layering rules discourage. It's the established
- * exception for this endpoint — `features/home/hooks/useDueSummary.ts` does the
- * same — because the alternative is a second copy of the same fetch helper
- * living in `decks/lib`, and two helpers hitting one endpoint drift.
+ * exception for this endpoint — the home dashboard's `useDueSummary` was the
+ * other one until it was deleted with the rest of home — because the
+ * alternative is a second copy of the same fetch helper living in `decks/lib`,
+ * and two helpers hitting one endpoint drift.
  */
 export function useDeckDueCounts() {
   const { data, loading, error } = useFetchWithAbort<DueCounts>(

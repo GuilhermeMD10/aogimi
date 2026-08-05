@@ -4,17 +4,20 @@
 written to be pasted at the start of a new chat and then forgotten about.
 
 The web app is being rebuilt screen by screen from `design_handoff_aogimi_*`
-bundles. **Home is done and is the reference implementation** — when in doubt
-about a pattern, open `features/home/` and copy what's there.
+bundles. **Profile is the reference implementation** — when in doubt about a
+pattern, open `features/profile/` and copy what's there. It was home until home
+was deleted; profile inherited the role because it kept the same shape (its own
+`TopBar` inside its own 1300px column, one hook per card, each card owning its
+skeleton and empty state).
 
 Status:
 
 | Screen | Route | State |
 |---|---|---|
-| Home | `/` | **Done** — reference implementation |
+| Home | — | **Deleted.** The dashboard is gone and the library shelf took `/` |
 | Reader chrome | `/reader/[bookId]` | **Done** — `ReaderShell`, `ReaderPanel`, `ReaderIconButton`, `ContentsPanel`, `SettingsPanel`, `TextContextMenu` |
 | Reader dictionary | `/reader/[bookId]` | **Done** — the docked `dict-sidebar/` and the 5-phase `reader-bubble/`, both built from `features/dictionary`'s components |
-| Library / shelf | `/reader` | Shelf itself is done (`LibraryShelf`, `LibraryCards`, `LibraryEmpty`); `BooksView`'s delete dialog and `FsAccessBanner` are on the new tokens but have had no handoff pass |
+| Library / shelf | `/` | Shelf itself is done (`LibraryShelf`, `LibraryCards`, `LibraryEmpty`); `BooksView`'s delete dialog and `FsAccessBanner` are on the new tokens but have had no handoff pass |
 | Dictionary | `/dictionary` | **Done** — empty state + rail/entry split |
 | Word detail | — | Folded into `/dictionary`; `/word/[id]` deleted |
 | Decks | `/decks` | **Done** — list **and** detail (detail is still a state of `DecksView`, not a route) |
@@ -46,8 +49,10 @@ entry panes through `scale`.
    short version of §2 below.
 3. **`PROJECT_CONTEXT.md`** → the **Theming** section. Skip its directory tree;
    it's stale from before the feature refactor and still says `langecko-web/`.
-4. **`DECISIONS.md`** → the last entry, "Redesign — home page + parallel token
-   system". Every deviation home made and why.
+4. **`DECISIONS.md`** → "Redesign — home page + parallel token system". The
+   screen it describes is deleted, but it is still the fullest write-up of the
+   token system's first pass and of the deviations every screen since has
+   inherited. Read it as history, not as a description of a live page.
 5. **`AGENTS.md`** — house rules, including: **this is Next.js 16**, so read
    `node_modules/next/dist/docs/` before writing route/layout code rather than
    trusting training data.
@@ -81,11 +86,12 @@ Two themes, `light` and `dark`, on `html[data-theme]`.
 
 - Colour: `--ink` `--soft` `--muted` `--faint` · `--card` `--cardalt` `--bd` ·
   `--card-border` `--card-shadow` · `--btn` `--btn-ink` · `--track` `--fill` ·
-  `--avatar` `--avatar-ink` · `--accent` `--accent-ink` (vermilion — used twice
-  on the whole of home, don't spread it) · `--cover-1..4` + `-ink` `--covtrack`
-  `--cover-shadow` · `--stage-new` `-recent` `-learned` `-mastered` ·
-  `--sky-border` `--sky-shadow` · `--bg` `--page-base` `--page-stars`
-  `--page-vignette`.
+  `--avatar` `--avatar-ink` · `--accent` `--accent-ink` (vermilion — two uses in
+  the whole app, don't spread it) · `--cover-1..4` + `-ink` `--covtrack`
+  `--cover-shadow` · `--stage-new` `-recent` `-learned` `-mastered` · `--bg`
+  `--page-base` `--page-stars` `--page-vignette`.
+  (`--sky-border` / `--sky-shadow` were here until home's sky bubble — their
+  only consumer — was deleted with the rest of home.)
 - Radii: `--radius-tile` `-cover` `-button` `-input` `-pill` `-card` `-panel`
   `-chip`.
 - Type: **`--face-jp` / `--face-ui` / `--face-mono`**.
@@ -94,7 +100,7 @@ Write them with Tailwind v4's var shorthand: `text-(--ink)`, `bg-(--card)`,
 `rounded-(--radius-card)`. Fonts need the long form:
 `font-[family-name:var(--face-ui)]`.
 
-### Four traps that cost real time on home
+### Four traps that cost real time on the first screen through
 
 1. **Type tokens are `--face-*`, never `--font-*`.** `app/globals.css`'s
    `@theme` block already binds `--font-ui` / `--font-jp` / `--font-mono` to the
@@ -163,7 +169,7 @@ The primitive layer. All theme-agnostic, all token-driven.
 `Button` (primary/secondary, icon slot, renders `<a>` when given `href` else
 `<button>`; `type="submit"` + `disabled` for form primaries — auth's CTA is
 this component, full-width via `className`, with the arrow passed as trailing
-children rather than a new prop) · `Card` (`card` | `panel`) · `CardHeader` (title + corner action) ·
+children rather than a new prop) · `Card` (`card` | `panel`) ·
 `Chip` · `CoverTile` (cover colour + vertical title + progress strip) ·
 `Eyebrow` (mono uppercase column label) · `MonoAction` (`VIEW ALL →`) ·
 `PaperCard` + `PAPER_GHOST` (the `--paper-*` ruled-list card shell and its
@@ -212,9 +218,8 @@ Layers, one-way: `lib`/`shared` ← `features` ← `app`. Enforced by
 
 - Every card/section owns its own request via a hook in the feature's `hooks/`,
   so one slow query doesn't hold up the screen. The view composes and fetches
-  nothing. Exception: two sections needing the *same* payload share one hook —
-  see `features/home/hooks/useBooks.ts`, which serves both the continue-reading
-  and library cards.
+  nothing. Exception: two sections needing the *same* payload share one hook,
+  rather than asking the backend for one list twice.
 - Fetch helpers live in the feature's `lib/*Api.ts` and take an optional
   `AbortSignal`. `useFetchWithAbort` handles the abort dance.
 - **Internal navigation is `next/link`, always.** A raw `<a href="/…">` is a full
@@ -228,10 +233,11 @@ Layers, one-way: `lib`/`shared` ← `features` ← `app`. Enforced by
 
 ## 5. Data gaps you will hit again
 
-The handoffs assume data the backend doesn't have. These recur across screens —
-how home resolved them:
+The handoffs assume data the backend doesn't have. These recur across screens.
+The resolutions below were settled on the first screen through (home, since
+deleted) and every screen since has followed them:
 
-| Handoff assumes | Reality | Home did |
+| Handoff assumes | Reality | Resolution |
 |---|---|---|
 | Page numbers (`PAGE 142 / 412`) | EPUB position is a CFI + spine index; `page_count` is PDF-only | Percentage only |
 | A Japanese spine title *and* an English heading | One `title` column | Same title in both |
@@ -260,7 +266,7 @@ npm run build                          # must compile
 npm run lint                           # must stay at the baseline below
 ```
 
-**Lint baseline: 13 errors, 8 warnings** (as of 2026-08-01). Don't add to it.
+**Lint baseline: 0 errors, 3 warnings** (as of 2026-08-05). Don't add to it.
 `git stash && npm run lint && git stash pop` to compare if unsure.
 
 `react-hooks/set-state-in-effect` fires false positives on legitimate
@@ -268,7 +274,7 @@ npm run lint                           # must stay at the baseline below
 which can't happen during render. Disable it as a **block**
 (`/* eslint-disable … */` … `/* eslint-enable … */`) with a comment saying why:
 the rule reports on the `setState` call, not the `useEffect` line, so
-`disable-next-line` misses it. See `features/home/hooks/useRecentSearches.ts`.
+`disable-next-line` misses it. See `features/dictionary/hooks/useRecentSearches.ts`.
 
 To check the app actually runs: `npm run dev`, wait for `Ready`, then
 `curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/<route>`. Give it

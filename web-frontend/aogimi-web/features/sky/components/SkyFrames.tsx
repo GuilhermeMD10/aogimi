@@ -52,7 +52,7 @@ const FACE_MONO = "var(--face-mono, 'Space Mono', monospace)";
 
 /** Due pill footprint (world units), shared by the rect and the text centred in it. */
 const PILL_W = 148;
-const PILL_H = 46;
+const PILL_H = 54;
 
 type Props = {
   frames: DeckFrameData[];
@@ -81,26 +81,6 @@ export const SkyFrames = memo(function SkyFrames({ frames, hovered }: Props) {
               fill={hov ? FRAME_CHROME.fillHover : FRAME_CHROME.fill}
               stroke={hov ? FRAME_CHROME.bdHover : FRAME_CHROME.bd}
               strokeWidth={1.1}
-              vectorEffect="non-scaling-stroke"
-            />
-
-            {/* header / footer dividers, inset 26 world px */}
-            <line
-              x1={b.minX + 26}
-              y1={b.minY + FRAME_HEAD}
-              x2={b.maxX - 26}
-              y2={b.minY + FRAME_HEAD}
-              stroke={FRAME_CHROME.bd}
-              strokeWidth={1}
-              vectorEffect="non-scaling-stroke"
-            />
-            <line
-              x1={b.minX + 26}
-              y1={fy}
-              x2={b.maxX - 26}
-              y2={fy}
-              stroke={FRAME_CHROME.bd}
-              strokeWidth={1}
               vectorEffect="non-scaling-stroke"
             />
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
+import { GLASS_BUTTON, GLASS_PRESS, GLASS_SURFACE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 type Variant = 'hero' | 'rail' | 'sidebar';
@@ -52,9 +53,15 @@ const GLYPH: Record<Variant, number> = { hero: 22, sidebar: 17, rail: 19 };
  *
  * The empty page, the results rail and the reader's docked column draw the same
  * control at different scales and positions, so they share a component rather
- * than a look. The border is `--ink` rather than `--bd`: `--bd` is transparent
- * by design, and a search field with no visible edge isn't a field. Home's
- * search shortcut made the same call.
+ * than a look. Only the scale is per-variant — all three are the same glass.
+ *
+ * The shell is `GLASS_SURFACE`: fill, blur, the inner glow and a lit top edge,
+ * the same material the library's panels and the dock are made of. It used to
+ * be `bg-(--card)` inside a 1.5px `--ink` border, on the reasoning that `--bd`
+ * is transparent and a field with no visible edge isn't a field. The frosted
+ * fill and its specular edge answer that better than a drawn line did — the
+ * field now reads as an object rather than as an outline. Both buttons inside it
+ * are `GLASS_BUTTON`s, so the field's hover and press are the app's.
  *
  * Submitting from the prompt swaps one instance for the other — different
  * elements in different layouts, so neither can stay mounted. `autoFocus`
@@ -110,9 +117,7 @@ export function SearchField({
 
       const target = e.target as HTMLElement | null;
       const typing =
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target?.isContentEditable;
+        target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable;
       if (isSlash && typing) return;
 
       e.preventDefault();
@@ -130,20 +135,12 @@ export function SearchField({
         e.preventDefault();
         onSubmit();
       }}
-      className={cn(
-        'flex items-center border-[1.5px] border-(--ink) bg-(--card)',
-        'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--ink)',
-        SHELL[variant],
-      )}
+      className={cn(GLASS_SURFACE, 'flex items-center', SHELL[variant])}
     >
       {/* A real submit control, not decoration — the glyph is clickable. The
           only vermilion on this screen besides the brand mark. */}
-      <button type="submit" aria-label="Search" className="shrink-0 cursor-pointer">
-        <Search
-          size={GLYPH[variant]}
-          strokeWidth={1.9}
-          className="stroke-(--accent)"
-        />
+      <button type="submit" aria-label="Search" className={cn(GLASS_PRESS, 'shrink-0 cursor-pointer')}>
+        <Search size={GLYPH[variant]} strokeWidth={1.9} className="stroke-(--accent)" />
       </button>
 
       <input
@@ -175,9 +172,10 @@ export function SearchField({
           aria-label="Clear search"
           title="Clear (Esc)"
           className={cn(
-            'flex size-5 shrink-0 cursor-pointer items-center justify-center',
-            'rounded-(--radius-tile) bg-(--track) text-(--soft)',
-            'transition-opacity duration-120 ease-[ease] hover:opacity-75',
+            GLASS_BUTTON,
+            GLASS_PRESS,
+            'flex size-5 shrink-0 items-center justify-center',
+            'rounded-(--radius-tile) text-(--soft)',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
           )}
         >

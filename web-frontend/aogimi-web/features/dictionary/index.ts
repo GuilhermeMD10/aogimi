@@ -33,7 +33,7 @@ export {
   ClassPill,
   AddButton,
   ROW_SHELL,
-  ROW_IDLE,
+  ROW_LIST,
   ROW_SELECTED,
   ROW_FOCUS,
 } from './components/ResultRow';

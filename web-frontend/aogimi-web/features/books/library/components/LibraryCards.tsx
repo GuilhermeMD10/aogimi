@@ -16,6 +16,15 @@
 // treatment; the ⋯ trigger and the hero's CTA are `GLASS_BUTTON`s; the book
 // card's slide-up panel is a `GLASS_SHEET`. The recipe and all of its numbers
 // live in `styles/glass.css` — nothing here hardcodes a glass value.
+//
+// The library is **white glass at the dock's values** — one material across the
+// app's two glass screens. It used to paint every surface here with
+// `GLASS_SCRIM` (the sheet's dark fill) instead; that is now reserved for the
+// two things that genuinely sit on cover art, where a white fill disappears
+// against a pale cover: the slide-up sheet, and a live cover's ⋯ circle
+// (`overArt` on `BookMenu`). Everything else — the hero panel, its CTA, the
+// re-import tile's + and the shelf-side buttons in LibraryShelf — is plain
+// `GLASS_BUTTON` / `GLASS_SURFACE`.
 
 import { useEffect, useRef } from 'react';
 import { CheckCircle2, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
@@ -24,6 +33,8 @@ import {
   DASHED,
   Eyebrow,
   GLASS_BUTTON,
+  GLASS_PRESS,
+  GLASS_SCRIM,
   GLASS_SHEET,
   GLASS_SURFACE,
   HAIRLINE,
@@ -80,6 +91,7 @@ function BookMenu({
   onMarkFinished,
   onRemove,
   className,
+  overArt = false,
 }: {
   title: string;
   finished: boolean;
@@ -90,6 +102,11 @@ function BookMenu({
   onMarkFinished?: () => void;
   onRemove: () => void;
   className?: string;
+  /** Set when the circle floats on a full-strength cover: a white fill has
+   *  nothing to sit on there, so it takes the dark scrim instead. Off for the
+   *  hero (it sits on the glass panel) and for the re-import tile (its cover is
+   *  faded to 40%, which reads as page rather than as art). */
+  overArt?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -122,6 +139,8 @@ function BookMenu({
         onClick={() => setOpen(!isOpen)}
         className={cn(
           GLASS_BUTTON,
+          overArt && GLASS_SCRIM,
+          GLASS_PRESS,
           'inline-flex size-7 items-center justify-center rounded-full',
           'text-(--soft) hover:text-(--ink)',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
@@ -191,9 +210,12 @@ function MenuItem({
       type="button"
       onClick={onClick}
       className={cn(
+        GLASS_PRESS,
         'flex w-full items-center gap-2 rounded-(--radius-tile) px-2.5 py-[7px]',
         'font-[family-name:var(--face-ui)] text-[12.5px] text-(--soft)',
-        'transition-colors duration-120 hover:text-(--ink)',
+        // transform named alongside colour: a bare `transition-colors` is a
+        // utility, so it would replace GLASS_PRESS's list and un-ease the nudge.
+        'transition-[color,transform] duration-120 hover:text-(--ink)',
       )}
     >
       {icon}
@@ -268,7 +290,10 @@ export function ContinueReadingCard({
     // instead of stretching down beside the whole shelf.
     <section
       aria-labelledby="library-continue"
-      className={cn(GLASS_SURFACE, 'flex h-fit flex-col gap-[22px] self-start rounded-(--radius-panel) p-[26px]')}
+      className={cn(
+        GLASS_SURFACE,
+        'flex h-fit flex-col gap-[22px] self-start rounded-(--radius-panel) p-[26px]',
+      )}
     >
       <BookMenu
         className="absolute top-3.5 right-3.5 z-10"
@@ -331,6 +356,7 @@ export function ContinueReadingCard({
               onClick={book.available ? onResume : onLocate}
               className={cn(
                 GLASS_BUTTON,
+                GLASS_PRESS,
                 'p-2 mt-auto rounded-full text-[14px] font-bold text-(--ink)',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
               )}
@@ -369,19 +395,8 @@ export function BookCard({
   return (
     // The −5px hover lift is on the group rather than on the cover, so the
     // floating ⋯ rides up with the card instead of staying behind.
-    <div
-      className={cn(
-        'group relative transition-transform duration-[220ms] ease-[ease] hover:-translate-y-[5px]',
-        'motion-reduce:transition-none motion-reduce:hover:translate-y-0',
-      )}
-    >
-      <div
-        className={cn(
-          'relative aspect-[96/140] overflow-hidden rounded-(--radius-cover)',
-          'outline-2 outline-offset-2 outline-transparent transition-[outline-color] duration-[220ms] ease-[ease]',
-          'group-hover:outline-(--gold) group-focus-within:outline-(--gold)',
-        )}
-      >
+    <div className={cn('group relative', 'motion-reduce:transition-none motion-reduce:hover:translate-y-0')}>
+      <div className={cn('relative aspect-[96/140] overflow-hidden rounded-(--radius-cover)')}>
         <CoverTile title={book.title} seed={book.filename} image={book.coverImage} sheen className="absolute inset-0" />
 
         {/* The click target. A sibling of the panel rather than its parent, so
@@ -452,6 +467,7 @@ export function BookCard({
       </div>
 
       <BookMenu
+        overArt
         className={cn(
           'absolute top-2 right-2 z-10 transition-opacity duration-120',
           'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
@@ -511,7 +527,7 @@ export function ReimportCard({
           <button
             type="button"
             onClick={onReAdd}
-            className={cn(GLASS_BUTTON, 'rounded-(--radius-button) px-3 py-2 round')}
+            className={cn(GLASS_BUTTON, GLASS_PRESS, 'rounded-(--radius-button) px-3 py-2 round')}
           >
             <Plus size={16} strokeWidth={1.9} />
           </button>

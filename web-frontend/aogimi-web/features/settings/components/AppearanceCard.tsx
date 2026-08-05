@@ -1,6 +1,6 @@
 'use client';
 
-import { PaperCard } from '@/shared/components';
+import { GLASS_PRESS, PaperCard } from '@/shared/components';
 import {
   THEMES,
   THEME_NAMES,
@@ -52,12 +52,18 @@ export function AppearanceCard() {
                   title={locked ? 'Theme switching is temporarily disabled' : undefined}
                   onClick={() => setTheme(name)}
                   className={cn(
+                    GLASS_PRESS,
                     'flex items-center gap-[9px] rounded-(--radius-button) border px-3.5 py-2.5 text-[13px] leading-none font-bold',
-                    'transition-colors duration-120 ease-[ease]',
+                    // transform is named explicitly: `transition-colors` alone is
+                    // a utility and would replace GLASS_PRESS's transition list.
+                    'transition-[color,background-color,border-color,transform] duration-120 ease-[ease]',
                     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
                     locked && 'cursor-not-allowed',
+                    // Selected is --active, app-wide. It used to be --btn, which
+                    // is #141414 on paper and #f2f1ee at night — so "selected"
+                    // was a black chip in one theme and a white one in the other.
                     selected
-                      ? 'border-(--btn) bg-(--btn) text-(--btn-ink)'
+                      ? 'border-(--active) bg-(--active) text-(--active-ink)'
                       : cn('border-(--paper-bd) text-(--soft)', !locked && 'hover:border-(--btn)'),
                   )}
                 >

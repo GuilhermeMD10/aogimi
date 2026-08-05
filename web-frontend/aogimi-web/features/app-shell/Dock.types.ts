@@ -9,12 +9,16 @@
  *  - **Sky came and went.** It earned an entry when `/sky` became the star
  *    map, and lost it when that map merged into `/decks` — the sky *is* the
  *    decks page now, so a second entry would be the same destination twice.
+ *  - **Home went too**, with the dashboard it pointed at. The library is the
+ *    landing page now, so Home's `/` would have been Reader's destination
+ *    under a second name. Reader inherited the route.
  *
- * Profile is deliberately not in this list — it renders an avatar rather than
- * an icon, so it's spelled out in the component.
+ * Only the primary group is left, so the divider in the component now separates
+ * these from Profile — which is deliberately not in this list, because it
+ * renders an avatar rather than an icon and is spelled out there.
  */
 
-export type DockKey = 'reader' | 'dictionary' | 'decks' | 'home';
+export type DockKey = 'reader' | 'dictionary' | 'decks';
 
 export type DockItem = {
   key: DockKey;
@@ -22,12 +26,11 @@ export type DockItem = {
   path: string;
 };
 
-/** Left of the divider. */
+/** Left of the divider. Profile follows them, built in the component. */
 export const DOCK_PRIMARY: DockItem[] = [
-  { key: 'reader', label: 'Reader', path: '/reader' },
+  // `/`, not `/reader` — the shelf is the landing page and `/reader/<bookId>`
+  // is a single open book, which hides the dock entirely.
+  { key: 'reader', label: 'Reader', path: '/' },
   { key: 'dictionary', label: 'Dictionary', path: '/dictionary' },
   { key: 'decks', label: 'Decks', path: '/decks' },
 ];
-
-/** Right of the divider. Profile follows these, built in the component. */
-export const DOCK_SECONDARY: DockItem[] = [{ key: 'home', label: 'Home', path: '/' }];

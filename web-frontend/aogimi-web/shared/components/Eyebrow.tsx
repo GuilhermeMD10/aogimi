@@ -12,7 +12,7 @@ export function Eyebrow({ children, className }: Props) {
   return (
     <div
       className={cn(
-        'font-[family-name:var(--face-mono)] text-[11.5px] tracking-[0.14em] uppercase',
+        'font-[family-name:var(--face-mono)] text-[14px] tracking-[0.14em] uppercase',
         'text-(--faint)',
         className,
       )}

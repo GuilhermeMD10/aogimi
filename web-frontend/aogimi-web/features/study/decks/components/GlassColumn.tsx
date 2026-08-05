@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, ChevronLeft, ChevronUp, ChevronsLeft, Languages, Trash2 } from 'lucide-react';
 
-import { JlptChip, stageColor, stageLabel } from '@/shared/components';
+import { GLASS_PRESS, JlptChip, stageColor, stageLabel } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 import { masteryMixOf } from '../lib/masteryMix';
@@ -323,14 +323,17 @@ function SortChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
+        GLASS_PRESS,
         'inline-flex items-center rounded-[8px] px-2 py-[5px]',
         `${MONO} text-[9.5px] whitespace-nowrap`,
         active ? 'font-bold' : 'font-medium',
         FOCUS_RING,
       )}
+      // Selected reads as the app's active tint, not as a brighter white glass:
+      // white-on-white asked the eye to compare two alphas.
       style={
         active
-          ? { border: `1px solid ${NIGHT.bdA}`, background: NIGHT.tintA, color: NIGHT.ink }
+          ? { border: `1px solid ${NIGHT.activeBd}`, background: NIGHT.active, color: NIGHT.activeInk }
           : { border: `1px solid ${NIGHT.bdB}`, background: NIGHT.tintB, color: NIGHT.muted }
       }
     >

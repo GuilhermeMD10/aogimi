@@ -1,8 +1,8 @@
 'use client';
 
-import { Eyebrow, HAIRLINE, Skeleton } from '@/shared/components';
+import { Eyebrow, GLASS_PRESS, HAIRLINE, Skeleton } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
-import { KanjiRow, WordRow } from './ResultRow';
+import { KanjiRow, ROW_LIST, WordRow } from './ResultRow';
 import { sameSelection } from '../lib/results';
 import type { RailContents } from '../lib/results';
 import type { KanjiInfo, Selection, WordResult } from '../types';
@@ -55,20 +55,17 @@ export function RailList({
 
   return (
     <>
-      <div className="mt-[22px] mb-2.5 flex items-baseline gap-2 px-1">
+      <div className="mt-5.5 mb-2.5 flex items-baseline gap-2 px-1">
         {/* Not `<Eyebrow className="text-(--accent)">`: tailwind-merge can't
             tell whether `text-(--var)` is a colour or a size, so the override
             and the primitive's own `text-(--faint)` would both survive and
             stylesheet order would pick the winner. */}
-        <span className="font-[family-name:var(--face-mono)] text-[11.5px] tracking-[0.14em] uppercase text-(--accent)">
+        <span className="font-(family-name:--face-mono) text-[14px] tracking-[0.14em] uppercase text-(--accent)">
           Results
         </span>
         {settled && (
-          <span className="font-[family-name:var(--face-ui)] text-[13px] text-(--muted)">
-            {count} for{' '}
-            <span className="font-[family-name:var(--face-jp)] text-[15px] text-(--ink)">
-              「{query}」
-            </span>
+          <span className="font-(family-name:--face-ui) text-[16px] text-muted-foreground">
+            {count} for <span className="font-(family-name:--face-jp) text-[16px] text-(--ink)">「{query}」</span>
           </span>
         )}
       </div>
@@ -76,18 +73,25 @@ export function RailList({
       {loading && (
         <div className="flex flex-col gap-1">
           {Array.from({ length: SKELETON_ROWS }, (_, i) => (
-            <Skeleton key={i} className="h-[94px] w-full" />
+            <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
       )}
 
       {error && (
         <div className="px-1 py-3">
-          <p className="font-[family-name:var(--face-ui)] text-[13px] text-(--muted)">{error}</p>
+          <p className="font-(family-name:--face-ui) text-[16px] text-muted-foreground">{error}</p>
           <button
             type="button"
             onClick={onRetry}
-            className="mt-2 cursor-pointer font-[family-name:var(--face-mono)] text-[11.5px] tracking-[0.1em] text-(--ink) underline underline-offset-4 hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
+            className={cn(
+              GLASS_PRESS,
+              'mt-2 cursor-pointer font-(family-name:--face-mono) text-[14px] text-(--ink)',
+              // transform named alongside opacity, or the utility replaces
+              // GLASS_PRESS's transition list and the nudge snaps.
+              'underline underline-offset-4 transition-[opacity,transform] duration-120 hover:opacity-75',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+            )}
           >
             RETRY
           </button>
@@ -96,17 +100,15 @@ export function RailList({
 
       {settled && count === 0 && (
         <div className="px-1 py-3">
-          <p className="font-[family-name:var(--face-ui)] text-[13px] text-(--muted)">
-            Nothing found.
-          </p>
-          <p className="mt-1 font-[family-name:var(--face-ui)] text-[12.5px] text-(--faint)">
+          <p className="font-(family-name:--face-ui) text-[16px] text-muted-foreground">Nothing found.</p>
+          <p className="mt-1 font-(family-name:--face-ui) text-[14px] text-(--faint)">
             Try the kana reading, or an English word.
           </p>
         </div>
       )}
 
       {settled && count > 0 && (
-        <ul className="flex flex-col gap-1">
+        <ul className={ROW_LIST}>
           {kanjiEntries.map((k) => (
             <KanjiRow
               key={`k-${k.literal}`}
@@ -132,27 +134,23 @@ export function RailList({
 
       {settled && names.length > 0 && (
         <section className={cn('mt-6 border-t pt-4', HAIRLINE)}>
-          <Eyebrow className="mb-2.5 px-1">Names · 名前</Eyebrow>
+          <Eyebrow className="mb-2.5 px-1">Names</Eyebrow>
           <ul className="flex flex-col">
             {names.slice(0, 10).map((n) => (
               <li key={n.id} className="px-1 py-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="font-[family-name:var(--face-jp)] text-[17px] text-(--ink)">
-                    {n.kanji ?? n.kana}
-                  </span>
+                  <span className="font-(family-name:--face-jp) text-[17px] text-(--ink)">{n.kanji ?? n.kana}</span>
                   {n.kanji && (
-                    <span className="font-[family-name:var(--face-mono)] text-[11px] text-(--muted)">
-                      {n.kana}
-                    </span>
+                    <span className="font-(family-name:--face-mono) text-[14px] text-muted-foreground">{n.kana}</span>
                   )}
                 </div>
                 {n.translations.length > 0 && (
-                  <p className="mt-0.5 font-[family-name:var(--face-ui)] text-[12.5px] text-(--soft)">
+                  <p className="mt-0.5 font-(family-name:--face-ui) text-[16px] text-(--soft)">
                     {n.translations.join('; ')}
                   </p>
                 )}
                 {n.name_type.length > 0 && (
-                  <p className="mt-0.5 font-[family-name:var(--face-mono)] text-[10px] tracking-[0.04em] uppercase text-(--faint)">
+                  <p className="mt-0.5 font-(family-name:--face-mono) text-[14px] tracking-[0.04em] uppercase text-(--faint)">
                     {n.name_type.join(', ')}
                   </p>
                 )}

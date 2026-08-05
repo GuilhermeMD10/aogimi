@@ -90,10 +90,10 @@ export function StageLedger({
       aria-label="Collapse the ledger"
       onClick={onToggle}
       onKeyDown={toggleKeys}
-      className="absolute right-5 bottom-[84px] left-5 z-20 cursor-pointer rounded-[18px] backdrop-blur-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      className="absolute px-10 bottom-[84px] flex justify-self-center z-20 cursor-pointer rounded-[18px] backdrop-blur-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       style={shell}
     >
-      <div className="flex items-stretch gap-[22px] px-6 py-4">
+      <div className="flex items-stretch justify-center gap-5.5  py-4">
         {/* ── the account's figures ── */}
         <div className="flex shrink-0 items-center gap-7">
           <Stat label="DAYS STUDIED" value={days} color={NIGHT.ink} />
@@ -112,22 +112,21 @@ export function StageLedger({
         <Divider className="max-[1100px]:hidden" />
 
         {/* ── the latest promotions, each a jump to its star ── */}
-        <div className="min-w-0 flex-1 max-[860px]:hidden">
+        <div className="max-[860px]:hidden flex gap-5">
           <div
-            className="mb-1 font-[family-name:var(--face-mono)] text-[8.5px] tracking-[0.16em]"
+            className="mb-1 font-[family-name:var(--face-mono)] text-[8.5px] tracking-[0.16em] flex flex-col"
             style={{ color: NIGHT.faint }}
           >
             RECENT UPGRADES
+            <UpgradeRows upgrades={upgrades} onPick={onUpgradeClick} />
           </div>
-          <UpgradeRows upgrades={upgrades} onPick={onUpgradeClick} />
+          <span
+            className="self-center font-[family-name:var(--face-mono)] text-[8px] tracking-[0.18em] whitespace-nowrap"
+            style={{ color: NIGHT.faint }}
+          >
+            ∨ HIDE
+          </span>
         </div>
-
-        <span
-          className="self-center font-[family-name:var(--face-mono)] text-[8px] tracking-[0.18em] whitespace-nowrap"
-          style={{ color: NIGHT.faint }}
-        >
-          ∨ HIDE
-        </span>
       </div>
     </div>
   );

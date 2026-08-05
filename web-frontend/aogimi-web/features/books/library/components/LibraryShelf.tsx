@@ -1,13 +1,13 @@
 'use client';
 
-// `/reader` — the library shelf. Composition, geometry and the client-side
+// `/` — the library shelf, and the app's landing page. Composition, geometry and the client-side
 // filter; it fetches nothing. `BooksView` owns the data and every handler, this
 // arranges the tiles in `LibraryCards` and the empty state in `LibraryEmpty`.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { BookOpen, Plus, Search } from 'lucide-react';
-import { GLASS_BUTTON, GLASS_SURFACE, HAIRLINE, Skeleton } from '@/shared/components';
+import { GLASS_ACTIVE, GLASS_BUTTON, GLASS_PRESS, GLASS_SURFACE, HAIRLINE, Skeleton } from '@/shared/components';
 import { TopBar } from '@/features/app-shell/TopBar';
 import { cn } from '@/lib/util/cn';
 import type { Book } from '@/features/books/types';
@@ -176,6 +176,7 @@ export function LibraryShelf({
               disabled={importing}
               className={cn(
                 GLASS_BUTTON,
+                GLASS_PRESS,
                 'flex shrink-0 items-center gap-2 rounded-(--radius-button) p-2',
                 'text-[13.5px] font-bold text-(--ink)',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
@@ -314,8 +315,11 @@ function Banner({
           type="button"
           onClick={onDismiss}
           className={cn(
+            GLASS_PRESS,
             'shrink-0 cursor-pointer font-[family-name:var(--face-mono)] text-[11px] tracking-[0.14em] uppercase',
-            'text-(--faint) transition-colors duration-120 hover:text-(--ink)',
+            // transform rides along: a bare `transition-colors` would win over
+            // GLASS_PRESS's own list and the nudge would snap instead of ease.
+            'text-(--faint) transition-[color,transform] duration-120 hover:text-(--ink)',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
           )}
         >
@@ -362,9 +366,13 @@ function SearchField({
 // Not the shared `Chip`: that one is a link or a static label, and these are
 // single-select controls with a pressed state and their own mono type scale.
 //
-// Glass when unselected, solid `--btn` when selected — the selected fill comes
-// from a Tailwind utility, which wins over `.glass-button` because the recipe
-// sits in `@layer components`.
+// Plain white glass when unselected (it used to carry GLASS_SCRIM, the on-cover
+// treatment, which nothing on this row sits on), the app's active glass when
+// selected. Selection used to be
+// shadcn's `bg-primary` (= `--btn`, so a black chip on paper and a white one at
+// night) with a `--gold` edge on hover, which asked the eye to tell selected
+// from hovered by hue. `GLASS_ACTIVE` brings the fill AND the ink, so there is
+// no `text-*` on the selected branch — a utility would beat the recipe.
 function FilterChip({
   label,
   count,
@@ -383,10 +391,11 @@ function FilterChip({
       onClick={onClick}
       className={cn(
         GLASS_BUTTON,
+        GLASS_PRESS,
         'inline-flex items-center gap-1.5 rounded-(--radius-chip) py-2 px-3',
         'font-(family-name:--face-mono) text-[12px] uppercase',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
-        active ? 'border-primary bg-primary text-primary-foreground' : 'text-(--soft) hover:border-(--gold)',
+        active ? GLASS_ACTIVE : 'text-(--soft)',
       )}
     >
       {label}
