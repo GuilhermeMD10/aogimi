@@ -34,6 +34,56 @@ export const GLASS_SHEEN = 'glass-sheen';
 /** Controls: filter chips, the import button, the ⋯ circles. Hover brightens. */
 export const GLASS_BUTTON = 'glass-button';
 
-/** The book card's slide-up hover panel. Top edge only, and no blur — see the
- *  note in glass.css for why. */
+/** The book card's slide-up hover panel. Top edge only. */
 export const GLASS_SHEET = 'glass-sheet';
+
+/**
+ * Modifier, added ALONGSIDE `GLASS_BUTTON` or `GLASS_SURFACE` — never on its
+ * own — for the dark variant of either:
+ *
+ *   <button className={cn(GLASS_BUTTON, GLASS_SCRIM, 'size-7 rounded-full')}>
+ *
+ * It swaps the white fill and glow for the same scrim the sheet uses. **Only for
+ * glass that lands on cover art**, where a white circle disappears against a
+ * pale cover — which is one call site, `BookMenu`'s `overArt`. The library used
+ * to take it wholesale, on the argument that one screen wants one glass; it
+ * still does, but that glass is now the dock's white one.
+ */
+export const GLASS_SCRIM = 'glass-scrim';
+
+/**
+ * A row in a ruled list, not a pane: nothing at rest, the glass fill on hover,
+ * and it accepts `GLASS_ACTIVE` for the selected one. The dictionary rail's
+ * results are the call site — a pane per row turns a list into a stack of cards.
+ *
+ * It draws no rule of its own. The line between rows belongs to the list, and
+ * has to state its colour literally (`border-color` is not inherited, and the
+ * base layer's `*` rule gives every element its own) — see `ROW_LIST`.
+ */
+export const GLASS_ROW = 'glass-row';
+
+/**
+ * Modifier, added ALONGSIDE `GLASS_BUTTON`, `GLASS_SURFACE` or `GLASS_ROW`: the
+ * **selected** state. Swaps in the app-wide `--active` tint, the dark ink it carries, a
+ * brighter edge and glow, and neutralises hover (a lit control has nothing to
+ * brighten to). The dock's sliding pill is this same recipe.
+ *
+ *   <button className={cn(GLASS_BUTTON, GLASS_SCRIM, selected && GLASS_ACTIVE)}>
+ *
+ * Don't pair it with a `text-*` utility on the selected branch — utilities beat
+ * the recipe, so that would override the ink this brings.
+ */
+export const GLASS_ACTIVE = 'glass-active';
+
+/**
+ * The press nudge — `translateY(1px) scale(.985)` for 120ms while held. Opt in
+ * per button, on anything a user presses: it is deliberately not folded into
+ * `GLASS_BUTTON`, because an element has exactly one `transform` and some
+ * already spend theirs (the book card lifts on hover).
+ *
+ * Works on non-glass buttons too — it owns nothing but the transform. The one
+ * catch is Tailwind's `transition-*` utilities: those win over the recipe, so a
+ * button with e.g. `transition-colors` needs transform in its own list
+ * (`transition-[color,transform]`) or the nudge snaps instead of easing.
+ */
+export const GLASS_PRESS = 'glass-press';

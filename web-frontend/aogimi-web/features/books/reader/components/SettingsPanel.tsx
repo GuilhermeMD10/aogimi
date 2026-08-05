@@ -15,7 +15,7 @@ import {
   LINE_SPACING_STOPS,
 } from '../hooks/useReaderPrefs';
 import { THEMES } from '../lib/readerConstants';
-import { HAIRLINE } from '@/shared/components';
+import { GLASS_PRESS, HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { ReaderPanel } from './ReaderShell';
 
@@ -45,10 +45,12 @@ function Segmented<T extends string>({
             onClick={() => onChange(o.key)}
             style={o.style}
             className={cn(
-              'cursor-pointer rounded-[9px] py-2.5 text-center text-[15px] transition-colors duration-150',
+              GLASS_PRESS,
+              'cursor-pointer rounded-[9px] py-2.5 text-center text-[15px]',
+              'transition-[color,background-color,border-color,transform] duration-150',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
               on
-                ? 'border border-transparent bg-(--ink) text-(--btn-ink)'
+                ? 'border border-transparent bg-(--active) text-(--active-ink)'
                 : cn('border bg-transparent text-(--soft) hover:text-(--ink)', HAIRLINE),
             )}
           >
@@ -243,10 +245,13 @@ export function SettingsPanel({
                   onClick={() => onChange({ theme: t })}
                   style={{ background: THEMES[t].bg, color: THEMES[t].fg }}
                   className={cn(
+                    GLASS_PRESS,
                     'cursor-pointer rounded-[9px] border px-2 py-2.5 text-[11px] font-medium transition-all duration-150',
                     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+                    // A ring, not a fill: these swatches ARE their page colour,
+                    // so selection has to sit outside them. --active either way.
                     prefs.theme === t
-                      ? 'border-transparent ring-2 ring-(--ink) ring-offset-1'
+                      ? 'border-transparent ring-2 ring-(--active) ring-offset-1'
                       : cn('hover:opacity-80', HAIRLINE),
                   )}
                 >

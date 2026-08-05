@@ -2,5 +2,5 @@
 export { StudyScreen } from './components/StudyScreen';
 export { SessionConfigSheet } from './components/SessionConfigSheet';
 export { useDeckOverrides } from './hooks/useDeckOverrides';
-export { fetchDueCounts, fetchRandomDueCard } from './lib/studyApi';
+export { fetchDueCounts } from './lib/studyApi';
 export type { DueCounts, StudySessionConfig } from './types';

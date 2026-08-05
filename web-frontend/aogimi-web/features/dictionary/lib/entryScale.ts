@@ -68,7 +68,7 @@ export const ENTRY_SCALE: Record<EntryScale, PaneScale> = {
     besidePad: 'pb-2',
     pitch: 'pb-2',
     headword: 'text-[84px] leading-[0.92]',
-    reading: 'mt-3 text-[15px]',
+    reading: 'mt-3 text-[20px]',
     chipRow: 'mt-3.5 gap-2',
     chip: 'md',
     pill: 'px-3 py-1 text-[11px]',

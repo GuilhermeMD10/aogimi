@@ -33,6 +33,25 @@
   --accent:            #c2452c;
   --accent-ink:        #f6ead0;
 
+  /* ── Active / selected ───────────────────────────────────────────────────
+     ONE colour for "this is the selected one", app-wide. It arrived as the dock
+     pill's tint in the Dock Bar handoff and was promoted here because the app
+     had been answering the same question three different ways: `--btn` (which
+     is #141414 on paper and #f2f1ee at night, so "selected" was black on one
+     theme and white on the other), a `--gold` edge on the library's filter
+     hover, and shadcn's `bg-primary` on its fill.
+
+     Theme-invariant, like --accent and for the same reason: a selection marker
+     that changes hue with the theme stops being a marker and starts being
+     decoration. It is a pale tint carrying dark ink in both themes, which also
+     means --active-ink is NOT --btn-ink — it does not flip.
+
+     Stated as a solid colour, not as an alpha. Opaque surfaces use it as-is;
+     glass derives the tint it wants with color-mix (see --glass-active-fill in
+     glass.css, which is this at 65%). One name, one hue, two densities. */
+  --active:            #f2e2fd;
+  --active-ink:        #141414;
+
   /* Book / deck cover surfaces. Same in both themes — a cover is a printed
      object, it doesn't re-dye itself at night. Only the progress strip
      (--covtrack) has to adapt, since it sits ON the cover. */
@@ -150,17 +169,6 @@ html[data-theme="light"] {
   --avatar:            #141414;
   --avatar-ink:        #ffffff;
 
-  --sky-border:        rgba(47, 65, 96, .42);
-  --sky-shadow:        0 14px 34px rgba(47, 65, 96, .20);
-
-  /* Dock. See the note in the dark block below for why this is its own group. */
-  --dock:              #141414f0;
-  --dock-bd:           transparent;
-  --dock-dim:          #8f8f8f;
-  --dock-hover:        #ffffff;
-  --dock-active:       #ffffff1c;
-  --dock-active-ink:   #ffffff;
-
   /* Destructive actions. Distinct from --accent, which is the vermilion seal:
      that one is theme-invariant by design, and #c2452c on the dark deck paper
      is a dark red on dark grey. Danger has to stay legible on whatever it
@@ -241,23 +249,13 @@ html[data-theme="dark"] {
   --avatar:            #f2f1ee;
   --avatar-ink:        #141414;
 
-  --sky-border:        rgba(226, 232, 244, .34);
-  --sky-shadow:        0 16px 40px rgba(0, 0, 0, .55);
-
-  /* ── Dock ────────────────────────────────────────────────────────────────
-     Its own group for the same reason --paper-* is: the dock can't read the
-     shared surface tokens. It is near-black in BOTH themes — a floating
-     object over the page rather than a surface of it — so its "dim" and
-     "hover" inks are light-on-dark even in Ink on paper, where --muted and
-     --ink are the opposite. The two themes differ only slightly (the dark
-     dock gains a visible edge against the dark canvas, and its dim ink warms
-     a touch), which is exactly what a token pair is for. */
-  --dock:              #1c1c1ff0;
-  --dock-bd:           #2e2e33;
-  --dock-dim:          #8b8a92;
-  --dock-hover:        #ffffff;
-  --dock-active:       rgba(255, 255, 255, .16);
-  --dock-active-ink:   #ffffff;
+  /* The dock's --dock-* group is gone. It was a near-black slab reading its own
+     inks; the Dock Bar handoff made the dock frosted glass, and everything it
+     needs now lives in styles/glass.css as --dock-glass-* (which is also where
+     a dock that is white-on-dark in BOTH themes belongs — that was the group's
+     whole justification for existing out here, and glass is theme-invariant by
+     construction). --paper-* above is still the standing example of the
+     pattern. */
 
   /* Danger lightens in Midnight so it stays readable on the dark surfaces. */
   --danger:            #e0715a;
@@ -288,13 +286,22 @@ html[data-theme="dark"] {
   --paper-shadow-hover: 0 20px 50px rgba(0, 0, 0, .6);
 
   --star-gold:         244, 220, 130;
-  /* The page's three stops, centre outwards — an indigo core burning out to
-     true black (and no longer the star map's own values;
-     the map is transparent over this, see the Page background block). --sky-3 is
-     also <html>'s background-color, so it must stay the darkest of the three. */
-  --sky-1:             #49408c;
-  --sky-2:             #1b1e69;
-  --sky-3:             #000000;
+  /* The page's three stops (and no longer the star map's own values; the map is
+     transparent over this, see the Page background block). --sky-3 is also
+     <html>'s background-color, so it must stay the darkest of the three.
+
+     They now read TOP → BASE of a vertical sky rather than centre → outwards of
+     a bloom: the background became a linear gradient with a separate glow laid
+     over it, so "1" is the lit top of the sky and "3" the deep bottom. The
+     `--page-base` block below is where that geometry lives.
+
+     Outgoing: the indigo core that burned out to true black.
+       --sky-1:           #49408c;
+       --sky-2:           #1b1e69;
+       --sky-3:           #000000;  */
+  --sky-1:             #16223c;   /* skyTop  */
+  --sky-2:             #0d1526;   /* skyMid  */
+  --sky-3:             #080514;   /* skyBase — was #05070f, a shade violet now */
   --page-vignette:     inset 0 0 220px 60px rgba(4, 7, 14, .55);
 }
 
@@ -374,11 +381,11 @@ html[data-sky-hue="aurora"] {
 
    ── Per theme, not one formula ────────────────────────────────────────────
    The two themes are genuinely different backgrounds now, not one geometry with
-   swapped stops: Midnight is a centred indigo bloom on black with a white wash
-   over it, paper is the pale sky dome from the handoff. So `--page-base` is
-   declared twice rather than built from tokens that swap underneath. The three
-   stops still come from `--sky-1/2/3` in the theme blocks above, so a palette
-   change is still a palette-block edit.
+   swapped stops: Midnight is a vertical night sky under a soft periwinkle glow,
+   paper is the pale sky dome from the handoff (still radial). So `--page-base`
+   is declared twice rather than built from tokens that swap underneath. The
+   three stops still come from `--sky-1/2/3` in the theme blocks above, so a
+   palette change is still a palette-block edit.
 
    `<html>`'s `background-color` is `--sky-3`, the outermost stop — the fill
    behind overscroll, and the one colour the gradient is guaranteed to end on. */
@@ -390,13 +397,57 @@ html[data-sky-hue="aurora"] {
 }
 
 html[data-theme="dark"] {
-  /* The wash fades to white-at-zero-alpha, never the keyword `transparent`
-     (= rgba(0,0,0,0)): a white → black-at-zero ramp can pick up a grey cast on
-     the way down. Same rule glass.css states for its specular lines. */
+  /* Glow over sky. Two layers, in paint order:
+
+       glow  — an ellipse of #a793f0 at 69%, 80% × 100% of the viewport, centred
+               at 50%/50%. It fades to the SAME hue at zero alpha, never the
+               keyword `transparent` (= rgba(0,0,0,0)): a colour → black-at-zero
+               ramp picks up a grey cast on the way down. Same rule glass.css
+               states for its specular lines. The tint is a literal because the
+               glow is one layer of one gradient — a token for it would widen
+               the palette every screen reads for a value nothing else can use.
+       sky   — a plain vertical ramp, top → mid at 10% → base. The three stops
+               are the `--sky-*` trio, so a palette change stays a palette-block
+               edit. At a 10% mid stop the top colour is a thin band along the
+               very edge and the ramp is really mid → base, which is what gives
+               the glow a near-flat field to bloom on.
+
+     The glow is still being auditioned — `BackgroundTweaks` on /settings is a
+     temporary live editor for exactly these numbers, and its Copy button emits
+     this declaration ready to paste back here. Delete both together.
+
+     Outgoing, newest first.
+
+     · Violet, narrower and higher-contrast than this one: 95% wide, centred at
+       44% so the bloom sat above the middle of the viewport.
+     · Periwinkle. Same two-layer geometry, a paler and far weaker glow over a
+       sky that held its top colour to 42%.
+     · A centred indigo bloom (radial sky, not linear) under a white wash. Both
+       layers were radial and shared a centre, which is why that one has no
+       `midStop` equivalent.*/
+
+     /*
+       --page-base:
+         radial-gradient(95% 100% at 50% 44%,
+           rgba(147, 117, 255, .65) 0%, rgba(147, 117, 255, 0) 100%),
+         linear-gradient(180deg,
+           var(--sky-1) 0%, var(--sky-2) 10%, var(--sky-3) 100%);
+
+       --page-base:
+         radial-gradient(95% 90% at 51% 44%,
+           rgba(184, 197, 255, .30) 0%, rgba(184, 197, 255, 0) 100%),
+         linear-gradient(180deg,
+           var(--sky-1) 0%, var(--sky-2) 42%, var(--sky-3) 100%);
+
+       --page-base:
+         radial-gradient(115% 115% at 47% 46%,
+           rgba(255, 255, 255, .14) 0%, rgba(255, 255, 255, 0) 62%),
+         radial-gradient(120% 120% at 47% 48%,
+           var(--sky-1) 0%, var(--sky-2) 10%, var(--sky-3) 100%);  */
   --page-base:
-    radial-gradient(115% 115% at 47% 46%,
-      rgba(255, 255, 255, .14) 0%, rgba(255, 255, 255, 0) 62%),
-    radial-gradient(120% 120% at 47% 48%,
+    radial-gradient(80% 100% at 50% 50%,
+      rgba(167, 147, 240, .69) 0%, rgba(167, 147, 240, 0) 100%),
+    linear-gradient(180deg,
       var(--sky-1) 0%, var(--sky-2) 10%, var(--sky-3) 100%);
 }
 

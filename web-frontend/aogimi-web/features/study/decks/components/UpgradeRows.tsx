@@ -29,8 +29,13 @@ export function UpgradeRows({ upgrades, onPick }: Props) {
   }
 
   if (upgrades.length === 0) {
+    // Wraps at roughly a row's width so the empty state can't stretch the
+    // section wider than the populated one.
     return (
-      <p className="m-0 py-1 font-[family-name:var(--face-ui)] text-[11.5px]" style={{ color: NIGHT.muted }}>
+      <p
+        className="m-0 max-w-[190px] py-1 font-[family-name:var(--face-ui)] text-[11.5px]"
+        style={{ color: NIGHT.muted }}
+      >
         No promotions yet — study and they&rsquo;ll appear here.
       </p>
     );
@@ -52,12 +57,17 @@ export function UpgradeRows({ upgrades, onPick }: Props) {
           className="flex w-full items-center gap-2.5 rounded-[7px] px-1 py-[5px] text-left hover:bg-white/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white"
         >
           <span
-            className="max-w-[110px] shrink-0 truncate font-[family-name:var(--face-jp)] text-[15px] leading-[1.15]"
+            // A fixed width, not max-content: every row then measures the same,
+            // so the dots and times align in columns and the section is exactly
+            // as wide as one row rather than as wide as the longest word.
+            className="w-[104px] shrink-0 truncate font-[family-name:var(--face-jp)] text-[15px] leading-[1.15]"
             style={{ color: NIGHT.ink }}
           >
             {u.front}
           </span>
-          <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+          {/* Intrinsic width so the transition hugs the word; the time stamp
+              below takes the slack and stays pinned right. */}
+          <span className="flex shrink-0 items-center gap-1.5">
             <span
               aria-hidden
               className="size-1.5 shrink-0 rounded-full"
@@ -74,12 +84,12 @@ export function UpgradeRows({ upgrades, onPick }: Props) {
                 boxShadow: `0 0 6px ${stageColor(u.stateAfter)}`,
               }}
             />
-          </span>
-          <span
-            className="w-[34px] shrink-0 text-right font-[family-name:var(--face-mono)] text-[9.5px] whitespace-nowrap"
-            style={{ color: NIGHT.faint }}
-          >
-            {relativeTime(u.reviewedAt)}
+            <span
+              className="ml-auto w-[34px] shrink-0 text-right font-[family-name:var(--face-mono)] text-[9.5px] whitespace-nowrap"
+              style={{ color: NIGHT.faint }}
+            >
+              {relativeTime(u.reviewedAt)}
+            </span>
           </span>
         </button>
       ))}

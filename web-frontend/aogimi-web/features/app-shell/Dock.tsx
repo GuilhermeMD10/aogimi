@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
-import { DOCK_PRIMARY, DOCK_SECONDARY, type DockKey } from './Dock.types';
+import { DOCK_PRIMARY, type DockKey } from './Dock.types';
 
 /**
  * The bottom dock — app chrome on every signed-in screen. Replaces
@@ -20,23 +21,35 @@ import { DOCK_PRIMARY, DOCK_SECONDARY, type DockKey } from './Dock.types';
  *    hover, and the active route gets a tile instead of a 5px dot.
  *  - **`aria-current="page"`** carries the active state, not colour alone.
  *
- * The dock is near-black in both themes and reads the `--dock-*` group for it.
- * The shadow and the divider are hardcoded: the handoff gives both the same
- * value in either theme, so a token would add a name that never varies.
+ * **It is glass now, not a near-black slab.** The "Aogimi — Dock Bar" handoff
+ * replaced the `--dock-*` group with a white-tinted frosted shell and a lit
+ * lavender pill that *slides* between entries. Everything the look depends on
+ * lives in `styles/glass.css` as the `--dock-glass-*` block and the three
+ * `.glass-dock*` classes — this file owns geometry and the measurement, not
+ * colour. `aria-current="page"` is now load-bearing twice over: it is the
+ * accessible state, the CSS hook for the active ink, and what the measurement
+ * queries for.
  *
  * Pages reserve `pb-[140px]` for it. The icons are inlined at the handoff's
  * geometry rather than taken from `shared/icons` (lucide) — that set is the
  * outgoing one and its shapes are not these.
  */
 
-const SHELL_SHADOW = '0 16px 36px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08)';
+/* Hairline between the two groups. Not a token: it is one value used once, and
+   the dock is white-on-dark in both themes so it never varies. */
 const DIVIDER = '#ffffff24';
 
+/* Vertical inset of the pill, and the shell padding that has to match it — the
+   pill is positioned against the shell's padding box, so `top/bottom: PAD` puts
+   its edges exactly on the items' edges. Change one, change the other. */
+const PAD = 8;
+
 const ITEM = [
+  // The press nudge is the app-wide one (`GLASS_PRESS`), not a dock-local copy.
+  'glass-dock-item glass-press',
   'flex items-center gap-[9px] rounded-(--radius-pill) px-[15px] py-2.5',
   'font-[family-name:var(--face-ui)] text-[13px] font-bold whitespace-nowrap',
-  'transition-colors duration-120 ease-[ease]',
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--dock-hover)',
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--dock-glass-ink-hover)',
 ].join(' ');
 
 // 20px, stroke 1.6, round caps — one shared shape for every dock glyph.
@@ -77,17 +90,13 @@ const ICONS: Record<DockKey, React.ReactNode> = {
       <path d="M8 5h8a2 2 0 0 1 2 2v9" />
     </Glyph>
   ),
-  home: (
-    <Glyph>
-      <path d="M4 11l8-6.5 8 6.5" />
-      <path d="M6.2 9.8V19.5h11.6V9.8" />
-    </Glyph>
-  ),
 };
 
 /** Routes with no dock entry of their own, mapped to the entry that stays lit.
  *  A study session is entered from Decks and exits back to it, so Decks owns it. */
 const ADOPTED_BY: Record<string, string> = { '/study': '/decks' };
+
+type PillBox = { left: number; width: number };
 
 export default function Dock() {
   const pathname = usePathname();
@@ -96,42 +105,96 @@ export default function Dock() {
   const name = user?.username ?? '';
   const initial = name.charAt(0).toUpperCase();
 
-  // `/` has to match exactly or Home would light up on every route. The others
-  // match their subtree, so `/reader/…` keeps Reader active.
+  /* ── The sliding pill ─────────────────────────────────────────────────────
+     The indicator is one absolutely-positioned element whose `left`/`width` are
+     the active item's measured box, so the browser tweens between two positions
+     instead of us cross-fading two tiles. `offsetLeft`/`offsetWidth` are read
+     rather than `getBoundingClientRect()` on purpose: both are relative to the
+     shell's padding box, which is also what `left` resolves against, so the two
+     agree even though the shell is `translate`d and horizontally scrollable.
+
+     The active item is found by querying `aria-current` rather than kept in a
+     ref map — the attribute is already the single source of truth for which
+     entry is lit, and a second one could drift from it. */
+  const shellRef = useRef<HTMLElement>(null);
+  const [pill, setPill] = useState<PillBox | null>(null);
+
+  const measure = useCallback(() => {
+    const active = shellRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!active) {
+      setPill(null);
+      return;
+    }
+    const { offsetLeft: left, offsetWidth: width } = active;
+    // Bail on an unchanged box: the ResizeObserver below fires on attach and on
+    // every reflow, and a fresh object each time would re-render for nothing.
+    setPill((prev) => (prev && prev.left === left && prev.width === width ? prev : { left, width }));
+  }, []);
+
+  // Before paint, so the pill never shows for a frame at the outgoing route's
+  // position. `pathname` is the trigger — a click is a navigation, not an event
+  // we handle here.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useLayoutEffect(measure, [measure, pathname]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Re-measure on anything that can move the items under a stationary route:
+  // the shell resizing (viewport, scrollbar, a longer username in the avatar
+  // pill) and the UI face landing after first paint.
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(shell);
+    document.fonts?.ready.then(measure);
+    return () => observer.disconnect();
+  }, [measure]);
+
+  // `/` has to match exactly or Reader — which owns the root now that the
+  // shelf is the landing page — would light up on every route. It loses
+  // nothing by not matching its subtree: `/reader/<bookId>` is an open book,
+  // and the dock isn't rendered there at all. The others match their subtree.
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
     if (ADOPTED_BY[pathname] === path) return true;
     return pathname === path || pathname.startsWith(`${path}/`);
   };
 
-  const renderItem = ({ key, label, path }: { key: DockKey; label: string; path: string }) => {
-    const active = isActive(path);
-    return (
-      <Link
-        key={key}
-        href={path}
-        aria-current={active ? 'page' : undefined}
-        className={`${ITEM} ${active ? 'text-(--dock-active-ink)' : 'text-(--dock-dim) hover:text-(--dock-hover)'}`}
-        style={active ? { background: 'var(--dock-active)' } : undefined}
-      >
-        {ICONS[key]}
-        <span>{label}</span>
-      </Link>
-    );
-  };
+  const renderItem = ({ key, label, path }: { key: DockKey; label: string; path: string }) => (
+    <Link key={key} href={path} aria-current={isActive(path) ? 'page' : undefined} className={ITEM}>
+      {ICONS[key]}
+      <span>{label}</span>
+    </Link>
+  );
 
   const profileActive = isActive('/profile');
 
   return (
     <nav
       aria-label="Main"
+      ref={shellRef}
       className={[
+        'glass-dock',
         'fixed bottom-[22px] left-1/2 z-60 -translate-x-1/2',
         'flex max-w-[calc(100vw-32px)] items-center gap-1 overflow-x-auto',
-        'rounded-(--radius-panel) border border-(--dock-bd) px-2.5 py-2',
+        'rounded-(--radius-panel) px-2.5',
       ].join(' ')}
-      style={{ background: 'var(--dock)', boxShadow: SHELL_SHADOW }}
+      style={{ paddingBlock: PAD }}
     >
+      {/* Kept mounted at all times so its `left`/`width` can tween. Until the
+          first measurement (and on a route with no dock entry) it is a
+          zero-width invisible box with transitions off, so it can't slide in
+          from the shell's left edge on the way to its first real position. */}
+      <span
+        aria-hidden
+        className="glass-dock-pill rounded-(--radius-pill)"
+        style={
+          pill
+            ? { top: PAD, bottom: PAD, left: pill.left, width: pill.width }
+            : { top: PAD, bottom: PAD, left: 0, width: 0, opacity: 0, transition: 'none' }
+        }
+      />
+
       {DOCK_PRIMARY.map(renderItem)}
 
       <span
@@ -140,8 +203,6 @@ export default function Dock() {
         style={{ background: DIVIDER }}
       />
 
-      {DOCK_SECONDARY.map(renderItem)}
-
       {/* Profile is an avatar, not a glyph — the same --avatar pair the TopBar
           pill uses, so the two chrome elements agree on what "you" looks like.
           Padding drops to 7px vertically because the 26px circle is taller
@@ -149,8 +210,7 @@ export default function Dock() {
       <Link
         href="/profile"
         aria-current={profileActive ? 'page' : undefined}
-        className={`${ITEM} py-[7px] ${profileActive ? 'text-(--dock-active-ink)' : 'text-(--dock-dim) hover:text-(--dock-hover)'}`}
-        style={profileActive ? { background: 'var(--dock-active)' } : undefined}
+        className={`${ITEM} py-[7px]`}
       >
         <span
           aria-hidden

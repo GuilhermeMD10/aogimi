@@ -2,7 +2,7 @@
 
 import { CopyPlus } from 'lucide-react';
 import { cn } from '@/lib/util/cn';
-import { HAIRLINE, JlptChip } from '@/shared/components';
+import { GLASS_ACTIVE, GLASS_BUTTON, GLASS_PRESS, GLASS_ROW, HAIRLINE, JlptChip } from '@/shared/components';
 import { preferredHeadword } from '../lib/headword';
 import { inflectionNote } from '../lib/inflection';
 import type { KanjiInfo, WordResult } from '../types';
@@ -16,34 +16,90 @@ import type { KanjiInfo, WordResult } from '../types';
  * local state) without either knowing which it is. That's the point: the two
  * surfaces should be the same list, not two lists that look alike.
  *
- * Row states, with only tokens to work from.
+ * ── Row states ──────────────────────────────────────────────────────────────
+ * **A row is not a pane.** `GLASS_ROW` carries the glass hover fill and nothing
+ * at rest — no fill, no border, no blur, no specular edge — and `ROW_LIST` rules
+ * a hairline between rows, so the rail reads as one running column. It spent a
+ * pass as a full `GLASS_BUTTON` and that was the wrong read: forty results as
+ * forty little frosted cards makes the eye count cards instead of scanning down
+ * the list, and the rail is a list.
  *
- * `--bd` is transparent by design, so the handoff's "hover tints to --card,
- * selected borders in --accent" gives two states that look identical to a
- * third one that looks like nothing. Instead: selected takes the accent edge,
- * hover takes the same faint mix `HAIRLINE` uses (written out because that
- * constant isn't a variant), and the headword goes accent on hover as the
- * handoff also specifies. Three states, three distinct readings, no new token.
+ * The interactions are still the app's: hover brightens the fill, `GLASS_PRESS`
+ * gives the same nudge as every other button, and the selected row is
+ * `GLASS_ACTIVE` — the `--active` tint, which is what "this is the selected one"
+ * means everywhere from the dock's pill to the library's filter chips. What is
+ * gone for good is the bespoke set: a transparent border that grew a `--muted`
+ * 35% mix on hover, an `--accent` edge when selected, and the headword turning
+ * `--accent` on hover.
+ *
+ * **The lit row flips every ink.** `--ink`/`--soft`/`--muted`/`--faint` are all
+ * light-on-dark at night, so on a pale tint they would disappear one after the
+ * other. `ROW_INK` is the two sets; take it with `rowInk(selected)` and read
+ * `.strong` / `.soft` / `.muted` / `.faint` off it. The dark side is
+ * `--active-ink` at four densities through `color-mix`, because Tailwind's
+ * slash-opacity can't apply to an arbitrary `var()` colour. `JlptChip` needs
+ * nothing — it is a solid pill with its own near-black ink, legible on anything.
  */
 export const ROW_SHELL = cn(
-  'group flex w-full items-start gap-2.5 rounded-(--radius-input) border px-3 py-[13px] text-left',
-  'transition-[border-color,color] duration-120 ease-[ease]',
+  GLASS_ROW,
+  GLASS_PRESS,
+  // No `group` any more — it existed only for the `group-hover:` accent swap on
+  // the headword, and the fill is the hover now.
+  'flex w-full items-start gap-2.5 rounded-(--radius-input) px-3 py-[13px] text-left',
 );
 
-export const ROW_IDLE = 'border-transparent hover:[border-color:color-mix(in_srgb,var(--muted)_35%,transparent)]';
+/**
+ * The list the rows sit in: no gap, and a hairline under every row but the last,
+ * which is what makes them read as connected rather than stacked.
+ *
+ * The colour is written out instead of composing `HAIRLINE`, and the rule is a
+ * child selector instead of `divide-y`, for one reason each. Tailwind scans
+ * source text for class names, so a template-interpolated
+ * `` `[&>li…]:${HAIRLINE}` `` is a class it never sees and never generates. And
+ * `border-color` is not inherited — globals' `*` rule gives every element its
+ * own `--color-border` — so setting the colour on the `<ul>` would leave the
+ * children's rules painted in the default instead.
+ */
+export const ROW_LIST = cn('flex flex-col gap-2');
 
-export const ROW_SELECTED = 'border-(--accent)';
+/** There is no `ROW_IDLE` any more: an idle row is a plain `GLASS_ROW` and the
+ *  hover lives in that recipe, so the constant had nothing left to hold. */
+export const ROW_SELECTED = GLASS_ACTIVE;
 
 export const ROW_FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)';
 
-/** The class pill next to the JLPT chip. Bordered, never filled. */
-export function ClassPill({ children }: { children: string }) {
+const ROW_INK = {
+  idle: {
+    strong: 'text-(--ink)',
+    soft: 'text-(--soft)',
+    muted: 'text-(--muted)',
+    faint: 'text-(--faint)',
+  },
+  selected: {
+    strong: 'text-(--active-ink)',
+    soft: '[color:color-mix(in_srgb,var(--active-ink)_78%,transparent)]',
+    muted: '[color:color-mix(in_srgb,var(--active-ink)_62%,transparent)]',
+    faint: '[color:color-mix(in_srgb,var(--active-ink)_45%,transparent)]',
+  },
+} as const;
+
+const rowInk = (selected: boolean) => (selected ? ROW_INK.selected : ROW_INK.idle);
+
+/** Hairline that survives the lit fill — `HAIRLINE` is a white mix and vanishes
+ *  on it, so a selected row's edges are drawn in the dark ink instead. */
+const EDGE_SELECTED = '[border-color:color-mix(in_srgb,var(--active-ink)_26%,transparent)]';
+
+/** The class pill next to the JLPT chip. Bordered, never filled — so it needs
+ *  both its ink and its edge flipped on a lit row. */
+export function ClassPill({ children, selected = false }: { children: string; selected?: boolean }) {
+  const ink = rowInk(selected);
   return (
     <span
       className={cn(
         'inline-flex items-center rounded-(--radius-chip) border px-[9px] py-0.5',
-        'font-[family-name:var(--face-mono)] text-[9.5px] tracking-[0.04em] uppercase text-(--muted)',
-        HAIRLINE,
+        'font-[family-name:var(--face-mono)] text-[9.5px] tracking-[0.04em] uppercase',
+        ink.muted,
+        selected ? EDGE_SELECTED : HAIRLINE,
       )}
     >
       {children}
@@ -51,8 +107,10 @@ export function ClassPill({ children }: { children: string }) {
   );
 }
 
-/** The add-to-deck affordance every row carries, and the one place the button
- *  fills on hover — a row is otherwise never filled. */
+/** The add-to-deck affordance every row carries. Glass on glass, like the
+ *  library hero's CTA — the `scale-105` + `--btn` fill it used to grow on hover
+ *  was the only place a row filled, and the row itself is filled now. Vermilion
+ *  survives the swap: it is legible on the idle glass and on the lit tint. */
 export function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
@@ -61,10 +119,9 @@ export function AddButton({ onClick, label }: { onClick: () => void; label: stri
       aria-label={label}
       title={label}
       className={cn(
-        'flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-(--radius-button) border bg-(--card) text-(--accent)',
-        'transition-[background-color,color,transform] duration-120 ease-[ease]',
-        'hover:scale-105 hover:bg-(--btn) hover:text-(--btn-ink)',
-        HAIRLINE,
+        GLASS_BUTTON,
+        GLASS_PRESS,
+        'flex size-8 shrink-0 items-center justify-center rounded-(--radius-button) text-(--accent)',
         ROW_FOCUS,
       )}
     >
@@ -100,6 +157,7 @@ export function WordRow({
   const pos = word.meanings[0]?.pos;
   // Only set when the query didn't match this entry directly — see Inflection.
   const note = inflectionNote(word.inflection);
+  const ink = rowInk(selected);
 
   return (
     <li className="flex items-start gap-1">
@@ -107,60 +165,54 @@ export function WordRow({
         type="button"
         onClick={onSelect}
         aria-current={selected ? 'true' : undefined}
-        className={cn(ROW_SHELL, selected ? ROW_SELECTED : ROW_IDLE, ROW_FOCUS, 'cursor-pointer')}
+        className={cn(ROW_SHELL, selected && ROW_SELECTED, ROW_FOCUS, 'cursor-pointer')}
       >
-        <span className="min-w-0 flex-1">
-          <span className="flex items-baseline gap-[9px]">
-            <span
-              className={cn(
-                'font-[family-name:var(--face-jp)] text-[21px] leading-none text-(--ink)',
-                !selected && 'group-hover:text-(--accent)',
+        <span className="min-w-0 flex-1 flex justify-between">
+          <span>
+            <span className="flex items-baseline gap-[9px]">
+              <span className={cn('font-[family-name:var(--face-jp)] text-[26px] leading-none', ink.strong)}>
+                {headword}
+              </span>
+              {reading && (
+                <span className={cn('font-[family-name:var(--face-mono)] text-[16px]', ink.muted)}>{reading}</span>
               )}
-            >
-              {headword}
-            </span>
-            {reading && (
-              <span className="font-[family-name:var(--face-mono)] text-[11px] text-(--muted)">{reading}</span>
-            )}
 
-            {/* Why an entry you didn't type is in the list: 食べた → 食べる. The
+              {/* Why an entry you didn't type is in the list: 食べた → 食べる. The
                 reader needs this most — a lookup there is almost always the
                 inflected form as it appears on the page — but it belongs on the
                 row rather than the entry pane, because it explains the *match*.
                 Truncates instead of wrapping so a long path can't add a line
                 and change the height of one row in the column. */}
-            {note && (
+              {note && (
+                <span
+                  title={`Matched by deinflection: ${note}`}
+                  className={cn('min-w-0 shrink truncate font-[family-name:var(--face-mono)] text-[10px]', ink.faint)}
+                >
+                  ← {note}
+                </span>
+              )}
+            </span>
+
+            {gloss && (
               <span
-                title={`Matched by deinflection: ${note}`}
-                className="min-w-0 shrink truncate font-[family-name:var(--face-mono)] text-[10px] text-(--faint)"
+                className={cn('mt-1.5 block font-[family-name:var(--face-ui)] text-[14px] leading-[1.4]', ink.soft)}
               >
-                ← {note}
+                {gloss}
+              </span>
+            )}
+
+            {(word.jlpt_level != null || pos) && (
+              <span className="mt-[9px] flex flex-wrap items-center gap-1.5">
+                <JlptChip level={word.jlpt_level} />
+                {pos && <ClassPill selected={selected}>{pos}</ClassPill>}
               </span>
             )}
           </span>
-
-          {gloss && (
-            <span className="mt-1.5 block font-[family-name:var(--face-ui)] text-[12.5px] leading-[1.4] text-(--soft)">
-              {gloss}
-            </span>
-          )}
-
-          {(word.jlpt_level != null || pos) && (
-            <span className="mt-[9px] flex flex-wrap items-center gap-1.5">
-              <JlptChip level={word.jlpt_level} />
-              {pos && <ClassPill>{pos}</ClassPill>}
-            </span>
-          )}
+          <div>
+            <AddButton onClick={onAdd} label={`Add ${headword} to a deck`} />
+          </div>
         </span>
       </button>
-
-      {/* A sibling of the row button, never a child of it — `AddButton` is a
-          `<button>`, and a button inside a button is invalid HTML that React
-          reports as a hydration error, with the nested control's click
-          behaviour left to the browser. Matches `KanjiRow`, which already had
-          it this way; the two rows share one list and now share one structure.
-          The `<li>`'s flex is what puts them side by side. */}
-      <AddButton onClick={onAdd} label={`Add ${headword} to a deck`} />
     </li>
   );
 }
@@ -183,48 +235,47 @@ export function KanjiRow({
   onSelect: () => void;
   onAdd: () => void;
 }) {
+  const ink = rowInk(selected);
+
   return (
     <li className="flex items-start gap-1">
       <button
         type="button"
         onClick={onSelect}
         aria-current={selected ? 'true' : undefined}
-        className={cn(ROW_SHELL, selected ? ROW_SELECTED : ROW_IDLE, ROW_FOCUS, 'cursor-pointer')}
+        className={cn(ROW_SHELL, selected && ROW_SELECTED, ROW_FOCUS, 'cursor-pointer')}
       >
         <span
           className={cn(
-            'flex size-[46px] shrink-0 items-center justify-center rounded-(--radius-tile) border bg-(--card)',
-            'font-[family-name:var(--face-jp)] text-[30px] leading-none text-(--ink)',
-            HAIRLINE,
+            'flex size-11.5 shrink-0 items-center justify-center rounded-(--radius-tile) border',
+            'font-(family-name:--face-jp) text-[30px] leading-none',
+            ink.strong,
+            selected ? EDGE_SELECTED : HAIRLINE,
           )}
         >
           {kanji.literal}
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="font-[family-name:var(--face-mono)] text-[9.5px] tracking-[0.14em] uppercase text-(--accent)">
+          <span className="font-(family-name:--face-mono) text-[9.5px] tracking-[0.14em] uppercase text-(--accent)">
             Kanji
           </span>
 
           {kanji.meanings.length > 0 && (
-            <span
-              className={cn(
-                'mt-0.5 block font-[family-name:var(--face-ui)] text-[12.5px] leading-[1.4] text-(--soft)',
-                !selected && 'group-hover:text-(--accent)',
-              )}
-            >
+            <span className={cn('mt-0.5 block font-(family-name:--face-ui) text-[12.5px] leading-[1.4]', ink.soft)}>
               {kanji.meanings.slice(0, 3).join(', ')}
             </span>
           )}
 
           <span className="mt-[9px] flex flex-wrap items-center gap-1.5">
             <JlptChip level={kanji.jlpt_level} />
-            {kanji.stroke_count != null && <ClassPill>{`${kanji.stroke_count} strokes`}</ClassPill>}
+            {kanji.stroke_count != null && <ClassPill selected={selected}>{`${kanji.stroke_count} strokes`}</ClassPill>}
           </span>
         </span>
+        <div>
+          <AddButton onClick={onAdd} label={`Add ${kanji.literal} to a deck`} />
+        </div>
       </button>
-
-      <AddButton onClick={onAdd} label={`Add ${kanji.literal} to a deck`} />
     </li>
   );
 }

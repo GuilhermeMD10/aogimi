@@ -11,10 +11,10 @@
    reflection/100, `k` = depth/25. These are the resolved Midnight values it
    ships as final — **blur 13, reflection 25%, depth 0**. The formulas are kept
    in the comments beside each value so a re-derive doesn't need the handoff
-   open. `depth = 0` means there is deliberately no drop shadow: `--glass-inset`
-   and `--glass-inset-sm` are inset-only lists. When depth comes back, its
-   `0 (8k)px (32k)px rgba(0,0,0, min(.1k,.5))` entry goes at the FRONT of both
-   lists — a `box-shadow` can't mix a separate `none` in.
+   open. `depth = 0` means there is deliberately no drop shadow: `--glass-inset-sm`
+   is an inset-only list. When depth comes back, its
+   `0 (8k)px (32k)px rgba(0,0,0, min(.1k,.5))` entry goes at the FRONT of the
+   list — a `box-shadow` can't mix a separate `none` in.
 
    ── Not theme-aware, on purpose ───────────────────────────────────────────
    The app is pinned to Midnight (see `FORCED_THEME` in ThemeProvider), so glass
@@ -30,19 +30,67 @@
    All four currently share one recipe and differ only in which parts of it they
    take. They are separate classes precisely so they can stop sharing.
 
-     .glass-surface   the continue-reading hero card — fill + blur, LARGE inner
+     .glass-surface   the continue-reading hero card — fill + blur, small inner
                       glow, both specular edges
      .glass-sheen     the edge treatment laid OVER imagery (hero cover, every
                       book cover) — no fill, no blur, small glow, both edges
      .glass-button    filter chips, the import button, the ⋯ circles — fill +
                       blur, small glow, top edge, hover brighten
-     .glass-sheet     the book card's slide-up hover panel — fill + small glow +
-                      top edge, and deliberately NO blur: it is one of up to
-                      MAX_BOOKS instances mounted at once (they sit translated
-                      off the card, not unmounted), and 50 live backdrop filters
-                      is a real cost for a blur that reads as almost nothing
-                      over cover art. Add `backdrop-filter` to the shared rule
-                      below to turn it on.
+     .glass-sheet     the book card's slide-up hover panel — top edge + blur,
+                      and the scrim pair rather than the white fill/glow. Note
+                      it is one of up to MAX_BOOKS instances mounted at once
+                      (they sit translated off the card, not unmounted), so its
+                      blur is up to ~50 live backdrop filters; drop the
+                      `backdrop-filter` from its rule if that ever costs.
+
+   And the dock's own set:
+
+     .glass-dock      the bottom nav shell — fill + blur, small inner glow,
+                      top specular line. No hover state at all (the handoff
+                      gives hover the same fill as idle).
+     .glass-dock-item one nav entry. Idle ink, hover fill + brighter ink for
+                      idle entries only, dark ink when `aria-current="page"`
+                      (the pill behind it supplies the light), press nudge.
+     .glass-dock-pill the sliding active indicator that sits behind the items.
+                      Tinted glass, not white — it is the one lit thing in the
+                      dock. Its `left`/`width` come from the active item's
+                      measured box, which is what makes the slide.
+
+   The dock's numbers are a **separate `--dock-glass-*` block** even where they
+   land on the same value as a `--glass-*` one (the shell's inner glow is
+   `--glass-inset-sm` to the decimal). That is deliberate: the dock is one
+   always-on-screen element with its own handoff and its own tweak pass, so it
+   has to be re-balanceable without touching the four surfaces that share the
+   reader/library recipe.
+
+   And one more surface that is deliberately NOT a pane:
+
+     .glass-row       a row in a ruled list — the dictionary rail's results.
+                      Nothing at rest (no fill, no border, no blur, no sheen),
+                      the glass hover fill on hover, and it accepts
+                      `.glass-active`. For a list that has to read as one running
+                      column: giving each row a pane turns a list into a stack of
+                      cards, and the eye then counts cards instead of scanning
+                      down. The rule *between* rows is the caller's — see
+                      `ROW_LIST` in ResultRow.tsx, which has to state the colour
+                      literally because `border-color` isn't inherited.
+
+   And three modifiers:
+
+     .glass-scrim     added to a `.glass-button` or a `.glass-surface` that
+                      wants the dark treatment: swaps the white fill + glow for
+                      the same scrim the sheet uses. **Only over cover art**
+                      (white-on-unknown-cover is unreadable) — the library used
+                      to take it wholesale and no longer does; see the scrim
+                      block in `:root`.
+     .glass-active    the selected state — swaps in the lit `--active` tint, the
+                      dark ink it carries, a brighter edge and a brighter glow,
+                      and neutralises hover. The dock's pill is the same recipe.
+                      This is the only way a glass control says "selected".
+     .glass-press     the press nudge (`translateY(1px) scale(.985)`). Not part
+                      of `.glass-button` because an element can only have one
+                      transform and two of the library's already use theirs, so
+                      it is opt-in per button.
 
    ── Layering ──────────────────────────────────────────────────────────────
    The specular lines are one `::before` overlay at z-index 3, `pointer-events:
@@ -57,24 +105,54 @@
 :root {
   --glass-blur: 13px;
 
-  /* fill: .15 night / .55 light · hover: .26 / .8 */
-  --glass-fill: rgba(255, 255, 255, 0.01);
-  --glass-fill-hover: rgba(255, 255, 255, 0.26);
+  /* fill: .15 night / .55 light · hover: .27 / .8
+     `.15` is the handoff's number, and it is also the dock shell's `--dock-glass-fill`
+     — deliberately the same value now. It had been tweaked down to `.01` (an
+     invisible fill) for as long as the library was painting every surface with
+     the scrim instead, which made the white fill dead code that nothing saw. The
+     library is back on white glass, so this is a real value again and the two
+     read as one material. */
+  --glass-fill: rgba(255, 255, 255, 0.15);
+  --glass-fill-hover: rgba(255, 255, 255, 0.27);
 
   /* border: 0.3 * r */
   --glass-bd: rgba(255, 255, 255, 0.075);
 
-  /* Large inner glow — top edge 0.5r, bottom edge 0.1r, glow r * 0.45 (night). */
-  --glass-inset:
-    inset 0 1px 0 rgba(255, 255, 255, 0.125),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.025),
-    inset 0 0 20px 10px rgba(255, 255, 255, 0.113);
-
-  /* Small inner glow — top 0.55r, bottom 0.15r, glow 0.3r. */
+  /* Small inner glow — top 0.55r, bottom 0.15r, glow 0.3r. Every surface takes
+     this one now, which is why the handoff's LARGE variant (`--glass-inset`, a
+     20px/10px glow at top .5r / bottom .1r / glow .45r) is gone: it existed for
+     the continue-reading hero alone, and the hero now wears the dock's glass
+     like everything else. One material, one glow. Re-deriving it if a big
+     surface ever wants its own again is three lines from the formulas above. */
   --glass-inset-sm:
     inset 0 1px 0 rgba(255, 255, 255, 0.138),
     inset 0 -1px 0 rgba(255, 255, 255, 0.038),
     inset 0 0 12px 2px rgba(255, 255, 255, 0.075);
+
+  /* ── The scrim pair: glass that lands ON cover art ─────────────────────────
+     Exactly two surfaces sit over arbitrary imagery with white content on them
+     — the sheet, and the ⋯ circle floating in a live cover's corner (the
+     re-import tile's cover is faded to 40%, so it counts as page, not as art).
+     Those two, and nothing else. Over a pale cover the
+     shared white fill gives them nothing to sit on and the content disappears;
+     blur alone doesn't buy contrast, it just smears the brightness it was
+     handed. So both take a dark scrim instead of `--glass-fill`, and a vignette
+     all round instead of the white `--glass-inset-sm`, which is what makes them
+     read as their own panel rather than as a lighter patch of the cover. The
+     white top hairline stays (it leads the list, so the dark doesn't bury it)
+     and the blur is unchanged.
+
+     The dark is the app's own `--bg`, not black: the surface then fades the
+     cover into the page it is sitting on instead of into a hole. `color-mix` is
+     how an alpha gets onto a hex token — and it means this is the one part of
+     glass that DOES follow the theme, since `--bg` is a per-theme token. That
+     is the intent; a light theme wants the cover fading into paper, not ink. */
+  --glass-scrim-fill: color-mix(in srgb, var(--bg) 25%, transparent);
+  --glass-scrim-fill-hover: color-mix(in srgb, var(--bg) 68%, transparent);
+  --glass-scrim-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.138),
+    inset 0 0 12px 0 color-mix(in srgb, var(--bg) 55%, transparent),
+    inset 0 0 34px 12px color-mix(in srgb, var(--bg) 35%, transparent);
 
   /* Specular lines — peak alpha 0.8 * r. Used as background layers, so they are
      gradients, not colours.
@@ -99,6 +177,84 @@
   /* The one transition glass owns. The rest of the app is on --transition
      (120ms); the handoff's glass hover is slower and softer than that. */
   --glass-transition: 180ms ease;
+
+  /* ── Active / selected glass ──────────────────────────────────────────────
+     The lit variant: what a selected chip or the dock's pill is made of. The
+     hue is `--active` from ds-tokens.css (theme-invariant, app-wide), and this
+     is the 65% density glass wants — a selected control has to read as lit
+     without becoming an opaque plate sitting on top of the frosted one.
+
+     Its reflection runs at r = .50 against the shell's .25: the thing that is
+     selected is the thing catching the light. Sheens and lines stay white on
+     purpose — they are the light hitting the surface, not the surface's colour,
+     so only the fill takes the tint. */
+  --glass-active-fill: color-mix(in srgb, var(--active) 65%, transparent);
+  --glass-active-ink: var(--active-ink);
+  --glass-active-bd: rgba(255, 255, 255, 0.175);
+  --glass-active-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.275),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.075),
+    inset 0 0 12px 2px rgba(255, 255, 255, 0.15);
+  --glass-active-hl: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.4),
+    rgba(255, 255, 255, 0)
+  );
+
+  /* The press nudge, shared by everything that takes `.glass-press`. Faster
+     than the hover fade on purpose: a press has to feel like contact, and
+     anything slower than ~120ms reads as lag rather than as a button moving. */
+  --glass-press: 120ms ease;
+
+  /* ── The dock ─────────────────────────────────────────────────────────────
+     From the "Aogimi — Dock Bar" handoff. Same derivation as above — `r` =
+     reflection/100, and the shell and the pill each get their own `r` — but
+     kept as its own block so the dock can be re-tweaked in isolation:
+
+       shell  tint #ffffff @ 15%  ·  blur 13px  ·  reflection 25%  (r = .25)
+       pill   tint #f2e2fd @ 65%  ·  blur 13px  ·  reflection 50%  (r = .50)
+
+     border = tint@(0.30r) · top sheen = tint@(0.55r) · bottom sheen =
+     tint@(0.15r) · inner glow = tint@(0.30r) · top line = tint@(0.80r).
+     The sheens and lines stay white on both — they are the light hitting the
+     surface, not the surface's own colour, so only the fill takes the tint. */
+  --dock-glass-blur: 13px;
+
+  --dock-glass-fill: rgba(255, 255, 255, 0.15);
+  --dock-glass-bd: rgba(255, 255, 255, 0.075);
+  --dock-glass-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.138),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.038),
+    inset 0 0 12px 2px rgba(255, 255, 255, 0.075);
+  --dock-glass-hl: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0)
+  );
+
+  /* The pill IS the shared active glass — the handoff's pill is where that
+     group came from. Kept as four aliases rather than reading --glass-active-*
+     straight from `.glass-dock-pill`: re-tweaking the dock's indicator on its
+     own then stays an edit to these four lines, and nothing else in the app
+     moves with it. */
+  --dock-glass-pill-fill: var(--glass-active-fill);
+  --dock-glass-pill-bd: var(--glass-active-bd);
+  --dock-glass-pill-inset: var(--glass-active-inset);
+  --dock-glass-pill-hl: var(--glass-active-hl);
+
+  /* Inks. The active one is dark because it sits on the lit pill. */
+  --dock-glass-ink: #9b9aa2;
+  --dock-glass-ink-hover: #f2f1ee;
+  --dock-glass-ink-active: var(--glass-active-ink);
+  --dock-glass-item-hover: rgba(255, 255, 255, 0.27);
+
+  /* Two speeds of its own: the pill's slide and the hover fades. The press
+     comes from `.glass-press` / --glass-press like every other button's. The
+     slide's easing is the standard-decelerate curve. */
+  --dock-glass-slide: 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  --dock-glass-transition: 180ms ease;
 }
 
 @layer components {
@@ -121,19 +277,47 @@
     backdrop-filter: blur(var(--glass-blur));
   }
 
-  .glass-surface {
-    box-shadow: var(--glass-inset);
-  }
-
-  .glass-button,
-  .glass-sheet {
+  .glass-surface,
+  .glass-button {
     box-shadow: var(--glass-inset-sm);
   }
 
   /* The sheet is a bottom panel clipped by its cover, so only its top edge is
-     ever visible — a full border would draw a line down the cover's sides. */
+     ever visible — a full border would draw a line down the cover's sides.
+     Fill and shadow are the scrim pair, overriding the shared white ones above. */
   .glass-sheet {
     border-width: 1px 0 0 0;
+    background: var(--glass-scrim-fill);
+    box-shadow: var(--glass-scrim-inset);
+    backdrop-filter: blur(var(--glass-blur));
+  }
+
+  /* Additive modifier: the dark variant of a button or a surface. It swaps just
+     the fill and the glow for the scrim pair and leaves everything else the
+     host already owns — the blur, the cursor, the hover transition, the
+     specular edges.
+
+     It is the fix for buttons sitting ON cover art (the ⋯ circles), where a
+     white fill vanishes against a pale cover. That is now its ONLY job. The
+     library did spend a while wearing it wholesale — chips, import and resume
+     buttons, the continue-reading panel, none of which have a cover to hide —
+     on the argument that the scrim read as the better glass on a dark page and
+     one screen wants one glass. The one-glass half of that still holds; the
+     glass it picked changed. The library is white glass at the dock's values
+     now, so the scrim is back to being a compensation rather than a look, and
+     the two surfaces that genuinely need it are the two that take it.
+
+     Compound selectors so it beats the plain `.glass-*` rules regardless of
+     which is written first. Listed per host rather than as a bare `.glass-scrim`
+     so it can never fire on an element that has no glass under it. */
+  .glass-surface.glass-scrim,
+  .glass-button.glass-scrim {
+    background: var(--glass-scrim-fill);
+    box-shadow: var(--glass-scrim-inset);
+  }
+
+  .glass-button.glass-scrim:hover:not(:disabled) {
+    background: var(--glass-scrim-fill-hover);
   }
 
   .glass-button {
@@ -141,7 +325,8 @@
     transition:
       background var(--glass-transition),
       border-color var(--glass-transition),
-      color var(--glass-transition);
+      color var(--glass-transition),
+      transform var(--glass-press);
   }
 
   .glass-button:hover:not(:disabled) {
@@ -150,6 +335,96 @@
 
   .glass-button:disabled {
     cursor: default;
+  }
+
+  /* ── The row ─────────────────────────────────────────────────────────────
+     Glass ink without the pane. It shares `.glass-button`'s hover fill and
+     transition and owns nothing else, so a list of these reads as one column
+     with a lit row in it rather than as a stack of little cards.
+
+     `position: relative` is here for the same reason it is on the surfaces — an
+     absolutely-positioned child inside a row should measure against the row —
+     but there is deliberately no `::before`: the specular top line is what makes
+     something a pane, and this is not one. A selected row is lit by fill and
+     glow alone. */
+  .glass-row {
+    position: relative;
+    background: transparent;
+    cursor: pointer;
+    transition:
+      background var(--glass-transition),
+      color var(--glass-transition),
+      transform var(--glass-press);
+  }
+
+  .glass-row:hover:not(:disabled) {
+    background: var(--glass-fill-hover);
+  }
+
+  /* ── The selected state ──────────────────────────────────────────────────
+     Additive modifier, same shape as `.glass-scrim`: it swaps the fill, the
+     ink, the edge and the glow for the lit set and leaves the blur, the cursor
+     and the geometry to the host. This is the ONE way a glass control says "I
+     am the selected one" — the library's filter chips were doing it with
+     shadcn's `bg-primary` (`--btn`, so black on paper and white at night) and
+     announcing hover with a `--gold` edge, which made selected-vs-hover a
+     hue comparison rather than a brightness one.
+
+     `:hover` is neutralised rather than left to the host: an already-lit
+     control has nothing to brighten to, and the white hover fill landing on
+     top of the tint just desaturates it. Same reasoning as the dock, where an
+     active item's hover fill is suppressed because the pill is already there.
+
+     Listed per host so it can never fire on an element with no glass under it,
+     and after both `.glass-*` and `.glass-scrim` so it wins on source order as
+     well as on specificity. `.glass-row` is a host: it has no pane, but it does
+     have the fill and the transition, which is what the lit state needs. */
+  .glass-surface.glass-active,
+  .glass-button.glass-active,
+  .glass-row.glass-active {
+    background: var(--glass-active-fill);
+    border-color: var(--glass-active-bd);
+    box-shadow: var(--glass-active-inset);
+    color: var(--glass-active-ink);
+  }
+
+  .glass-button.glass-active:hover:not(:disabled),
+  .glass-row.glass-active:hover:not(:disabled) {
+    background: var(--glass-active-fill);
+  }
+
+  /* ── The press nudge ─────────────────────────────────────────────────────
+     One class, every button that should feel like it takes weight: the dock's
+     entries, the library's chips, its import, resume, ⋯ and menu rows, and the
+     selected-state toggles across settings and the reader.
+
+     Deliberately NOT folded into `.glass-button`. Two of the page's glass
+     elements already own their transform — the book card lifts on hover — and a
+     second transform on the same element is not additive, it is a replacement.
+     So the nudge is opt-in per button.
+
+     `transform` is in `.glass-button`'s and `.glass-dock-item`'s transition
+     lists as well as this one. It has to be: `transition` is a shorthand, so on
+     an element matching both classes the later rule's list REPLACES this one
+     rather than merging with it, and the fades or the nudge would silently stop
+     easing depending on source order. Every list that can win names transform.
+
+     `:not(:disabled)` so a disabled button doesn't answer a click it is
+     ignoring. `active` is the CSS pseudo-class here (mouse held down) and has
+     nothing to do with `.glass-active` above — one is the gesture, the other is
+     the state. */
+  .glass-press {
+    transition: transform var(--glass-press);
+  }
+
+  .glass-press:active:not(:disabled) {
+    transform: translateY(1px) scale(0.985);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .glass-press:active:not(:disabled) {
+      transform: none;
+    }
   }
 
   /* Over imagery: the edge treatment with nothing behind it to frost. */
@@ -203,5 +478,93 @@
     background-size:
       100% 1px,
       1px 100%;
+  }
+
+  /* A selected control's top line is the brighter one — the same step up its
+     fill and its inner glow take. The surface keeps its left line, so its list
+     stays two layers long. */
+  .glass-button.glass-active::before {
+    background-image: var(--glass-active-hl);
+  }
+
+  .glass-surface.glass-active::before {
+    background-image: var(--glass-active-hl), var(--glass-vl);
+  }
+
+  /* ── The dock ────────────────────────────────────────────────────────────
+     Three classes, one composed surface: shell → pill → items, painted in
+     that order. `position: relative` on the shell is load-bearing twice over
+     — it is the pill's containing block AND the offsetParent the pill's
+     measured `left`/`width` are read from, so the two can't disagree. */
+
+  .glass-dock {
+    position: relative;
+    background: var(--dock-glass-fill);
+    border: 1px solid var(--dock-glass-bd);
+    box-shadow: var(--dock-glass-inset);
+    backdrop-filter: blur(var(--dock-glass-blur));
+  }
+
+  /* The pill's `left`/`width` arrive as inline styles from the measurement,
+     and `opacity` is what hides it on a route with no dock entry — a width of
+     0 would still slide in from the left edge on the way back. */
+  .glass-dock-pill {
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    background: var(--dock-glass-pill-fill);
+    border: 1px solid var(--dock-glass-pill-bd);
+    box-shadow: var(--dock-glass-pill-inset);
+    backdrop-filter: blur(var(--dock-glass-blur));
+    transition:
+      left var(--dock-glass-slide),
+      width var(--dock-glass-slide),
+      opacity 200ms ease;
+  }
+
+  /* Items ride above the pill and stay transparent — the pill is the only
+     thing that fills behind an active entry, which is what lets it slide
+     rather than cross-fade between two tinted boxes. */
+  .glass-dock-item {
+    position: relative;
+    z-index: 1;
+    color: var(--dock-glass-ink);
+    background: transparent;
+    transition:
+      background var(--dock-glass-transition),
+      color var(--dock-glass-transition),
+      transform var(--glass-press);
+  }
+
+  /* Idle only. An active item is already sitting on the pill, so a hover fill
+     there would read as a second, misaligned tile. */
+  .glass-dock-item:not([aria-current='page']):hover {
+    background: var(--dock-glass-item-hover);
+    color: var(--dock-glass-ink-hover);
+  }
+
+  .glass-dock-item[aria-current='page'] {
+    color: var(--dock-glass-ink-active);
+  }
+
+  /* The shell's own lit top edge, and the pill's brighter one. Same
+     `border-radius: inherit` trick as the surfaces above — each line stops
+     where its host's rounded corner does. */
+  .glass-dock::before,
+  .glass-dock-pill::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    border-radius: inherit;
+    background-repeat: no-repeat;
+    background-position: top left;
+    background-image: var(--dock-glass-hl);
+    background-size: 100% 1px;
+  }
+
+  .glass-dock-pill::before {
+    background-image: var(--dock-glass-pill-hl);
   }
 }

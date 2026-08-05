@@ -26,7 +26,7 @@ export function AccountCard() {
     <PaperCard aria-labelledby="profile-account">
       <div className="px-6 pt-5 pb-3.5">
         <h2 id="profile-account" className="font-[family-name:var(--face-ui)] text-[22px] font-bold text-(--ink)">
-          Simao
+          Account
         </h2>
       </div>
 

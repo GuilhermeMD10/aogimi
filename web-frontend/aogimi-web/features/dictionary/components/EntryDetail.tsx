@@ -1,7 +1,7 @@
 'use client';
 
 import { CopyPlus } from 'lucide-react';
-import { Button, Eyebrow, HAIRLINE, JlptChip, Skeleton } from '@/shared/components';
+import { Button, Eyebrow, GLASS_BUTTON, GLASS_PRESS, HAIRLINE, JlptChip, Skeleton } from '@/shared/components';
 import type { CardDraft } from '@/features/study/decks';
 import { cn } from '@/lib/util/cn';
 import { Constellation } from './Constellation';
@@ -38,13 +38,13 @@ const LOCAL: Record<
     charGlyph: 'text-[15px]',
     charGrade: 'text-[10px]',
     meaningRow: 'gap-3.5 py-[13px]',
-    meaningNum: 'text-[13px]',
-    meaningText: 'text-base leading-[1.5]',
+    meaningNum: 'text-[16px]',
+    meaningText: 'text-[18px] leading-[1.5]',
     kanjiSkeleton: 'h-[142px]',
     sentenceRow: 'items-center gap-[22px] py-4',
-    sentenceJa: 'text-[19px] leading-[1.5]',
-    sentenceEn: 'mt-[5px] text-[15px]',
-    sentenceChip: 'px-3 py-[5px] text-[10.5px] whitespace-nowrap',
+    sentenceJa: 'text-[20px] leading-[1.5]',
+    sentenceEn: 'mt-[5px] text-[16px]',
+    sentenceChip: 'px-3 py-[5px] text-[12px] whitespace-nowrap',
     sentenceSkeleton: 'mt-4 h-[62px]',
   },
   compact: {
@@ -141,22 +141,15 @@ export function EntryDetail({
         <div className="relative">
           {onBack && <EntryBack onClick={onBack} />}
 
-          <Eyebrow className={pane.eyebrow}>Dictionary · 辞書</Eyebrow>
-
           <div className={pane.heroRow}>
             <div className={pane.heroMain}>
               <div>
-                <h1 className={cn('font-[family-name:var(--face-jp)] text-(--ink)', pane.headword)}>
+                <h1 className={cn('font-[family-name:var(--face-jp)] text-(--ink) pt-10', pane.headword)}>
                   {headword}
                 </h1>
 
                 {primaryReading && (
-                  <p
-                    className={cn(
-                      'font-[family-name:var(--face-mono)] text-(--muted)',
-                      pane.reading,
-                    )}
-                  >
+                  <p className={cn('font-[family-name:var(--face-mono)] text-(--muted)', pane.reading)}>
                     {primaryReading.form}
                   </p>
                 )}
@@ -185,28 +178,22 @@ export function EntryDetail({
                       type="button"
                       onClick={() => onKanjiSelect(char)}
                       className={cn(
-                        'inline-flex cursor-pointer items-center gap-[5px] rounded-(--radius-cover) border bg-(--card)',
-                        'transition-[border-color] duration-120 ease-[ease] hover:border-(--accent)',
+                        // Same glass as the kanji cards below, which is the same
+                        // character at a bigger size — a `--accent` edge on hover
+                        // here and a brightening fill down there would have been
+                        // two answers to one gesture.
+                        GLASS_BUTTON,
+                        GLASS_PRESS,
+                        'inline-flex items-center gap-[5px] rounded-(--radius-cover)',
                         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
                         local.charChip,
-                        HAIRLINE,
                       )}
                     >
-                      <span
-                        className={cn(
-                          'font-[family-name:var(--face-jp)] text-(--ink)',
-                          local.charGlyph,
-                        )}
-                      >
+                      <span className={cn('font-[family-name:var(--face-jp)] text-(--ink)', local.charGlyph)}>
                         {char}
                       </span>
                       {grade != null && (
-                        <span
-                          className={cn(
-                            'font-[family-name:var(--face-mono)] text-(--muted)',
-                            local.charGrade,
-                          )}
-                        >
+                        <span className={cn('font-[family-name:var(--face-mono)] text-(--muted)', local.charGrade)}>
                           G{grade}
                         </span>
                       )}
@@ -217,19 +204,12 @@ export function EntryDetail({
 
               {primaryReading?.pitchAccents && (
                 <div className={pane.pitch}>
-                  <PitchAccent
-                    reading={primaryReading.form}
-                    pitchAccents={primaryReading.pitchAccents}
-                  />
+                  <PitchAccent reading={primaryReading.form} pitchAccents={primaryReading.pitchAccents} />
                 </div>
               )}
             </div>
 
-            <Button
-              icon={<CopyPlus size={18} strokeWidth={2} />}
-              onClick={addCard}
-              className={pane.action}
-            >
+            <Button icon={<CopyPlus size={18} strokeWidth={2} />} onClick={addCard} className={pane.action}>
               Add to deck
             </Button>
           </div>
@@ -241,27 +221,16 @@ export function EntryDetail({
         <div className={cn('grid', pane.grid)}>
           {meanings.length > 0 && (
             <section>
-              <SectionLabel en="Meanings" jp="意味" />
+              <SectionLabel en="Meanings" jp="" />
               <div className="flex flex-col">
                 {meanings.map((m, i) => (
-                  <div
-                    key={`${m.lang}-${i}`}
-                    className={cn('flex border-t', local.meaningRow, HAIRLINE)}
-                  >
+                  <div key={`${m.lang}-${i}`} className={cn('flex border-t', local.meaningRow, HAIRLINE)}>
                     <span
-                      className={cn(
-                        'shrink-0 font-[family-name:var(--face-mono)] text-(--accent)',
-                        local.meaningNum,
-                      )}
+                      className={cn('shrink-0 font-[family-name:var(--face-mono)] text-(--accent)', local.meaningNum)}
                     >
                       {i + 1}
                     </span>
-                    <p
-                      className={cn(
-                        'font-[family-name:var(--face-ui)] text-(--ink)',
-                        local.meaningText,
-                      )}
-                    >
+                    <p className={cn('font-[family-name:var(--face-ui)] text-(--ink)', local.meaningText)}>
                       {m.meaning}
                     </p>
                   </div>
@@ -275,7 +244,7 @@ export function EntryDetail({
               *failed* request keeps it, and says so. */}
           {(detailsLoading || detailsError || kanjis.length > 0) && (
             <section>
-              <SectionLabel en="Kanji in this word" jp="漢字" />
+              <SectionLabel en="Kanji in this word" jp="" />
               <div className="flex flex-col gap-3">
                 {detailsError ? (
                   <FailedSection what="the kanji breakdown" />
@@ -285,9 +254,7 @@ export function EntryDetail({
                     <Skeleton className={cn('w-full', local.kanjiSkeleton)} />
                   </>
                 ) : (
-                  kanjis.map((k) => (
-                    <KanjiCard key={k.literal} kanji={k} onSelect={onKanjiSelect} scale={scale} />
-                  ))
+                  kanjis.map((k) => <KanjiCard key={k.literal} kanji={k} onSelect={onKanjiSelect} scale={scale} />)
                 )}
               </div>
             </section>
@@ -296,7 +263,7 @@ export function EntryDetail({
 
         {(detailsLoading || detailsError || sentences.length > 0) && (
           <section className={pane.section}>
-            <SectionLabel en="Example sentences" jp="例文" />
+            <SectionLabel en="Example sentences" jp="" />
             <div className="flex flex-col">
               {detailsError ? (
                 <FailedSection what="example sentences" />
@@ -307,38 +274,22 @@ export function EntryDetail({
                 </>
               ) : (
                 sentences.map((s) => (
-                  <div
-                    key={s.id}
-                    className={cn('flex border-t', local.sentenceRow, HAIRLINE)}
-                  >
+                  <div key={s.id} className={cn('flex border-t', local.sentenceRow, HAIRLINE)}>
                     <div className="min-w-0 flex-1">
                       {s.jaRuby ? (
                         <div
-                          className={cn(
-                            'font-[family-name:var(--face-jp)] text-(--ink)',
-                            local.sentenceJa,
-                          )}
+                          className={cn('font-[family-name:var(--face-jp)] text-(--ink)', local.sentenceJa)}
                           // Curated import of Kanjium's sentences.txt — a fixed
                           // format carrying only <ruby>/<rb>/<rp>/<rt>. No user
                           // content reaches this branch.
                           dangerouslySetInnerHTML={{ __html: s.jaRuby }}
                         />
                       ) : (
-                        <div
-                          className={cn(
-                            'font-[family-name:var(--face-jp)] text-(--ink)',
-                            local.sentenceJa,
-                          )}
-                        >
+                        <div className={cn('font-[family-name:var(--face-jp)] text-(--ink)', local.sentenceJa)}>
                           {s.ja}
                         </div>
                       )}
-                      <p
-                        className={cn(
-                          'font-[family-name:var(--face-ui)] italic text-(--soft)',
-                          local.sentenceEn,
-                        )}
-                      >
+                      <p className={cn('font-[family-name:var(--face-ui)] italic text-(--soft)', local.sentenceEn)}>
                         {s.en}
                       </p>
                     </div>
@@ -365,12 +316,7 @@ export function EntryDetail({
           </section>
         )}
 
-        <p
-          className={cn(
-            'text-right font-[family-name:var(--face-mono)] text-(--faint)',
-            pane.source,
-          )}
-        >
+        <p className={cn('text-right font-[family-name:var(--face-mono)] text-(--faint)', pane.source)}>
           Source · JMdict{sentences.length > 0 && ' · Tatoeba (via Kanjium)'}
         </p>
       </div>
@@ -383,8 +329,6 @@ export function EntryDetail({
  *  a different and wrong statement. */
 function FailedSection({ what }: { what: string }) {
   return (
-    <p className="py-2 font-[family-name:var(--face-ui)] text-[13px] text-(--muted)">
-      Couldn&rsquo;t load {what}.
-    </p>
+    <p className="py-2 font-[family-name:var(--face-ui)] text-[13px] text-(--muted)">Couldn&rsquo;t load {what}.</p>
   );
 }

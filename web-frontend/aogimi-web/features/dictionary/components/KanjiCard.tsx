@@ -1,5 +1,5 @@
 import { cn } from '@/lib/util/cn';
-import { HAIRLINE, JlptChip } from '@/shared/components';
+import { GLASS_BUTTON, GLASS_PRESS, GLASS_SURFACE, JlptChip } from '@/shared/components';
 import type { EntryScale } from '../lib/entryScale';
 import type { KanjiInfo } from '../types';
 
@@ -15,28 +15,34 @@ import type { KanjiInfo } from '../types';
  * The label column narrows with `scale` but stays fixed-width within a scale:
  * sizing it to its content would let two stacked cards disagree by a few pixels,
  * which is the one thing this layout exists to prevent.
+ *
+ * **These are panes, and they are where the glass went.** The rail's rows gave up
+ * their panes to read as a list; a kanji card is the opposite — a handful of
+ * discrete objects, each a whole character with its readings, which is exactly
+ * what a pane is for. So the card is `GLASS_SURFACE` when it is display-only and
+ * `GLASS_BUTTON` + `GLASS_PRESS` when it jumps to that kanji's entry, replacing
+ * a `bg-(--card)` box inside a `HAIRLINE` border that hovered to an `--accent`
+ * edge. Hover is the fill now, here as everywhere.
  */
-const SCALE: Record<
-  EntryScale,
-  { shell: string; glyph: string; label: string; rows: string; ui: string; jp: string }
-> = {
-  full: {
-    shell: 'gap-4 px-[18px] py-4',
-    glyph: 'text-[54px]',
-    label: 'w-[58px]',
-    rows: 'gap-[7px]',
-    ui: 'text-[13.5px]',
-    jp: 'text-sm',
-  },
-  compact: {
-    shell: 'gap-3 px-3 py-3',
-    glyph: 'text-[38px]',
-    label: 'w-[44px]',
-    rows: 'gap-1.5',
-    ui: 'text-[13px]',
-    jp: 'text-[13px]',
-  },
-};
+const SCALE: Record<EntryScale, { shell: string; glyph: string; label: string; rows: string; ui: string; jp: string }> =
+  {
+    full: {
+      shell: 'gap-4 px-[18px] py-4',
+      glyph: 'text-[54px]',
+      label: 'w-[58px]',
+      rows: 'gap-[7px]',
+      ui: 'text-[16px]',
+      jp: 'text-md',
+    },
+    compact: {
+      shell: 'gap-3 px-3 py-3',
+      glyph: 'text-[38px]',
+      label: 'w-[44px]',
+      rows: 'gap-1.5',
+      ui: 'text-[13px]',
+      jp: 'text-[13px]',
+    },
+  };
 
 export function KanjiCard({
   kanji,
@@ -68,9 +74,7 @@ export function KanjiCard({
 
   const body = (
     <>
-      <span
-        className={cn('shrink-0 font-[family-name:var(--face-jp)] leading-none text-(--ink)', s.glyph)}
-      >
+      <span className={cn('shrink-0 font-[family-name:var(--face-jp)] leading-none text-(--ink)', s.glyph)}>
         {kanji.literal}
       </span>
 
@@ -101,14 +105,12 @@ export function KanjiCard({
     </>
   );
 
-  const shell = cn(
-    'flex w-full rounded-(--radius-input) border bg-(--card) text-left',
-    s.shell,
-    HAIRLINE,
-  );
+  const shell = cn('flex w-full rounded-(--radius-input) text-left', s.shell);
 
+  // No `onSelect` → nothing to click, so it takes the pane without the hover and
+  // the cursor `GLASS_BUTTON` would bring.
   if (!onSelect) {
-    return <div className={shell}>{body}</div>;
+    return <div className={cn(GLASS_SURFACE, shell)}>{body}</div>;
   }
 
   return (
@@ -116,8 +118,9 @@ export function KanjiCard({
       type="button"
       onClick={() => onSelect(kanji.literal)}
       className={cn(
+        GLASS_BUTTON,
+        GLASS_PRESS,
         shell,
-        'cursor-pointer transition-[border-color,opacity] duration-120 ease-[ease] hover:border-(--accent)',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
       )}
     >

@@ -13,10 +13,11 @@ const ALWAYS_DICT_VISIBLE_ROUTES = new Set(['/dictionary']);
 
 function isDictSurfaceVisible(pathname: string, sidekickOpen: boolean): boolean {
   if (ALWAYS_DICT_VISIBLE_ROUTES.has(pathname)) return true;
-  // A prefix test, not equality: the reader is `/reader/<bookId>`. Matching
-  // `/reader` exactly would be true only on the library shelf, which has no
-  // sidekick — so every in-book lookup would pop the bubble over the panel
-  // that was already showing it.
+  // A prefix test, not equality: the reader is `/reader/<bookId>`, and bare
+  // `/reader` is just that route's parent segment with no page behind it. The
+  // sidekick only exists inside a book, so the prefix is what has to match —
+  // otherwise every in-book lookup would pop the floating bubble over the
+  // docked panel that was already showing it.
   if (pathname.startsWith('/reader/') && sidekickOpen) return true;
   return false;
 }

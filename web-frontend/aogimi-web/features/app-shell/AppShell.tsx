@@ -22,8 +22,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // float over the page text rather than below it. Leaving a book is the
   // toolbar's back button, and the dock comes back with the shelf.
   //
-  // A prefix test, not equality — `/reader` *is* the shelf and keeps its dock;
-  // `/reader/<bookId>` is a book.
+  // A prefix test, not equality. `/reader` has no page of its own — it is only
+  // the `[bookId]` parent segment, since the shelf moved to `/` — but the test
+  // stays a prefix so it can never match that bare segment by accident.
   const isOpenBook = pathname.startsWith('/reader/');
 
   // Pages whose render set depends on the auth-vs-route relationship. We

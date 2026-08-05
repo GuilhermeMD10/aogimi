@@ -14,7 +14,6 @@
 
 export { Button } from './Button';
 export { Card } from './Card';
-export { CardHeader } from './CardHeader';
 export { Chip } from './Chip';
 export { CoverTile } from './CoverTile';
 export { Eyebrow } from './Eyebrow';
@@ -25,7 +24,16 @@ export { ProgressTrack } from './ProgressTrack';
 export { Skeleton } from './Skeleton';
 export { SkyBar } from './SkyBar';
 export { HAIRLINE, DASHED } from './hairline';
-export { GLASS_SURFACE, GLASS_SHEEN, GLASS_BUTTON, GLASS_SHEET } from './glass';
+export {
+  GLASS_SURFACE,
+  GLASS_SHEEN,
+  GLASS_BUTTON,
+  GLASS_SHEET,
+  GLASS_ROW,
+  GLASS_SCRIM,
+  GLASS_ACTIVE,
+  GLASS_PRESS,
+} from './glass';
 export { StageDot, stageColor, stageLabel } from './StageDot';
 export type { Stage } from './StageDot';
 export { coverPalette } from './coverPalette';

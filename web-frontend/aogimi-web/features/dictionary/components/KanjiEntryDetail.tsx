@@ -12,10 +12,7 @@ import { ENTRY_SCALE, type EntryScale } from '../lib/entryScale';
 import type { KanjiInfo } from '../types';
 
 /** Values only this pane uses — see `lib/entryScale.ts` for the shared ones. */
-const LOCAL: Record<
-  EntryScale,
-  { frame: string; frameGlyph: string; meanings: string; readings: string }
-> = {
+const LOCAL: Record<EntryScale, { frame: string; frameGlyph: string; meanings: string; readings: string }> = {
   full: {
     frame: 'size-[132px] rounded-(--radius-card)',
     frameGlyph: 'text-[84px]',
@@ -81,37 +78,23 @@ export function KanjiEntryDetail({
         <div className="relative">
           {onBack && <EntryBack onClick={onBack} />}
 
-          <Eyebrow className={pane.eyebrow}>Kanji · 漢字</Eyebrow>
+          <Eyebrow className={pane.eyebrow}>Kanji</Eyebrow>
 
           <div className={pane.heroRow}>
             <div className={pane.heroMain}>
               {/* The ruled block is the tell: a word entry sets its headword as
                   bare type, a character sits in a frame. */}
               <div
-                className={cn(
-                  'flex shrink-0 items-center justify-center border-2 bg-(--card)',
-                  local.frame,
-                  HAIRLINE,
-                )}
+                className={cn('flex shrink-0 items-center justify-center border-2 bg-(--card)', local.frame, HAIRLINE)}
               >
-                <span
-                  className={cn(
-                    'font-[family-name:var(--face-jp)] leading-none text-(--ink)',
-                    local.frameGlyph,
-                  )}
-                >
+                <span className={cn('font-[family-name:var(--face-jp)] leading-none text-(--ink)', local.frameGlyph)}>
                   {kanji.literal}
                 </span>
               </div>
 
               <div className={pane.besidePad}>
                 {kanji.meanings.length > 0 && (
-                  <p
-                    className={cn(
-                      'font-[family-name:var(--face-ui)] leading-tight text-(--ink)',
-                      local.meanings,
-                    )}
-                  >
+                  <p className={cn('font-[family-name:var(--face-ui)] leading-tight text-(--ink)', local.meanings)}>
                     {kanji.meanings.join(', ')}
                   </p>
                 )}
@@ -136,11 +119,7 @@ export function KanjiEntryDetail({
               </div>
             </div>
 
-            <Button
-              icon={<CopyPlus size={18} strokeWidth={2} />}
-              onClick={addCard}
-              className={pane.action}
-            >
+            <Button icon={<CopyPlus size={18} strokeWidth={2} />} onClick={addCard} className={pane.action}>
               Add to deck
             </Button>
           </div>
@@ -180,12 +159,7 @@ export function KanjiEntryDetail({
           )}
         </div>
 
-        <p
-          className={cn(
-            'text-right font-[family-name:var(--face-mono)] text-(--faint)',
-            pane.source,
-          )}
-        >
+        <p className={cn('text-right font-[family-name:var(--face-mono)] text-(--faint)', pane.source)}>
           Source · KANJIDIC2
         </p>
       </div>

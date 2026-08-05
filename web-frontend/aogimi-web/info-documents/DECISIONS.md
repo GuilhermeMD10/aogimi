@@ -1265,3 +1265,264 @@ simply never populated it. This change is the first thing that does.
   adding the same headword twice from two different sources won't remount it and
   seeded phase state won't reseed. Pre-existing; more visible now that the phase
   seeds more.
+
+---
+
+## Dock as glass, and one `--active` colour (2026-08-05)
+
+The Dock Bar handoff replaces the near-black dock slab with a frosted shell and
+a lit pill that slides between entries. Decisions from that pass:
+
+**The dock's values are `--dock-glass-*` in `styles/glass.css`, and the
+`--dock-*` token group is deleted.** The group's whole justification (see "`--dock-*`
+is a new token group" above) was that the dock is white-on-dark in *both* themes
+while `--ink`/`--muted` invert. Glass is theme-invariant by construction, so
+that argument now says the values belong in glass.css rather than in a
+theme-keyed palette. `--paper-*` remains the standing example of the
+own-group pattern; the dock is no longer an instance of it.
+
+**The dock's numbers are a separate block even where they duplicate a
+`--glass-*` one** — the shell's inner glow is `--glass-inset-sm` to the decimal.
+The dock is one always-on-screen element with its own handoff and its own tweak
+pass, and it has to be re-balanceable without touching the four surfaces the
+reader and library share.
+
+**`--active` / `--active-ink` are promoted to theme-invariant tokens.** The pill's
+tint answered a question the app had been answering three different ways:
+`--btn` (`#141414` on paper, `#f2f1ee` at night — so "selected" was a black chip
+in one theme and a white one in the other), a `--gold` edge on the library's
+filter *hover*, and shadcn's `bg-primary` on its *fill*, which asked the eye to
+tell selected from hovered by hue rather than by brightness. One hue, stated
+solid; glass derives the 65% density it wants (`--glass-active-fill`), and the
+dock's pill aliases that so pill, filter chip, toolbar toggle, settings picker
+and stage sort chip all move together.
+
+It is for **selection, not for primary actions.** A filled Study, Sign-in or
+Easy button is still `--btn` / `NIGHT.btn`. `--active-ink` deliberately does not
+flip with the theme, so it is not `--btn-ink`.
+
+**`.glass-press` is opt-in, not part of `.glass-button`.** An element has exactly
+one `transform` and two of the library's already spend theirs (the book card
+lifts on hover), so folding the nudge into the button recipe would silently
+replace those. The same shorthand hazard is why `transform` is named in
+`.glass-button`'s and `.glass-dock-item`'s transition lists as well as
+`.glass-press`'s: `transition` is not additive, so whichever rule wins has to
+mention every property that should ease.
+
+**Not converted, deliberately:**
+
+- [ ] **The dictionary rail's selected row** keeps its `--accent` edge. It is a
+  list row, not a control, and the rail's three states (idle / hover / selected)
+  were designed as one edge treatment — see the ResultRow note.
+- [ ] **`SessionConfigSheet`'s radio rows** keep `--ink` + `--paper-tile`. The
+  sheet is orphaned (no surface reaches it), and a 65% lavender on paper is not
+  a treatment anyone has looked at.
+- [ ] **The reader's page-colour swatches** take `--active` as a *ring*, not a
+  fill — the swatches are their own colour, so selection has to sit outside them.
+- [ ] **The library's structure** is unchanged: the dock keeps its divider and
+  its Reader · Dictionary · Decks │ Home · Profile order, though the handoff
+  draws five undivided items led by Home. Colour, motion and glass were the
+  brief; re-ordering navigation was not.
+
+---
+
+## The library wears the dock's glass (2026-08-05)
+
+**`GLASS_SCRIM` stops being the library's look and goes back to being a
+compensation.** The scrim (`--bg` at 45% plus a vignette) exists so glass sitting
+ON a book cover keeps its content readable. The library had taken it wholesale —
+filter chips, import, the continue-reading hero, its CTA, the re-import + — on
+the argument that the scrim read as the better glass on a dark page and that one
+screen wants one glass. The one-glass half stands; the glass it picked changed.
+The library is now the dock's white glass, so the app has **one material across
+both of its glass screens** rather than pale surfaces in one place and dark ones
+in the other.
+
+**The retune was three values, not a new variant.** Glass has exactly three
+consumers (the two library files and `CoverTile`'s sheen), so the shared
+`--glass-*` block *is* the library's block — no library-scoped group was needed.
+Blur (13px), border (`.075`), the small inset trio (`.138`/`.038`/`.075`) and the
+highlight peak (`.2`) were already the dock's numbers to the decimal. What moved:
+
+- `--glass-fill` `.01` → `.15`. The handoff always said `.15`; it had been tweaked
+  down to an invisible `.01` because nothing was rendering the white fill anyway.
+- `--glass-fill-hover` `.26` → `.27`, so it agrees with `--dock-glass-item-hover`
+  exactly rather than approximately.
+- `--glass-inset` (the LARGE 20px/10px glow) is **deleted**. It existed for the
+  continue-reading hero alone, and the hero now takes the same tight glow as
+  everything else. `.glass-surface` and `.glass-button` share one `box-shadow`.
+
+**Two surfaces keep the scrim, by cover strength.** `BookMenu` gained an
+`overArt` prop: set on `BookCard` (the ⋯ floats on a full-strength cover), off
+for the hero (it sits on the glass panel) and off for `ReimportCard`, whose cover
+is faded to 40% opacity and so reads as page rather than as art — which also
+keeps that tile's + and ⋯ matching each other. `.glass-sheet` is unchanged; it is
+clipped by a cover by definition.
+
+- [ ] **`.glass-surface` keeps its left specular edge** while the dock has only a
+  top line. That is the "both edges on surfaces big enough for a left one to read
+  as one" rule, which is about size rather than about material — but if the hero
+  ever wants to be indistinguishable from the dock, that is the remaining
+  difference.
+
+---
+
+## Home page deleted, library takes `/` (2026-08-05)
+
+The dashboard at `/` is gone — `features/home` removed whole, and `BooksView`
+(the library shelf) moved off `/reader` onto `/`. Signing in now lands you on
+your books.
+
+**The reader's URL is deliberately unchanged.** Collapsing `/reader/[bookId]`
+into a bare `/reader` with the book id held in state was considered and
+rejected: the id in the URL is what makes a book survive a refresh and what
+`ReaderView` resolves the file, the restore anchor and the progress sync from.
+So `/reader` is now *only* the parent segment of `/reader/[bookId]` — it has no
+page of its own. Two prefix tests depend on that and stay prefix tests rather
+than becoming equality checks: `AppShell`'s `isOpenBook` (which hides the dock
+inside a book) and `useReaderActions`'s `isDictSurfaceVisible`.
+
+**Three `href="/"`s became correct for free** rather than needing edits — the
+`TopBar` brand mark, `ResultsRail`'s brand mark, and `AppShell`'s post-sign-in
+`router.replace('/')`. All three meant "home"; all three now mean "the shelf",
+which is what they should have meant.
+
+**The Dock's Reader entry points at `/`, not `/reader`.** Home's entry was
+deleted with the dashboard, which would otherwise have left two entries for one
+destination — the same argument that removed Sky's entry after the /sky → /decks
+merge. `DOCK_SECONDARY` is gone (it held only Home), so the divider now
+separates the three nav items from Profile. Reader matches `/` exactly; it loses
+nothing by not matching its subtree, because the dock isn't rendered inside a
+book at all.
+
+**What went with it, having had no other consumer:**
+
+- `shared/components/CardHeader.tsx` — home was the only screen using it.
+- The `--sky-border` / `--sky-shadow` tokens, in both theme blocks — read only
+  by `HeroBanner`'s empty sky bubble.
+- Home's `useRecentSearches`, a byte-level duplicate of the dictionary's. The
+  dictionary's copy is the live one and is what `REDESIGN.md` now cites for the
+  `set-state-in-effect` block-disable pattern.
+- `fetchRandomDueCard` + its barrel export. This leaves **`GET
+  /api/study/due/random` with no client on either platform** — the backend route
+  is still up and still correct, just unused. Left in place rather than removed;
+  a "word to review now" surface is the obvious thing to want back.
+
+**Two capabilities have no surface any more**, and that is accepted rather than
+overlooked: an app-level view of recent dictionary searches (the dictionary's own
+empty state and the reader's sidebar still have theirs), and the random-due-card
+prompt above.
+
+**`REDESIGN.md`'s reference implementation is now `features/profile`.** Home
+held that role and every "copy what home does" pointer in that document had to
+go somewhere; profile kept the same shape — its own `TopBar` inside its own
+1300px column, one hook per card, each card owning its skeleton and empty state
+— so it inherited the role. The "Redesign — home page + parallel token system"
+entry above is now history: the screen it describes doesn't exist, but it is
+still the fullest account of the token system's first pass and of the deviations
+every screen since has inherited.
+
+Verified: `npx tsc --noEmit` clean, `next build` clean (route table shows `/` and
+`/reader/[bookId]`, no bare `/reader`), lint down to 0 errors / 3 warnings.
+
+---
+
+## The dictionary takes the library's glass (2026-08-05)
+
+`/dictionary`'s prompt and results rail now wear the same material as the library
+and the dock. What was there before was not one system: the history chips hovered
+by swapping border *and* text to `--accent`, a hovered result row grew a
+`--muted` 35% border mix while its headword *also* went `--accent`, a selected
+result row took an `--accent` edge, and the add-to-deck button grew `scale-105`
+plus a `--btn` fill. Four hover languages on one screen. All of them are gone:
+hover is the glass fill brightening, press is `GLASS_PRESS`, selected is
+`GLASS_ACTIVE`.
+
+**The prompt lost its ruled recent column** in the same pass (owner's call, made
+while this was in flight): the "Recently looked up" list and the dashed reserved
+panel beside it are deleted, leaving heading + field + chips. The chips read the
+same `useRecentSearches` history, so nothing was lost but a restatement of it.
+
+**The field is `GLASS_SURFACE` in all three variants.** `SearchField` is one
+component at three scales, and the reader's docked column and bubble render it
+too, so they get the glossy shell as well — deliberately, since they are built
+from this feature's exports precisely so they can't drift. Its old
+`bg-(--card)` + 1.5px `--ink` border existed because `--bd` is transparent and a
+field with no edge isn't a field; the fill and specular edge answer that better
+than a drawn line, so the field reads as an object now rather than an outline.
+
+**A lit result row flips every ink.** This is the first `GLASS_ACTIVE` call site
+that isn't a one-word chip, and `--ink`/`--soft`/`--muted`/`--faint` are all
+light-on-dark at night — on the pale tint they would have disappeared one after
+another. `ResultRow.rowInk(selected)` returns one of two ink sets; the dark side
+is `--active-ink` at 100/78/62/45% through `color-mix`, because Tailwind's
+slash-opacity can't apply to an arbitrary `var()` colour. Bordered children swap
+`HAIRLINE` (a white mix, invisible on the tint) for a dark edge mix. `JlptChip`
+needed nothing — a solid pill with its own near-black ink is legible on anything,
+which is the second time that decision has paid off.
+
+**`ROW_IDLE` is deleted, not emptied.** An idle row is plain `GLASS_BUTTON` and
+the hover lives in that recipe, so the constant had nothing left to hold; the two
+call sites read `selected && ROW_SELECTED`. `group` came off `ROW_SHELL` with it —
+it existed only for the `group-hover:` accent swap.
+
+**Not converted:**
+
+- [ ] **The rail's own shell.** The 380px `<aside>` keeps `bg-(--cardalt)`
+  (transparent) and its hairline edge against the entry pane. It is a
+  full-height column, not a card — frosting it means rounding it and floating it
+  off the page edge, which is a layout decision rather than a material one.
+- [ ] **The entry pane.** `KanjiCard`, `EntryBack` and one chip row in
+  `EntryDetail` still hover to an `--accent` border. Same treatment would apply;
+  the brief was the prompt and the results.
+- [ ] **`AddButton` is still a `<button>` nested inside `WordRow`'s row button**
+  (it is a sibling in `KanjiRow`). Pre-existing invalid nesting; now also means a
+  press nudges both. Untouched — it is a DOM-structure fix, not a glass one.
+
+---
+
+## Panes where there are objects, rules where there is a list (2026-08-05)
+
+A correction to the pass above, in both directions at once.
+
+**The rail's rows give up their panes.** A result row is `GLASS_ROW` now: the
+glass hover fill and nothing at rest — no fill, no border, no blur, no specular
+edge — with `ROW_LIST` ruling a hairline between rows so the column reads as one
+running list. As full `GLASS_BUTTON`s they were forty little frosted cards, and
+the eye counts cards instead of scanning down them. The rail is a list; it should
+look like one.
+
+Everything that made a row *feel* right stayed: hover brightens the fill,
+`GLASS_PRESS` nudges, and the selected row is still `GLASS_ACTIVE` with the ink
+flip described above. `.glass-row` is a legitimate host for `.glass-active` — it
+has no pane but it does have the fill and the transition, which is all the lit
+state needs — so the per-host discipline on that modifier is intact rather than
+loosened to a bare `.glass-active`.
+
+**The entry pane's kanji get the panes instead.** `KanjiCard` is the opposite
+shape of problem: a handful of discrete objects, each a whole character with its
+readings, which is exactly what a pane is for. It is `GLASS_SURFACE` when
+display-only and `GLASS_BUTTON` + `GLASS_PRESS` when it jumps to that kanji's
+entry, replacing a `bg-(--card)` box in a `HAIRLINE` border that hovered to an
+`--accent` edge. The header's per-character chips took the same treatment — they
+are the same characters one size down, and an `--accent` edge up there beside a
+brightening fill down here would have been two answers to one gesture.
+
+**Two implementation notes on `ROW_LIST`**, both non-obvious enough to have cost
+a build each:
+
+- Its hairline colour is written out literally instead of composing `HAIRLINE`.
+  Tailwind scans *source text* for class names, so a template-interpolated
+  `` `[&>li…]:${HAIRLINE}` `` is a class the scanner never sees and never
+  generates.
+- The rule is a child selector, not `divide-y` with a colour on the `<ul>`.
+  `border-color` is not inherited, and globals' `*` rule already gives every
+  element its own `--color-border`, so the colour has to land on the elements the
+  border is drawn on.
+
+- [ ] **`AddButton` stays a glass pane** on a paneless row — a 32px control that
+  reads as the row's one affordance, the same call the library's ⋯ circles make.
+  It is the one pane left in the list, so it is also the first thing to try
+  removing if the column still reads as busy.
+- [ ] **`EntryBack` is the last `--accent` border hover** in the feature. It is
+  the reader surfaces' "← Results" control, which `/dictionary` never shows.

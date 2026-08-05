@@ -5,10 +5,10 @@
  * "14 minutes ago" would wrap, and because the exact day of an old event
  * carries no information worth the space.
  *
- * Hoisted here from `features/home/lib/relativeTime.ts` and
- * `features/dictionary/lib/relativeAge.ts`, which were byte-identical and
- * both carried a note to merge them once a third caller appeared. The deck
- * detail's "recent upgrades" column is that third.
+ * Hoisted here from the home dashboard's `lib/relativeTime.ts` (deleted with
+ * the rest of home) and `features/dictionary/lib/relativeAge.ts`, which were
+ * byte-identical and both carried a note to merge them once a third caller
+ * appeared. The deck detail's "recent upgrades" column is that third.
  */
 export function relativeTime(iso: string, now: number = Date.now()): string {
   const then = new Date(iso).getTime();

@@ -45,7 +45,7 @@ export function JlptChip({ level, size = 'sm', className }: Props) {
     <span
       className={cn(
         'inline-flex items-center rounded-(--radius-chip) font-[family-name:var(--face-mono)] font-bold',
-        size === 'md' ? 'px-3 py-1 text-xs' : 'px-[9px] py-0.5 text-[10px]',
+        size === 'md' ? 'px-3 py-1 text-sm' : 'px-[9px] py-0.5 text-[12px]',
         className,
       )}
       // A level outside 1–5 keeps the shape but drops to the neutral token, so
@@ -54,11 +54,7 @@ export function JlptChip({ level, size = 'sm', className }: Props) {
       // this component that isn't theme-agnostic: `--faint` is a theme token and
       // would read wrong on the decks stage's night glass, which is night in both
       // themes. Render sites should gate on `jlpt_level != null` regardless.
-      style={
-        background
-          ? { background, color: PILL_INK }
-          : { background: 'var(--faint)', color: PILL_INK }
-      }
+      style={background ? { background, color: PILL_INK } : { background: 'var(--faint)', color: PILL_INK }}
     >
       N{level}
     </span>
