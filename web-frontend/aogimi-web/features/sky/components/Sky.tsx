@@ -40,7 +40,6 @@ export default function Sky() {
   const [focus, setFocus] = useState<FocusPath>([]);
   const [selected, setSelected] = useState<number | null>(null); // star id — the open card
   const [hidden, setHidden] = useState(false);
-  const [tinted, setTinted] = useState(true);
 
   // the trees and the deck arrangement, and with them the world box the camera may not leave.
   // Depends on the data and the focus, never on where the camera happens to be pointing.
@@ -78,13 +77,10 @@ export default function Sky() {
    * invariant is enforced here rather than trusted to the caller: selecting a star from anywhere
    * enters its deck first, so the selection can never point outside the focused deck.
    */
-  const selectStar = useCallback(
-    (star: Star) => {
-      setFocus((f) => (f[0] === star.did ? f : [star.did]));
-      setSelected(star.id);
-    },
-    [],
-  );
+  const selectStar = useCallback((star: Star) => {
+    setFocus((f) => (f[0] === star.did ? f : [star.did]));
+    setSelected(star.id);
+  }, []);
 
   /** One level up, whatever that currently means: card → list, list → all decks. */
   const back = useCallback(() => {
@@ -135,14 +131,12 @@ export default function Sky() {
         canSeal={!!openConstellationOf(snapshot.constellations)}
         focused={!locked}
         onLeave={leave}
-        tinted={tinted}
-        onTintedChange={setTinted}
         hidden={hidden}
         onHiddenChange={setHidden}
         waiting={waiting}
       />
 
-      <SkyStats
+      {/* <SkyStats
         snapshot={snapshot}
         frame={frame}
         focus={focus}
@@ -151,7 +145,7 @@ export default function Sky() {
         relZoom={cam.relZoom}
         open={open}
         waiting={waiting}
-      />
+      /> */}
 
       {/* The panel and the canvas are siblings over the same state — two views of one navigation,
           never talking to each other.
@@ -180,7 +174,6 @@ export default function Sky() {
             palette={DEMO_PALETTE}
             bounds={cam.bounds}
             focus={focus}
-            tinted={tinted}
             cam={cam}
             selected={selected}
             openTip={openTip}

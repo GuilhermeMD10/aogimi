@@ -8,19 +8,29 @@ import {
   LABEL_MAX_CHARS,
   LABEL_OFFSET_X_PX,
   LABEL_OFFSET_Y_PX,
+  ORBIT_ALPHA,
+  RING_ALPHA,
+  RING_DIM,
   SELECT_GLOW_SCALE,
   SELECT_HALO_PX,
 } from '../lib/config';
-import { SELECT_COLOR, STAR_LABEL_COLOR, type RankRamp, starColor } from '../lib/palette';
 import {
-  CROSS_ARMS,
+  BEAD_HIGHLIGHT,
+  SELECT_COLOR,
+  STAR_LABEL_COLOR,
+  type RankRamp,
+  rankOf,
+  starColor,
+} from '../lib/palette';
+import {
+  beadResolves,
   coreRadius,
-  crossArm,
   glowOf,
   glowRadius,
-  silhouetteOf,
-  sparkleOf,
-  sparklePath,
+  hasOrbit,
+  orbitOf,
+  ringRadii,
+  ringWidth,
   starRadiusPx,
 } from '../lib/star';
 import type { Star } from '../lib/types';
@@ -28,15 +38,70 @@ import type { Star } from '../lib/types';
 /**
  * One deck's surviving stars, in that deck's own local coordinates.
  *
- * The silhouette is the load-bearing idea, not the colour (guide §2): a bare dot for the two low
- * ranks, a crossed dot for learned, the single four-point sparkle for mastered — so a reader can
- * tell a star's rank by shape alone. Colour says the same thing a second time, for readers who
- * can use it.
+ * The shape is the load-bearing idea, not the colour: **one signal ring per rank step**, so a reader
+ * can count a star's rank without reading its hue — nothing, one ring, two rings, two rings plus an
+ * orbit. Colour says the same thing a second time, for readers who can use it. The outgoing
+ * vocabulary (`dot · dot · cross · sparkle`) failed at exactly the point this fixes: its first two
+ * ranks were the same shape, so the ladder was really only three states deep.
  *
  * Every size here is a **screen px** measurement multiplied by `u`. That is what keeps a star the
  * same size on screen while the world scales underneath it; anything that skips `u` thickens as you
  * zoom, which is the most common way to make a zoomable drawing look wrong.
  */
+
+/**
+ * The glass bead — the core, drawn as six layers of lit glass instead of a flat disc.
+ *
+ * Only ever called above `BEAD_MIN_CORE_PX`, and that gate is the entire reason this is affordable:
+ * the bead is specified against a sample strip four times larger than a field star, where its
+ * secondary dot would otherwise land at a third of a pixel and its two gradient fills would triple
+ * the sky's gradient count. Above the gate there are few enough stars on screen for it to be free.
+ *
+ * `c` is the core radius in **world units** (already through `u`); stroke widths are screen px and
+ * ride `non-scaling-stroke`, like every other stroke in this file. Coordinates are baked absolute
+ * rather than wrapped in a `<g transform>` — one fewer node per beaded star.
+ */
+const bead = (x: number, y: number, c: number, rank: number) => (
+  <>
+    {/* 1 · the body: white highlight through the rank colour into a shadowed rim */}
+    <circle cx={x} cy={y} r={c} fill={`url(#sky-bead-${rank})`} />
+    {/* 2 · the caustic bounce off the bottom, which is what reads as glass rather than as a sphere */}
+    <circle cx={x} cy={y} r={c * 0.94} fill={`url(#sky-caustic-${rank})`} />
+    {/* 3 · rim */}
+    <circle
+      cx={x}
+      cy={y}
+      r={c}
+      fill="none"
+      stroke={BEAD_HIGHLIGHT}
+      strokeOpacity={0.6}
+      strokeWidth={Math.max(0.7, c * 0.08)}
+      vectorEffect="non-scaling-stroke"
+    />
+    {/* 4 · the arc highlight riding the upper-left shoulder */}
+    <path
+      d={`M ${x - c * 0.62} ${y - c * 0.5} A ${c * 0.8} ${c * 0.8} 0 0 1 ${x + c * 0.28} ${y - c * 0.76}`}
+      fill="none"
+      stroke={BEAD_HIGHLIGHT}
+      strokeWidth={Math.max(0.7, c * 0.09)}
+      strokeLinecap="round"
+      opacity={0.85}
+      vectorEffect="non-scaling-stroke"
+    />
+    {/* 5 · specular */}
+    <ellipse
+      cx={x - c * 0.32}
+      cy={y - c * 0.4}
+      rx={c * 0.3}
+      ry={c * 0.17}
+      fill={BEAD_HIGHLIGHT}
+      opacity={0.9}
+      transform={`rotate(-24 ${x - c * 0.32} ${y - c * 0.4})`}
+    />
+    {/* 6 · the far-side glint */}
+    <circle cx={x + c * 0.38} cy={y + c * 0.3} r={c * 0.09} fill={BEAD_HIGHLIGHT} opacity={0.6} />
+  </>
+);
 
 type Props = {
   stars: Star[];
@@ -47,8 +112,17 @@ type Props = {
   fulcral: ReadonlySet<number>;
   /** Whether this deck is the focused one. An unfocused deck's stars carry less ink. */
   focused: boolean;
+  /** The deck's own star multiplier — `deckPresence().scale`, so the chooser's smallest decks are
+   *  drawn large enough to see. 1 at every other size and inside a focused deck. */
+  starScale?: number;
+  /** ...and the other half of that: a small deck's stars are drawn lit rather than as faint
+   *  context, which is what buys them the full core, the specular and the bead. */
+  vivid?: boolean;
   /** Zoom relative to this tier's fitted view. Drives the sublinear swell. */
   relZoom: number;
+  /** ...and this tier's ceiling in the same currency, which is what the focused deck's size ramp
+   *  runs between (FOCUSED_STAR_SCALE → FOCUSED_STAR_PEAK_SCALE). */
+  relZoomMax?: number;
   /** World units per screen px. */
   u: number;
   hovered: number | null;
@@ -58,7 +132,20 @@ type Props = {
   labelOp: number;
 };
 
-export function SkyStars({ stars, ranks, fulcral, focused, relZoom, u, hovered, selected, labelOp }: Props) {
+export function SkyStars({
+  stars,
+  ranks,
+  fulcral,
+  focused,
+  starScale = 1,
+  vivid = false,
+  relZoom,
+  relZoomMax,
+  u,
+  hovered,
+  selected,
+  labelOp,
+}: Props) {
   const labelled = focused && labelOp > 0.01;
   return (
     <g style={{ pointerEvents: 'none' }}>
@@ -66,14 +153,27 @@ export function SkyStars({ stars, ranks, fulcral, focused, relZoom, u, hovered, 
         const isFulcral = fulcral.has(s.id);
         const isSelected = s.id === selected;
         // a star that neither stands in for a group nor belongs to the deck you are looking at is
-        // context rather than content, so it is drawn faint
-        const dim = !focused && !isFulcral;
-        const rPx = starRadiusPx(s.mastery, { relZoom, focused, fulcral: isFulcral });
-        const form = silhouetteOf(s.mastery);
+        // context rather than content, so it is drawn faint — unless its deck is small enough that
+        // this *is* its whole silhouette, which is what `vivid` says (see SMALL_DECK_MAX)
+        const dim = !focused && !isFulcral && !vivid;
+        const rPx = starRadiusPx(s.mastery, {
+          relZoom,
+          relZoomMax,
+          focused,
+          fulcral: isFulcral,
+          scale: starScale,
+        });
         const r = rPx * u;
-        const cr = coreRadius(rPx, form) * u * (s.id === hovered || isSelected ? 1.22 : 1);
+        // the gate is read off the *unboosted* core, so hovering a star never swaps which core form
+        // it wears — a bead popping in under the cursor would read as a glitch, not as feedback
+        const corePx = coreRadius(rPx);
+        const cr = corePx * u * (s.id === hovered || isSelected ? 1.22 : 1);
         const colour = starColor(s.mastery, ranks);
         const glow = glowOf(s.mastery);
+        const rank = rankOf(s.mastery);
+        // a dim star is context: it keeps the flat core however far in the camera is, which is both
+        // honest about its standing and free of nodes exactly where they buy least
+        const beaded = !dim && beadResolves(corePx);
 
         return (
           <g
@@ -91,41 +191,60 @@ export function SkyStars({ stars, ranks, fulcral, focused, relZoom, u, hovered, 
               opacity={dim ? glow : Math.min(0.55, glow * 2.2)}
             />
 
-            {/* 2 · the mastered rank's four-point sparkle — the star's own body, not a decoration
-                on one: dot-sized mass with points, at exactly the ink a core carries. It stands in
-                for the core beneath it. */}
-            {form === 'sparkle' &&
+            {/* 2 · the signal rings — the rank glyph. One ripple outward per rank step, so the
+                ladder is *countable*: nothing, one, two, and the orbit below for mastered. Radii
+                are held inside ORNAMENT_MAX so neighbouring ring systems never overlap; two
+                overlapping ring systems read as moiré rather than as two stars. */}
+            {ringRadii(rPx, s.mastery).map((ringR, i) => (
+              <circle
+                key={i}
+                cx={s.x}
+                cy={s.y}
+                r={ringR * u}
+                fill="none"
+                stroke={colour}
+                strokeOpacity={RING_ALPHA[i] * (dim ? RING_DIM : 1)}
+                strokeWidth={ringWidth(rPx)}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+
+            {/* 3 · the mastered rank's orbit and satellite — its fourth state, earned. A shape
+                signal, not a motion one: the handover twinkled both of these and that was dropped,
+                because an infinite animation per gold star repaints its region every frame with the
+                camera parked, and this layer is otherwise wholly static once it has landed.
+
+                Both take the rank's own colour rather than the handover's white. White is spoken
+                for here — see SELECT_COLOR — and a white satellite orbiting a star reads as a
+                selection marker rather than as part of it. */}
+            {hasOrbit(s.mastery) &&
               (() => {
-                const { arm, waist } = sparkleOf(rPx);
+                const o = orbitOf(rPx);
+                const alpha = dim ? RING_DIM : 1;
                 return (
-                  <path
-                    d={sparklePath(arm * u, arm * u, waist * u)}
-                    fill={colour}
-                    opacity={dim ? 0.55 : 1}
-                    transform={`translate(${s.x} ${s.y})`}
-                  />
+                  <>
+                    <ellipse
+                      cx={s.x}
+                      cy={s.y}
+                      rx={o.rx * u}
+                      ry={o.ry * u}
+                      fill="none"
+                      stroke={colour}
+                      strokeOpacity={ORBIT_ALPHA * alpha}
+                      strokeWidth={o.width}
+                      vectorEffect="non-scaling-stroke"
+                      transform={`rotate(${o.tilt} ${s.x} ${s.y})`}
+                    />
+                    <circle
+                      cx={s.x + o.satX * u}
+                      cy={s.y + o.satY * u}
+                      r={o.satR * u}
+                      fill={colour}
+                      opacity={0.95 * alpha}
+                    />
+                  </>
                 );
               })()}
-
-            {/* 3 · the four-armed cross of the learned rank */}
-            {form === 'cross' &&
-              CROSS_ARMS.map(([ax, ay]) => {
-                const { inner, outer } = crossArm(rPx);
-                return (
-                  <line
-                    key={`${ax},${ay}`}
-                    x1={s.x + ax * inner * u}
-                    y1={s.y + ay * inner * u}
-                    x2={s.x + ax * outer * u}
-                    y2={s.y + ay * outer * u}
-                    stroke={colour}
-                    strokeOpacity={dim ? 0.34 : 0.72}
-                    strokeWidth={Math.max(0.6, rPx * 0.135)}
-                    strokeLinecap="round"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                );
-              })}
 
             {/* 4 · hover ring */}
             {s.id === hovered && !isSelected && (
@@ -168,21 +287,27 @@ export function SkyStars({ stars, ranks, fulcral, focused, relZoom, u, hovered, 
               </>
             )}
 
-            {/* 6 · the core. Skipped for the sparkle, whose solid body would hide it entirely —
-                drawing the same colour underneath would only cost a node per gold star. */}
-            {form !== 'sparkle' && <circle cx={s.x} cy={s.y} r={cr} fill={colour} opacity={dim ? 0.55 : 1} />}
+            {/* 6 · the core, in one of two forms. The bead's six layers of lit glass once there are
+                enough pixels for them to resolve; the flat disc the sky has always drawn otherwise.
+                Every rank draws a core now — nothing hides one behind a solid body any more. */}
+            {beaded ? (
+              bead(s.x, s.y, cr, rank)
+            ) : (
+              <circle cx={s.x} cy={s.y} r={cr} fill={colour} opacity={dim ? 0.55 : 1} />
+            )}
 
-            {/* 7 · specular highlight, up and to the left, which is what stops the core reading as
-                a flat disc. Off for the faintest stars, where it would be the brightest thing about
-                them — and off below ~1.2px of core, where it cannot be seen but would still cost a
-                DOM node per star exactly where stars are most numerous. */}
-            {!dim && cr / u >= 1.2 && (
+            {/* 7 · specular highlight, up and to the left, which is what stops a flat core reading
+                as a flat disc. The bead carries its own, so this is the fallback's alone. Off for
+                the faintest stars, where it would be the brightest thing about them — and off below
+                ~1.2px of core, where it cannot be seen but would still cost a DOM node per star
+                exactly where stars are most numerous. */}
+            {!beaded && !dim && cr / u >= 1.2 && (
               <circle
                 cx={s.x - cr * 0.22}
                 cy={s.y - cr * 0.22}
                 r={cr * 0.4}
                 fill="white"
-                opacity={form === 'dot' ? 0.45 : 0.65}
+                opacity={rank >= 2 ? 0.65 : 0.45}
               />
             )}
 

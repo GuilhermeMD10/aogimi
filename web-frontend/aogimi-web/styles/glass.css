@@ -207,6 +207,72 @@
      anything slower than ~120ms reads as lag rather than as a button moving. */
   --glass-press: 120ms ease;
 
+  /* ── The grade buttons ────────────────────────────────────────────────────
+     From the "Aogimi — Glass Buttons" handoff: the study runner's Again / Hard
+     / Easy row. Same params as everything above (blur 13, reflection 25%, depth
+     0) with one extra, `grade opacity` 30% — so the fill is `o` = .30, hover
+     `o + .15` = .45, and the reflection layers derive from r = .25 exactly as
+     the shell's do: border .3r, inset top .55r, inset bottom .15r, inner glow
+     .3r, top line .8r.
+
+     **These are the one exception to "sheens and lines stay white."** Every
+     other surface in this file tints only its fill, on the reading that the
+     specular layers are the light hitting the glass rather than the glass's own
+     colour. Here all five layers take the tint: three tiles sit side by side
+     and have to be told apart at a glance while carrying neutral ink, so the
+     colour is the whole signal and a white edge would dilute it. Deliberate,
+     handoff-sanctioned, and scoped to these three classes.
+
+     Own group rather than `--danger` / `--warn` (whose comment in ds-tokens.css
+     still describes the outgoing scheme) because those two are *ink on a
+     surface* — delete rows, the deck stage's destructive buttons — and pulling
+     them brighter to feed a 30% fill would repaint all of it. Easy's green is
+     new to the palette and stays local for the same reason: one component has
+     ever wanted it.
+
+     Three tints, and then every layer derived from whichever one is in play.
+     `--grade-tint` is undefined here on purpose: the three classes at the bottom
+     of this file set it, and a custom property's value is substituted where it
+     is *used*, not where it is declared — so the four derived values below each
+     resolve against the button wearing them. That indirection is also what keeps
+     the `color-mix`es out of the rules themselves, where Lightning CSS would
+     emit an opaque `var(--grade-tint)` fallback line ahead of each one.
+
+     The top lines are the exception, spelled out per tint: a gradient's fade
+     stops have to be the tint at zero alpha, and `color-mix(…, transparent)` at
+     0% collapses to `rgba(0,0,0,0)` — reintroducing exactly the grey cast the
+     note above `--glass-hl` warns about. */
+  --grade-again: #ff5757;
+  --grade-hard: #ffd582;
+  --grade-easy: #7ee29a;
+
+  --grade-fill: color-mix(in srgb, var(--grade-tint) 30%, transparent);
+  --grade-fill-hover: color-mix(in srgb, var(--grade-tint) 45%, transparent);
+  --grade-bd: color-mix(in srgb, var(--grade-tint) 7.5%, transparent);
+  --grade-inset:
+    inset 0 1px 0 color-mix(in srgb, var(--grade-tint) 13.8%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--grade-tint) 3.8%, transparent),
+    inset 0 0 12px 2px color-mix(in srgb, var(--grade-tint) 7.5%, transparent);
+
+  --grade-again-hl: linear-gradient(
+    90deg,
+    rgba(255, 87, 87, 0),
+    rgba(255, 87, 87, 0.2),
+    rgba(255, 87, 87, 0)
+  );
+  --grade-hard-hl: linear-gradient(
+    90deg,
+    rgba(255, 213, 130, 0),
+    rgba(255, 213, 130, 0.2),
+    rgba(255, 213, 130, 0)
+  );
+  --grade-easy-hl: linear-gradient(
+    90deg,
+    rgba(126, 226, 154, 0),
+    rgba(126, 226, 154, 0.2),
+    rgba(126, 226, 154, 0)
+  );
+
   /* ── The dock ─────────────────────────────────────────────────────────────
      From the "Aogimi — Dock Bar" handoff. Same derivation as above — `r` =
      reflection/100, and the shell and the pill each get their own `r` — but
@@ -425,6 +491,63 @@
     .glass-press:active:not(:disabled) {
       transform: none;
     }
+  }
+
+  /* ── The grade buttons ───────────────────────────────────────────────────
+     `.glass-grade` is a modifier on `.glass-button`, same shape as `.glass-scrim`
+     and `.glass-active`: it swaps the five white layers for tinted ones and
+     leaves the blur, the cursor and the geometry to the host. Which tint comes
+     from one of the three classes below, which set nothing but `--grade-tint`
+     and `--grade-hl` — so the alphas live here, once each, and re-balancing the
+     row is editing this block rather than three parallel ones.
+
+     `border-color` rather than `border` so the host's 1px width survives.
+
+     It states its own `transition` list on purpose. `.glass-press` is a bare
+     `transition: transform` at equal specificity and earlier source order, so on
+     an element wearing both, the shorthand there REPLACES `.glass-button`'s list
+     and the fills stop easing. Naming all four here — after that rule — is what
+     gets the handoff's `background .18s, color .18s, transform .12s` back. */
+  .glass-button.glass-grade {
+    background: var(--grade-fill);
+    border-color: var(--grade-bd);
+    box-shadow: var(--grade-inset);
+    transition:
+      background var(--glass-transition),
+      border-color var(--glass-transition),
+      color var(--glass-transition),
+      transform var(--glass-press);
+  }
+
+  /* Compound with `.glass-button` so it outranks the shared `.glass-button::before`
+     and inherits that rule's position, size and repeat — only the image changes. */
+  .glass-button.glass-grade::before {
+    background-image: var(--grade-hl);
+  }
+
+  /* The handoff's hover does two things at once: the fill steps `o` → `o + .15`,
+     and the edge goes to `currentColor` — the button's own ink, so a hovered
+     tile is outlined in the same near-white its label is set in. Louder than the
+     fill-only brighten every other glass control uses, and intended: these three
+     are the one place in the app where a click is a commitment. */
+  .glass-button.glass-grade:hover:not(:disabled) {
+    background: var(--grade-fill-hover);
+    border-color: currentColor;
+  }
+
+  .glass-grade-again {
+    --grade-tint: var(--grade-again);
+    --grade-hl: var(--grade-again-hl);
+  }
+
+  .glass-grade-hard {
+    --grade-tint: var(--grade-hard);
+    --grade-hl: var(--grade-hard-hl);
+  }
+
+  .glass-grade-easy {
+    --grade-tint: var(--grade-easy);
+    --grade-hl: var(--grade-easy-hl);
   }
 
   /* Over imagery: the edge treatment with nothing behind it to frost. */

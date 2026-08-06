@@ -1,210 +1,317 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code working in this repository.
+
+**This file is a rule sheet, not a history.** Keep it terse — rationale and per-screen
+narrative belong in `web-frontend/aogimi-web/info-documents/DECISIONS.md` and
+`PROJECT_CONTEXT.md`. Don't grow this file back; every prompt pays for it.
 
 ## Repo orientation
 
-`jp-eco` (codename "Aogimi") is a Japanese-reading-and-vocab ecosystem with three independently-deployable parts in this monorepo:
+`jp-eco` (codename "Aogimi") is a Japanese-reading-and-vocab ecosystem, three
+independently-deployable parts, no workspace tool — each has its own `package.json`
+and `node_modules`, so `cd` into the one you care about.
 
 | Path | What | Stack |
 |---|---|---|
-| `backend/` | REST API for users, books, decks, devices, dictionary search | Node 18+, Express, PostgreSQL |
+| `backend/` | REST API: users, books, decks, devices, dictionary search | Node 18+, Express, PostgreSQL |
 | `web-frontend/aogimi-web/` | Next.js App Router web app | Next 16, React 19, Tailwind v4, shadcn |
-| `mobile-frontend/aogimi-mobile/` | Expo mobile app (iOS, Android, web target unused) | Expo 55, React Native 0.83 (Fabric) |
+| `mobile-frontend/aogimi-mobile/` | Expo app (iOS, Android; web target unused) | Expo 55, React Native 0.83 (Fabric) |
 | `helpers/files/` | Source data + JMdict/KANJIDIC2/JMnedict parsers (one-off scripts) | Node |
-| `web-frontend/aogimi-web/info-documents/DECISIONS.md` | Scope decisions + known-but-deferred work; consult before opening "obvious bugs" |
 
-**Web docs live in `web-frontend/aogimi-web/info-documents/`**, not at the package root: `PROJECT_CONTEXT.md`, `DECISIONS.md`, `AGENTS.md`, `backend-connections.txt`, `DEEPL.md`.
+**Web docs live in `web-frontend/aogimi-web/info-documents/`**, not at the package root:
 
-No workspace tool. Each part has its own `package.json` and `node_modules` — `cd` into the one you care about.
+- `REDESIGN.md` — **read first if you're redesigning a screen.** Token traps, primitive
+  inventory, data gaps, how to verify.
+- `PROJECT_CONTEXT.md` — end-to-end overview; the **Theming** and **Features** sections
+  are the long form of what's summarised below.
+- `DECISIONS.md` — scope decisions + known-but-deferred work. **Consult before opening
+  an "obvious bug"** — it's probably deferred on purpose.
+- `backend-connections.txt` — endpoint catalog + payload shapes the frontend depends on.
+- `AGENTS.md` — house rules for agents in this package.
+- `DEEPL.md` — translation integration.
 
 ## Common commands
 
-### Backend (`backend/`)
-
 ```bash
-cd backend
-npm start          # node server.js, listens on $PORT (default 3000)
-npm run dev        # node --watch server.js (auto-restart)
-psql "$DATABASE_URL" -f migrations/NNN_<name>.sql   # apply a migration manually
+# backend/
+npm start                                          # node server.js, $PORT (default 3000)
+npm run dev                                        # node --watch server.js
+psql "$DATABASE_URL" -f migrations/NNN_<name>.sql   # apply one migration, by hand
+
+# web-frontend/aogimi-web/
+npm run dev | build | start | lint                 # next dev is Turbopack; lint is eslint .
+npx tsc --noEmit
+
+# mobile-frontend/aogimi-mobile/
+npm start | run ios | run android | lint | typecheck
 ```
 
-Migrations live in `backend/migrations/` and are numbered. There is no migration runner — apply by hand in order. `011_jlpt_seed.psql` uses `\copy` (psql metacommand) so it must be run with `psql -f`, not via a generic Postgres client.
+No test runner anywhere, and no linter on the backend (vitest + auth tests are deferred —
+`backend/docs/SECURITY.md`). **Web lint is the quality bar: 0 errors, 3 warnings** as of
+2026-08-05. Don't add to it; drive it down when you're already in a file.
 
-No tests, no linter. (vitest setup + auth tests are on the deferred list — see `docs/SECURITY.md`.)
-
-CORS expects the frontend at `http://localhost:3001` or `http://localhost:3002` by default. Set `CORS_ORIGIN` (comma-separated) to change. CORS now goes through the `cors` package — origin-less requests (native app, curl) pass through; everything else must be in the allowlist.
-
-JWT secrets are required: `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`, both ≥ 32 chars. Server refuses to start without them. Generate with `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`. See [`docs/AUTH.md`](docs/AUTH.md) for the full token model.
-
-### Web frontend (`web-frontend/aogimi-web/`)
-
-```bash
-cd web-frontend/aogimi-web
-npm run dev               # next dev (Turbopack)
-npm run build             # next build
-npm run start             # next start (production)
-npm run lint              # eslint .
-npx tsc --noEmit          # type-check only
-```
-
-No test runner. Lint count is the current quality bar: **0 errors, 3 warnings** as of 2026-08-05 (was 9/5 on 2026-08-03; the home-page removal took a chunk of it out). Don't add to it; drive it down when you're already in a file.
-
-### Mobile frontend (`mobile-frontend/aogimi-mobile/`)
-
-```bash
-cd mobile-frontend/aogimi-mobile
-npm start                 # expo start (Metro)
-npm run ios               # expo run:ios
-npm run android           # expo run:android
-npm run lint              # expo lint
-npm run typecheck         # tsc --noEmit
-```
-
-No test runner.
+Backend env: `JWT_ACCESS_SECRET` + `JWT_REFRESH_SECRET` are required, both ≥ 32 chars —
+the server refuses to start without them (`node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`).
+CORS allows `localhost:3001` / `:3002` by default, override with `CORS_ORIGIN`
+(comma-separated); it goes through the `cors` package, so origin-less requests (native app,
+curl) pass and everything else must be allowlisted.
 
 ## Architecture — the parts that take multiple files to see
 
 ### Auth (cross-stack)
 
-JWT access + refresh tokens. The access token (15 min, claims `{ userId, username }`) goes in `Authorization: Bearer`; the refresh token (30 day, claims `{ userId, tokenId }`) is delivered **per transport**:
+Full flow + endpoint table: `backend/docs/AUTH.md`. Posture + deferred items: `backend/docs/SECURITY.md`.
 
-- **Web** — "memory + httpOnly cookie" (`lib/tokenStore.ts`): the access token is in-memory only and the refresh token is an httpOnly + Secure + SameSite=Lax cookie scoped to `/api/auth`, so JS can't read it. Calls use `credentials: 'include'`; a silent `/api/auth/refresh` on boot re-mints the access token. `/auth/refresh` also enforces an Origin allowlist as a CSRF guard (403 otherwise). Tokens are **not** in localStorage — don't put them back.
-- **Mobile** — refresh token in **expo-secure-store** (Keychain / Keystore), returned in the response body since native clients send no Origin.
+JWT access (15 min, `{ userId, username }`, `Authorization: Bearer`) + refresh (30 day,
+`{ userId, tokenId }`), delivered **per transport**:
 
-Server stores SHA-256 hashes of refresh tokens in `refresh_tokens`; every `/auth/refresh` rotates (old revoked, new issued).
+- **Web** — memory + httpOnly cookie (`lib/tokenStore.ts`): access token in memory only,
+  refresh token an httpOnly + Secure + SameSite=Lax cookie scoped to `/api/auth`; calls use
+  `credentials: 'include'` and a silent boot refresh re-mints access. **Tokens are not in
+  localStorage — don't put them back.** `/auth/refresh` also enforces an Origin allowlist as a
+  CSRF guard.
+- **Mobile** — refresh token in expo-secure-store, returned in the response body since native
+  clients send no Origin.
 
-**Identity is the token, never the body.** Protected routes ignore `userId` in body/path — `req.user.userId` is the only source. Routes that take a resource id (`:id` for book / deck / card / etc.) check ownership via `backend/src/services/ownership.js` and return **404** on mismatch (not 403) so the response shape is indistinguishable from "doesn't exist".
+Server stores SHA-256 hashes in `refresh_tokens`; every refresh rotates (old revoked).
 
-Both clients chokepoint every API call through `lib/api.ts`, which injects the Authorization header and refresh-retries once on 401 (single-flight). On terminal 401 → tokens wiped, AuthProvider flips to signed-out.
+**Identity is the token, never the body.** Protected routes ignore `userId` in body/path —
+`req.user.userId` is the only source. Routes taking a resource `:id` check ownership via
+`backend/src/services/ownership.js` and return **404** on mismatch (not 403), so the response
+is indistinguishable from "doesn't exist".
 
-There is **no guest mode**. The previous guest pipeline (user.id = 0 with convert-to-account) was removed; signed-out is the local-first state and sign-up flushes whatever's pending.
+Both clients chokepoint every call through `lib/api.ts`: injects the header, refresh-retries
+once on 401 (single-flight); terminal 401 → tokens wiped, signed-out.
 
-**Sign-up collects `{ username, email, password }`; login is `{ username, password }`.** Email became required at the register boundary with the auth redesign — `users.email` stays nullable in the DB because pre-redesign accounts have none, and it is **not** a login key. `POST /api/auth/register` is **disabled server-side** (403 before validation, first statement in the handler); remove that `return` to re-enable sign-ups. There is no OAuth, no password reset, and no session-only "keep me signed in" mode — the refresh cookie is always 30-day persistent.
+**No guest mode** — signed-out is the local-first state and sign-up flushes what's pending.
+Sign-up takes `{ username, email, password }`, login `{ username, password }`; `users.email`
+is nullable in the DB for pre-redesign accounts and is **not** a login key.
+**`POST /api/auth/register` is disabled server-side** (403 as the handler's first statement;
+remove that `return` to re-enable). No OAuth, no password reset, no session-only mode.
 
-Full flow + endpoint table: [`docs/AUTH.md`](docs/AUTH.md). Hardening posture + deferred items: [`docs/SECURITY.md`](docs/SECURITY.md).
+### Backend: route → service → repository
 
-### Backend follows route → service → repository
-
-- `src/routes/<entity>.js` — Express handlers, request parsing, status codes.
-- `src/services/<entity>Service.js` — business logic, assembles cross-table responses.
+- `src/routes/<entity>.js` — handlers, request parsing, status codes.
+- `src/services/<entity>Service.js` — business logic, cross-table assembly.
 - `src/repositories/<entity>Repository.js` — raw SQL.
-- `src/search/` — `PgSearchIndex.js` is the unified ranking pipeline used by `searchService`; it boosts JLPT-tier words with `+50 + jlpt_level*5`.
-- `src/services/assembler.js` — turns flat SQL row tuples (word + readings + kanji + meanings) into the `WordResult` shape the frontends consume.
+- `src/search/PgSearchIndex.js` — the unified ranking pipeline `searchService` uses; boosts
+  JLPT-tier words by `+50 + jlpt_level*5`.
+- `src/services/assembler.js` — flat SQL row tuples (word + readings + kanji + meanings) →
+  the `WordResult` shape both frontends consume.
 
-When the schema or API changes, update `backend/SCHEMA.md` and `backend/API_ROUTES.md`. `web-frontend/aogimi-web/info-documents/backend-connections.txt` mirrors API_ROUTES from a client perspective and is the inventory for cross-referencing payload shapes.
+Schema or API change ⇒ update `backend/SCHEMA.md` and `backend/API_ROUTES.md` (and
+`info-documents/backend-connections.txt`, its client-side mirror).
 
 ### Web: design tokens
 
-**One system: `styles/ds-tokens.css`.** Two themes, `light` and `dark`, on `html[data-theme]`. The redesign's screen-by-screen migration is finished and the outgoing `--lgc-*` layer is deleted — `styles/themes/default.css`, `styles/shape-defaults.css`, `styles/primitives.css`, the stranded `shared/ui` primitives, and the three webfonts they carried (Inter, Source Serif 4, Geist Mono). Full detail in PROJECT_CONTEXT.md's **Theming** section; the teardown's decisions are the last section of DECISIONS.md.
+**One system: `styles/ds-tokens.css`**, two themes on `html[data-theme]` (`light`/`dark`).
+The outgoing `--lgc-*` layer is fully deleted. Long form: PROJECT_CONTEXT.md → Theming.
 
-- Colour/shape tokens `--ink`, `--soft`, `--muted`, `--faint`, `--card`, `--cardalt`, `--bd`, `--btn`, `--track`/`--fill`, `--cover-1..4`, `--stage-*`, `--radius-*`. Read as `text-(--ink)`, `bg-(--card)`.
-- Type tokens are `--face-jp` / `--face-ui` / `--face-mono` (Noto Sans JP for jp; Switzer — self-hosted Fontshare woff2s in `app/fonts/` — for ui **and** mono, which retired Space Mono in the 2026-08 font audition; the roles stay separate so re-splitting is one line in ds-tokens.css). **Not** `--font-*`, which is what `next/font` emits (`--font-switzer`, `--font-noto-sans-jp`) — a role shouldn't read as a font variable. **Neither family ships a 600 cut** (Switzer loads 400/500/700, Noto Sans JP 500/700), so use `font-medium` / `font-bold`; a `font-semibold` is synthesised.
-- **Don't mirror these into Tailwind's `@theme`.** Components read the tokens directly, so an alias is just a second name to keep in step. `@theme` holds only what Tailwind must know: the `rounded-*` scale, and the shadcn colour namespace that `shared/ui`'s two surviving files (`sheet.tsx`, `button.tsx`) paint with, pointed at the `--paper-*` group. `--color-border` reaches past shadcn — the base layer's `*` rule makes it every element's default border colour.
-- **There is no `h1..h6` font rule, deliberately.** A rule on the element beats a face inherited from a wrapper, which is how four migrated headings ended up in the old display serif. `html` carries `--face-ui`; headings that want the Japanese face say `--face-jp` at the call site. Form controls do need it stated (the UA stylesheet overrides inheritance).
-- Primitives are **React components** in `shared/components/`, not CSS classes. They read tokens and are theme-agnostic — never write a light variant and a dark variant of a component; the palette swaps underneath it. Something earns a place there once it's used twice. **Don't add to `shared/ui/`** — it's down to the radix `sheet` + `button` that `SessionConfigSheet` needs.
-- Cards are transparent by design (shadow separates them). `--bd` is transparent too, so hairline dividers don't show until it's filled. For something that needs a real fill now, reach for `--paper-*` / `PaperCard`.
-- **A component that can't use the shared surface tokens gets its own group, not a fill of the shared ones.** `--paper-*` is the precedent (born as `--deck-*`, generalized when profile became the second consumer; settings is the third): ruled lists and the deck card need a real fill and edge, but filling `--card`/`--cardalt`/`--bd` to fix them would repaint every finished screen. `shared/components/PaperCard.tsx` is the ruled-list shell that reads the group. The app-wide switch to filled cards is still one line in `ds-tokens.css` and still unused. The dock used to be the second instance (a `--dock-*` group, near-black in both themes); it is frosted glass now, so its values moved to `styles/glass.css` as `--dock-glass-*` and the group is deleted — a surface that never varies by theme belongs with glass, which is theme-invariant by construction.
-- **Frosted surfaces are `styles/glass.css`, addressed by the class names `shared/components/glass.ts` exports.** Four surfaces (`GLASS_SURFACE`/`GLASS_SHEEN`/`GLASS_BUTTON`/`GLASS_SHEET`) and three modifiers (`GLASS_SCRIM` dark variant, `GLASS_ACTIVE` selected state, `GLASS_PRESS` press nudge). Every number the look depends on is in that file's `:root` block — it is the tweak surface, so re-balancing glass is editing one block rather than hunting through components. Utilities beat the recipe (it lives in `@layer components`), which is also the trap: a selected branch that sets `text-*` overrides the ink `GLASS_ACTIVE` brings, and a button with its own `transition-*` utility must name `transform` in that list or `GLASS_PRESS` snaps instead of easing.
-- **`--active` is the app's one "this is selected" colour** — theme-invariant like `--accent`, paired with `--active-ink` (which does *not* flip, so it isn't `--btn-ink`). It replaced three competing answers: `--btn` (which inverted between themes), a `--gold` hover edge in the library, and shadcn's `bg-primary`. Selection only — a filled primary action is still `--btn`. Glass takes the same hue at 65% (`--glass-active-fill`), and the dock's sliding pill is that recipe, so pill, filter chip and toolbar toggle all agree.
+- Colour/shape: `--ink` `--soft` `--muted` `--faint` `--card` `--cardalt` `--bd` `--btn`
+  `--track`/`--fill` `--cover-1..4` `--stage-*` `--radius-*`. Read as `text-(--ink)`, `bg-(--card)`.
+- Type roles: `--face-jp` (Noto Sans JP) / `--face-ui` / `--face-mono` (both Switzer,
+  self-hosted in `app/fonts/`). **Not `--font-*`** — that's what `next/font` emits.
+  **Neither family ships a 600 cut**, so use `font-medium` / `font-bold`; `font-semibold`
+  gets synthesised.
+- **Don't mirror tokens into Tailwind's `@theme`.** Components read them directly; `@theme`
+  holds only the `rounded-*` scale and the shadcn colour namespace (pointed at `--paper-*`).
+  Note `--color-border` reaches past shadcn — the base layer's `*` rule makes it every
+  element's default border colour.
+- **There is no `h1..h6` font rule, deliberately** — an element rule beats a face inherited
+  from a wrapper. `html` carries `--face-ui`; a heading wanting Japanese says `--face-jp` at
+  the call site. Form controls must state it (the UA stylesheet overrides inheritance).
+- Primitives are **React components in `shared/components/`**, theme-agnostic — never write a
+  light variant and a dark variant; the palette swaps underneath. Earns a place there once
+  used twice. **Don't add to `shared/ui/`** (down to the radix `sheet` + `button`).
+- Cards are transparent by design and `--bd` is transparent too, so hairline dividers don't
+  show until filled. Need a real fill *now*: `--paper-*`/`PaperCard`, or `GlassCard`.
+  A component that can't use the shared surface tokens **gets its own group, not a fill of the
+  shared ones** — filling `--card`/`--cardalt`/`--bd` repaints every finished screen.
+- **Frosted surfaces are `styles/glass.css`**, addressed by the classes
+  `shared/components/glass.ts` exports (`GLASS_SURFACE`/`SHEEN`/`BUTTON`/`SHEET` +
+  `GLASS_SCRIM`/`ACTIVE`/`PRESS`); every number lives in that file's `:root` block, the one
+  tweak surface. **Two traps:** the recipe is `@layer components`, so a selected branch that
+  also sets `text-*` overrides the ink `GLASS_ACTIVE` brings; and a button with its own
+  `transition-*` utility must name `transform` there or `GLASS_PRESS` snaps instead of easing.
+- **`--active` (+ `--active-ink`) is the app's one "this is selected" colour**, theme-invariant
+  like `--accent` — `--active-ink` does *not* flip, so it isn't `--btn-ink`. Selection only; a
+  filled primary action is still `--btn`. Glass takes the same hue at `--glass-active-fill`.
 
-Theme choice persists in the `aogimi-theme` localStorage key, applied by a pre-paint `<script>` in `app/layout.tsx` (an effect fires after paint and flashes), falling back to `prefers-color-scheme`; a `users.theme` column supersedes it later. The switch is the Appearance card on `/settings` (TopBar's pill is a plain profile link). Every screen is token-driven now, so a screen that looks wrong in dark mode **is a bug**, not an accepted cost.
+Theme persists in `aogimi-theme` (localStorage), applied by a **pre-paint `<script>`** in
+`app/layout.tsx` — an effect fires after paint and flashes — falling back to
+`prefers-color-scheme`. Every screen is token-driven, so **a screen that looks wrong in dark
+mode is a bug**, not an accepted cost. `dark:` is redefined in `globals.css` as
+`html[data-theme="dark"] &`, not shadcn's `.dark *` and not `prefers-color-scheme`; nothing uses it.
 
-`dark:` is redefined in `globals.css` as `html[data-theme="dark"] &` — not shadcn's `.dark *` (never set here) and not `prefers-color-scheme`. Nothing uses it; the tokens swap underneath components instead.
-
-The only surviving `lgc` strings are the localStorage keys `lgc_device_id` and `lgc_last_user_id`. **Don't rename them** — they're storage keys, and renaming orphans every existing install's device identity.
-
-Full docs (all under `web-frontend/aogimi-web/info-documents/`):
-- **`REDESIGN.md` — read this first if you're redesigning a screen.** Self-contained context for a fresh agent: what's done, the token traps, the primitive inventory, the recurring data gaps, and how to verify.
-- `PROJECT_CONTEXT.md` — start here, end-to-end overview (see the **Theming** section).
-- `backend-connections.txt` — endpoint catalog + payload shapes the frontend depends on.
-- `DECISIONS.md` — scope decisions + deferred work.
-- `AGENTS.md` — house rules for agents working in this package.
+The only surviving `lgc` strings are the localStorage keys `lgc_device_id` and
+`lgc_last_user_id`. **Don't rename them** — renaming orphans every install's device identity.
 
 ### Web: feature-oriented structure
 
-The web app is organized **by feature, not by file type**. Three layers with one-way dependencies — `lib`/`shared` ← `features` ← `app`:
+Organized **by feature, not by file type**. Three layers, one-way: `lib`/`shared` ← `features` ← `app`.
 
-- `app/` — Next.js routing only. Pages are thin: each imports one feature view.
-- `features/<feature>/` — self-contained slices. Each owns its `components/`, `hooks/`, `lib/`, `providers/`, `views/`, `types.ts` as needed and exposes a **public API via `index.ts` (barrel)**. Cross-feature imports go through the barrel; a types-only borrow may import `@/features/<x>/types` directly. Top-level features: `mobile-gate`, `auth`, `dictionary`, `profile`, `settings`, `onboarding`, `app-shell`, plus two domains with sub-features:
-  - `books/` — `books/library` (the book list), `books/reader` (epub/pdf/text/manga engines + the two lookup surfaces, `reader-bubble` and `dict-sidebar`), shared data layer in `books/lib`, orchestrated by `books/views/BooksView` (the `/reader` route) and `books/reader/views/ReaderView` (`/reader/[bookId]`).
-  - `study/` — `study/decks`, `study/session` (the study runner), `study/stats`, orchestrated by `study/views/StudyView` (the `/study` route, which needs both decks and session).
-- `shared/` — `shared/components` (the redesign's general components — **put new primitives here**), `shared/ui` (the outgoing primitives + shadcn, being retired), `shared/icons` (global icons).
-- `lib/` — feature-agnostic infra ONLY: `api.ts`, `tokenStore.ts`, `useFetchWithAbort.ts`, `storage/_helpers.ts`, `util/`.
+- `app/` — routing only; each page is a thin wrapper rendering one feature view.
+- `features/<feature>/` — self-contained slices owning `components/` `hooks/` `lib/`
+  `providers/` `views/` `types.ts` as needed, public API via `index.ts` **barrel**.
+  Top level: `mobile-gate` `auth` `dictionary` `profile` `settings` `onboarding` `app-shell`,
+  plus two domains with sub-features:
+  - `books/` — `books/library`, `books/reader` (epub/pdf/text/manga engines + the two lookup
+    surfaces `reader-bubble` and `dict-sidebar`), shared data layer `books/lib`; orchestrated
+    by `books/views/BooksView` (`/`) and `books/reader/views/ReaderView` (`/reader/[bookId]`).
+  - `study/` — `study/decks`, `study/session`, `study/stats`; orchestrated by
+    `study/views/StudyView` (`/study`).
+- `shared/` — `shared/components` (**put new primitives here**), `shared/ui` (outgoing),
+  `shared/icons`.
+- `lib/` — feature-agnostic infra ONLY: `api.ts`, `tokenStore.ts`, `useFetchWithAbort.ts`,
+  `storage/_helpers.ts`, `util/`.
 
-The layer rule is enforced by `import/no-restricted-paths` in `eslint.config.mjs` (lib/shared must not import features; features must not import app). Cross-feature "import only via the barrel" is convention (could be hardened with eslint-plugin-boundaries).
+The layer rule is enforced by `import/no-restricted-paths` in `eslint.config.mjs`. Cross-feature
+"import only via the barrel" is convention, not enforced.
 
 ### Web: state architecture
 
-React Context providers, **each owned by its feature** and composed by `AppShell` (`features/app-shell/AppShell.tsx`): `AuthProvider`→`features/auth`, `DecksProvider`→`features/study/decks`, `DictionaryStateProvider`→`features/dictionary`, `ReaderStateProvider`+`ThemeProvider`→`features/app-shell`. **No Redux, Zustand, Jotai, etc.** Cross-feature signalling happens through "pending fields" on `ReaderStateProvider` — e.g. the reader sets `pendingCard`, `DecksView` picks it up on mount and nulls it. Effects guard against double-fire with `useRef`s of the last-handled trigger object (see `AppShell.tsx`, `PendingCardOverlay.tsx`). To avoid barrel cycles, feature code imports providers/hooks **by file path**, not via the app-shell/auth barrel.
+React Context providers, **each owned by its feature**, composed by
+`features/app-shell/AppShell.tsx`: `AuthProvider`→`auth`, `DecksProvider`→`study/decks`,
+`DictionaryStateProvider`→`dictionary`, `ReaderStateProvider`+`ThemeProvider`→`app-shell`.
+**No Redux, Zustand, Jotai.** Cross-feature signalling goes through "pending fields" on
+`ReaderStateProvider` — the reader sets `pendingCard`, `DecksView` picks it up on mount and
+nulls it. Effects guard double-fire with `useRef`s of the last-handled trigger object
+(`AppShell.tsx`, `PendingCardOverlay.tsx`). To avoid barrel cycles, feature code imports
+providers/hooks **by file path**, not via the app-shell/auth barrel.
 
-Domain types live in each feature's `types.ts` (e.g. `features/dictionary/types.ts`, `features/books/types.ts`, `features/profile/types.ts`). A feature's fetch helpers live in its `lib/` (e.g. `features/study/decks/lib/decksApi.ts`) and import those types; no type declarations alongside fetch helpers. (`lib/types/` was dissolved in the feature refactor.)
+Domain types live in each feature's `types.ts`; a feature's fetch helpers live in its `lib/`
+and import those types — no type declarations alongside fetch helpers.
 
-### Web: app-level features
+### Web: routes and app-level features
 
-Documented in the **Features** section of `web-frontend/aogimi-web/PROJECT_CONTEXT.md`. When a new app-level feature lands (something a user can name — "shortcuts", "highlights sync", "deck import", …), add a subsection there: what it is, entry-point files, where state lives, any non-obvious behaviour. Keep entries terse; deep details belong in the source.
+**Per-feature detail lives in PROJECT_CONTEXT.md's `## Features` section** — a section each for
+Dictionary, Decks, Settings, Auth, Dock and the Sky engine. Read the one you're touching; add a
+section there (not here) when a new user-nameable feature lands.
 
-Currently documented features:
-- **There is no home dashboard.** `features/home` — the greeting hero, the empty sky panel and the five cards (continue-reading, study, library, dictionary, decks) — was deleted whole, and **the library shelf took `/` as the landing page**. Signing in lands you on your books. Deleted with it: `shared/components/CardHeader` (home was its only consumer), the `--sky-border` / `--sky-shadow` tokens, home's duplicate `useRecentSearches` (the dictionary's copy is the live one), and the Dock's Home entry. `fetchRandomDueCard` went too, which leaves `GET /api/study/due/random` with no client on either platform — the route is still up, just unused. There is no app-level surface for recent dictionary searches any more; the dictionary's own empty state and the reader's sidebar are what's left.
-- **Study route** (`/study`, `features/study/views/StudyView.tsx`) — studying used to be local `screen` state inside `DecksView`; it's now a route so it can be linked to and survive a refresh. Config comes from the query string: no params = all decks `hardest_all_decks`; `?deck={id}` = that deck's saved mode/size; `?due=1` = every due card shuffled, sized from a due-count endpoint. Exits to `/decks`.
-- **Theme switch** — `light` / `dark` via `html[data-theme]`, picked on `/settings` (Appearance card, the only theme control), persisted in `aogimi-theme`. See the design-tokens section above.
-- **Settings / Help / Credits** (`/settings` + `/help` + `/credits`, `features/settings`) — three routes, one `SettingsShell` (TopBar with a `back to profile` pill eyebrow + sticky "Settings" rail), so navigating between them reads as the panel column swapping. Reached only from `/profile`'s Settings button. Appearance (theme picker), About (links to the other two), Data (sign out; delete account = `DELETE /api/user` behind a typed-"delete" `<dialog>` confirm, then `/authenticate`). Help prose ships with the app; the Credits list (`lib/credits.ts`) is the audited what-we-ship inventory — several data licenses require it, keep it in sync (Typography mirrors `app/layout.tsx`'s `next/font` imports).
-- **Decks** (`/decks`, `features/study/decks`) — the unified sky stage: the old deck list, deck detail and the `/sky` route are all merged into one full-viewport view (`views/DecksView.tsx`). Every deck is a framed constellation on a grid (frames drawn by the sky engine — `features/sky` — fed per-deck `frameMeta`; clicking a frame is the way in). **The URL is the only navigation state**: `?deck={uuid}` is the focused deck, `&card={uuid}` the selected card; push on focus change, replace on selection, Escape walks card → deck → whole sky. Chrome overlays the stage: `StageChrome` (Study-all-due + New-deck buttons at the outer tier; deck-scoped Study + delete-deck when focused), `StageLedger` (account stats, mastery mix, recent upgrades — outer tier only), `GlassColumn` (focused deck: `CardSearch`, sortable card list, deck info, card detail with dictionary/delete actions). Glass chrome reads `lib/nightChrome.ts` constants, deliberately not tokens — the stage is night in both themes (same justification as the dock's `--dock-glass-*`); the exceptions are `active`/`activeInk`, which reference `--active` so the stage's sort chips agree with the rest of the app. Due counts come from one `/api/study/due/counts` call (`hooks/useDeckDueCounts.ts`), shared by frames, chrome and ledger. Deck rename/descriptions and per-deck session config currently have no surface (`SessionConfigSheet`/`useDeckOverrides` are orphaned but alive — `/study?deck=` still applies saved overrides). The reader's pending-card flow still lands here (`PendingCardOverlay` over the stage). `lib/rankProgress.ts` mirrors the promotion rules in `backend/src/services/cardSrsService.js` — change one, change both.
-- **Dictionary** (`/dictionary`, `features/dictionary`) — one route, two states chosen by the URL: no `q` is the centred prompt (`components/BeforeSearch.tsx`), `?q=…` is a 380px results rail beside the selected entry (`views/SearchView.tsx`). `views/DictionaryView.tsx` is the only place that reads or writes the URL — `?q=` is the query, `?id=`/`?kanji=` the selected row — and **nothing is persisted**, because a localStorage mirror of the same facts drifted. New queries `push`, selection changes `replace`. The entry pane renders headword/reading/pitch/meanings straight from the rail's `WordResult` so switching is instant; only the kanji breakdown and examples wait on `/api/words/:id/details` (`hooks/useWordDetails.ts`, cached per id, not cancelled on selection change). **The reader's two lookup surfaces are built from this feature's exports rather than copies of them** — `features/books/reader/dict-sidebar/` (docked, 320–480px, `scale="compact"`) and `features/books/reader/reader-bubble/` (floating 880×620, five phases, `scale="full"`) render the same rows, `RailList` and entry panes. The barrel's components own no width, fill, edge, scroll or padding so the surface can supply the box; `scale` carries the type/spacing step-down. `DictionarySidekick` and `WordDetailView` are deleted.
+Route map: `/` library shelf · `/reader/[bookId]` open book · `/dictionary` · `/decks` ·
+`/study` · `/profile` · `/help` · `/credits` · `/authenticate`.
 
-- **Auth** (`/authenticate`, `features/auth`) — split screen: night `SkyPanel` left (dropped below `lg`, colours hardcoded because it's night in both themes; the generated constellation is deferred), `AuthForm` right. `mode` is **local state**, not a route — `AppShell` gates on `pathname === '/authenticate'` exactly. The switcher can't move when the mode changes: the signup-only email field stays mounted and goes `invisible` + `inert` in login mode, so the panel's height and centring never change. `ModeSwitch` is a radiogroup (no tab panels exist). `validate()` mirrors `backend/src/validation/auth.js` exactly — validating less means a valid-looking form returns a server error. `SocialButtons` is built behind `SHOW_SOCIAL_AUTH = false` (no OAuth exists); "keep me signed in", "forgot password", and terms/privacy links are not built.
-- **Dock** (`features/app-shell/Dock.tsx`) — the fixed bottom nav, composed by `AppShell`, hidden on `/authenticate`. Replaced `WorkspaceNav` (deleted; the "don't touch it" deferral is lifted). Reader · Dictionary · Decks │ Profile — Settings lost its entry (reachable from `/profile`), Sky's went with the /sky → /decks merge, and Home's went with the dashboard. **Reader's path is `/`**, not `/reader`: the shelf is the landing page, so Home's route would have been Reader's destination under a second name. It matches exactly (`/reader/<bookId>` is an open book, which hides the dock entirely). The divider now separates the three nav items from Profile. `next/link` + `aria-current="page"`, monochrome, labels always visible, Profile renders the `--avatar` circle. **Frosted glass**, per the Dock Bar handoff: the shell, the items and the sliding active pill are `.glass-dock` / `.glass-dock-item` / `.glass-dock-pill` in `styles/glass.css` (`--dock-glass-*`), and the pill's tint is the app-wide `--active`. The component owns only geometry and the measurement that gives the pill its `left`/`width` (the active item's `offsetLeft`/`offsetWidth`, re-read before paint on route change and from a `ResizeObserver`). `aria-current="page"` is load-bearing three times over: accessible state, CSS hook for the active ink, and what the measurement queries. Pages reserve `pb-[140px]`.
+**What does not exist — don't recreate it:** no home dashboard (**`/` is the library shelf**,
+so `/reader` survives only as the parent segment of `/reader/[bookId]`), no `/settings`
+(settings is a column of `/profile`), no `/sky` (the star map is `/decks`; `features/sky` is
+the engine, with no route), no `/word/[id]` (the entry is a pane in `/dictionary`).
 
-Routes worth knowing: **`/` is the library shelf** (`BooksView`), not a dashboard — that's the whole route, so `app/reader/page.tsx` is gone and `/reader` survives only as the parent segment of `/reader/[bookId]`, one open book. Two prefix tests depend on that shape and are deliberately not equality checks — `AppShell`'s `isOpenBook` (which hides the dock) and `useReaderActions`'s `isDictSurfaceVisible`. There is no `/sky` — the star map lives at `/decks` (see the Decks entry; `features/sky` is the map engine only, with no route of its own; the old stats tabs are gone, `features/study/stats` survives only as the `statsApi` fetchers the ledger uses). There is no `/word/[id]` — the entry detail is a pane inside `/dictionary`.
+Cross-file invariants that are easy to break without noticing:
+
+- **`study/decks/lib/rankProgress.ts` mirrors the promotion rules in
+  `backend/src/services/cardSrsService.js`** — change one, change both.
+- **`auth`'s `validate()` mirrors `backend/src/validation/auth.js` exactly** — validating less
+  means a valid-looking form returns a server error.
+- **`settings/lib/credits.ts` is the audited what-we-ship inventory** — several data licenses
+  require it; keep it in sync (its Typography list mirrors `app/layout.tsx`'s `next/font` imports).
+- **`/decks` and `/dictionary` keep navigation state in the URL only** — nothing persisted (a
+  localStorage mirror of the same facts drifted). `/decks`: `?deck=`/`&card=`, Escape walks
+  card → deck → sky. `/dictionary`: `?q=` + `?id=`/`?kanji=`, and `views/DictionaryView.tsx`
+  is the only file that reads or writes it. `/study` reads its whole config from the query
+  string: `?deck={id}` uses that deck's saved mode/size, `?due=1` is every due card shuffled,
+  no params = all decks in `hardest_all_decks` mode. Exits to `/decks`.
+- **The reader's two lookup surfaces are built from `features/dictionary`'s exports, not
+  copies** — `dict-sidebar` (`scale="compact"`) and `reader-bubble` (`scale="full"`). The
+  barrel's components own no width, fill, edge, scroll or padding so the surface supplies the
+  box; `scale` carries the type/spacing step-down.
+- **`/decks` chrome reads `lib/nightChrome.ts` constants, deliberately not tokens** — the stage
+  is night in both themes. Exceptions: `active`/`activeInk` reference `--active`.
+- **Dock:** `aria-current="page"` is load-bearing three times over — accessible state, CSS hook
+  for the active ink, and what the sliding pill's measurement queries. Reader's entry is `/`
+  and matches exactly. **Pages reserve `pb-[140px]`.**
+- Two prefix tests depend on the route shape and are deliberately not equality checks —
+  `AppShell`'s `isOpenBook` (hides the dock) and `useReaderActions`'s `isDictSurfaceVisible`.
 
 ### Mobile: mirrors the web theme pattern
 
-Same three-layer system (`theme/tokens.ts`, `theme/createThemedComponent.tsx`, `themes/index.ts` + `themes/useThemedComponent.ts`). The Stamp theme registers `HomeScreen`, `DictionaryScreen`, `DictEntry`, `BottomTabBar` and uses theme-decoration atoms (`components/theme-decorations/stamp/`).
-
-`mobile-frontend/aogimi-mobile/THEMES.md` documents the mobile theme system. (The web theming system has since been removed — see the web section above.)
+Three layers (`theme/tokens.ts`, `theme/createThemedComponent.tsx`, `themes/index.ts` +
+`themes/useThemedComponent.ts`); the Stamp theme registers `HomeScreen`, `DictionaryScreen`,
+`DictEntry`, `BottomTabBar` and uses decoration atoms in `components/theme-decorations/stamp/`.
+Documented in `mobile-frontend/aogimi-mobile/THEMES.md`. (Web has no per-theme dispatch.)
 
 ### Books: per-device storage + Postgres metadata
 
-EPUB/PDF blobs never go to Postgres. On web they live in a **single IndexedDB database `aogimi`** (`features/books/lib/booksDb.ts` is the sole connection factory; stores: `metadata`, `files` blobs, `handles` for the File System Access directory handle). On mobile they live in `expo-file-system documents/books/`. The backend stores **metadata + reading position** in `book_progress` rows (EPUB CFI / spine index / percent) — see *Reading progress / position* below and DECISIONS.md.
+EPUB/PDF blobs never go to Postgres. On web they live in a **single IndexedDB database
+`aogimi`** — `features/books/lib/booksDb.ts` is the sole connection factory (stores:
+`metadata`, `files`, `handles` for the File System Access directory handle), and `getDb()`
+runs a one-time idempotent migration from the two former DBs (`aogimi-books` + `aogimi-fs`).
+On mobile: `expo-file-system documents/books/`. The backend holds metadata + reading position
+in `book_progress`.
 
-The `aogimi` DB merged two former databases (`aogimi-books` + `aogimi-fs`); `booksDb.getDb()` runs a one-time, idempotent copy-then-delete migration from them on first open.
-
-Library mount on the web reconciles all three storage layers (`features/books/library/components/RestoreBooks.tsx`, driven by `features/books/views/BooksView.tsx`):
-1. Load local IndexedDB book records.
-2. Register the device (`POST /api/devices`) if absent.
-3. Fetch backend books (`GET /api/books/user/{id}`).
-4. `POST /api/books/match` reconciles unidentified local files against existing user books by hash priority: file_hash → content_hash → dc_identifier+title → filename.
-5. Backfill identity (`PUT /api/books/{id}/identity`) for matched-but-stale rows.
-6. Mark availability per device (`POST /api/devices/{deviceId}/books/{bookId}/available`).
+Library mount on the web reconciles all three storage layers
+(`features/books/library/components/RestoreBooks.tsx`, driven by `views/BooksView.tsx`):
+load local IndexedDB records → register the device (`POST /api/devices`) if absent → fetch
+backend books (`GET /api/books/user/{id}`) → `POST /api/books/match` to reconcile unidentified
+local files **by hash priority: file_hash → content_hash → dc_identifier+title → filename** →
+backfill identity (`PUT /api/books/{id}/identity`) for matched-but-stale rows → mark
+availability (`POST /api/devices/{deviceId}/books/{bookId}/available`).
 
 ### Reading progress / position
 
-**Backend-buffered.** Position is captured from foliate's `relocate` event in the EPUB engines (and pdf.js's `pagechanging` in the PDF one) and persisted in two tiers (rationale in DECISIONS.md — deliberately *not* a per-turn backend write):
+**Backend-buffered**, deliberately not a per-turn backend write (rationale in DECISIONS.md).
+Position comes from foliate's `relocate` (EPUB) / pdf.js's `pagechanging` (PDF) and persists
+in two tiers:
 
-- **localStorage** (`features/books/lib/readerSession.ts`, key `reader_progress_<filename>`) is written on every page turn — cheap, no network, the per-device buffer / source of truth between flushes.
-- **The backend** (`book_progress.cfi_position` / `spine_index` / `progress` via `PUT/POST /api/books/:id/progress`) is flushed only **periodically** (~60s backstop), **on exit** (`visibilitychange:hidden` / `pagehide` via a keepalive POST — `fetch(keepalive)`, *not* `sendBeacon`, so it carries the in-memory Bearer token), and **on unmount** (normal fetch — "Back to library" is an SPA nav that fires no unload event).
+- **localStorage** (`features/books/lib/readerSession.ts`, key `reader_progress_<filename>`) —
+  every page turn; the per-device buffer and source of truth between flushes.
+- **Backend** (`book_progress.cfi_position`/`spine_index`/`progress` via
+  `PUT/POST /api/books/:id/progress`) — flushed periodically (~60s), **on exit**
+  (`visibilitychange:hidden`/`pagehide` via a keepalive POST — `fetch(keepalive)`, *not*
+  `sendBeacon`, so it carries the in-memory Bearer token), and **on unmount** (normal fetch:
+  "Back to library" is an SPA nav that fires no unload event).
 
-`features/books/views/useProgressSync.ts` owns the wiring; readers forward position via an `onRelocate` prop. On open, `BooksView` resolves the restore anchor as the **newer** of the localStorage snapshot and the backend row (same device ⇒ local; switched device ⇒ backend) and the engine does a one-shot `goTo`. The first relocate of a session only **seeds the dedup baseline**, so opening a book never writes back the restored position — a manual "mark finished" (`{ progress: 100 }`) sticks until the user actually turns a page. **PDFs are tracked too, at page granularity, and need no extra column**: `features/books/reader/lib/pdfPosition.ts` encodes the page as `page-N` in the `cfi_position` slot (with the 1-based page mirrored into `spine_index`), which is the encoding the mobile PDF reader already writes — so the two resume each other. Where *inside* a page you were is not stored. Reader typography prefs remain in-memory only (reset per open) pending backend-backed storage.
+`features/books/views/useProgressSync.ts` owns the wiring; readers forward position via an
+`onRelocate` prop. On open, `BooksView` resolves the restore anchor as the **newer** of the
+local snapshot and the backend row, and the engine does a one-shot `goTo`. The first relocate
+of a session only **seeds the dedup baseline**, so opening a book never writes back the restored
+position — a manual "mark finished" (`{ progress: 100 }`) sticks until a real page turn.
+**PDFs need no extra column:** `features/books/reader/lib/pdfPosition.ts` encodes the page as
+`page-N` in the `cfi_position` slot (1-based page mirrored into `spine_index`), which is what
+the mobile PDF reader writes, so the two resume each other. Where *inside* a page isn't stored.
+Reader typography prefs are in-memory only (reset per open).
 
 ## Gotchas
 
-- **Next.js 16 has breaking changes.** `web-frontend/aogimi-web/info-documents/AGENTS.md` says: read `node_modules/next/dist/docs/` before writing route code. Conventions don't match training data — heed deprecation notices.
-- **React Native 0.83 + Fabric:** `transform: pressed ? [...] : undefined` between press states gets coerced to `null` and crashes the transform processor (`forEach on null`). Always pass a stable-shape transform array, e.g. `transform: [{ translateX: pressed ? 2 : 0 }, { translateY: pressed ? 2 : 0 }]`.
-- **Hex literals in components are discouraged, not banned.** Anything that reads as palette belongs in tokens — grep a surface for `#[0-9a-f]{6}` and replace with a `ds-tokens.css` token (`bg-(--paper)`, `text-(--ink)`). But a one-off value that exists to make a *single* component work is fine hardcoded there rather than promoted to a global token: adding a token to `ds-tokens.css` widens the palette every screen reads, and that's the more expensive mistake. Document the value in a comment saying why it isn't a token. Standing exceptions: `JlptChip` (per-level palette, by design) and, on mobile, theme decoration atoms.
-- **No inline `borderRadius: <px>` on token-relevant surfaces.** Use `rounded-*` Tailwind classes or `var(--radius-md)`. Pure decoratives (`'50%'`, `999`) are fine.
-- **No inline `if (theme === 'stamp')` branches** in components. (Mobile only — web has no per-theme dispatch anymore. On mobile, move the variation into a shape token or fork via the registry.)
-- **`react-hooks/set-state-in-effect`** fires false positives on legitimate "sync from external trigger" effects (see `features/app-shell/AppShell.tsx` pending-field effects, `features/study/decks/components/PendingCardOverlay/` phase seed). Block-disabled with explanatory comment where the pattern is correct.
-- **Migrations are manual.** Sequence matters — apply in numbered order. `011_jlpt_seed.psql` is psql-specific because of `\copy`.
-- **There are no pinned design canvases any more.** `aogimi-DS/`, `HomeDemos.tsx`, `DictionaryQuiet.tsx` and `DictionarySidekick.tsx` are all deleted; the library shelf (`BooksView`) is the last live production screen still awaiting redesign, not a reference layout. Every screen gets replaced eventually — a redesign is expected to rewrite the screen it's assigned, and there's no need to preserve the outgoing one's inline pixel radii.
+- **Next.js 16 has breaking changes.** Read `node_modules/next/dist/docs/` before writing
+  route code — conventions don't match training data. Heed deprecation notices.
+- **React Native 0.83 + Fabric:** `transform: pressed ? [...] : undefined` gets coerced to
+  `null` between press states and crashes the transform processor (`forEach on null`). Always
+  pass a stable-shape array: `transform: [{ translateX: pressed ? 2 : 0 }, { translateY: pressed ? 2 : 0 }]`.
+- **Hex literals in components are discouraged, not banned.** Anything that reads as palette
+  belongs in tokens (grep `#[0-9a-f]{6}`). But a one-off value that makes a *single* component
+  work is fine hardcoded with a comment saying why it isn't a token — adding to
+  `ds-tokens.css` widens the palette every screen reads, which is the more expensive mistake.
+  Standing exceptions: `JlptChip` (per-level palette) and mobile decoration atoms.
+- **No inline `borderRadius: <px>`** on token-relevant surfaces — use `rounded-*` or
+  `var(--radius-md)`. Pure decoratives (`'50%'`, `999`) are fine.
+- **No inline `if (theme === 'stamp')` branches** (mobile only) — move the variation into a
+  shape token or fork via the registry.
+- **`react-hooks/set-state-in-effect`** false-positives on legitimate "sync from external
+  trigger" effects (`AppShell.tsx` pending fields, `PendingCardOverlay/` phase seed).
+  Block-disabled with a comment where the pattern is correct.
+- **Migrations are manual and order-sensitive.** `011_jlpt_seed.psql` is psql-specific
+  (`\copy`), so it must run via `psql -f`, not a generic Postgres client.
+- **There are no pinned design canvases.** The library shelf (`BooksView`) is the last live
+  screen awaiting redesign, not a reference layout. A redesign is expected to rewrite its
+  screen — don't preserve the outgoing one's inline pixel radii.
 
 ## Conventions
 
-- **Web file placement & naming (where new code goes).** Place by feature, never by file type. Pick the existing feature under `features/`; create a new one only for a genuinely new user-nameable concern.
-  - A feature's internals use fixed sub-folder names — `components/` (PascalCase `Foo.tsx`), `hooks/` (camelCase `useFoo.ts`), `lib/` (camelCase: api/storage/pure logic, e.g. `fooApi.ts`), `providers/` (`FooProvider.tsx`), `views/` (route/page-level `FooView.tsx`), plus `types.ts`. **Only create a sub-folder that will hold a file** — no empty scaffolding.
-  - Each feature has an `index.ts` **barrel** = its public API. Other features import from the barrel (`@/features/foo`); a types-only borrow may import `@/features/foo/types` directly. Inside a feature, use relative imports (`./`, `../`).
-  - A domain with sub-features (`books`, `study`) nests them as sibling folders (`books/library`, `books/reader`), each with its own structure + barrel; things shared by the sub-features live at the domain root (`books/lib`, `books/types.ts`). Sub-features stay independent — they don't import each other (an orchestrator view at the domain root composes them).
-  - Routing stays in `app/`; a page is a thin wrapper that renders one feature view. Cross-cutting UI primitives → `shared/components` (`shared/ui` is the outgoing set — don't add to it), global icons → `shared/icons`. `lib/` is feature-agnostic infra only.
-- Domain types live in each feature's `types.ts` (e.g. `features/dictionary/types.ts`). A feature's fetch helpers live in its `lib/` (e.g. `features/study/decks/lib/decksApi.ts`) and import those types; no type declarations alongside fetch helpers. `web-frontend/aogimi-web/lib/` holds only feature-agnostic infra (`api.ts`, `tokenStore.ts`, `useFetchWithAbort.ts`, `storage/_helpers.ts`, `util/`).
-- `lib/util/cn.ts` is the Tailwind class merger. shadcn's `components.json` aliases `utils` → `@/lib/util/cn`, so future `shadcn add` writes the right path.
-- Don't run git commits, pushes, or destructive DB operations — the human handles those.
-- All `*Api.ts` fetch helpers accept an optional `AbortSignal`; pair with `useEffect` cleanup.
+- **Web file placement.** By feature, never by file type. Pick an existing feature under
+  `features/`; create one only for a genuinely new user-nameable concern.
+  - Fixed sub-folder names: `components/` (PascalCase `Foo.tsx`), `hooks/` (`useFoo.ts`),
+    `lib/` (camelCase api/storage/pure logic, `fooApi.ts`), `providers/` (`FooProvider.tsx`),
+    `views/` (`FooView.tsx`), plus `types.ts`. **Only create a sub-folder that will hold a
+    file** — no empty scaffolding.
+  - Each feature's `index.ts` barrel is its public API. Others import `@/features/foo`; a
+    types-only borrow may import `@/features/foo/types`. Inside a feature, relative imports.
+  - A domain with sub-features (`books`, `study`) nests them as siblings, each with its own
+    barrel; what they share sits at the domain root. **Sub-features don't import each other** —
+    an orchestrator view at the domain root composes them.
+  - Routing stays in `app/`. Cross-cutting primitives → `shared/components` (not `shared/ui`),
+    global icons → `shared/icons`, feature-agnostic infra → `lib/`.
+- `lib/util/cn.ts` is the Tailwind class merger; shadcn's `components.json` aliases `utils` to
+  it so future `shadcn add` writes the right path.
+- All `*Api.ts` fetch helpers accept an optional `AbortSignal` — pair with `useEffect` cleanup.
+- **Don't run git commits, pushes, or destructive DB operations** — the human handles those.

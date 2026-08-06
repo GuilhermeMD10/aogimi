@@ -76,6 +76,31 @@ export const GLASS_ROW = 'glass-row';
 export const GLASS_ACTIVE = 'glass-active';
 
 /**
+ * Modifier on `GLASS_BUTTON` for the study runner's grade row, paired with one
+ * of the three tint classes below:
+ *
+ *   <button className={cn(GLASS_BUTTON, GLASS_PRESS, GLASS_GRADE, GLASS_GRADE_AGAIN)}>
+ *
+ * The one glass in the app whose **specular layers take the tint too**, not just
+ * its fill. Three tiles sit side by side carrying neutral ink, so hue is the
+ * whole signal and a white edge would dilute it — see the grade block in
+ * `glass.css`. Don't copy the exception onto a surface that isn't one of these.
+ *
+ * It brings no ink of its own: set `text-(--ink)` on the button, which is also
+ * what the hover edge resolves to (`currentColor`).
+ */
+export const GLASS_GRADE = 'glass-grade';
+
+/** Again — `#ff5757`. Deliberately not `--danger`; the tints are local. */
+export const GLASS_GRADE_AGAIN = 'glass-grade-again';
+
+/** Hard — `#ffd582`. Deliberately not `--warn`. */
+export const GLASS_GRADE_HARD = 'glass-grade-hard';
+
+/** Easy — `#7ee29a`, the palette's only green and local to this row. */
+export const GLASS_GRADE_EASY = 'glass-grade-easy';
+
+/**
  * The press nudge — `translateY(1px) scale(.985)` for 120ms while held. Opt in
  * per button, on anything a user presses: it is deliberately not folded into
  * `GLASS_BUTTON`, because an element has exactly one `transform` and some

@@ -44,6 +44,8 @@ export function useSkyStage(sky: SkySnapshot, focus: FocusPath, ranks: RankRamp)
     () => indexSky({ stars, links, constellations, decks }, ranks),
     [stars, links, constellations, decks, ranks],
   );
+  // Frame LOD is not a parameter: one arrangement serves both modes (see `frameBoxOf`), so nothing
+  // about the layout — and therefore nothing about the camera's bounds — moves when the mode flips.
   const layout = useMemo(() => layoutDecks(index.localBoxes, index.names), [index]);
 
   // focusing a deck is what shrinks the camera's world: pan is confined to that deck's own box, so

@@ -68,6 +68,12 @@ export const ROW_SELECTED = GLASS_ACTIVE;
 
 export const ROW_FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)';
 
+/** Where `AddButton` sits: over the row's right edge, outside its `<button>`.
+ *  `ROW_ADD_GUTTER` is the padding the row gives up so its content can't run
+ *  under the affordance (size-8 button + the 8px inset + a little air). */
+const ROW_ADD_SLOT = 'absolute top-2.5 right-2';
+const ROW_ADD_GUTTER = 'pr-12';
+
 const ROW_INK = {
   idle: {
     strong: 'text-(--ink)',
@@ -110,7 +116,12 @@ export function ClassPill({ children, selected = false }: { children: string; se
 /** The add-to-deck affordance every row carries. Glass on glass, like the
  *  library hero's CTA — the `scale-105` + `--btn` fill it used to grow on hover
  *  was the only place a row filled, and the row itself is filled now. Vermilion
- *  survives the swap: it is legible on the idle glass and on the lit tint. */
+ *  survives the swap: it is legible on the idle glass and on the lit tint.
+ *
+ *  **It is never a child of the row's button** — nesting one `<button>` inside
+ *  another is invalid HTML and React fails hydration on it. It sits absolutely
+ *  over the row instead (`ROW_ADD_SLOT`), which keeps the glass fill running the
+ *  full width underneath it while staying a sibling in the DOM. */
 export function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
@@ -160,15 +171,15 @@ export function WordRow({
   const ink = rowInk(selected);
 
   return (
-    <li className="flex items-start gap-1">
+    <li className="relative flex items-start">
       <button
         type="button"
         onClick={onSelect}
         aria-current={selected ? 'true' : undefined}
-        className={cn(ROW_SHELL, selected && ROW_SELECTED, ROW_FOCUS, 'cursor-pointer')}
+        className={cn(ROW_SHELL, ROW_ADD_GUTTER, selected && ROW_SELECTED, ROW_FOCUS, 'cursor-pointer')}
       >
-        <span className="min-w-0 flex-1 flex justify-between">
-          <span>
+        <span className="min-w-0 flex-1">
+          <span className="block">
             <span className="flex items-baseline gap-[9px]">
               <span className={cn('font-[family-name:var(--face-jp)] text-[26px] leading-none', ink.strong)}>
                 {headword}
@@ -208,11 +219,12 @@ export function WordRow({
               </span>
             )}
           </span>
-          <div>
-            <AddButton onClick={onAdd} label={`Add ${headword} to a deck`} />
-          </div>
         </span>
       </button>
+
+      <span className={ROW_ADD_SLOT}>
+        <AddButton onClick={onAdd} label={`Add ${headword} to a deck`} />
+      </span>
     </li>
   );
 }
@@ -238,12 +250,12 @@ export function KanjiRow({
   const ink = rowInk(selected);
 
   return (
-    <li className="flex items-start gap-1">
+    <li className="relative flex items-start">
       <button
         type="button"
         onClick={onSelect}
         aria-current={selected ? 'true' : undefined}
-        className={cn(ROW_SHELL, selected && ROW_SELECTED, ROW_FOCUS, 'cursor-pointer')}
+        className={cn(ROW_SHELL, ROW_ADD_GUTTER, selected && ROW_SELECTED, ROW_FOCUS, 'cursor-pointer')}
       >
         <span
           className={cn(
@@ -272,10 +284,11 @@ export function KanjiRow({
             {kanji.stroke_count != null && <ClassPill selected={selected}>{`${kanji.stroke_count} strokes`}</ClassPill>}
           </span>
         </span>
-        <div>
-          <AddButton onClick={onAdd} label={`Add ${kanji.literal} to a deck`} />
-        </div>
       </button>
+
+      <span className={ROW_ADD_SLOT}>
+        <AddButton onClick={onAdd} label={`Add ${kanji.literal} to a deck`} />
+      </span>
     </li>
   );
 }

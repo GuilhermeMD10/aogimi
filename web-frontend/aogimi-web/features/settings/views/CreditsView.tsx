@@ -1,5 +1,4 @@
 import { Eyebrow, PaperCard } from '@/shared/components';
-import { BackToSettings } from '../components/BackToSettings';
 import { SettingsShell } from '../components/SettingsShell';
 import { CREDITS, type CreditEntry } from '../lib/credits';
 
@@ -14,10 +13,8 @@ export default function CreditsView() {
   return (
     <SettingsShell>
       <div>
-        <div className="mb-3 flex items-baseline gap-3">
-          <Eyebrow>Credits</Eyebrow>
-          <BackToSettings />
-        </div>
+        {/* Exit is the TopBar pill — see HelpView. */}
+        <Eyebrow className="mb-3">Credits</Eyebrow>
         <PaperCard className="flex items-start gap-7 p-[30px]">
           <span
             aria-hidden

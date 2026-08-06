@@ -89,6 +89,9 @@ export type CameraController = {
   /** How far in the camera is relative to a fit of its current bounds — 1.0 at the fitted view.
    *  What the star form's sublinear swell is measured against, so it means the same at every tier. */
   relZoom: number;
+  /** The largest `relZoom` this tier permits — the anchor for anything that ramps with "how far in
+   *  you are", since the absolute ceiling means something different per tier and per deck. */
+  relZoomMax: number;
   /** Frame the whole of `bounds`, now and as it grows, until a gesture takes over. */
   fitTo: () => void;
   /**
@@ -344,12 +347,14 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
   }, [ins, flyTo]);
 
   const view = useMemo(() => viewOf(camera, viewport), [camera, viewport]);
+  // the fitted zoom of the current bounds, which both figures below are expressed against
+  const fit = useMemo(() => fitZoom(bounds, viewport, ins, limits), [bounds, viewport, ins, limits]);
   // relative to a fit of the *current* bounds, so 1.0 means "this tier, fully framed" whether that
   // tier is the whole sky or one deck. An absolute zoom would mean something different in each.
-  const relZoom = useMemo(
-    () => camera.zoom / fitZoom(bounds, viewport, ins, limits),
-    [camera.zoom, bounds, viewport, ins, limits],
-  );
+  const relZoom = camera.zoom / fit;
+  // ...and how far in this tier lets a gesture go, in the same currency: the ceiling a star's size
+  // ramp is anchored to, so "fully zoomed in" means the same thing in a sparse deck and a dense one.
+  const relZoomMax = limits.max / fit;
 
   const fitTo = useCallback(() => setPose('fit'), []);
 
@@ -501,6 +506,7 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
     dragging,
     locked,
     relZoom,
+    relZoomMax,
     fitTo,
     flyTo,
     onPointerDown,

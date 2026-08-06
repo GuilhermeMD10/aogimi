@@ -1,12 +1,31 @@
 'use client';
-import { memo, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from 'react';
+import {
+  memo,
+  type PointerEvent as ReactPointerEvent,
+  type ReactElement,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import { toWorld } from '../lib/camera';
 import { NO_FULCRAL } from '../lib/cluster';
-import { CLOUD_DRIFT_MS, LINK_REACH, STAR_POP_MS, UNFOCUSED_DECK_OPACITY } from '../lib/config';
+import {
+  CLOUD_DRIFT_MS,
+  LINK_GLOW_ALPHA,
+  LINK_GLOW_PX,
+  LINK_REACH,
+  LINK_STRAND_ALPHA,
+  LINK_STRAND_HOLD,
+  LINK_STRAND_MAP_ALPHA,
+  LINK_STRAND_MAP_PX,
+  LINK_STRAND_PX,
+  STAR_POP_MS,
+  UNFOCUSED_DECK_OPACITY,
+} from '../lib/config';
 import { deckAt, frameAt, type SkyLayout } from '../lib/layout';
 import { labelOpAt } from '../lib/lod';
-import { type SkyPalette, hueFor } from '../lib/palette';
+import { type ColorStop, type SkyPalette, beadRamps, lerpHex, rankOf, strandRamps } from '../lib/palette';
 import { pickStar } from '../lib/picking';
 import type { DeckDraw, SkyFrame } from '../lib/tiers';
 import type { Bounds, FocusPath, Star, View } from '../lib/types';
@@ -14,6 +33,7 @@ import type { Bounds, FocusPath, Star, View } from '../lib/types';
 import { SkyClouds } from './SkyClouds';
 import { type DeckFrameData, SkyFrames } from './SkyFrames';
 import { SkyStars } from './SkyStars';
+import { SkyWash } from './SkyWash';
 import { type CameraController, localOf } from '../hooks/useCamera';
 
 /** The one place the world rectangle gets SVG's formatting; every other renderer wants numbers. */
@@ -29,8 +49,10 @@ const SKY_CSS = `
   @keyframes sky-new  { 0%,100% { fill-opacity: 1; } 50% { fill-opacity: .45; } }
   /* the cloud's churn: transform-only, so the browser never re-uploads a gradient for it */
   @keyframes sky-turn { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  /* a fade rather than a dashoffset draw-in: the lines are dashed now, and offsetting a dash
-     pattern reads as marching ants rather than as a line being drawn */
+  /* a strand's arrival. A fade rather than a dashoffset draw-in, which the solid stroke would now
+     allow: the strand arrives *with* the star that brought it, and a line drawing itself across the
+     sky would upstage the pop it is supposed to accompany. Opacity only, so it composes with the
+     group's lineOp instead of fighting it. */
   .sky-edge { animation: sky-fade .7s ease-out both; }
   /* Radii carry zoom and must land on the same frame as the viewBox, so nothing sized from it is
      ever transitioned. Only entry animations live here, and they are one-shot. */
@@ -43,8 +65,12 @@ const SKY_CSS = `
   /* the deck frame's hover brighten. fill/stroke only — neither is a function of zoom, so the
      no-transitions-on-camera-driven-values rule is not in play */
   .sky-frame { transition: fill .28s ease, stroke .28s ease; }
+  /* the frameless deck's hover fog. Opacity only — it carries no zoom, so unlike a radius it does
+     not have to land on the same frame as the viewBox */
+  .sky-fog { transition: opacity .22s ease; }
   @media (prefers-reduced-motion: reduce) {
-    .sky-edge, .sky-star, .sky-open, .sky-hover, .sky-new, .sky-drift, .sky-deck, .sky-frame {
+    .sky-edge, .sky-star, .sky-open, .sky-hover, .sky-new, .sky-drift, .sky-deck, .sky-frame,
+    .sky-fog {
       animation: none; transition: none;
     }
   }
@@ -66,14 +92,37 @@ const glowDefs = (ranks: SkyPalette['ranks']) =>
     </radialGradient>
   ));
 
+const stopsOf = (stops: ColorStop[]) =>
+  stops.map((s) => <stop key={s.at} offset={`${s.at * 100}%`} stopColor={s.color} stopOpacity={s.alpha} />);
+
+/**
+ * The glass bead's two gradients, one pair per rank — the body and the caustic bounce beneath it.
+ *
+ * **Per rank, never per star.** Both are radius-independent (percentage stops, objectBoundingBox
+ * focal points), so twelve defs cover every beaded star in the sky. Keying them by radius instead
+ * would make `<defs>` camera-dependent, which rebuilds it every frame and throws away the paint
+ * cache a pure pan rides on — the one way to make this design cost frames. Built per *palette*
+ * alongside the glow, so a hue switch is the only thing that recomputes them.
+ */
+const beadDefs = (ranks: SkyPalette['ranks']) =>
+  beadRamps(ranks).flatMap((bead, rank) => [
+    <radialGradient key={`b${rank}`} id={`sky-bead-${rank}`} fx="33%" fy="27%">
+      {stopsOf(bead.body)}
+    </radialGradient>,
+    <radialGradient key={`c${rank}`} id={`sky-caustic-${rank}`} fx="50%" fy="88%">
+      {stopsOf(bead.caustic)}
+    </radialGradient>,
+  ]);
+
 type DeckLayerProps = {
   deck: DeckDraw;
   /** The active hue preset. A module const out of SKY_PALETTES, so the memo below survives it. */
   palette: SkyPalette;
   /** Whether some other deck holds the focus, so this one fades to context. */
   dimmed: boolean;
-  tinted: boolean;
   relZoom: number;
+  /** This tier's relZoom ceiling — what the focused deck's star-size ramp is anchored to. */
+  relZoomMax: number;
   u: number;
   /** Hovered star id, already gated to this deck by the parent. */
   hovered: number | null;
@@ -96,8 +145,8 @@ const DeckLayer = memo(function DeckLayer({
   deck,
   palette,
   dimmed,
-  tinted,
   relZoom,
+  relZoomMax,
   u,
   hovered,
   selected,
@@ -105,12 +154,70 @@ const DeckLayer = memo(function DeckLayer({
   tip,
 }: DeckLayerProps) {
   const hoveredStar = hovered === null ? null : (deck.stars.find((s) => s.id === hovered) ?? null);
+
+  /**
+   * Each visible link resolved to the paint it draws with.
+   *
+   * A strand's colour is its two stars' ranks, but *how* those two colours are put on the line is a
+   * cost decision, and it has three cases:
+   *
+   *   - **same rank** — the two endpoints agree, so a gradient would be a solid colour that also
+   *     cost a `<defs>` entry. Flat. This is most links: a constellation is one study session, and
+   *     cards studied together are usually at the same rung.
+   *   - **mixed rank, focused deck** — a real `<linearGradient>` per pair. This is the only place a
+   *     strand is long enough and thick enough on screen for a two-colour blend to be legible at
+   *     all, and one focused deck's *visible* links (tiers.ts culls the rest) is a bounded number of
+   *     defs rather than the whole sky's.
+   *   - **mixed rank, anywhere else** — the flat midpoint. At the outer view a strand is a couple of
+   *     pixels of a faint web under the clouds; the gradient would be invisible and the def real.
+   *
+   * `userSpaceOnUse` coordinates resolve in the user space of the element *referencing* the
+   * gradient, and both the line and the def sit inside this deck's `translate(origin)` group — so
+   * these are the generator's own local numbers, not world ones, and nothing here converts twice.
+   * That is also why they survive the camera: a star's local position is fixed for the life of the
+   * sky, so panning and zooming never re-anchor a single gradient. The memo is keyed on `deck.links`,
+   * which `useSkyDraw`'s frame cache holds reference-stable through a pure pan.
+   */
+  const { strands, gradients } = useMemo(() => {
+    const ramp = strandRamps(palette.ranks);
+    const gradients: ReactElement[] = [];
+    const strands = deck.links.map((l) => {
+      const from = ramp[rankOf(l.a.mastery)];
+      const to = ramp[rankOf(l.b.mastery)];
+      if (from === to) return { l, stroke: from };
+      if (!deck.focused) return { l, stroke: lerpHex(from, to, 0.5) };
+      const gid = `sky-strand-${deck.did}-${l.a.id}-${l.b.id}`;
+      gradients.push(
+        <linearGradient
+          key={gid}
+          id={gid}
+          gradientUnits="userSpaceOnUse"
+          x1={l.a.x}
+          y1={l.a.y}
+          x2={l.b.x}
+          y2={l.b.y}
+        >
+          {/* full alpha at both stops: a strand's transparency is the stroke's, so the two live in
+              one place and the ramp never has to be re-derived when the presence changes */}
+          <stop offset={`${LINK_STRAND_HOLD * 100}%`} stopColor={from} />
+          <stop offset={`${(1 - LINK_STRAND_HOLD) * 100}%`} stopColor={to} />
+        </linearGradient>,
+      );
+      return { l, stroke: `url(#${gid})` };
+    });
+    return { strands, gradients };
+  }, [deck.links, deck.did, deck.focused, palette]);
+
   return (
     <g
       className="sky-deck"
       transform={`translate(${deck.origin.x} ${deck.origin.y})`}
       opacity={dimmed ? UNFOCUSED_DECK_OPACITY : 1}
     >
+      {/* under everything, including the clouds: the deck's own atmosphere, which unlike every other
+          soft layer here is not a stand-in for anything and so never fades out. See SkyWash. */}
+      {deck.wash && <SkyWash root={deck.wash} scope={`${deck.did}`} />}
+
       {(deck.lobes.length > 0 || deck.halos.length > 0) && (
         <SkyClouds
           halos={deck.halos}
@@ -138,15 +245,41 @@ const DeckLayer = memo(function DeckLayer({
         />
       )}
 
-      {/* Constellation lines, per the guide (§4): the night palette's line colour, dashed
-          u(2.6)/u(5.2) with round caps — the dash pattern is in screen px because the stroke is
-          non-scaling, so it reads the same at every zoom. A link fades in when the star it
-          brought with it is new — `b` is always the newer endpoint. Keyed on `seen` rather than
-          on mounting, because culling remounts shapes as they scroll back into view and a mount
-          cannot tell the two apart. The group opacity is the crossfade's line weight — 1 at the
-          outer view. */}
+      {/* Constellation strands — see the strand block in config.ts for what they are and `strands`
+          above for how each one's paint was chosen. Solid, round-capped: the guide (§4) draws them
+          dashed u(2.6)/u(5.2), and a dash reads as a hint at a link where at this weight of star the
+          links are structure. A strand fades in when the star it arrived with is new — `b` is always
+          the newer endpoint. Keyed on `seen` rather than on mounting, because culling remounts shapes
+          as they scroll back into view and a mount cannot tell the two apart.
+
+          The group opacity is the crossfade's line weight, which is the layer's whole zoom story: it
+          ramps 0→1 inside a focused deck as the cloud thins out (lod.ts) and is simply 1 at the outer
+          view. No transition on it — `lineOp` already moves with the gesture, and easing it would only
+          make the strands lag the geometry they connect. */}
       <g opacity={deck.layers.lineOp}>
-        {deck.links.map((l) => (
+        {gradients.length > 0 && <defs>{gradients}</defs>}
+
+        {/* the bloom: the same strands, wide and very faint, under the crisp pass — a continuous glow
+            end to end rather than a halo at the joints. Focused deck only, and a plain second stroke
+            rather than a blur filter; both reasons are at LINK_GLOW_PX. It reuses the crisp pass's
+            paint, so the gradient is defined once and referenced twice. */}
+        {deck.focused &&
+          strands.map(({ l, stroke }) => (
+            <line
+              key={`glow-${l.a.id}-${l.b.id}`}
+              className={l.b.seen ? undefined : 'sky-edge'}
+              x1={l.a.x}
+              y1={l.a.y}
+              x2={l.b.x}
+              y2={l.b.y}
+              stroke={stroke}
+              strokeOpacity={LINK_GLOW_ALPHA}
+              strokeWidth={LINK_GLOW_PX}
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+            />
+          ))}
+        {strands.map(({ l, stroke }) => (
           <line
             key={`${l.a.id}-${l.b.id}`}
             className={l.b.seen ? undefined : 'sky-edge'}
@@ -154,11 +287,10 @@ const DeckLayer = memo(function DeckLayer({
             y1={l.a.y}
             x2={l.b.x}
             y2={l.b.y}
-            stroke={tinted ? hueFor(l.cid) : palette.line}
-            strokeOpacity={deck.focused ? 0.42 : 0.38}
-            strokeWidth={deck.focused ? 1 : 1.2}
+            stroke={stroke}
+            strokeOpacity={deck.focused ? LINK_STRAND_ALPHA : LINK_STRAND_MAP_ALPHA}
+            strokeWidth={deck.focused ? LINK_STRAND_PX : LINK_STRAND_MAP_PX}
             vectorEffect="non-scaling-stroke"
-            strokeDasharray="2.6 5.2"
             strokeLinecap="round"
           />
         ))}
@@ -178,6 +310,7 @@ const DeckLayer = memo(function DeckLayer({
             fulcral={NO_FULCRAL}
             focused
             relZoom={relZoom}
+            relZoomMax={relZoomMax}
             u={u}
             hovered={null}
             // no ring and no labels in the preview: it exists below the label zoom by
@@ -194,7 +327,10 @@ const DeckLayer = memo(function DeckLayer({
           ranks={palette.ranks}
           fulcral={deck.fulcral}
           focused={deck.focused}
+          starScale={deck.starScale}
+          vivid={deck.vivid}
           relZoom={relZoom}
+          relZoomMax={relZoomMax}
           u={u}
           hovered={hovered}
           selected={selected}
@@ -202,8 +338,12 @@ const DeckLayer = memo(function DeckLayer({
         />
       </g>
 
-      {/* the hover readout names the card. Skipped once the labels are up — the front text is
-          already beside every star, and a second line under the cursor would double it. */}
+      {/* The hover readout names the card, and **only** names it. It used to append `· ×N` when the
+          card had been reviewed, which put a figure under the cursor that the reader had not asked
+          for and could not act on — a hover is a "what is this", not a report. The review count is
+          still one click away in the panel, which is where a figure belongs.
+          Skipped once the labels are up — the front text is already beside every star, and a second
+          line under the cursor would double it. */}
       {hoveredStar && deck.focused && labelOp <= 0.01 && (
         <text
           className="sky-hover"
@@ -214,7 +354,7 @@ const DeckLayer = memo(function DeckLayer({
           fontSize={12 * u}
           style={{ pointerEvents: 'none' }}
         >
-          {hoveredStar.count > 0 ? `${hoveredStar.front} · ×${hoveredStar.count}` : hoveredStar.front}
+          {hoveredStar.front}
         </text>
       )}
     </g>
@@ -231,9 +371,6 @@ type Props = {
   /** The world box the camera is confined to, drawn so the pan limit is visible rather than felt. */
   bounds: Bounds;
   focus: FocusPath;
-  /** Colour the links by their session. Clouds are never tinted this way — they take their colour
-   *  from the stars underneath them, which is the same rule a star's own colour follows. */
-  tinted: boolean;
   cam: CameraController;
   /** The open card's star id, or null. Drawn ringed; the panel is showing the same card. */
   selected: number | null;
@@ -245,6 +382,9 @@ type Props = {
    * the focus is the outer view — a focused deck wears no frame, per the handover.
    */
   frames?: DeckFrameData[];
+  /** Frame LOD: false draws each deck as its bare constellation with its name beneath. Decided by
+   *  the host (`framedAt`), because it shapes the layout as well as the drawing. */
+  framed?: boolean;
   /** A press at the outer view chooses a deck rather than a star. */
   onEnterDeck: (did: number) => void;
   onStarClick: (star: Star) => void;
@@ -261,17 +401,18 @@ export function SkyCanvas({
   palette,
   bounds,
   focus,
-  tinted,
   cam,
   selected,
   openTip,
   frames,
+  framed = true,
   onEnterDeck,
   onStarClick,
   onMiss,
   onSeen,
 }: Props) {
-  const { attach, camera, view, viewport, dragging, relZoom, onPointerDown, onPointerMove, onPointerUp } = cam;
+  const { attach, camera, view, viewport, dragging, relZoom, relZoomMax, onPointerDown, onPointerMove, onPointerUp } =
+    cam;
   const [hovered, setHovered] = useState<number | null>(null); // star id, stable across re-orderings
   const [hoveredDeck, setHoveredDeck] = useState<number | null>(null); // did, outer view only
   const hidden = frame.phase === 'hidden';
@@ -280,8 +421,9 @@ export function SkyCanvas({
   const focusedDeck = frame.decks.find((d) => d.focused) ?? null;
   // a function of zoom alone, like the layer crossfade — it lands on the same frame as the viewBox
   const labelOp = labelOpAt(camera.zoom);
-  // per palette, not per frame: nothing camera-derived reaches it
+  // per palette, not per frame: nothing camera-derived reaches either of them
   const glow = useMemo(() => glowDefs(palette.ranks), [palette]);
+  const bead = useMemo(() => beadDefs(palette.ranks), [palette]);
 
   /**
    * A press means different things at different tiers, and that is the whole interaction: at the
@@ -311,7 +453,7 @@ export function SkyCanvas({
       // the chooser's subject is the deck frame — resolved by coordinates like a star pick is,
       // so the frames themselves never carry pointer handlers
       const world = toWorld(localOf(e.currentTarget, e), camera, viewport);
-      setHoveredDeck(frameAt(layout, world));
+      setHoveredDeck(frameAt(layout, world, framed));
       return;
     }
     setHovered(pickAt(e)?.id ?? null);
@@ -397,7 +539,10 @@ export function SkyCanvas({
       }}
     >
       <style>{SKY_CSS}</style>
-      <defs>{glow}</defs>
+      <defs>
+        {glow}
+        {bead}
+      </defs>
 
       {/* the edge of what the camera may reach — the whole grid at the outer view, one deck inside it */}
       {!hidden && (
@@ -418,7 +563,7 @@ export function SkyCanvas({
       {/* The deck card frames, under the constellations they wrap. Outer view only: a focused
           deck wears no frame, and the dimmed context decks lose theirs with the tier. */}
       {!hidden && focusedDid === null && frames && frames.length > 0 && (
-        <SkyFrames frames={frames} hovered={hoveredDeck} />
+        <SkyFrames frames={frames} hovered={hoveredDeck} u={u} framed={framed} />
       )}
 
       {/* One transform per deck, which is the whole of what the layout does to a deck's contents.
@@ -432,8 +577,8 @@ export function SkyCanvas({
           deck={deck}
           palette={palette}
           dimmed={focusedDid !== null && !deck.focused}
-          tinted={tinted}
           relZoom={relZoom}
+          relZoomMax={relZoomMax}
           u={u}
           hovered={deck.focused ? hovered : null}
           selected={deck.focused ? selected : null}

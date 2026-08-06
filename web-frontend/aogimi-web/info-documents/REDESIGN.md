@@ -24,7 +24,7 @@ Status:
 | Study runner | `/study` | Route extracted, all token-driven, but no handoff pass — `SessionConfigSheet` is still the radix sheet |
 | Sky (star map) | `/sky` | **Done** — the multi-deck star map (`features/sky`, `SkyView`) replaced the stats tabs, which were deleted (their `statsApi` fetchers survive) |
 | Profile | `/profile` | **Done** |
-| Settings / help / credits | `/settings`, `/help`, `/credits` | **Done** — three routes, one shared shell |
+| Settings / help / credits | `/profile` (list), `/help`, `/credits` | **Done** — settings is a glass list in `/profile`'s right column; `/settings` is deleted. Help and credits are two routes on the shared shell |
 | Auth | `/authenticate` | **Done** — split screen, mode is local state |
 | Bottom nav (dock) | — | **Done** — `features/app-shell/Dock.tsx` replaced `WorkspaceNav` |
 
@@ -126,8 +126,8 @@ Write them with Tailwind v4's var shorthand: `text-(--ink)`, `bg-(--card)`,
   `primary`/`secondary` because that's a real distinction; it has no `dark`.
 - Theme lives in `html[data-theme]`, persists in the `aogimi-theme` localStorage
   key, and is applied by a pre-paint `<script>` in `app/layout.tsx`. An effect
-  can't do this — it fires after paint and flashes. The switch is the
-  Appearance card on `/settings` (TopBar's pill toggle is gone).
+  can't do this — it fires after paint and flashes. The switch is the Theme row
+  of `/profile`'s settings list (TopBar's pill toggle is gone).
 - Every screen is token-driven, so **dark mode is correct everywhere**. The
   "un-migrated screens look wrong in dark mode" caveat that used to live here is
   retired — if you find a screen that looks wrong in Midnight now, it *is* a bug.

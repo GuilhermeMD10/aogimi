@@ -177,12 +177,15 @@ html[data-theme="light"] {
   --danger-bg:         rgba(194, 69, 44, .08);
   --danger-bd:         rgba(194, 69, 44, .28);
 
-  /* Caution. The middle of the study runner's three grade buttons: Again is
-     --danger, Hard is this, Easy is --btn. The other two already had tokens and
-     this one didn't, which is why it's a group rather than a literal in the
-     session component. Distinct from --gold, which it sits close to here and
+  /* Caution — a warning tint on a page surface. The study runner's three grade
+     buttons used to be its reason for existing (Again `--danger`, Hard this,
+     Easy `--btn`); they are tinted glass now and carry their own `--grade-*`
+     tints in glass.css, because a 30% fill behind neutral ink wants a brighter,
+     more saturated hue than ink-on-paper does. What still reads this is the
+     session's own annotation chips — the "hardest in session" list and the
+     state-change rows. Distinct from --gold, which it sits close to here and
      nowhere near in Midnight (#ffe085): --gold means "reading progress on a
-     book cover", so sharing one would tie a grade button's colour to a change
+     book cover", so sharing one would tie a caution chip's colour to a change
      in the book palette. Shifts with the theme for the same reason --danger
      does. */
   --warn:              #a87d22;
@@ -397,36 +400,50 @@ html[data-sky-hue="aurora"] {
 }
 
 html[data-theme="dark"] {
-  /* Glow over sky. Two layers, in paint order:
+  /* Glow over sky — THE settled Midnight background. Two layers, in paint order:
 
-       glow  — an ellipse of #a793f0 at 69%, 80% × 100% of the viewport, centred
-               at 50%/50%. It fades to the SAME hue at zero alpha, never the
-               keyword `transparent` (= rgba(0,0,0,0)): a colour → black-at-zero
-               ramp picks up a grey cast on the way down. Same rule glass.css
-               states for its specular lines. The tint is a literal because the
-               glow is one layer of one gradient — a token for it would widen
-               the palette every screen reads for a value nothing else can use.
+       glow  — an ellipse of #130a33 at 69%, 80% × 100% of the viewport, centred
+               at 50%/50%. A deep violet, only a shade off the sky it sits on:
+               brighter than the mid and base stops but darker than the lit top
+               band, so it reads as a violet cast lifting the centre and lower
+               field rather than as a light source. That near-parity is the
+               point — the constellations hang centre-screen and want a quiet,
+               near-flat ground, not a bloom competing with them. It
+               fades to the SAME hue at zero alpha, never the keyword
+               `transparent` (= rgba(0,0,0,0)): a colour → black-at-zero ramp
+               picks up a grey cast on the way down. Same rule glass.css states
+               for its specular lines. The tint is a literal because the glow is
+               one layer of one gradient — a token for it would widen the palette
+               every screen reads for a value nothing else can use.
        sky   — a plain vertical ramp, top → mid at 10% → base. The three stops
                are the `--sky-*` trio, so a palette change stays a palette-block
                edit. At a 10% mid stop the top colour is a thin band along the
                very edge and the ramp is really mid → base, which is what gives
                the glow a near-flat field to bloom on.
 
-     The glow is still being auditioned — `BackgroundTweaks` on /settings is a
-     temporary live editor for exactly these numbers, and its Copy button emits
-     this declaration ready to paste back here. Delete both together.
+     The audition is over: the temporary `BackgroundTweaks` live editor that
+     printed these declarations is deleted, and this is the value it landed on.
+     Re-tune by hand here.
 
      Outgoing, newest first.
 
-     · Violet, narrower and higher-contrast than this one: 95% wide, centred at
-       44% so the bloom sat above the middle of the viewport.
-     · Periwinkle. Same two-layer geometry, a paler and far weaker glow over a
-       sky that held its top colour to 42%.
+     · Periwinkle, same geometry: the light-source reading of this glow, before
+       it flipped to a dark bloom — rgba(167, 147, 240, .69).
+     · Violet, narrower and higher-contrast: 95% wide, centred at 44% so the
+       bloom sat above the middle of the viewport.
+     · Periwinkle again, a paler and far weaker glow over a sky that held its top
+       colour to 42%.
      · A centred indigo bloom (radial sky, not linear) under a white wash. Both
        layers were radial and shared a centre, which is why that one has no
        `midStop` equivalent.*/
 
      /*
+       --page-base:
+         radial-gradient(80% 100% at 50% 50%,
+           rgba(167, 147, 240, .69) 0%, rgba(167, 147, 240, 0) 100%),
+         linear-gradient(180deg,
+           var(--sky-1) 0%, var(--sky-2) 10%, var(--sky-3) 100%);
+
        --page-base:
          radial-gradient(95% 100% at 50% 44%,
            rgba(147, 117, 255, .65) 0%, rgba(147, 117, 255, 0) 100%),
@@ -446,7 +463,7 @@ html[data-theme="dark"] {
            var(--sky-1) 0%, var(--sky-2) 10%, var(--sky-3) 100%);  */
   --page-base:
     radial-gradient(80% 100% at 50% 50%,
-      rgba(167, 147, 240, .69) 0%, rgba(167, 147, 240, 0) 100%),
+      rgba(19, 10, 51, .69) 0%, rgba(19, 10, 51, 0) 100%),
     linear-gradient(180deg,
       var(--sky-1) 0%, var(--sky-2) 10%, var(--sky-3) 100%);
 }

@@ -1062,6 +1062,16 @@ Hover still takes the star's own colour, so the two remain distinct.
   uncullable shapes repainted every frame, against a per-frame budget currently
   measured at ~2ms for a zoom step. The presets' nebula quads therefore aren't
   stored; each preset keeps only the one value they were needed for, `tint`.
+  **Partly revisited (2026-08-06): the veils are in, sized off `sd`.** What the
+  rejection was about was the bbox, and that objection stands — so the layer that
+  shipped (`components/SkyWash.tsx`, `WASH_*` in `lib/config.ts`) takes the deck
+  tree root's centroid, spread, principal axis and blended tint instead, which is
+  the same geometry source every lobe and halo already uses. Three ellipses and
+  two gradients for the whole scene, focused deck only. Its reason to exist is
+  that it answers to **no** zoom threshold: the cloud layer is a stand-in for
+  stars the budget could not draw, so it is gone by the time the reader is
+  closest, which left a magnified deck as stars and lines on a flat page. The
+  dust layer stays rejected on the cost grounds above — nothing about it changed.
 - **A light-theme rank column** (the proposal's H1) and the "Ink on paper"
   background block, both superseded by the theme-independence decision above.
 - Radius and glow stay preset-independent (`RANK_R_PX`, `RANK_GLOW`): they carry
@@ -1526,3 +1536,151 @@ a build each:
   removing if the column still reads as busy.
 - [ ] **`EntryBack` is the last `--accent` border hover** in the feature. It is
   the reader surfaces' "← Results" control, which `/dictionary` never shows.
+
+---
+
+## /profile goes to glass (2026-08-05)
+
+All four cards and every control on `/profile` are the library's glass. The page
+was the `--paper-*` group's second consumer and is now not a consumer at all.
+
+**`GlassCard` is `PaperCard`'s twin, not its replacement.** Same job — a card
+built as ruled rows, which needs a real surface because `--card` is transparent
+app-wide — with `GLASS_SURFACE` instead of the `--paper` fill. `PaperCard` stays
+for settings, help and credits; converting it in place would have swept three
+screens nobody asked about. It went to `shared/components` beside its twin rather
+than living in `features/profile` because it is used four times immediately
+(the codebase's own bar is two) and one file now answers "what card shells
+exist".
+
+**`overflow-hidden` is on the card, not in the recipe.** The rows inside light up
+on hover and would square off the card's rounded corners without it — but the
+library's hero *can't* have it, because its ⋯ dropdown has to escape. So it stays
+a per-card decision.
+
+**Rows are `GLASS_ROW` + `GLASS_PRESS`, rules are `HAIRLINE`.** A deck row and a
+book row are the same shape of thing as a dictionary result, so they get the same
+treatment; `hover:bg-(--paper-tile)` and `border-(--paper-bd)` were paper's
+answers and mean nothing on glass.
+
+**The filled `--btn` `Button` is off this page.** Save and Settings used to be
+it; every action is now `GLASS_GHOST`, because the library has one glass button
+treatment for import, resume and re-add alike and a page with one material wants
+one button. What still separates an action from a secondary one is ink: `--ink`
+for Save / Edit profile / Settings / Browse decks / Open reader, `--soft` for
+Cancel.
+
+**`GLASS_GHOST` states no text colour**, unlike `PAPER_GHOST`. `cn()` is
+tailwind-merge and it cannot tell whether `text-(--soft)` is a colour or a size,
+so an ink baked into the constant plus an override at the call site would leave
+*both* declarations alive and let stylesheet order decide. The call site names
+its ink. (Same hazard `RailList` documents for `Eyebrow`.)
+
+**Two colours survive the pass, both semantic rather than decorative:**
+`--danger` on Sign out (kept as the glass button's edge and ink; its
+`hover:bg-(--danger-bg)` is gone, since the glass fill is the hover) and the
+`--gold` ramp on the due pill, the progress fill and the "Finished" readout.
+
+- [ ] **The rename field paints no specular top line.** `<input>` is a replaced
+  element, so browsers don't render `::before` on it. Fill, blur, border and
+  inner glow all land; the dictionary's field paints the line only because its
+  shell is a `<form>`. Commented at the call site so it isn't chased as a bug.
+- [ ] **`MonoAction` ("ALL →", "LIBRARY →") is untouched** — a shared text link
+  used on home too, not one of this page's buttons.
+
+---
+
+## Settings folds into /profile (2026-08-05)
+
+`/settings` is deleted — the route, the page, `SettingsView`, and the four paper
+cards it stacked (`AppearanceCard`, `SkyHueCard`, `AboutCard`, `DataCard`). Every
+setting is now `components/SettingsList.tsx`, one glass ruled list in the right
+column of `/profile`, beside the account card.
+
+**Five rows did not need a page.** Theme, Sky hue, Help, Credits, Delete account
+— four unrelated concerns, but four surfaces under four eyebrows on a route of
+their own was the cost of separating them, and the concerns are legible from the
+row labels alone. One `GlassCard` with a hairline above every row says the same
+thing in a column the profile page already had space for.
+
+**One list, not a card per group.** The rule between rows belongs to the list
+(`Ruled` in `SettingsList.tsx`), and it is unconditional because the title block
+is always first — no first-child exception to keep in step. Rows draw no edge of
+their own.
+
+**The rows went glass; the pickers did with them.** Theme and Sky hue chips are
+`GLASS_BUTTON` + `GLASS_PRESS`, selected is `GLASS_ACTIVE`, and the About rows
+are `GLASS_ROW` — `border-(--paper-bd)`, `hover:bg-(--paper-tile)` and the
+hand-written `transition-[…]` lists were paper's answers and are gone.
+`GLASS_BUTTON` owns the border and the transition, so neither is restated, and
+`text-*` stays on the *unselected* branch only: a utility on the selected branch
+would beat the ink `GLASS_ACTIVE` brings.
+
+**The temporary background panel is gone, and the background it was auditioning
+is settled.** `BackgroundTweaks` sat under the account card in the left column,
+on paper — the one thing on the page that was deliberately not glass, because it
+was a dev tool for `--page-base` rather than a surface the design owns, and
+looking not-of-the-page is what stopped it reading as a shipped preference. It
+landed on a **deep-violet centre cast**: `rgba(19, 10, 51, .69)` over the
+unchanged `--sky-1/2/3` ramp. It sits only a shade off the sky itself — brighter
+than the mid and base stops, darker than the lit top band — so it lifts the
+centre and lower field toward violet instead of reading as a light source, which
+keeps the ground quiet under the constellations. The panel's predecessor was a
+periwinkle glow (`rgba(167, 147, 240, .69)`) at the same geometry, kept in the
+outgoing list in `ds-tokens.css`. The panel, its `features/settings` export, its line in `ProfileView`, and
+this page's left-column wrapper are all deleted; the `aogimi-bg-tweak`
+localStorage key is orphaned and harmless, and nothing migrates it away.
+
+**Two things were dropped rather than moved:**
+- **The sign-out row.** `/profile`'s account card already has the button, one
+  column over, and two sign-outs on one page read as two different actions.
+  `DataCard`'s signed-out "Sign in" branch went with it — `AppShell` redirects a
+  signed-out visitor to `/authenticate` before `/profile` renders, so it was
+  unreachable.
+- **`BackToSettings`.** Help's and Credits' eyebrow link pointed at a route that
+  no longer exists; the TopBar's `back to profile` pill was already the other way
+  out, and two exits to the same place is one too many.
+
+**`/help` and `/credits` keep `SettingsShell`.** They are still real routes on
+the sticky-rail shell, and the rail still reads "Settings" — they are the
+settings pages, they simply have no settings page to sit under any more. The
+"navigating reads as the panel column swapping" illusion is what's lost: with
+only two routes left it is just two pages that look alike.
+
+- [ ] **`SettingsShell` is now a two-consumer shell** with a hardcoded "Settings"
+  rail title. If help and credits ever move onto glass or into `/profile` too,
+  the shell goes with them rather than being retitled.
+
+---
+
+## /authenticate — controls to glass, backgrounds left alone (2026-08-05)
+
+The login screen's inputs and buttons take the glass the rest of the app now
+wears. **Both backgrounds are untouched by request**: the form panel keeps
+`bg-(--bg)` and the night `SkyPanel` keeps its hardcoded colours.
+
+- **Fields are `GLASS_SURFACE`** (a pane — there is nothing to hover), replacing
+  a `bg-(--paper)` fill. The password reveal inside is a `GLASS_BUTTON`, which is
+  the pairing the dictionary's search field already uses for its ✕.
+- **The fields gained a focus indication.** They had `focus:outline-none` and
+  nothing else — only the caret said where you were. Glass gives them an edge, so
+  focus moves that edge (`focus:border-(--btn)`) rather than adding a ring the
+  design uses nowhere else.
+- **The submit CTA is a glass button, not the filled `--btn` `Button`** — the
+  same call `/profile` made. Written out rather than composed over `GLASS_GHOST`,
+  because a 52px full-width CTA shares none of that constant's geometry or type.
+  Its `shadow-[0_10px_24px_rgba(33,56,92,.24)]` went with the conversion: glass
+  ships at depth 0, so keeping it would have left one drop shadow in the app.
+- **`ModeSwitch` is the dock, smaller.** A `GLASS_SURFACE` track holding two
+  `GLASS_ROW`s with `GLASS_ACTIVE` on the selected one. It was a `--cardalt`
+  track with a `bg-(--paper)` chip and a hardcoded drop shadow — paper being the
+  filled group that exists because `--card` is transparent, which is the same
+  problem glass now solves here. The selected branch sets no `text-*`: the tint's
+  dark ink comes from the recipe and a utility would beat it.
+- **`SocialButtons` was converted despite being flagged off.** A flag flip should
+  reveal two buttons that match the panel, not two paper ones to discover
+  afterwards. Its OR rules are stated as a background `color-mix` rather than
+  `HAIRLINE`, which only sets `border-color`.
+
+With this, `features/auth` reads no `--paper-*` token at all — the group is down
+to settings, help and credits.
