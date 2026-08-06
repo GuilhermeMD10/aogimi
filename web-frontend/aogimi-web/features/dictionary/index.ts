@@ -72,7 +72,7 @@ export type { RailContents, SurfaceEntry } from './lib/results';
 export { preferredHeadword } from './lib/headword';
 export { inflectionNote } from './lib/inflection';
 // The builders live here; the `CardDraft` type they produce belongs to
-// `features/study/decks`, which is where its consumer chain ends. `cardBack` is
+// `features/sky/stage`, which is where its consumer chain ends. `cardBack` is
 // the one place a draft becomes the flattened `cards.back` string.
 export { cardBack, kanjiCardDraft, wordCardDraft } from './lib/cardDraft';
 export { getWordDetails, searchDictionary } from './lib/dictApi';

@@ -159,8 +159,12 @@ Organized **by feature, not by file type**. Three layers, one-way: `lib`/`shared
   - `books/` — `books/library`, `books/reader` (epub/pdf/text/manga engines + the two lookup
     surfaces `reader-bubble` and `dict-sidebar`), shared data layer `books/lib`; orchestrated
     by `books/views/BooksView` (`/`) and `books/reader/views/ReaderView` (`/reader/[bookId]`).
-  - `study/` — `study/decks`, `study/session`, `study/stats`; orchestrated by
-    `study/views/StudyView` (`/study`).
+  - `sky/` — `sky/map` (the star-map engine: platform-free `lib/`, camera/frame `hooks/`, SVG
+    `components/`; knows nothing about decks or routes), `sky/stage` (the `/sky` page **and** the
+    deck data layer half the app borrows — `DecksProvider`, `decksApi`, quota caps, `CardDraft`),
+    `sky/study` — itself `sky/study/session` + `sky/study/stats`. Orchestrated by
+    `sky/stage/views/SkyView` (`/sky`) and `sky/study/views/StudyView` (`/study`); `sky/index.ts`
+    exports only those two views, everything else comes from the sub-barrel that owns it.
 - `shared/` — `shared/components` (**put new primitives here**), `shared/ui` (outgoing),
   `shared/icons`.
 - `lib/` — feature-agnostic infra ONLY: `api.ts`, `tokenStore.ts`, `useFetchWithAbort.ts`,
@@ -172,10 +176,10 @@ The layer rule is enforced by `import/no-restricted-paths` in `eslint.config.mjs
 ### Web: state architecture
 
 React Context providers, **each owned by its feature**, composed by
-`features/app-shell/AppShell.tsx`: `AuthProvider`→`auth`, `DecksProvider`→`study/decks`,
+`features/app-shell/AppShell.tsx`: `AuthProvider`→`auth`, `DecksProvider`→`sky/stage`,
 `DictionaryStateProvider`→`dictionary`, `ReaderStateProvider`+`ThemeProvider`→`app-shell`.
 **No Redux, Zustand, Jotai.** Cross-feature signalling goes through "pending fields" on
-`ReaderStateProvider` — the reader sets `pendingCard`, `DecksView` picks it up on mount and
+`ReaderStateProvider` — the reader sets `pendingCard`, `SkyView` picks it up on mount and
 nulls it. Effects guard double-fire with `useRef`s of the last-handled trigger object
 (`AppShell.tsx`, `PendingCardOverlay.tsx`). To avoid barrel cycles, feature code imports
 providers/hooks **by file path**, not via the app-shell/auth barrel.
@@ -189,33 +193,47 @@ and import those types — no type declarations alongside fetch helpers.
 Dictionary, Decks, Settings, Auth, Dock and the Sky engine. Read the one you're touching; add a
 section there (not here) when a new user-nameable feature lands.
 
-Route map: `/` library shelf · `/reader/[bookId]` open book · `/dictionary` · `/decks` ·
+Route map: `/` library shelf · `/reader/[bookId]` open book · `/dictionary` · `/sky` ·
 `/study` · `/profile` · `/help` · `/credits` · `/authenticate`.
 
 **What does not exist — don't recreate it:** no home dashboard (**`/` is the library shelf**,
 so `/reader` survives only as the parent segment of `/reader/[bookId]`), no `/settings`
-(settings is a column of `/profile`), no `/sky` (the star map is `/decks`; `features/sky` is
-the engine, with no route), no `/word/[id]` (the entry is a pane in `/dictionary`).
+(settings is a column of `/profile`), no `/decks` (**the decks page IS `/sky`** — the grid and
+the star map merged, and the Dock's "Decks" entry points there), no `/word/[id]` (the entry is a
+pane in `/dictionary`).
 
 Cross-file invariants that are easy to break without noticing:
 
-- **`study/decks/lib/rankProgress.ts` mirrors the promotion rules in
-  `backend/src/services/cardSrsService.js`** — change one, change both.
+- **`sky/lib/fsrs.ts` mirrors `backend/src/services/fsrs.js` line for line** —
+  FSRS-6, 21 parameters, verified against py-fsrs 6.3.1. Change one, change both,
+  then run **both** harnesses: `backend/scripts/verify-fsrs.js` and
+  `web-frontend/aogimi-web/scripts/verify-fsrs.mts` (Node strips the types; no
+  build step). The backend is the only writer — the web copy exists so the study
+  screen can move before the POST lands. `fsrs.ts` sits at the **sky domain root**
+  because `study`, `stage` and `map` all read it and sub-features can't import
+  each other.
+- **Rank comes from stability alone** — `new` (never reviewed) · `met` S<21 ·
+  `learned` 21≤S<365 · `mastered` S≥365. Never from difficulty or answer streaks.
+  `cards.peak_rank` is a high-water mark: once a card reaches `learned` the UI
+  draws `displayedRank()`, not `state`, so a lapse never demotes a star — the lost
+  stability shows as **brightness** (retrievability) instead. Brightness is the one
+  place fractional elapsed days are correct; **scheduling always floors to whole
+  days**. Desired retention is fixed at 0.9 and deliberately not exposed.
 - **`auth`'s `validate()` mirrors `backend/src/validation/auth.js` exactly** — validating less
   means a valid-looking form returns a server error.
 - **`settings/lib/credits.ts` is the audited what-we-ship inventory** — several data licenses
   require it; keep it in sync (its Typography list mirrors `app/layout.tsx`'s `next/font` imports).
-- **`/decks` and `/dictionary` keep navigation state in the URL only** — nothing persisted (a
-  localStorage mirror of the same facts drifted). `/decks`: `?deck=`/`&card=`, Escape walks
+- **`/sky` and `/dictionary` keep navigation state in the URL only** — nothing persisted (a
+  localStorage mirror of the same facts drifted). `/sky`: `?deck=`/`&card=`, Escape walks
   card → deck → sky. `/dictionary`: `?q=` + `?id=`/`?kanji=`, and `views/DictionaryView.tsx`
   is the only file that reads or writes it. `/study` reads its whole config from the query
   string: `?deck={id}` uses that deck's saved mode/size, `?due=1` is every due card shuffled,
-  no params = all decks in `hardest_all_decks` mode. Exits to `/decks`.
+  no params = all decks in `hardest_all_decks` mode. Exits to `/sky`.
 - **The reader's two lookup surfaces are built from `features/dictionary`'s exports, not
   copies** — `dict-sidebar` (`scale="compact"`) and `reader-bubble` (`scale="full"`). The
   barrel's components own no width, fill, edge, scroll or padding so the surface supplies the
   box; `scale` carries the type/spacing step-down.
-- **`/decks` chrome reads `lib/nightChrome.ts` constants, deliberately not tokens** — the stage
+- **`/sky` chrome reads `lib/nightChrome.ts` constants, deliberately not tokens** — the stage
   is night in both themes. Exceptions: `active`/`activeInk` reference `--active`.
 - **Dock:** `aria-current="page"` is load-bearing three times over — accessible state, CSS hook
   for the active ink, and what the sliding pill's measurement queries. Reader's entry is `/`

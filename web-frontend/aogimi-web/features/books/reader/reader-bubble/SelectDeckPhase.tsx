@@ -8,8 +8,8 @@ import {
   MAX_DECK_NAME,
   decksApi,
   deckQuotaMessage,
-} from '@/features/study/decks';
-import type { DeckRecord } from '@/features/study/decks';
+} from '@/features/sky/stage';
+import type { DeckRecord } from '@/features/sky/stage';
 import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
 import { Button, Eyebrow, HAIRLINE, Skeleton } from '@/shared/components';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';

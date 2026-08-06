@@ -1,0 +1,117 @@
+// Study-feature types. CardRecord lives in components/sky/types; this
+// module only owns what's specific to a study session.
+
+import type { CardRecord } from '@/features/sky/stage/types';
+
+/**
+ * The four FSRS grades, in grade order — Again(1) Hard(2) Good(3) Easy(4).
+ *
+ * **Good is not decoration.** FSRS is fitted on a four-grade distribution in
+ * which Good is the dominant success grade; the app shipped three buttons and
+ * the third one (Easy) had to stand in for it, which applied the `w16` easy
+ * bonus to every success and pinned difficulty at the floor. The result was
+ * the 8 → 66 → 397 → 1875 day ladder — correct FSRS arithmetic on a wrong
+ * grade. See `features/sky/lib/fsrs.ts` and `ResultButtons.tsx`.
+ *
+ * Re-exported from `fsrs.ts`'s `Outcome` rather than redeclared, so the button
+ * row, the keyboard map and the POST body can't drift apart.
+ */
+import type { Outcome } from '@/features/sky/lib/fsrs';
+
+export type StudyOutcome = Outcome;
+
+export type StudyMode =
+  | 'hardest'
+  | 'random'
+  | 'oldest_first'
+  | 'oldest_only'
+  | 'newest_only'
+  | 'by_creation'
+  | 'hardest_all_decks';
+
+export type StudySessionConfig = {
+  scope: 'deck' | 'all';
+  deckIds?: string[];
+  mode: StudyMode;
+  limit?: number;
+  /** Narrow the pool to cards due right now before `mode` orders them.
+   *  `{ scope: 'all', dueOnly: true }` is the "study every due card across
+   *  all decks" session. Omitted / false = every card in scope. */
+  dueOnly?: boolean;
+};
+
+/**
+ * The deck a session belongs to, as the header draws it: its name plus the
+ * spine chip's glyph and colours.
+ *
+ * Resolved by the caller (`StudyView`) rather than looked up here: the glyph
+ * comes from `deckVisuals`, which lives in the *decks* sub-feature, and
+ * sub-features don't import each other. Null on the two cross-deck sessions
+ * (`/study`, `/study?due=1`), which have no single deck to name.
+ */
+export type SessionDeck = {
+  name: string;
+  /** Deterministic cover glyph — `deckVisuals(name).kamon`. */
+  kamon: string;
+  /** Cover surface + ink — `coverPalette(name)`. */
+  surface: string;
+  ink: string;
+};
+
+/** Due-card counts across every deck the user owns.
+ *  Decks with nothing due are **absent** from `byDeck` — read a missing key
+ *  as 0 rather than expecting an entry per deck. */
+export type DueCounts = {
+  total: number;
+  byDeck: Record<string, number>;
+};
+
+// ── Display prefs ──────────────────────────────────────────────────────────
+
+export type Preset = 'easy' | 'default' | 'hard' | 'production';
+
+/** Which optional fields the prompt side shows.
+ *
+ *  Key order matches `DEFAULT_DISPLAY` in `backend/src/routes/study.js` — the
+ *  server has stored and returned a `jlpt` flag since migration 022, and this
+ *  type simply omitted it until cards had a level to show. So the toggle costs
+ *  no backend change: `/api/study/prefs` validates `display` as an open record.
+ *
+ *  There is deliberately no `back.meanings` flag. The meaning *is* the answer,
+ *  and a preference that hides the answer isn't a preference; `reading` already
+ *  covers the one field a learner might want withheld. */
+export type FrontPrefs = {
+  reading: boolean;
+  context: boolean;
+  jlpt: boolean;
+  deckName: boolean;
+};
+
+export type BackPrefs = {
+  exampleSentence: boolean;
+};
+
+export type DisplayPrefs = {
+  preset: Preset;
+  front: FrontPrefs;
+  back: BackPrefs;
+};
+
+// ── Session summary ────────────────────────────────────────────────────────
+
+export type CardSessionEntry = {
+  card: CardRecord;
+  startState: CardRecord['state'];
+  endState: CardRecord['state'];
+  outcomes: StudyOutcome[];
+  /** FSRS difficulty after the last grade of this session, on its own **[1, 10]**
+   *  scale — not the old [0.05, 0.95] one. Null only if an Undo rolled the card
+   *  back past its first-ever review, where there is no difficulty yet. */
+  finalDifficulty: number | null;
+};
+
+export type SessionSummary = {
+  uniqueCards: number;
+  reviewedTotal: number;
+  perCard: CardSessionEntry[];
+};

@@ -142,14 +142,24 @@ CREATE TABLE cards (
   jlpt_level        smallint     CHECK (jlpt_level IS NULL OR jlpt_level BETWEEN 1 AND 5),
   meanings          text[]       NOT NULL DEFAULT '{}'::text[]
                                  CHECK (coalesce(array_length(meanings, 1), 0) <= 3),
-  -- CHECK added in 024: the route used to accept any string here, which let a
-  -- client skip the SRS ladder outright. Enforced in src/validation/decks.js too.
+  -- CHECK added in 024, ladder renamed in 027 ('seen' → 'met'): the route used
+  -- to accept any string here, which let a client skip the SRS ladder outright.
+  -- Enforced in src/validation/decks.js too. Since 027 the value is *derived*
+  -- from stability by fsrs.rankOf() on every review.
   state             text         NOT NULL DEFAULT 'new'
-                                 CHECK (state IN ('new','seen','learned','mastered')),
+                                 CHECK (state IN ('new','met','learned','mastered')),
+  -- 027: the highest rank this card has ever held. Once it reaches 'learned'
+  -- the UI stops demoting the card's star; the lost stability shows as
+  -- brightness instead. Only ever climbs.
+  peak_rank         text         NOT NULL DEFAULT 'new'
+                                 CHECK (peak_rank IN ('new','met','learned','mastered')),
   reviewed_times    int          NOT NULL DEFAULT 0,
-  difficulty        real         NOT NULL DEFAULT 0.30,            -- SRS: [0.05, 0.95]
-  stability         real         NOT NULL DEFAULT 2.0,             -- SRS: days, floor 0.1
-  last_outcomes     text         NOT NULL DEFAULT '',              -- last 5: A/H/E encoded
+  -- FSRS-6 memory state (027). Both NULL until the first review — FSRS seeds
+  -- them from the first grade, and a default would make an unreviewed card
+  -- look reviewed. Ranges: difficulty [1, 10], stability >= 0.001 days.
+  difficulty        real,
+  stability         real,
+  last_outcomes     text         NOT NULL DEFAULT '',              -- last 5: A/H/G/E encoded, display only
   last_reviewed_at  timestamptz,
   next_due_at       timestamptz,                                   -- SRS: when next due; NULL = never reviewed = due now
   created_at        timestamptz  NOT NULL DEFAULT now()
@@ -157,6 +167,7 @@ CREATE TABLE cards (
 
 CREATE INDEX idx_cards_deck_id        ON cards (deck_id);
 CREATE INDEX idx_cards_state          ON cards (deck_id, state);
+CREATE INDEX idx_cards_peak_rank      ON cards (deck_id, peak_rank);
 CREATE INDEX idx_cards_last_reviewed  ON cards (deck_id, last_reviewed_at);
 CREATE INDEX idx_cards_due            ON cards (deck_id, next_due_at);
 
@@ -167,10 +178,16 @@ CREATE TABLE card_reviews (
   card_id            uuid          NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
   user_id            int           NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   reviewed_at        timestamptz   NOT NULL DEFAULT now(),
-  outcome            text          NOT NULL CHECK (outcome IN ('again','hard','easy')),
-  difficulty_before  real          NOT NULL,
+  -- 027 added the fourth grade. FSRS is fitted on a four-grade distribution in
+  -- which Good is the dominant success grade; three buttons had no neutral
+  -- success and distorted every interval.
+  outcome            text          NOT NULL CHECK (outcome IN ('again','hard','good','easy')),
+  -- The "before" pair is NULL on a card's first review — there is no prior
+  -- memory state to snapshot (027 dropped their NOT NULL). The old algorithm
+  -- wrote hardcoded defaults here, recording a state the card never held.
+  difficulty_before  real,
   difficulty_after   real          NOT NULL,
-  stability_before   real          NOT NULL,
+  stability_before   real,
   stability_after    real          NOT NULL,
   state_before       text          NOT NULL,
   state_after        text          NOT NULL,

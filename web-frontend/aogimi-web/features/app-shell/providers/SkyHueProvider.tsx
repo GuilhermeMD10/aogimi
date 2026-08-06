@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useState } from 'react';
-// Imported by file path, not through `@/features/sky`: the sky's canvas
+// Imported by file path, not through `@/features/sky/map`: the sky's canvas
 // components call `useSkyHue()` from this file, so going via that barrel would
 // close a module cycle. `lib/palette` is plain TypeScript with no React or DOM
 // in it, which is what makes the direct reach safe.
@@ -11,7 +11,7 @@ import {
   SKY_PALETTES,
   type SkyHue,
   type SkyPalette,
-} from '@/features/sky/lib/palette';
+} from '@/features/sky/map/lib/palette';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

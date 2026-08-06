@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { useReaderState } from '../providers/ReaderStateProvider';
 import { useDictionaryState } from '@/features/dictionary/providers/DictionaryStateProvider';
-import type { CardDraft } from '@/features/study/decks';
+import type { CardDraft } from '@/features/sky/stage';
 
 // Routes where the dictionary surface is *always* visible; lookups skip the
 // floating bubble and just feed the visible surface. An open book is
@@ -48,7 +48,7 @@ export function useReaderActions() {
   );
 
   // The one thing both add-card entry points share: open the bubble and seed
-  // the /decks hand-off with the same payload.
+  // the /sky hand-off with the same payload.
   const openAddCard = useCallback(
     (word: string, draft: CardDraft | null, contextSentence?: string) => {
       // Always open the bubble — the decks page consumes pendingCard

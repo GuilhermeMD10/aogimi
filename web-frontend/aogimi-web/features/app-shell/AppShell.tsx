@@ -6,7 +6,7 @@ import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { ReaderStateProvider, useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
 import { SkyHueProvider } from '@/features/app-shell/providers/SkyHueProvider';
 import { DictionaryStateProvider } from '@/features/dictionary';
-import { DecksProvider } from '@/features/study/decks';
+import { DecksProvider } from '@/features/sky/stage';
 import Dock from '@/features/app-shell/Dock';
 import { ReaderBubble } from '@/features/books';
 

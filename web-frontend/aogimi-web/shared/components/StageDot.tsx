@@ -3,19 +3,23 @@ import { cn } from '@/lib/util/cn';
 /**
  * The SRS ladder as the UI names it.
  *
- * Declared here rather than imported from `features/study/decks/types` because
+ * Declared here rather than imported from `features/sky/stage/types` because
  * `shared/` sits below `features/` and must not reach up into it. The union
  * mirrors the `cards.state` enum; keep the two in step.
  *
- * Note `seen` displays as **"Recent"** — the design's label for that tier. The
- * database enum is the source of truth and stays `seen`; this map is the only
- * place the two vocabularies meet, so nobody is tempted to rename the column.
+ * The tiers are thresholds on FSRS stability, not on answer streaks — `met` is
+ * "under three weeks of stability", `learned` is three weeks to a year,
+ * `mastered` is a year or more. `features/sky/lib/fsrs.ts` owns the numbers.
+ *
+ * Migration 027 renamed this tier `seen` → `met` in the database, so the label
+ * and the column agree again; the display name used to be "Recent" over a
+ * column called `seen`, which meant three vocabularies for one tier.
  */
-export type Stage = 'new' | 'seen' | 'learned' | 'mastered';
+export type Stage = 'new' | 'met' | 'learned' | 'mastered';
 
 const STAGES: Record<Stage, { label: string; color: string }> = {
   new: { label: 'New', color: 'var(--stage-new)' },
-  seen: { label: 'Recent', color: 'var(--stage-recent)' },
+  met: { label: 'Met', color: 'var(--stage-met)' },
   learned: { label: 'Learned', color: 'var(--stage-learned)' },
   mastered: { label: 'Mastered', color: 'var(--stage-mastered)' },
 };

@@ -1,0 +1,92 @@
+'use client';
+
+import type { CardSessionEntry } from '../types';
+import { Caption } from './Caption';
+
+type Props = {
+  entries: CardSessionEntry[];
+  limit?: number;
+};
+
+const DEFAULT_LIMIT = 3;
+
+/**
+ * A card qualifies as "hard" without having been missed once its FSRS
+ * difficulty passes this, on the **[1, 10]** scale.
+ *
+ * 6.0 is just above `D0(Good)` mean-reverted upward a few times and just below
+ * `D0(Again)` = 6.41, so it reads as "this card has taken at least one bad
+ * grade at some point" without needing the session to contain that grade. The
+ * pre-FSRS threshold was 0.5 on a [0.05, 0.95] scale — the same *idea*, not a
+ * convertible number.
+ */
+const HARD_DIFFICULTY = 6.0;
+
+/**
+ * The cards that fought back — top N by Again-count, then by difficulty, so a
+ * card nobody missed can still surface if it ended up hard enough.
+ *
+ * The whole section drops when nothing qualifies: unlike the tier rows, "no
+ * hard cards" isn't a result worth a sentence, it's the absence of a problem.
+ */
+export function HardestInSessionList({ entries, limit = DEFAULT_LIMIT }: Props) {
+  const ranked = entries
+    .map((e) => ({
+      entry: e,
+      agains: e.outcomes.filter((o) => o === 'again').length,
+      // Null difficulty means the card has no FSRS history at all, which is the
+      // opposite of hard — floor it so it can never rank.
+      difficulty: e.finalDifficulty ?? 0,
+    }))
+    .filter((x) => x.agains > 0 || x.difficulty >= HARD_DIFFICULTY)
+    .sort((a, b) => {
+      if (a.agains !== b.agains) return b.agains - a.agains;
+      return b.difficulty - a.difficulty;
+    })
+    .slice(0, limit);
+
+  if (ranked.length === 0) return null;
+
+  return (
+    <section className="mt-6 border-t border-(--bd-b) pt-5.5">
+      <Caption className="mb-3">Hardest this round</Caption>
+
+      <div className="flex flex-col gap-2">
+        {ranked.map(({ entry, agains }) => {
+          // The glosses, not `back`: this row is one truncated line, and `back`
+          // on a dictionary-made card *starts* with the reading — so truncating
+          // it gave a subtitle of kana under a word whose kana was never the
+          // point. Falls back to `back` for cards with no `meanings` (pre-026,
+          // hand-made, mobile), where it is all there is.
+          const subtitle =
+            entry.card.meanings.length > 0
+              ? entry.card.meanings.join(' · ')
+              : entry.card.back;
+
+          return (
+            <div
+              key={entry.card.id}
+              className="flex items-center gap-3.5 rounded-(--radius-button) border border-(--paper-bd) bg-(--paper-tile) px-4 py-2.75"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-[family-name:var(--face-jp)] text-[17px] leading-[1.3] font-bold text-(--ink)">
+                  {entry.card.front}
+                </div>
+                {subtitle.length > 0 && (
+                  <div className="truncate font-[family-name:var(--face-ui)] text-xs text-(--muted)">
+                    {subtitle}
+                  </div>
+                )}
+              </div>
+              {agains > 0 && (
+                <span className="shrink-0 rounded-(--radius-chip) border border-(--warn-bd) bg-(--warn-bg) px-2.5 py-1 font-[family-name:var(--face-mono)] text-[10px] whitespace-nowrap text-(--warn) tabular-nums">
+                  {agains}× missed
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}

@@ -112,10 +112,14 @@ module.exports = {
   },
 
   /** `cards.state` — the SRS ladder. Enforced by zod on write AND by a DB
-   *  CHECK constraint (migration 024). Before both existed, a client could
-   *  `PUT {state: "mastered"}` and skip the whole SRS progression, or write
-   *  garbage that broke the stats aggregation and the web client's rank
-   *  rendering. `lib/rankProgress.ts` and `cardSrsService.js` both assume
-   *  the value is one of these four. */
-  CARD_STATES: Object.freeze(["new", "seen", "learned", "mastered"]),
+   *  CHECK constraint (migrations 024, re-stated in 027). Before both existed,
+   *  a client could `PUT {state: "mastered"}` and skip the whole SRS
+   *  progression, or write garbage that broke the stats aggregation and the
+   *  web client's rank rendering.
+   *
+   *  Since 027 the value is **derived from stability** by `fsrs.rankOf` on
+   *  every review, so a manual write is overwritten by the next grade rather
+   *  than persisting. `fsrs.RANKS` is the source of this list; it is restated
+   *  here because the validation layer must not reach into a service. */
+  CARD_STATES: Object.freeze(["new", "met", "learned", "mastered"]),
 };

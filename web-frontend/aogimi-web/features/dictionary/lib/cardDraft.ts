@@ -1,4 +1,4 @@
-import { MAX_MEANINGS_ON_CARD, type CardDraft } from '@/features/study/decks';
+import { MAX_MEANINGS_ON_CARD, type CardDraft } from '@/features/sky/stage';
 import { preferredHeadword } from './headword';
 import type { ExampleSentence, KanjiInfo, WordResult } from '../types';
 
@@ -9,7 +9,7 @@ import type { ExampleSentence, KanjiInfo, WordResult } from '../types';
  * draft — the rail's row buttons, the two detail panes' "Add to deck", and the
  * reader's bubble — and they were drifting apart as separate copies.
  *
- * The type itself lives in `features/study/decks`: it describes a *card*, and
+ * The type itself lives in `features/sky/stage`: it describes a *card*, and
  * its consumer chain terminates at `decksApi.createCard`. These builders are
  * the producers, not the owners.
  */

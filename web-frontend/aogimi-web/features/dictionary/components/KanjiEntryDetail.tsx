@@ -2,7 +2,7 @@
 
 import { CopyPlus } from 'lucide-react';
 import { Button, Eyebrow, HAIRLINE, JlptChip } from '@/shared/components';
-import type { CardDraft } from '@/features/study/decks';
+import type { CardDraft } from '@/features/sky/stage';
 import { cn } from '@/lib/util/cn';
 import { Constellation } from './Constellation';
 import { EntryBack } from './EntryBack';

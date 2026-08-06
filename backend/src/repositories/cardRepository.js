@@ -164,6 +164,11 @@ module.exports = {
     // Writes the post-outcome SRS fields. `reviewed_times` is bumped in
     // the same UPDATE so the legacy column stays consistent with the
     // event log.
+    //
+    // `peak_rank` is written from the value the service computed rather than
+    // with a SQL GREATEST: the ladder is ordered by position in an array, not
+    // alphabetically, so Postgres has no comparison that means what we mean
+    // ('met' > 'learned' > 'mastered' as text, which is the exact reverse).
     const result = await pool.query(
       `UPDATE cards
           SET difficulty       = $2,
@@ -172,6 +177,7 @@ module.exports = {
               last_reviewed_at = $5,
               state            = $6,
               next_due_at      = $7,
+              peak_rank        = $8,
               reviewed_times   = reviewed_times + 1
         WHERE id = $1
         RETURNING *`,
@@ -183,6 +189,7 @@ module.exports = {
         next.last_reviewed_at,
         next.state,
         next.next_due_at,
+        next.peak_rank,
       ],
     );
     return result.rows[0];

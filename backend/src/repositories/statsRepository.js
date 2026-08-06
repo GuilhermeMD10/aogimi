@@ -44,7 +44,7 @@ module.exports = {
         GROUP BY c.state`,
       [userId]
     );
-    const buckets = { new: 0, seen: 0, learned: 0, mastered: 0 };
+    const buckets = { new: 0, met: 0, learned: 0, mastered: 0 };
     for (const row of result.rows) {
       if (row.state in buckets) buckets[row.state] = row.count;
     }
@@ -54,6 +54,12 @@ module.exports = {
   /**
    * Top N hardest cards. Sorted by difficulty desc, then by recent
    * Again count (we approximate with the encoded last_outcomes string).
+   *
+   * FSRS difficulty is [1, 10] and NULL until a card's first review. The
+   * `state <> 'new'` filter already excludes every unreviewed card, but
+   * NULLS LAST is stated anyway — Postgres puts NULLs *first* under DESC, so
+   * a single row slipping through the filter would take the top of a list
+   * titled "hardest" on the strength of having no difficulty at all.
    */
   hardestCards: async (userId) => {
     const result = await pool.query(
@@ -62,7 +68,7 @@ module.exports = {
          JOIN decks d ON d.id = c.deck_id
         WHERE d.user_id = $1
           AND c.state <> 'new'
-        ORDER BY c.difficulty DESC,
+        ORDER BY c.difficulty DESC NULLS LAST,
                  -- count of 'A' chars in last_outcomes as a tiebreaker
                  (length(c.last_outcomes) - length(replace(c.last_outcomes, 'A', ''))) DESC,
                  c.created_at DESC
@@ -76,9 +82,14 @@ module.exports = {
    * The last N reviews that promoted a card to a higher tier.
    *
    * "Upgrade" is defined against the state ladder
-   * `new < seen < learned < mastered`, so `again`-driven demotions
-   * (mastered→learned, learned→seen) are excluded, and the common case —
+   * `new < met < learned < mastered`, so stability-losing demotions
+   * (mastered→learned, learned→met) are excluded, and the common case —
    * a review that leaves the tier unchanged — never matches.
+   *
+   * Note this reads the card's *current* rank as the log recorded it, not the
+   * `peak_rank` the UI draws. That is deliberate: this list answers "what did
+   * I just achieve", and a card whose displayed rank is being held up by its
+   * high-water mark achieved nothing on the review that lapsed it.
    *
    * Reads the append-only `card_reviews` log rather than `cards`, so each
    * row carries the transition it actually caused and later reviews of the
@@ -113,8 +124,8 @@ module.exports = {
          JOIN decks d ON d.id = c.deck_id
         WHERE r.user_id = $1
           AND ($2::uuid IS NULL OR c.deck_id = $2::uuid)
-          AND array_position(ARRAY['new','seen','learned','mastered'], r.state_after)
-            > array_position(ARRAY['new','seen','learned','mastered'], r.state_before)
+          AND array_position(ARRAY['new','met','learned','mastered'], r.state_after)
+            > array_position(ARRAY['new','met','learned','mastered'], r.state_before)
         ORDER BY r.reviewed_at DESC, r.id DESC
         LIMIT $3`,
       [userId, deckId, RECENT_UPGRADES_LIMIT]

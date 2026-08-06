@@ -1684,3 +1684,102 @@ wears. **Both backgrounds are untouched by request**: the form panel keeps
 
 With this, `features/auth` reads no `--paper-*` token at all — the group is down
 to settings, help and credits.
+
+---
+
+## FSRS-6 replaces "FSRS-lite" (migration 027)
+
+The scheduler that shipped was not FSRS. It multiplied stability by a constant
+per grade (`×0.2 / ×1.2 / ×3.0`), moved difficulty additively on a `[0.05,
+0.95]` scale, used an exponential forgetting curve, and derived rank from answer
+streaks. None of those is an FSRS formula. It has been replaced wholesale with
+real **FSRS-6** — 21 parameters, power-law forgetting, difficulty on `[1, 10]`,
+stability-derived ranks.
+
+**Decisions taken, and what they cost:**
+
+- **The maths lives in `fsrs.js` / `fsrs.ts`, pure and duplicated.** The backend
+  is the only writer; the web copy exists so the study screen can update before
+  the POST lands. Both are pinned to py-fsrs 6.3.1 by their own test-vector
+  harness (`scripts/verify-fsrs.js`, `scripts/verify-fsrs.mts`) rather than to
+  each other — two mirrors that only agree with each other can drift together.
+  The web copy sits at the **sky domain root**: `study`, `stage` and `map` all
+  read it, and sub-features may not import each other.
+
+- **A fourth button.** FSRS is fitted on a four-grade distribution in which Good
+  is the dominant success grade. With three buttons there is no neutral success,
+  so the third one had to stand in for it — emitting Easy applied the `w16`
+  bonus on every correct answer and pinned difficulty at its floor, giving 8 →
+  66 → 397 → 1875 day intervals. Correct arithmetic on the wrong grade. Labelling
+  a button "Easy" while emitting Good was rejected outright: the label and the
+  logged grade would disagree, which poisons the review log for any future
+  parameter fit. The row is now red · amber · green · blue, Anki's ordering, so
+  green sits on "correct" where it belongs.
+
+- **Rank comes from stability alone.** `new` (never reviewed) · `met` S<21 ·
+  `learned` 21≤S<365 · `mastered` S≥365. Stability is measured in days, so a
+  threshold means something a streak cannot — and it can't be farmed, because
+  cramming a card five times in one session takes FSRS's same-day path, which
+  barely moves S. The `seen` tier was renamed `met` in the database rather than
+  only in the label map; it had been three vocabularies for one tier (column
+  `seen`, label "Recent", spec "Met").
+
+- **`peak_rank` is a high-water mark, and it is what gets drawn.** Once a card
+  reaches `learned`, its displayed rank never falls again. A star's shape is a
+  record of what the user achieved, and taking it away on one bad morning
+  punishes the person for the algorithm's own (correct) pessimism. The lost
+  stability is shown as **brightness** instead — retrievability, on a separate
+  axis from rank. A lapsed mastered word keeps its orbit and burns low.
+
+- **Brightness is the one place fractional elapsed days are correct.**
+  Scheduling floors to whole days, matching the reference implementation exactly
+  — that is what makes our numbers comparable to every published FSRS figure. A
+  brightness that stepped once a day would read as a stuck render, so display
+  uses the fractional form. `Star.glow` is baked at projection time, not per
+  frame: R moves over *days*, the sky regenerates on mount, and recomputing it
+  per frame would cost an `exp`+`pow` per star per frame for a number that
+  cannot visibly change in that time.
+
+- **Desired retention is fixed at 0.9 and not exposed.** It is the only knob
+  FSRS invites you to surface, and it is still a control a user has no way to
+  evaluate: 0.8 triples every interval, 0.95 cuts them to 40%. At 0.9 the
+  interval equals stability, which is what every published FSRS table assumes.
+
+- **Parameters are the shipped defaults; there is no optimiser.** A per-user fit
+  needs 400–1000 reviews before it beats them, and the reference optimiser is
+  torch-based gradient descent. `card_reviews` is a complete
+  `(card_id, reviewed_at, outcome)` log, so an offline fit stays possible — that
+  log is the one thing that cannot be reconstructed later, which is why the
+  replay below is possible at all.
+
+**Known consequences, accepted:**
+
+- **Nothing is scheduled back the same day any more.** Intervals were ~1–15
+  hours (`stability · ln(1/0.9)`); they are now whole days, floored at 1. Cards
+  reappear within a session only via the study queue's own re-seating, which
+  FSRS routes through its same-day path. "Due today" counts change shape.
+
+- **Old stability and difficulty were discarded, not converted.** There is no
+  honest conversion between the two difficulty scales. `scripts/replay-fsrs.js`
+  rebuilds every card's real memory state by replaying `card_reviews` through
+  FSRS-6; historic `easy` replays as grade 3 (Good), because the old three-button
+  UI had no other success grade. The log itself is **not** rewritten — the stored
+  outcome is what the user actually pressed.
+
+- **`last_outcomes` is now display-only.** The old ladder counted streaks off it;
+  FSRS does not read it. Kept and still written (with a `G` for Good) because a
+  card's recent run is worth showing, and a column that is written but unread
+  beats one that is read but stale.
+
+**Still open:**
+
+- **Undo leaves the review in the log.** `useStudySession.undo` rolls back local
+  state, but the `card_reviews` row and the server's card state stand. That was
+  survivable when the log was only feeding stats; it matters more now that the
+  log is the input to any future parameter fit.
+
+- **Mobile has not been migrated.** `mobile-frontend/aogimi-mobile/components/
+  study/algorithm/srs.ts` is still FSRS-lite and still sends three outcomes. The
+  server accepts those, so mobile keeps working — but its third button is
+  emitting grade 4 on every success, and its local rank display will disagree
+  with the server's. It needs the same port.

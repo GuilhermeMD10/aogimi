@@ -18,8 +18,20 @@ Row-count and field-length limits are enforced at the application layer —
 [`API_ROUTES.md`](./API_ROUTES.md#quotas--input-limits) tabulates them.
 [`022_card_srs.sql`](./migrations/022_card_srs.sql) extended `cards` with
 SRS state and added `card_reviews`, `study_days`, and `user_study_prefs`;
-`023` added `cards.next_due_at` for due-card scheduling. Algorithm lives in
-[`src/services/cardSrsService.js`](./src/services/cardSrsService.js).
+`023` added `cards.next_due_at` for due-card scheduling.
+
+[`027_fsrs6.sql`](./migrations/027_fsrs6.sql) replaced the home-grown
+"FSRS-lite" scheduler with **real FSRS-6**: `stability` and `difficulty` became
+nullable and changed scale, `peak_rank` was added, the `state` ladder's `seen`
+tier became `met`, and a fourth grade (`good`) joined the outcome vocabulary.
+It leaves every card in a valid-but-unreviewed state; run
+[`scripts/replay-fsrs.js`](./scripts/replay-fsrs.js) straight after to rebuild
+each card's real memory state from the `card_reviews` log.
+
+The maths lives in [`src/services/fsrs.js`](./src/services/fsrs.js) — pure, no
+DB, verified against py-fsrs 6.3.1 by
+[`scripts/verify-fsrs.js`](./scripts/verify-fsrs.js). The domain layer over it
+is [`src/services/cardSrsService.js`](./src/services/cardSrsService.js).
 
 ---
 
@@ -168,20 +180,25 @@ identity fingerprints used to match the same book across devices.
 | context_sentence | text | NOT NULL DEFAULT '' | Optional in-context excerpt |
 | jlpt_level | smallint | nullable, CHECK (`jlpt_level IS NULL OR jlpt_level BETWEEN 1 AND 5`) | Snapshot of the source dictionary entry's JLPT tier (5 = N5 easiest … 1 = N1), captured at add time — added in 026. NULL = unknown, covering both "on no JLPT list" and "card predates the column"; the two are not distinguished. **Not** a live join to `words.jlpt_level`: `front` is user-editable, so a join would stop resolving after a typo fix. Editing a card does not recompute it — staleness is accepted, and a PUT can't clear it back to NULL (COALESCE write path). |
 | meanings | text[] | NOT NULL DEFAULT `'{}'::text[]`, CHECK (`coalesce(array_length(meanings, 1), 0) <= 3`) | The first few glosses off the source entry, as separate items, so a client can render them as a list instead of splitting `back` on punctuation — added in 026. `text[]`, not jsonb (flat strings, no keys). The NOT NULL DEFAULT is load-bearing: the web client types this as a non-nullable `string[]` and reads it without a `?? []` guard at ~6 sites. `coalesce` in the CHECK is required — `array_length()` returns NULL, not 0, for `'{}'`. Per-item length (`TEXT.CARD_MEANING`, 200) is zod-only; only the item count is in the DB. Clearable via `PUT` with `[]`. |
-| state | text | NOT NULL DEFAULT 'new', CHECK IN ('new','seen','learned','mastered') | SRS state. CHECK added in 024 — the update route accepted any string before, so a client could write `mastered` and skip the ladder. Also enforced in `src/validation/decks.js`. |
+| state | text | NOT NULL DEFAULT 'new', CHECK IN ('new','met','learned','mastered') | The card's **current** rank, derived from `stability` alone by `fsrs.rankOf()` on every review — never from difficulty or answer streaks. Thresholds: `new` = never reviewed, `met` = S < 21, `learned` = 21 ≤ S < 365, `mastered` = S ≥ 365. Renamed `seen` → `met` in 027. CHECK added in 024 — the update route accepted any string before, so a client could write `mastered` and skip the ladder. Also enforced in `src/validation/decks.js`; a manual write is overwritten by the next grade. |
+| peak_rank | text | NOT NULL DEFAULT 'new', CHECK IN ('new','met','learned','mastered') | The highest rank this card has ever held (027). Only ever climbs. Once it reaches `learned`, clients draw the card at `peak_rank` rather than `state`, so a lapse never takes a star's shape away — the lost stability shows as brightness (retrievability) instead. |
 | reviewed_times | int | NOT NULL DEFAULT 0 | Review counter |
-| difficulty | real | NOT NULL DEFAULT 0.30 | SRS: how hard this card is intrinsically, clamped [0.05, 0.95] |
-| stability | real | NOT NULL DEFAULT 2.0 | SRS: days of memory durability, floor 0.1 |
-| last_outcomes | text | NOT NULL DEFAULT '' | Last 5 outcomes encoded `A`/`H`/`E` (Again/Hard/Easy), oldest left |
+| difficulty | real | **nullable** | FSRS-6 difficulty, [1, 10] — how hard it is to *raise* stability for this card. **NULL until the first review**; FSRS seeds it from the first grade, so a default would make an unreviewed card look reviewed. Was [0.05, 0.95] with a 0.30 default before 027; the two scales are not convertible. |
+| stability | real | **nullable** | FSRS-6 stability: days for recall probability to fall from 100% to 90%. NULL until the first review. The rank ladder is thresholds on this and nothing else. Was a fixed-multiplier quantity with a 2.0 default before 027. |
+| last_outcomes | text | NOT NULL DEFAULT '' | Last 5 outcomes encoded `A`/`H`/`G`/`E` (Again/Hard/Good/Easy), oldest left. **Display only since 027** — the old ladder read it to count streaks, FSRS does not. `card_reviews` is the complete log. |
 | last_reviewed_at | timestamptz | nullable | When the card was last reviewed (null for never-reviewed cards) |
-| next_due_at | timestamptz | nullable | SRS: when the card next falls due (`last_reviewed_at + stability·ln(1/0.9)`). Null = never reviewed → treated as due now |
+| next_due_at | timestamptz | nullable | SRS: when the card next falls due. Since 027 the interval is FSRS's `(S/FACTOR)·(DR^(1/DECAY) − 1)` at desired retention 0.9, **rounded to whole days and floored at 1** — so nothing is ever scheduled back the same day. Null = never reviewed → treated as due now |
 | created_at | timestamptz | NOT NULL DEFAULT now() | |
 
 **Indexes:**
 - `idx_cards_deck_id ON (deck_id)`
 - `idx_cards_state ON (deck_id, state)`
+- `idx_cards_peak_rank ON (deck_id, peak_rank)` — the rank clients actually draw
 - `idx_cards_last_reviewed ON (deck_id, last_reviewed_at)` — for "oldest first" and time-aware ordering
 - `idx_cards_due ON (deck_id, next_due_at)` — for the due-card queries (per-deck and all-decks)
+
+`stability` and `difficulty` get **no** index: nothing sorts or filters on them
+in SQL. Rank is what queries touch, and it is already materialised in `state`.
 
 026 deliberately added **no** index: neither `jlpt_level` nor `meanings` is ever
 a search predicate. Both are read as part of the row they belong to, and JLPT
@@ -200,10 +217,10 @@ undo, heatmap, and future algorithm retraining.
 | card_id | uuid | NOT NULL, FK → cards(id) ON DELETE CASCADE | |
 | user_id | int | NOT NULL, FK → users(id) ON DELETE CASCADE | |
 | reviewed_at | timestamptz | NOT NULL DEFAULT now() | When the user submitted the review |
-| outcome | text | NOT NULL, CHECK IN ('again','hard','easy') | The result the user picked |
-| difficulty_before | real | NOT NULL | Snapshot of card.difficulty pre-update |
+| outcome | text | NOT NULL, CHECK IN ('again','hard','good','easy') | The grade the user picked, mapping to FSRS 1–4. `good` added in 027: FSRS is fitted on a four-grade distribution in which Good is the dominant success grade, and three buttons had no neutral success. **Rows written before 027 store `easy` where the user meant Good** — the old third button was the only success grade available. Any future parameter fit must account for that; the replay script does. |
+| difficulty_before | real | **nullable** | Snapshot of card.difficulty pre-update. NULL on a card's first review — there is no prior memory state. Was NOT NULL before 027, which meant first reviews recorded a hardcoded 0.30 the card never actually had. |
 | difficulty_after | real | NOT NULL | Snapshot post-update |
-| stability_before | real | NOT NULL | Snapshot pre-update |
+| stability_before | real | **nullable** | Snapshot pre-update. NULL on a first review, as above. |
 | stability_after | real | NOT NULL | Snapshot post-update |
 | state_before | text | NOT NULL | Snapshot pre-update |
 | state_after | text | NOT NULL | Snapshot post-update |

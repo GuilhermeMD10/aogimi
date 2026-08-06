@@ -276,11 +276,22 @@ screen and the `/sky` route are all deleted in its favour.
   `--active`, so the sort chips agree with the dock and the library about what
   selected looks like. Rank dots/bars/pills read `stageColor()` so the list
   chrome and the stars agree.
-- **`lib/rankProgress.ts` mirrors the backend's promotion rules.**
-  `backend/src/services/cardSrsService.js` owns them; that file is a client
-  copy, and retuning the thresholds there means changing both. Each promotion
-  has a streak gate *and* a difficulty gate, and the bar shows the lower of
-  the two so it can't read 100% on a card the server won't promote.
+- **Rank is a threshold on FSRS stability, and `lib/rankProgress.ts` only
+  presents it.** `features/sky/lib/fsrs.ts` owns the ladder — `new` (never
+  reviewed) · `met` S<21 · `learned` 21≤S<365 · `mastered` S≥365 — and mirrors
+  `backend/src/services/fsrs.js`, so retuning means changing both and re-running
+  both verification harnesses. This replaced a streak-and-difficulty meter that
+  had to show the *lower* of two gates and could never quite explain itself.
+  The bar interpolates in **log space** because stability grows multiplicatively
+  (2.3 → 11 → 46 → 163 → 497 on the Good-only path); linear, it would sit near
+  empty for three reviews and then jump most of its length in one.
+- **`peak_rank` is a high-water mark, and it's what gets drawn.** Once a card
+  reaches `learned`, `shownRank()` holds that tier through any lapse — the star's
+  shape is a record of what the user achieved. The lost stability is shown as
+  **brightness** instead (retrievability, `Star.glow`), so a slipped mastered word
+  reads as "you knew this, go refresh it" rather than "you lost it". Every rank
+  render site goes through `shownRank()`; reading `state` directly puts the list
+  chrome a tier out of step with the sky beside it.
 - **Two sorts, not three.** Added and Mastery. JLPT is impossible rather than
   unwanted: `cards` has no `word_id`, so a card can't reach a JLPT level.
 - **The reader's pending-card hand-off lands here**: `DecksView` consumes

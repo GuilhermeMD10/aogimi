@@ -217,19 +217,34 @@ card quota.
 | GET | `/api/decks/:id/cards/due` | — | `CardRecord[]` (due in this deck, most-overdue first) | `deckOwnedBy(:id)` |
 | GET | `/api/decks/:id/cards/due/count` | — | `{ count: number }` | `deckOwnedBy(:id)` |
 | PUT | `/api/decks/cards/:cardId` | `{ front?, reading?, back?, notes?, state?, contextSentence?, jlptLevel?, meanings? }` | `CardRecord` | `cardOwnedBy` |
-| POST | `/api/decks/cards/:cardId/review` | `{ outcome: 'again' \| 'hard' \| 'easy' }` | `CardRecord` (with updated SRS columns) | `cardOwnedBy` |
+| POST | `/api/decks/cards/:cardId/review` | `{ outcome: 'again' \| 'hard' \| 'good' \| 'easy' }` | `CardRecord` (with updated SRS columns) | `cardOwnedBy` |
 | DELETE | `/api/decks/cards/:cardId` | — | `{ message }` | `cardOwnedBy` |
 
-Submitting a review applies the SRS algorithm
-([`src/services/cardSrsService.js`](./src/services/cardSrsService.js))
-and atomically updates the card's `difficulty`, `stability`,
-`last_outcomes`, `last_reviewed_at`, and `state`. The same call appends
-an event row to `card_reviews` and bumps the user's `study_days` row
-for today.
+The four outcomes are FSRS grades 1–4. **`good` was added in migration 027** —
+older clients sending only `again`/`hard`/`easy` still validate, but their
+third button is emitting grade 4 (Easy) on every success, which applies the
+easy bonus each time and drives difficulty to its floor. Such a client wants
+updating, not just tolerating.
 
-`CardRecord` includes the SRS columns: `difficulty`, `stability`,
+Submitting a review runs FSRS-6 ([`src/services/fsrs.js`](./src/services/fsrs.js),
+wrapped by [`src/services/cardSrsService.js`](./src/services/cardSrsService.js))
+and atomically updates the card's `stability`, `difficulty`, `state`,
+`peak_rank`, `last_outcomes`, `last_reviewed_at` and `next_due_at`. The same
+call appends an event row to `card_reviews` and bumps the user's `study_days`
+row for today.
+
+`CardRecord` includes the SRS columns: `stability`, `difficulty` (**both
+nullable** — null until the card's first review), `state`, `peak_rank`,
 `last_outcomes`, `last_reviewed_at`, `next_due_at`, plus the legacy `notes`,
-`reviewed_times`, etc. State enum: `new | seen | learned | mastered`.
+`reviewed_times`, etc. Rank enum: `new | met | learned | mastered` (the `seen`
+tier was renamed `met` in 027).
+
+`state` is the card's *current* rank, derived from `stability`; `peak_rank` is
+the highest it has ever held. **Clients should draw `peak_rank` once it reaches
+`learned`** and show the lost stability as brightness instead — see
+`fsrs.displayedRank`. Retrievability is never returned: it is a function of
+`stability` and elapsed time, so a client computes it on demand rather than
+holding a copy that is stale the moment it arrives.
 
 **Request keys are camelCase, response keys are the raw snake_case columns.**
 That asymmetry has always been true (`contextSentence` in, `context_sentence`
@@ -317,7 +332,12 @@ Reach for the right one:
   fewer than `limit` cards. 400 if present and not a boolean.
 
 **Mode semantics**:
-- `hardest` — difficulty + (1−R) fading boost + recent-failure boost + state bias + random jitter, sorted desc.
+- `hardest` — `(1−R)` fading + normalised difficulty + rank bias + random jitter, sorted desc.
+  Since 027 the fading term leads: under FSRS, retrievability already folds in
+  stability, elapsed time and every past grade, so it is a better answer to
+  "what needs reviewing" than the old head term (raw difficulty plus a boost
+  read off the last outcome). Never-reviewed cards count as half-faded so they
+  land mid-pack rather than last.
 - `random` — uniform shuffle, no weighting.
 - `oldest_first` — by `last_reviewed_at` ASC; never-reviewed cards float first.
 - `oldest_only` — filter to cards last reviewed > 7 days ago (or never), then shuffle.
@@ -349,12 +369,14 @@ to the token user.
 | Method | Path | Response |
 |---|---|---|
 | GET | `/api/stats/activity` | `{ daysStudied: number, perDay: [{ date: 'YYYY-MM-DD', count: number }] }` |
-| GET | `/api/stats/cards` | `{ byState: { new, seen, learned, mastered }, total: number, hardest: CardRecord[] }` |
+| GET | `/api/stats/cards` | `{ byState: { new, met, learned, mastered }, total: number, hardest: CardRecord[] }` |
 | GET | `/api/stats/recent-upgrades?deckId=` | `RecentUpgrade[]` — the 5 latest tier promotions, newest first. `deckId` (optional uuid) narrows them to one deck; 400 if it isn't a uuid |
 
 - `perDay` covers the last 365 days; only days with ≥ 1 review are listed.
-- `hardest` returns at most 20 cards (sorted by `difficulty` desc, with
-  recent-Again count as a tiebreaker).
+- `hardest` returns at most 20 cards (sorted by `difficulty` desc — the FSRS
+  [1, 10] scale since 027 — with recent-Again count as a tiebreaker). Cards
+  with `state = 'new'` are excluded, which is also what keeps null difficulties
+  out of the list.
 
 ### `RecentUpgrade`
 
@@ -367,9 +389,12 @@ Read from the `card_reviews` log, not from `cards`, so each row reports the
 transition it actually caused and later reviews don't overwrite it.
 
 - **Promotions only.** An "upgrade" moves *up* the ladder
-  `new < seen < learned < mastered`; `again`-driven demotions
-  (mastered→learned, learned→seen) are excluded, as is any review that leaves
-  the tier unchanged.
+  `new < met < learned < mastered`; demotions (a lapse dropping stability back
+  below a threshold) are excluded, as is any review that leaves the tier
+  unchanged.
+- **Reports `state`, not `peak_rank`.** This list answers "what did I just
+  achieve", and a card whose *displayed* rank is being held up by its
+  high-water mark achieved nothing on the review that lapsed it.
 - **Events, not distinct cards** — a card promoted twice appears twice.
 - Card + deck columns are joined in so a caller can render the promotion
   without a follow-up fetch per card.
@@ -423,8 +448,11 @@ device id 128 · device name 100 · display_name 64 · email 254 · language 16.
 Array caps: `books/match` candidates 200 · `pageHashes`/`pagePhashes` 5000 ·
 session `deckIds` 50 · card `meanings` 3.
 
-`cards.state` is constrained to `new | seen | learned | mastered` by both the
-schema and a DB CHECK (migration 024). It used to accept any string.
+`cards.state` and `cards.peak_rank` are constrained to
+`new | met | learned | mastered` by both the schema and DB CHECKs (migration
+024, restated and renamed in 027). `state` used to accept any string. Writing
+`state` through `PUT /api/decks/cards/:cardId` is still allowed but no longer
+meaningful: it is derived from `stability` and the next grade overwrites it.
 
 `cards.jlpt_level` is constrained to `1..5` (or `null`) and `cards.meanings` to
 at most 3 entries by both zod and a DB CHECK (migration 026). The **per-entry**
