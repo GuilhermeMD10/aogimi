@@ -24,7 +24,7 @@ import {
   kanjiCardDraft,
 } from '@/features/dictionary';
 import type { SurfaceEntry } from '@/features/dictionary';
-import type { CardDraft } from '@/features/study/decks';
+import type { CardDraft } from '@/features/sky/stage';
 import { DictPanelHeader } from '../components/DictPanelHeader';
 import { useDictSelection } from '../hooks/useDictSelection';
 import { useCardPrefill } from './useCardPrefill';

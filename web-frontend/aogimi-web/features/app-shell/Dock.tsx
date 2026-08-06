@@ -94,7 +94,7 @@ const ICONS: Record<DockKey, React.ReactNode> = {
 
 /** Routes with no dock entry of their own, mapped to the entry that stays lit.
  *  A study session is entered from Decks and exits back to it, so Decks owns it. */
-const ADOPTED_BY: Record<string, string> = { '/study': '/decks' };
+const ADOPTED_BY: Record<string, string> = { '/study': '/sky' };
 
 type PillBox = { left: number; width: number };
 

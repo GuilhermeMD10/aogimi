@@ -13,7 +13,7 @@ export type ReaderBubbleProps = BubbleContentProps;
  *
  * Mounted by `AppShell`, so it is **app-global**: it is the reader's lookup when
  * no dictionary surface is docked, and it is the add-card flow on `/dictionary`
- * and `/decks` as well. Nothing here may assume a reader is behind it.
+ * and `/sky` as well. Nothing here may assume a reader is behind it.
  *
  * `bottom: 82` is not arbitrary — the `Dock` is `fixed bottom-[22px]` and about
  * 58px tall, and it draws at a higher z-index, so anything lower than this would

@@ -1,7 +1,7 @@
 'use client';
 
 import { GLASS_ACTIVE, GLASS_BUTTON, GLASS_PRESS } from '@/shared/components';
-import { SKY_HUES, SKY_PALETTES } from '@/features/sky';
+import { SKY_HUES, SKY_PALETTES } from '@/features/sky/map';
 import { useSkyHue } from '@/features/app-shell/providers/SkyHueProvider';
 import { cn } from '@/lib/util/cn';
 import { SettingRow } from './SettingRow';

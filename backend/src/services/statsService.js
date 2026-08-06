@@ -13,7 +13,7 @@ async function getCards(userId) {
     statsRepo.cardCountsByState(userId),
     statsRepo.hardestCards(userId),
   ]);
-  const total = byState.new + byState.seen + byState.learned + byState.mastered;
+  const total = byState.new + byState.met + byState.learned + byState.mastered;
   return { byState, total, hardest };
 }
 

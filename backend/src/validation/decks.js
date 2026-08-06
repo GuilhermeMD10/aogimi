@@ -109,9 +109,11 @@ const updateCardSchema = z
     message: "Provide at least one field to update",
   });
 
+// Four grades, mirroring FSRS's 1..4. `good` is the neutral success grade the
+// model is actually fitted around — see `src/services/fsrs.js`.
 const reviewCardSchema = z.object({
-  outcome: z.enum(["again", "hard", "easy"], {
-    error: "outcome must be 'again', 'hard', or 'easy'",
+  outcome: z.enum(["again", "hard", "good", "easy"], {
+    error: "outcome must be 'again', 'hard', 'good', or 'easy'",
   }),
 });
 

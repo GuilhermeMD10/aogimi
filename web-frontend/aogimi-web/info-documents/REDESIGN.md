@@ -186,8 +186,10 @@ extends the set instead of forking it.
 
 Two things that live in `StageDot` and should stay there: the SRS ladder union
 (`shared/` can't import from `features/`, so it's declared locally and mirrors
-`cards.state`) and the fact that **`seen` displays as "Recent"**. The DB enum is
-the source of truth — never rename the column to match the label.
+`cards.state`) and the label map. Migration 027 renamed the second tier `seen` →
+`met` in the database, so the column and the label finally agree — before it,
+one tier had three names (column `seen`, label "Recent", spec "Met"). The DB
+enum is still the source of truth; keep the union in step with it.
 
 ---
 
@@ -249,7 +251,7 @@ deleted) and every screen since has followed them:
 | A deck's last-added word | Deck rows had `card_count` and nothing else | **Backend gained `last_card`** — the one gap so far worth a query change rather than a drop |
 | Decks ordered by most recently studied | Nothing records it | `created_at DESC` |
 | `SESSIONS 28×` on a deck | No session entity at all — `study_days` is per user, `card_reviews` per card | Dropped; three ledger figures, not four |
-| Progress-to-next-rank per card | Not stored — **but the promotion rules are explicit in `cardSrsService.js`** | Derived client-side in `decks/lib/rankProgress.ts` from `last_outcomes` + `difficulty` |
+| Progress-to-next-rank per card | Not stored — **but rank is a pure function of `stability`, which is in the payload** | Derived client-side in `sky/stage/lib/rankProgress.ts` from `stability` + `peak_rank`, interpolated in log space |
 | A card's part of speech, second meaning, JLPT level, or its context sentence's translation | None exist; `cards` has no `word_id` to reach the dictionary through | All four omitted, each degrading its own line |
 
 When you find a new one: **name it to the owner, don't invent a schema.** They

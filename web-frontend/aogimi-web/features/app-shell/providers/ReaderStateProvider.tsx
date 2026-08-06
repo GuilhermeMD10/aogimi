@@ -1,12 +1,12 @@
 'use client';
 
 import { createContext, useCallback, useContext, useState } from 'react';
-import type { CardDraft } from '@/features/study/decks';
+import type { CardDraft } from '@/features/sky/stage';
 
 // What's left in this provider is genuinely cross-cutting:
 //   - the reader bubble overlay
 //   - the dictionary sidekick toggle
-//   - the pending flashcard hand-off to /decks
+//   - the pending flashcard hand-off to /sky
 //
 // The open book is NOT here any more. It used to be a `readerSession` object
 // plus a `pendingBookOpen` filename that a mounted library view watched for —
@@ -30,7 +30,7 @@ import type { CardDraft } from '@/features/study/decks';
  * - `'addCard'` — bubble shows the "add this word to a deck" form,
  *   pre-populated with the captured `word` and, when the request came from
  *   a dictionary entry, the whole `draft`. The same payload is also written
- *   to `pendingCard` so a navigation to /decks can pick it up; both
+ *   to `pendingCard` so a navigation to /sky can pick it up; both
  *   consumers are intentional (bubble = inline finish, pendingCard =
  *   navigate to finish).
  *
@@ -76,7 +76,7 @@ export type ReaderBubbleState =
     };
 
 /**
- * The add-card hand-off to `/decks`.
+ * The add-card hand-off to `/sky`.
  *
  * Declared once and referenced by the getter, the setter and the `useState`
  * below: it used to be spelled out at each of those three sites plus the
@@ -99,7 +99,7 @@ export type PendingCard = {
 };
 
 type ReaderContextValue = {
-  // Pending flashcard hand-off for `DecksView` — set by
+  // Pending flashcard hand-off for `SkyView` — set by
   // `requestAddCardFrom*`, read-and-cleared by the decks page on mount.
   pendingCard: PendingCard | null;
   setPendingCard: React.Dispatch<React.SetStateAction<PendingCard | null>>;

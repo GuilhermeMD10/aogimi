@@ -75,7 +75,7 @@
      override these — `--stage-mastered` used to have a per-theme value and no
      longer does, deliberately. */
   --stage-new:         #7E78E0;
-  --stage-recent:      #A98BFF;
+  --stage-met:         #A98BFF;
   --stage-learned:     #FF7AC4;
   --stage-mastered:    #F4DC82;
 
@@ -330,28 +330,28 @@ html[data-theme="dark"] {
 
 html[data-sky-hue="default"] {
   --stage-new:         #7E78E0;
-  --stage-recent:      #A98BFF;
+  --stage-met:         #A98BFF;
   --stage-learned:     #FF7AC4;
   --stage-mastered:    #F4DC82;
 }
 
 html[data-sky-hue="ginga"] {
   --stage-new:         #48545C;
-  --stage-recent:      #8494A0;
+  --stage-met:         #8494A0;
   --stage-learned:     #DCE6EC;
   --stage-mastered:    #E0A448;
 }
 
 html[data-sky-hue="ember"] {
   --stage-new:         #4B316F;
-  --stage-recent:      #83405C;
+  --stage-met:         #83405C;
   --stage-learned:     #C25A45;
   --stage-mastered:    #F0A13C;
 }
 
 html[data-sky-hue="aurora"] {
   --stage-new:         #5E324D;
-  --stage-recent:      #A863A8;
+  --stage-met:         #A863A8;
   --stage-learned:     #DCD0E4;
   --stage-mastered:    #52D46A;
 }

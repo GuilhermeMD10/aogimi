@@ -25,7 +25,7 @@ import {
   kanjiCardDraft,
 } from '@/features/dictionary';
 import type { SurfaceEntry } from '@/features/dictionary';
-import type { CardDraft } from '@/features/study/decks';
+import type { CardDraft } from '@/features/sky/stage';
 import { HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';

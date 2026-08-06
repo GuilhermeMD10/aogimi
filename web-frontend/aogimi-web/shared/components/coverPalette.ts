@@ -8,7 +8,7 @@
  * matters — the same object is always the same colour — with no migration and
  * no backfill for rows that already exist.
  *
- * Same hash as `features/study/decks/lib/deckVisuals`, so a deck keeps its
+ * Same hash as `features/sky/stage/lib/deckVisuals`, so a deck keeps its
  * relative identity across the two systems while both are alive.
  */
 

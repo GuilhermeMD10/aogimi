@@ -77,12 +77,12 @@ export const GLASS_ACTIVE = 'glass-active';
 
 /**
  * Modifier on `GLASS_BUTTON` for the study runner's grade row, paired with one
- * of the three tint classes below:
+ * of the four tint classes below:
  *
  *   <button className={cn(GLASS_BUTTON, GLASS_PRESS, GLASS_GRADE, GLASS_GRADE_AGAIN)}>
  *
  * The one glass in the app whose **specular layers take the tint too**, not just
- * its fill. Three tiles sit side by side carrying neutral ink, so hue is the
+ * its fill. Four tiles sit side by side carrying neutral ink, so hue is the
  * whole signal and a white edge would dilute it — see the grade block in
  * `glass.css`. Don't copy the exception onto a surface that isn't one of these.
  *
@@ -97,7 +97,13 @@ export const GLASS_GRADE_AGAIN = 'glass-grade-again';
 /** Hard — `#ffd582`. Deliberately not `--warn`. */
 export const GLASS_GRADE_HARD = 'glass-grade-hard';
 
-/** Easy — `#7ee29a`, the palette's only green and local to this row. */
+/** Good — `#7ee29a`, the palette's only green and local to this row. Green sits
+ *  on the *expected* success grade, not on Easy; see the grade block in
+ *  `glass.css` for why the row runs red · amber · green · blue. */
+export const GLASS_GRADE_GOOD = 'glass-grade-good';
+
+/** Easy — `#8ec8ff`, local to this row. The exceptional grade, so it takes the
+ *  cool tint rather than the familiar green. */
 export const GLASS_GRADE_EASY = 'glass-grade-easy';
 
 /**

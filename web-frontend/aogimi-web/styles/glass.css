@@ -230,8 +230,8 @@
      new to the palette and stays local for the same reason: one component has
      ever wanted it.
 
-     Three tints, and then every layer derived from whichever one is in play.
-     `--grade-tint` is undefined here on purpose: the three classes at the bottom
+     Four tints, and then every layer derived from whichever one is in play.
+     `--grade-tint` is undefined here on purpose: the four classes at the bottom
      of this file set it, and a custom property's value is substituted where it
      is *used*, not where it is declared — so the four derived values below each
      resolve against the button wearing them. That indirection is also what keeps
@@ -241,10 +241,19 @@
      The top lines are the exception, spelled out per tint: a gradient's fade
      stops have to be the tint at zero alpha, and `color-mix(…, transparent)` at
      0% collapses to `rgba(0,0,0,0)` — reintroducing exactly the grey cast the
-     note above `--glass-hl` warns about. */
+     note above `--glass-hl` warns about.
+
+     WHY THE GREEN MOVED. The row gained a Good button when the scheduler moved
+     to FSRS-6 (which is fitted on four grades). Red · amber · green · blue is
+     the ordering every other SRS uses, Anki included, so a learner arriving
+     from one reads this row without being taught it — and it puts green on
+     "correct", which is where green belongs. Good is the grade the model
+     expects most often; Easy is the exception, so it takes the new cool tint
+     rather than the familiar one. */
   --grade-again: #ff5757;
   --grade-hard: #ffd582;
-  --grade-easy: #7ee29a;
+  --grade-good: #7ee29a;
+  --grade-easy: #8ec8ff;
 
   --grade-fill: color-mix(in srgb, var(--grade-tint) 30%, transparent);
   --grade-fill-hover: color-mix(in srgb, var(--grade-tint) 45%, transparent);
@@ -266,11 +275,17 @@
     rgba(255, 213, 130, 0.2),
     rgba(255, 213, 130, 0)
   );
-  --grade-easy-hl: linear-gradient(
+  --grade-good-hl: linear-gradient(
     90deg,
     rgba(126, 226, 154, 0),
     rgba(126, 226, 154, 0.2),
     rgba(126, 226, 154, 0)
+  );
+  --grade-easy-hl: linear-gradient(
+    90deg,
+    rgba(142, 200, 255, 0),
+    rgba(142, 200, 255, 0.2),
+    rgba(142, 200, 255, 0)
   );
 
   /* ── The dock ─────────────────────────────────────────────────────────────
@@ -497,9 +512,9 @@
      `.glass-grade` is a modifier on `.glass-button`, same shape as `.glass-scrim`
      and `.glass-active`: it swaps the five white layers for tinted ones and
      leaves the blur, the cursor and the geometry to the host. Which tint comes
-     from one of the three classes below, which set nothing but `--grade-tint`
+     from one of the four classes below, which set nothing but `--grade-tint`
      and `--grade-hl` — so the alphas live here, once each, and re-balancing the
-     row is editing this block rather than three parallel ones.
+     row is editing this block rather than four parallel ones.
 
      `border-color` rather than `border` so the host's 1px width survives.
 
@@ -543,6 +558,11 @@
   .glass-grade-hard {
     --grade-tint: var(--grade-hard);
     --grade-hl: var(--grade-hard-hl);
+  }
+
+  .glass-grade-good {
+    --grade-tint: var(--grade-good);
+    --grade-hl: var(--grade-good-hl);
   }
 
   .glass-grade-easy {

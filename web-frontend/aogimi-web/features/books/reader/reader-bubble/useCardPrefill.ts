@@ -10,7 +10,7 @@ import {
   wordCardDraft,
 } from '@/features/dictionary';
 import type { RailContents } from '@/features/dictionary';
-import type { CardDraft } from '@/features/study/decks';
+import type { CardDraft } from '@/features/sky/stage';
 
 /**
  * The card fields for a card that arrived without any.

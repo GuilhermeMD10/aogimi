@@ -8,8 +8,8 @@ import {
   MAX_CARD_MEANINGS,
   MAX_CARD_READING,
   decksApi,
-} from '@/features/study/decks';
-import type { CardDraft } from '@/features/study/decks';
+} from '@/features/sky/stage';
+import type { CardDraft } from '@/features/sky/stage';
 import { cardBack } from '@/features/dictionary';
 import { Button, Eyebrow, HAIRLINE, JlptChip } from '@/shared/components';
 import { cn } from '@/lib/util/cn';

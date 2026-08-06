@@ -260,8 +260,16 @@ DELETE /api/decks/cards/{cardId}
   Response:  void
 
 POST /api/decks/cards/{cardId}/review
+  Body:      { outcome: 'again' | 'hard' | 'good' | 'easy' }
   Trigger:   Card review completion (manual, once per review)
   Response:  CardRecord  -- backend updates SRS columns + next_due_at + reviewed_times
+  -- The four outcomes ARE the FSRS grades 1..4. 'good' was added with
+  --  migration 027; before it the third button emitted 'easy', which
+  --  applied the easy bonus on every success and pinned difficulty at 1.0.
+  -- The client computes the same next-state locally (features/sky/lib/
+  --  fsrs.ts) purely so the UI can move before this POST lands. The
+  --  BACKEND IS THE SOURCE OF TRUTH -- it recomputes and persists, and its
+  --  answer wins on the next fetch.
 
 GET /api/decks/{deckId}/cards/due       [NO CLIENT HELPER YET]
   Trigger:   (planned) single-deck due inventory
@@ -322,7 +330,7 @@ GET /api/stats/activity
 
 GET /api/stats/cards
   Trigger:   /sky (study stats) mount, cards tab; profile animal label
-  Response:  { byState: { new, seen, learned, mastered }, total,
+  Response:  { byState: { new, met, learned, mastered }, total,
                hardest: CardRecord[] }  -- hardest capped at 20
 
 GET /api/stats/recent-upgrades[?deckId={uuid}]
@@ -341,8 +349,11 @@ RecentUpgrade shape:                     (camelCase -- a purpose-built
   { cardId, deckId, deckName,             aggregate, not a raw cards row)
     front, reading, back,
     stateBefore, stateAfter, reviewedAt }
-  -- Promotions ONLY, up the ladder new < seen < learned < mastered.
-  --  again-driven demotions and same-tier reviews are excluded.
+  -- Promotions ONLY, up the ladder new < met < learned < mastered.
+  --  Demotions and same-tier reviews are excluded.
+  -- Reports `state` (the real rank), NOT `peak_rank` -- this list is
+  --  "what did I just achieve", and a card held up by its high-water
+  --  mark achieved nothing on the review that lapsed it.
   -- Events, not distinct cards: a card promoted twice appears twice.
   -- Read from the card_reviews log, so later reviews don't overwrite it.
 
@@ -352,11 +363,28 @@ DeckRecord shape:
 CardRecord shape:
   { id, deck_id, front, reading, back, notes, context_sentence,
     jlpt_level, meanings,
-    state ('new'|'seen'|'learned'|'mastered'), reviewed_times,
+    state ('new'|'met'|'learned'|'mastered'),
+    peak_rank ('new'|'met'|'learned'|'mastered'), reviewed_times,
     difficulty, stability, last_outcomes, last_reviewed_at,
     next_due_at, created_at }
   -- A card is "due" when next_due_at IS NULL (never reviewed) or
   --  next_due_at <= now. See docs/study-due-cards.md.
+  -- FSRS-6 since migration 027. stability and difficulty are NUMBER|NULL:
+  --  null until the card's first review. difficulty is [1,10] (it was
+  --  [0.05,0.95] before -- the scales are not convertible). stability is
+  --  in days.
+  -- state is the CURRENT rank, derived from stability alone:
+  --  null -> new,  S<21 -> met,  21<=S<365 -> learned,  S>=365 -> mastered.
+  -- peak_rank is the highest rank ever held; it only climbs. DRAW
+  --  peak_rank once it reaches 'learned' (features/sky/lib/fsrs.ts ->
+  --  displayedRank) so a lapse never takes a star's shape away. The lost
+  --  stability shows as BRIGHTNESS instead -- retrievability, which is
+  --  never sent because it is a function of stability + elapsed time and
+  --  a stored copy would be stale on arrival.
+  -- last_outcomes: last 5 as A/H/G/E, oldest left. DISPLAY ONLY since
+  --  027; the old ladder counted streaks off it, FSRS does not.
+  -- next_due_at is now always >= 1 day out. Nothing is scheduled back
+  --  the same day; within-session repeats are the study queue's job.
   -- jlpt_level: number|null. Snapshot of the source dictionary entry's
   --  tier, taken once at add time (migration 026). 1 = N1 .. 5 = N5.
   --  null means UNKNOWN, and covers BOTH "on no JLPT list" and "card
