@@ -100,19 +100,28 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
   const flip = useCallback(() => setSide((s) => (s === 'front' ? 'back' : 'front')), []);
   const restart = useCallback(() => setReloadKey((k) => k + 1), []);
 
-  const submit = useCallback((outcome: StudyOutcome) => {
-    setQueue((q) => {
-      if (q.length === 0) return q;
-      const [current, ...tail] = q;
-      if (!current) return q;
+  /**
+   * Grade the current card.
+   *
+   * **Nothing with a side effect may move inside the `setQueue` updater.** All of this used to live
+   * in there, reading the queue head off the `q` argument — which looks like the careful choice
+   * (always the freshest queue, no stale closure) and is why it was written that way. But React
+   * requires an updater to be a *pure* function of the previous state and deliberately invokes it
+   * twice in Strict Mode to surface impurity, which the App Router turns on by default. So every
+   * review fired `submitReview` twice, wrote two `card_reviews` rows, and the ledger's recent
+   * upgrades showed the same card promoting twice at the same instant.
+   *
+   * Reading the head from `queue` instead costs a `queue` dependency, which is free: the state object
+   * this hook returns already lists both `queue` and `submit`, so its identity was changing per
+   * review regardless. Grading is gated on `side === 'back'` and this flips it to `'front'`, and
+   * React flushes discrete events one at a time, so there is no same-tick second grade to race.
+   */
+  const submit = useCallback(
+    (outcome: StudyOutcome) => {
+      const current = queue[0];
+      if (!current) return;
 
       const { next, prior } = applyOutcome(current, outcome);
-
-      // Web has no local card store, so we just fire the POST and
-      // mutate the in-memory card here for UI feedback. If the POST
-      // fails the next session reload will pull fresh card state from
-      // the backend (which still reflects the prior review).
-      submitReview(current.id, outcome).catch(() => {});
 
       const updatedCurrent: CardRecord = {
         ...current,
@@ -124,7 +133,15 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
         reviewed_times:   current.reviewed_times + 1,
       };
 
+      // Web has no local card store, so we just fire the POST and mutate the in-memory card here
+      // for UI feedback. If the POST fails the next session reload will pull fresh card state from
+      // the backend (which still reflects the prior review).
+      submitReview(current.id, outcome).catch(() => {});
       lastReviewRef.current = { card: updatedCurrent, prior };
+
+      // Still an updater, because this one *is* pure — it only has to drop whatever head the latest
+      // queue has and re-seat the graded card.
+      setQueue((q) => advanceQueue(q.slice(1), updatedCurrent, outcome));
       setCanUndo(true);
       setReviewed((n) => n + 1);
       setSide('front');
@@ -143,10 +160,9 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
           },
         };
       });
-
-      return advanceQueue(tail, updatedCurrent, outcome);
-    });
-  }, []);
+    },
+    [queue],
+  );
 
   const undo = useCallback(() => {
     const snapshot = lastReviewRef.current;

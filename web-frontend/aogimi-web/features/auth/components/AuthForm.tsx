@@ -1,6 +1,7 @@
 'use client';
 
-import { Button } from '@/shared/components';
+import { GLASS_BUTTON, GLASS_PRESS, HAIRLINE } from '@/shared/components';
+import { cn } from '@/lib/util/cn';
 import { AuthField } from './AuthField';
 import { ModeSwitch } from './ModeSwitch';
 import { SocialButtons } from './SocialButtons';
@@ -121,14 +122,28 @@ export function AuthForm({
             {error}
           </p>
 
-          <Button
+          {/* Glass, not the filled `--btn` `Button` it used to be — the same
+              call `/profile` made, and for the same reason: one material on a
+              screen wants one button. Written out rather than composed over
+              `GLASS_GHOST` because a 52px full-width CTA shares none of that
+              constant's geometry or type. The handoff's blue drop shadow goes
+              with it: glass ships at depth 0, so a drop shadow on one control
+              would be the only one in the app. */}
+          <button
             type="submit"
             disabled={submitting}
-            className="h-[52px] w-full justify-center rounded-(--radius-input) shadow-[0_10px_24px_rgba(33,56,92,.24)]"
+            className={cn(
+              GLASS_BUTTON,
+              GLASS_PRESS,
+              'flex h-[52px] w-full items-center justify-center gap-2 rounded-(--radius-input)',
+              'font-[family-name:var(--face-ui)] text-[15px] leading-none font-bold text-(--ink)',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+              'disabled:opacity-60',
+            )}
           >
             {submitting ? 'One moment…' : isSignup ? 'Create an account' : 'Log in'}
             {!submitting && <ArrowIcon />}
-          </Button>
+          </button>
         </form>
 
         {SHOW_SOCIAL_AUTH && <SocialButtons />}
@@ -138,7 +153,12 @@ export function AuthForm({
           <button
             type="button"
             onClick={() => onModeChange(isSignup ? 'login' : 'signup')}
-            className="cursor-pointer border-b border-(--paper-bd) font-bold text-(--ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
+            className={cn(
+              GLASS_PRESS,
+              'cursor-pointer border-b font-bold text-(--ink)',
+              HAIRLINE,
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+            )}
           >
             {isSignup ? 'Log in' : 'Create an account'}
           </button>

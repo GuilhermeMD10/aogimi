@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings } from 'lucide-react';
-import { Button, PaperCard, PAPER_GHOST } from '@/shared/components';
+import { GLASS_GHOST, GLASS_SURFACE, GlassCard } from '@/shared/components';
+import { cn } from '@/lib/util/cn';
 import { useProfile } from '../hooks/useProfile';
 
 /**
@@ -13,6 +13,15 @@ import { useProfile } from '../hooks/useProfile';
  * reading, and the milestone badge have no backing data, so the card collapses
  * to the parts that are real. "Edit profile" is display-name editing only; the
  * avatar stays the first letter of the name for now.
+ *
+ * Glass throughout, like every card on this page: `GlassCard` for the shell,
+ * `GLASS_GHOST` for all four actions, and the rename field is a `GLASS_SURFACE`
+ * (the dictionary's search field made the same call — a pane, not a control, so
+ * no hover). The filled `--btn` `Button` that used to carry Save and Settings is
+ * gone from this page: the library has one glass button treatment for its import,
+ * resume and re-add alike, and a page with one material wants one button. The
+ * ink is what still separates an action from a secondary one — `--ink` for Save,
+ * Edit profile and Settings, `--soft` for Cancel.
  */
 export function IdentityCard() {
   const { displayName, saveDisplayName } = useProfile();
@@ -50,7 +59,7 @@ export function IdentityCard() {
   };
 
   return (
-    <PaperCard className="mb-5 flex flex-wrap items-center gap-[26px] px-[30px] py-7">
+    <GlassCard className="mb-5 flex flex-wrap items-center gap-[26px] px-[30px] py-7">
       <span
         aria-hidden
         className="flex size-[92px] shrink-0 items-center justify-center rounded-full bg-(--avatar) font-[family-name:var(--face-ui)] text-[38px] font-bold text-(--avatar-ink)"
@@ -71,12 +80,22 @@ export function IdentityCard() {
               }}
               maxLength={64}
               aria-label="Display name"
-              className="w-full max-w-[340px] rounded-(--radius-button) border border-(--paper-bd) bg-(--paper-tile) px-3.5 py-2.5 font-[family-name:var(--face-ui)] text-[20px] font-bold text-(--ink) outline-none focus:border-(--btn)"
+              // Fill, blur, edge and inner glow all land; the specular top line
+              // doesn't, because `<input>` is a replaced element and browsers
+              // don't render `::before` on one. Nothing to chase — the field
+              // reads as glass without it, and the dictionary's version paints
+              // the line only because its shell is a `<form>`.
+              className={cn(
+                GLASS_SURFACE,
+                'w-full max-w-[340px] rounded-(--radius-button) px-3.5 py-2.5',
+                'font-[family-name:var(--face-ui)] text-[20px] font-bold text-(--ink)',
+                'outline-none focus:border-(--btn)',
+              )}
             />
-            <Button onClick={() => void save()} className="px-4 py-[11px] text-[13.5px]">
+            <button type="button" onClick={() => void save()} className={cn(GLASS_GHOST, 'text-(--ink)')}>
               {saving ? 'Saving…' : 'Save'}
-            </Button>
-            <button type="button" onClick={cancel} className={PAPER_GHOST}>
+            </button>
+            <button type="button" onClick={cancel} className={cn(GLASS_GHOST, 'text-(--soft)')}>
               Cancel
             </button>
             {saveError && (
@@ -94,14 +113,13 @@ export function IdentityCard() {
 
       {!editing && (
         <div className="flex shrink-0 items-center gap-[11px]">
-          <button type="button" onClick={startEditing} className={PAPER_GHOST}>
+          <button type="button" onClick={startEditing} className={cn(GLASS_GHOST, 'text-(--ink)')}>
             Edit profile
           </button>
-          <Button href="/settings" icon={<Settings size={15} />} className="px-4 py-[11px] text-[13.5px]">
-            Settings
-          </Button>
+          {/* The Settings link that used to sit here is gone with the /settings
+              route — the settings list is a column of this same page now. */}
         </div>
       )}
-    </PaperCard>
+    </GlassCard>
   );
 }

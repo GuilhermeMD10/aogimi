@@ -80,6 +80,26 @@ at 20% opacity.
 | 2   | Learned  | `#FF7AC4` | `#e0489c`    | 6.4    | .20  | dot + 4-arm cross                 |
 | 3   | Mastered | `#F4DC82` | `#c9962a`    | 7.6    | .26  | double 4-point sparkle, twinkling |
 
+**The silhouette column is superseded.** The shipped vocabulary is **signal rings** (from the
+`Star Lab 03 · 輪環` handover): one ring per rank step — `0 · 1 · 2 · 2 + orbit` — over a glass-bead
+core, and it is what `lib/star.ts` implements. The reference's `dot · dot · cross · sparkle` failed
+on its own terms: ranks 0 and 1 were the *same shape*, so a four-state ladder only ever delivered
+three. Rings are countable, so it delivers four. Three deltas from that handover are deliberate and
+are argued at their constants in `lib/config.ts`:
+
+- **Radii pulled in** to `ORNAMENT_MAX` (1.9r) from the handover's 2.4r rings / 2.55r orbit. At the
+  radii this app draws, those overrun `STAR_SPACING_PX` by a third and neighbouring ring systems
+  cross-hatch. 1.9r also keeps every ornament inside the halo's 3.2r, so per-star repaint rects do
+  not grow.
+- **The bead is gated** above `BEAD_MIN_CORE_PX`. It is specified against a sample strip at
+  `r = 13…25`; a field star's core is 1.5–4.4px, where its six layers cannot resolve and its two
+  gradient fills would triple the sky's gradient count.
+- **No twinkle** (§2.4). An infinite animation on two elements per gold star repaints its region
+  every frame with the camera parked, and this layer is otherwise static once it has landed.
+
+Ring/orbit **colour** comes from the rank; the handover's white orbit and satellite were dropped
+because white is `SELECT_COLOR`'s alone here, and a white satellite reads as a selection marker.
+
 **The Ink-on-paper column is not implemented, deliberately.** As shipped, the rank colours are a
 **hue preset** the reader picks (`SKY_PALETTES` in `lib/palette.ts`: Aogimi — the Midnight column
 above — plus Ginga silver, Ember dusk, Aurora field), and each preset is one value per rank used in
@@ -99,11 +119,29 @@ rather than just bigger ones, and zooming out never collapses them into invisibl
 
 - `× 0.86` whenever the deck is not the focused one.
 - `× 1.55` for **fulcral** stars (§6) — the one star that stands in for a collapsed group.
-- The mastered core circle is drawn at `rr × 0.6` — the sparkle arms carry its visual mass, so
-  the dot shrinks to keep the total ink right.
-- Selected star: core `× 1.22`.
+- ~~The mastered core circle is drawn at `rr × 0.6`~~ — superseded. **Every** rank's core is
+  `rr × CORE_SCALE` (.78) now that no rank hides its core behind a solid body. The .78 is what opens
+  a `0.52r` gap between the core's rim and the first ring at 1.3r; at a full-radius core that gap is
+  0.3r and the inner ring merges into the rim.
+- Selected star: core `× 1.22`. Read the bead gate off the **unboosted** core, so hovering never
+  swaps which core form a star wears.
 
 ### 2.2 Draw order inside one star group
+
+Layers 2–4 and 7–8 below are the reference's. **As shipped** (`components/SkyStars.tsx`) the order is:
+
+1. **glow** — `circle r = rr*3.2`, `fill url(#sky-glow-{k})`, opacity `dim ? glow : min(.55, glow*2.2)`
+2. **signal rings** — `min(k, 2)` stroked circles at `rr*(1.3 + .45n)`, width `max(.75, rr*.07)`,
+   rank colour, opacity `RING_ALPHA[n] × (dim ? .47 : 1)`
+3. **orbit** _(k = 3)_ — `ellipse rx rr*1.9 ry rr*.63` tilted −22° + satellite at the tilted
+   `(rr*1.56, rr*−.36)`, `r max(1.4, rr*.15)`; both in the rank colour
+4. **hover ring** / 5 **selected** — unchanged from the reference below
+5. **core** — the six-layer glass bead at `rr*.78` above `BEAD_MIN_CORE_PX` and undimmed; otherwise
+   the flat disc, opacity `dim ? .55 : 1`
+6. **specular** — the flat core's only; the bead carries its own
+7. **word label**, 8 **hit target** — unchanged from the reference below
+
+The reference's own order, for comparison:
 
 1. **glow** — `circle r = rr*4.6`, `fill url(#rg{k})`, opacity `dim ? glow*1.4 : min(.85, glow*3)`
 2. **k = 3 sparkle, back** — `sparklePath(x, y, rr*2.1, rr*2.1, rr*0.42)`, rotated 45°, opacity `dim ? .20 : .42`
@@ -125,26 +163,39 @@ list — the handful of stars that stay bright when the deck is a distant silhou
 
 ### 2.3 `sparklePath` — the mastered star
 
-Four-point star from four quadratic segments. `lv`/`lh` are the vertical/horizontal arm
-lengths, `w` the waist:
-
-```
-c = 1.4142*w − 0.25*(lv + lh)
-M (0,−lv) Q (c,−c) (lh,0) Q (c,c) (0,lv) Q (−c,c) (−lh,0) Q (−c,−c) (0,−lv) Z      (offsets from x,y)
-```
-
-Because `c` goes _negative_ as the arms grow, the waist pinches inward — that concavity is what
-makes it read as a star rather than a diamond.
+**Removed.** The mastered rank wears two rings plus a tilted orbit and satellite (`orbitOf` in
+`lib/star.ts`); there is no sparkle path any more. Kept as a heading only so a reader coming from the
+reference knows it went on purpose.
 
 ### 2.4 Twinkle
 
-Rank 3 only. `animation: tw 3.8s ease-in-out infinite` where `@keyframes tw { 0%,100% {opacity:1} 50% {opacity:.5} }`,
-`animation-delay: −(((deckIndex*5 + starIndex*3) % 8) × 0.47)s` — a deterministic 8-phase
-stagger so no two neighbours pulse together and nothing needs a random seed.
+**Not implemented, and not to be added.** Rank 3 twinkled the outermost ring and the orbit in the
+reference and in the ring handover alike. Both were dropped: browsers cannot promote an SVG
+sub-element inside a transformed `<g>` onto its own compositor layer, so each animated element
+repaints its region every frame — continuously, with the camera parked. The star layer is otherwise
+completely static once it has landed (`.sky-star` is a one-shot entry pop; the only infinite star-side
+animations belong to clouds, which are faded down exactly when stars are up), so this would have been
+the sky's one idle-CPU cost. The mastered rank's fourth state is a *shape*, which needs no frames.
 
 ### 2.5 Glow gradient (`rg0`…`rg3`, one per rank)
 
 `radialGradient`: `0% → rankColour @ .5`, `38% → @ .16`, `100% → @ 0`.
+
+**Shipped softer**, at `.34 / .10 / 0` and `STAR_GLOW_SCALE` 3.2 rather than 4.6: at the reference's
+values a field of stars read as a field of halos. The ring handover proposed going back up (2.8r at
+`.5` with a `.5→.95` group opacity, ~2.5× the ink) and that was declined — same experiment, same
+result.
+
+### 2.6 Bead gradients (`sky-bead-{k}`, `sky-caustic-{k}`)
+
+Two per rank, derived from the ramp in hand by `beadRamps` in `lib/palette.ts` — **not** transcribed
+from the handover's resolved table, which covers the `default` preset only and would silently break
+ginga, ember and aurora.
+
+Both are radius-independent (percentage stops, `objectBoundingBox` focal points), which is what lets
+them be keyed **per rank** — twelve defs for the whole sky. Key them by radius and `<defs>` becomes
+camera-dependent: it rebuilds every frame and discards the paint cache a pure pan rides on, which is
+the one way to make this design cost frames.
 
 ---
 

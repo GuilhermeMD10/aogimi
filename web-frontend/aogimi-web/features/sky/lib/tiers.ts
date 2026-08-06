@@ -19,6 +19,7 @@ import { boundsCross, inBounds, segmentInBounds, skyBounds } from './geometry';
 import type { SkyLayout } from './layout';
 import { MIN_LAYER_OP, SKY_FULL, type SkyLayers, type SkyPhase, layersAt } from './lod';
 import type { RankRamp } from './palette';
+import { deckPresence } from './star';
 import type { Bounds, FocusPath, Point, SkySnapshot, Star } from './types';
 
 /**
@@ -145,6 +146,15 @@ export type DeckDraw = {
   /** Halos, each with the strength it is faded in at. */
   halos: { lobe: Lobe; veil: number }[];
   /**
+   * The focused deck's wash: its whole tree's root, which the renderer draws three broad tints from
+   * (see WASH_LOBES). null at the outer view — out there each deck already has the budget's own halo,
+   * and a wash per cell would be twelve washes competing.
+   *
+   * Deliberately **not** in `halos`: those ride the cloud crossfade and are gone by the time the star
+   * layer is up, and the entire point of the wash is that nothing fades it.
+   */
+  wash: Lobe | null;
+  /**
    * Focused deck only, while its star layer is down: a budget's worth of real stars drawn among the
    * clouds — the peak quota, the fulcral stand-ins, the gap fill — so the condensed interior reads
    * as a sky rather than as a field of points. `op` is `1 − starOp`: the preview is fully up until
@@ -158,6 +168,14 @@ export type DeckDraw = {
    * where the forms already sit exactly where its own stars are.
    */
   mass: number;
+  /**
+   * The multiplier this deck's *stars* carry, and whether they are drawn lit rather than as faint
+   * context — `deckPresence` from its card count, so the smallest decks are legible at the chooser
+   * (see SMALL_DECK_MAX). Both are the neutral answer inside a focused deck, which lights its own
+   * stars and scales them by FOCUSED_STAR_SCALE.
+   */
+  starScale: number;
+  vivid: boolean;
   veil: number;
 };
 
@@ -199,6 +217,9 @@ const drawOuterDeck = (
 
   const lod = groupLod(tree, stars, index.byId, zoom, SKY_STAR_BUDGET);
   const survives = (s: Star) => lod.show === null || lod.show.has(s.id);
+  // from the deck's whole count, never from what survived culling: a deck must not grow as you pan
+  // half of it off screen
+  const presence = deckPresence(stars.length);
 
   const view = toLocalBox(worldView, origin);
   return {
@@ -215,8 +236,11 @@ const drawOuterDeck = (
     lobes: lod.lobes.filter((l) => boundsCross(l.box, view)),
     edges: lod.edges.filter((e) => segmentInBounds({ x: e.ax, y: e.ay }, { x: e.bx, y: e.by }, view)),
     halos: lod.halo && boundsCross(lod.halo.box, view) ? [{ lobe: lod.halo, veil: lod.veil }] : [],
+    wash: null,
     preview: null,
     mass,
+    starScale: presence.scale,
+    vivid: presence.vivid,
     veil: lod.veil,
   };
 };
@@ -276,8 +300,14 @@ const drawFocusedDeck = (
     // the interior halo rides the cloud layer's own fade; its per-halo strength is its weight,
     // which the renderer already folds in
     halos: halos.map((c) => ({ lobe: c.root, veil: layers.cloudOp })),
+    // ...and the wash does not: one atmosphere for the whole deck, at every zoom. The deck tree is
+    // already built (the preview budget reads the same one), so this is a lookup, not work.
+    wash: tree?.root ?? null,
     preview,
     mass: 1,
+    // the interior's own scale is FOCUSED_STAR_SCALE's, applied by starRadiusPx from `focused`
+    starScale: 1,
+    vivid: true,
     veil: layers.cloudOp,
   };
 };

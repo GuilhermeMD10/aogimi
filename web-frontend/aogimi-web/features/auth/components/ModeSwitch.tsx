@@ -1,5 +1,7 @@
 'use client';
 
+import { GLASS_ACTIVE, GLASS_PRESS, GLASS_ROW, GLASS_SURFACE } from '@/shared/components';
+import { cn } from '@/lib/util/cn';
 import type { AuthMode } from '../types';
 
 /**
@@ -15,6 +17,13 @@ import type { AuthMode } from '../types';
  * This control must never move when the mode changes — see the layout note in
  * `AuthForm`. It's the first thing in the panel and the panel's height is
  * pinned, so it can't.
+ *
+ * Glass: a `GLASS_SURFACE` track holding two `GLASS_ROW`s, the selected one
+ * lit by `GLASS_ACTIVE`. That is the dock's shell-and-pill arrangement at a
+ * smaller size, and it is the app's one answer to "this is the selected one".
+ * It replaced a `--cardalt` track and a `bg-(--paper)` chip with a hardcoded
+ * drop shadow — paper being the filled group that existed because `--card` is
+ * transparent, which is the same problem glass now solves on this screen.
  */
 export function ModeSwitch({
   mode,
@@ -40,7 +49,7 @@ export function ModeSwitch({
     <div
       role="radiogroup"
       aria-label="Log in or create an account"
-      className="flex gap-1.5 rounded-[13px] border border-(--bd) bg-(--cardalt) p-[5px]"
+      className={cn(GLASS_SURFACE, 'flex gap-1.5 rounded-[13px] p-[5px]')}
     >
       {options.map(({ value, label }) => {
         const selected = mode === value;
@@ -53,19 +62,16 @@ export function ModeSwitch({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(value)}
             onKeyDown={onKeyDown}
-            className={[
-              'flex-1 cursor-pointer rounded-[9px] py-[11px] text-center',
+            className={cn(
+              GLASS_ROW,
+              GLASS_PRESS,
+              'flex-1 rounded-[9px] py-[11px] text-center',
               'font-[family-name:var(--face-ui)] text-[13.5px] font-bold',
-              'transition-[background-color,color] duration-120 ease-[ease]',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
-              selected
-                ? // The selected chip needs a real surface to read as raised.
-                  // `--card` is transparent app-wide, so its own shadow is the
-                  // only thing separating it from the track; `--paper` is the
-                  // filled-surface group that exists for exactly this case.
-                  'bg-(--paper) text-(--ink) shadow-[0_2px_8px_rgba(20,20,20,.10)]'
-                : 'bg-transparent text-(--muted)',
-            ].join(' ')}
+              // No ink on the selected branch: GLASS_ACTIVE brings the dark one
+              // the tint needs, and a `text-*` utility would beat the recipe.
+              selected ? GLASS_ACTIVE : 'text-(--muted)',
+            )}
           >
             {label}
           </button>

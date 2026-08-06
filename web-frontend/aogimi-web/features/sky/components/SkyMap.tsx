@@ -8,7 +8,9 @@ import { useSkyHue } from '@/features/app-shell/providers/SkyHueProvider';
 import { useCamera } from '../hooks/useCamera';
 import { useSkyDraw, useSkyStage } from '../hooks/useSkyFrame';
 import { buildSky, todayBucket, type SkyDeckSource } from '../lib/buildSky';
+import { fitZoom } from '../lib/camera';
 import { openConstellationOf } from '../lib/generator';
+import { framedAt } from '../lib/layout';
 import type { FocusPath, Insets, Star } from '../lib/types';
 import { SkyCanvas } from './SkyCanvas';
 import { type DeckFrameData, FALLBACK_COVER } from './SkyFrames';
@@ -126,6 +128,19 @@ export function SkyMap({
 
   const frame = useSkyDraw(stage, focus, cam.camera, cam.view);
 
+  /**
+   * Frame LOD (see FRAME_LOD_PX) — derived during render, no state and no effect.
+   *
+   * That is only possible because the layout ignores the mode: `stage.layout` and its fit are the
+   * same whichever way this resolves, so reading the measured viewport here creates no cycle and
+   * needs no settling commit. It is a plain question about the current arrangement — are these cards
+   * wide enough on screen to hold a header?
+   *
+   * Always framed inside a deck, where no frames are drawn at all and the question is moot.
+   */
+  const framed =
+    focusedDid !== null || framedAt(stage.layout, fitZoom(stage.layout.bounds, cam.viewport, insets));
+
   // The outer view's card frames: the layout's boxes joined to each deck's display data. Memoised
   // like the snapshot is — the canvas gates them to the outer tier, and SkyFrames is a memo, so a
   // stable array here keeps the whole layer out of the per-frame work.
@@ -201,22 +216,24 @@ export function SkyMap({
   const miss = useCallback(() => onSelectCard(null), [onSelectCard]);
 
   return (
-    <SkyCanvas
-      frame={frame}
-      layout={stage.layout}
-      palette={palette}
-      bounds={cam.bounds}
-      focus={focus}
-      tinted={false}
-      cam={cam}
-      selected={selectedStarId}
-      openTip={openTip}
-      frames={frames}
-      onEnterDeck={enterDeck}
-      onStarClick={starClick}
-      onMiss={miss}
-      // a replayed sky is history, not news — buildSky marks everything seen, nothing pops
-      onSeen={noop}
-    />
+    <>
+      <SkyCanvas
+        frame={frame}
+        layout={stage.layout}
+        palette={palette}
+        bounds={cam.bounds}
+        focus={focus}
+        cam={cam}
+        selected={selectedStarId}
+        openTip={openTip}
+        frames={frames}
+        framed={framed}
+        onEnterDeck={enterDeck}
+        onStarClick={starClick}
+        onMiss={miss}
+        // a replayed sky is history, not news — buildSky marks everything seen, nothing pops
+        onSeen={noop}
+      />
+    </>
   );
 }

@@ -1,132 +1,72 @@
 'use client';
 
-import type { RecentUpgrade } from '@/features/study/stats';
 import { stageColor } from '@/shared/components';
 import type { MasteryMix } from '../lib/masteryMix';
 import { NIGHT } from '../lib/nightChrome';
 import { MixBar } from './MixBar';
-import { UpgradeRows } from './UpgradeRows';
 
 /**
- * The bottom ledger — sky level only, hidden while a deck is focused. One
- * glass card, two sizes: expanded it reads stats · mastery mix · recent
- * upgrades left to right between hairline dividers; collapsed it is a centred
- * pill holding just the mix. Clicking anywhere on the card toggles (the
- * handover's gesture), so the inner upgrade rows stop propagation.
+ * The stage's stat band — sky level only, hidden while a deck is focused. Stats
+ * then the mastery mix, between hairline dividers, in one glass strip.
+ *
+ * **It lives in the top band and has exactly one size.** Both of those are the
+ * same decision, and the reason is the deck grid's scarcest axis: a deck's cell
+ * is ~500 world units tall before a single star (FRAME_HEAD + FRAME_FOOT +
+ * padding), so the outer view is height-starved from about eight decks up — it
+ * is the *height* of the free window that sets how big a deck card can be drawn,
+ * not the width. Sitting at the bottom of the screen this card cost the sky a
+ * 216px inset; moving it up beside the actions gives that back, and dropping the
+ * expanded state means it can never take it again.
+ *
+ * The recent-upgrades section went with the second state. It was the only thing
+ * here that needed the extra height, and it was the only consumer of the
+ * whole-sky `/api/stats/recent-upgrades` fetch — so the outer tier now makes one
+ * request fewer as well.
+ *
+ * Sized to the 42px action buttons beside it (StageChrome, same `top-5`) so the
+ * two read as one band. They share a row, so the mix is what gives way first on
+ * a narrow window — see the breakpoint below.
  *
  * SESSIONS is deliberately absent from the stat run: no session entity exists
  * to count, the same reason the old decks page dropped "studied N×".
  */
 
 type Props = {
-  expanded: boolean;
-  onToggle: () => void;
   /** `null` = still loading; the tile shows a dash. */
   days: number | null;
   stars: number | null;
   dueToday: number | null;
   mastered: number | null;
   mix: MasteryMix | null;
-  upgrades: RecentUpgrade[] | null;
-  onUpgradeClick: (deckId: string, cardId: string) => void;
 };
 
-export function StageLedger({
-  expanded,
-  onToggle,
-  days,
-  stars,
-  dueToday,
-  mastered,
-  mix,
-  upgrades,
-  onUpgradeClick,
-}: Props) {
-  const shell = {
-    background: NIGHT.glass,
-    border: `1px solid ${NIGHT.bdB}`,
-    boxShadow: NIGHT.panelShadow,
-  } as const;
-
-  const toggleKeys = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onToggle();
-    }
-  };
-
-  if (!expanded) {
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={false}
-        aria-label="Expand the ledger"
-        onClick={onToggle}
-        onKeyDown={toggleKeys}
-        className="absolute bottom-[84px] left-1/2 z-20 w-[min(560px,calc(100%-56px))] -translate-x-1/2 cursor-pointer rounded-[16px] px-5 py-3.5 backdrop-blur-[12px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-        style={shell}
-      >
-        <div className="flex items-center gap-4">
-          <div className="min-w-0 flex-1">
-            <MixBar mix={mix} barHeight={8} />
-          </div>
-          <span
-            className="shrink-0 font-[family-name:var(--face-mono)] text-[8px] tracking-[0.18em] whitespace-nowrap"
-            style={{ color: NIGHT.faint }}
-          >
-            ∧ EXPAND
-          </span>
-        </div>
-      </div>
-    );
-  }
-
+export function StageLedger({ days, stars, dueToday, mastered, mix }: Props) {
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-expanded
-      aria-label="Collapse the ledger"
-      onClick={onToggle}
-      onKeyDown={toggleKeys}
-      className="absolute px-10 bottom-[84px] flex justify-self-center z-20 cursor-pointer rounded-[18px] backdrop-blur-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-      style={shell}
+      // h-[42px] matches the action buttons exactly rather than being padded to
+      // roughly their size: the stat block's own content is ~37px (8.5px label +
+      // 6px gap + 21px figure), so it centres inside that height with room left.
+      className="absolute top-5 left-1/2 z-20 flex h-[42px] -translate-x-1/2 items-center gap-4 rounded-[13px] px-8 py-8 backdrop-blur-[16px]"
+      style={{
+        background: NIGHT.glass,
+        border: `1px solid ${NIGHT.bdB}`,
+        boxShadow: NIGHT.panelShadow,
+      }}
     >
-      <div className="flex items-stretch justify-center gap-5.5  py-4">
-        {/* ── the account's figures ── */}
-        <div className="flex shrink-0 items-center gap-7">
-          <Stat label="DAYS STUDIED" value={days} color={NIGHT.ink} />
-          <Stat label="STARS IN YOUR SKY" value={stars} color={NIGHT.ink} />
-          <Stat label="DUE TODAY" value={dueToday} color={NIGHT.gold} />
-          <Stat label="MASTERED" value={mastered} color={stageColor('mastered')} />
-        </div>
+      {/* ── the account's figures ── */}
+      <div className="flex shrink-0 items-center gap-6">
+        <Stat label="DAYS STUDIED" value={days} color={NIGHT.ink} />
+        <Stat label="STARS IN YOUR SKY" value={stars} color={NIGHT.ink} />
+        <Stat label="DUE TODAY" value={dueToday} color={NIGHT.gold} />
+        <Stat label="MASTERED" value={mastered} color={stageColor('mastered')} />
+      </div>
 
-        <Divider />
-
-        {/* ── the mastery mix across every deck ── */}
-        <div className="flex w-[260px] shrink-0 flex-col justify-center max-[1100px]:hidden">
-          <MixBar mix={mix} />
-        </div>
-
-        <Divider className="max-[1100px]:hidden" />
-
-        {/* ── the latest promotions, each a jump to its star ── */}
-        <div className="max-[860px]:hidden flex gap-5">
-          <div
-            className="mb-1 font-[family-name:var(--face-mono)] text-[8.5px] tracking-[0.16em] flex flex-col"
-            style={{ color: NIGHT.faint }}
-          >
-            RECENT UPGRADES
-            <UpgradeRows upgrades={upgrades} onPick={onUpgradeClick} />
-          </div>
-          <span
-            className="self-center font-[family-name:var(--face-mono)] text-[8px] tracking-[0.18em] whitespace-nowrap"
-            style={{ color: NIGHT.faint }}
-          >
-            ∨ HIDE
-          </span>
-        </div>
+      {/* ── the mastery mix across every deck ── */}
+      {/* Dropped before StageChrome's actions would reach it. The stats are the
+          band's reason to exist, so the mix is what yields. */}
+      <Divider className="max-[1200px]:hidden" />
+      <div className="w-[200px] shrink-0 max-[1200px]:hidden">
+        <MixBar mix={mix} barHeight={8} />
       </div>
     </div>
   );

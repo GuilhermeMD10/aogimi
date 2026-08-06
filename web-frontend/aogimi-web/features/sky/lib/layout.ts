@@ -1,6 +1,8 @@
 import {
   DECK_GRID_GAP,
   DECK_PAD,
+  DECK_HIT_SKIRT,
+  FRAME_LOD_PX,
   FRAME_FOOT,
   FRAME_HEAD,
   FRAME_MIN_W,
@@ -67,6 +69,19 @@ const shift = (b: Bounds, by: Point): Bounds => ({
  * A deck's frame around its local star box (the handover's `frameBox`). Width is the stars plus
  * FRAME_PAD each side, floored at what the name needs and re-centred on the stars when the floor
  * wins — so a one-star deck still wears a whole card rather than a sliver.
+ *
+ * **Frame LOD does not change this box**, and that is a measured decision rather than a shortcut.
+ * A frameless cell that dropped the header and footer bands (410 of ~1084 world units on a real
+ * account) looks like it should lift the fit, and it does — by 1.09–1.32×, averaging ~1.18. But a
+ * frameless deck still has to show its name, the name is drawn in *screen* px (see FRAME_NAME_PX),
+ * and reserving world-unit room for screen-px type is self-cancelling: the lower the zoom, the more
+ * world units the same 20px of type needs. Sized for the worst zoom the mode actually runs at, the
+ * band claws back all but ~1.05–1.10× of the gain — and the shrink would have made `layoutDecks`
+ * mode-dependent, which puts the cell size on both sides of the LOD threshold and invites exactly
+ * the oscillation FRAME_LOD_PX warns about.
+ *
+ * So the cell stays framed in both modes, LOD is a *drawing* decision only, and the frameless name
+ * is drawn into the room the header and footer bands were already reserving.
  */
 const frameBoxOf = (starBox: Bounds, name: string): Bounds => {
   const padded = starBox.maxX - starBox.minX + 2 * FRAME_PAD;
@@ -88,6 +103,10 @@ const frameBoxOf = (starBox: Bounds, name: string): Bounds => {
  * never trades any deck's cell for another — at most it grows every cell a little, which the
  * fitted camera absorbs without anything changing places. A short last row is centred, so the
  * grid reads as a finished shape rather than as one with a corner missing.
+ *
+ * Frame LOD is deliberately **not** an input here — see `frameBoxOf`. One arrangement serves both
+ * modes, which is what keeps the LOD threshold a pure function of the layout instead of a feedback
+ * loop through it.
  */
 export const layoutDecks = (localBoxes: Map<number, Bounds>, names: Map<number, string>): SkyLayout => {
   const dids = [...localBoxes.keys()].sort((a, b) => a - b);
@@ -185,38 +204,80 @@ export const layoutDecks = (localBoxes: Map<number, Bounds>, names: Map<number, 
   };
 };
 
+/** A layout's uniform cell size. Every cell is the same box by construction, so the first will do. */
+export const cellSizeOf = (layout: SkyLayout): { w: number; h: number } => {
+  const first = layout.places.values().next().value;
+  if (!first) return { w: 0, h: 0 };
+  return { w: first.cell.maxX - first.cell.minX, h: first.cell.maxY - first.cell.minY };
+};
+
 /**
- * Which deck a world point falls in: the cell containing it, or failing that the nearest cell
- * centre. The fallback is what makes the space between cells clickable — a press in the gutter
- * enters the deck it was nearest to rather than doing nothing, which is the difference between a
- * sky that feels responsive and one that feels like it has dead zones.
+ * Whether decks should wear full frames: is a card wide enough on screen for its header to fit?
+ *
+ * A plain threshold, and it can be one because the layout does not answer to the mode (see
+ * `frameBoxOf`). Nothing here feeds back — `cardPx` is the same number whichever mode is live — so
+ * there is no oscillation to damp and no hysteresis to carry. Had the frameless cell been allowed to
+ * shrink, this would have needed a deadband and a memory of its own answer.
+ */
+export const framedAt = (layout: SkyLayout, fitZoom: number): boolean => {
+  const cardPx = cellSizeOf(layout).w * fitZoom;
+  if (cardPx <= 0) return true; // no decks placed yet: nothing to decide, keep the richer default
+  return cardPx >= FRAME_LOD_PX;
+};
+
+/** Distance from a point to a rectangle — 0 inside it. Squared, since it is only ever compared. */
+const distToBoxSq = (p: Point, b: Bounds): number => {
+  const dx = Math.max(b.minX - p.x, 0, p.x - b.maxX);
+  const dy = Math.max(b.minY - p.y, 0, p.y - b.maxY);
+  return dx * dx + dy * dy;
+};
+
+/**
+ * Which deck a world point falls in: the cell containing it, or the nearest cell **within
+ * DECK_HIT_SKIRT of its edge**. Past that, `null` — the press hit sky.
+ *
+ * The skirt is what makes the gutters between cells clickable, so the grid has no dead seams. What
+ * it must not do is make the *whole stage* clickable: measured to the nearest cell **centre** with no
+ * bound at all, every press anywhere resolved to some deck, so a click in the empty band the fitted
+ * camera leaves outside the grid entered whichever deck happened to be nearest — an extremity one.
+ * Nearest-*edge* with a bound gives each deck a zone that stops where the eye says it should.
  */
 export const deckAt = (layout: SkyLayout, p: Point): number | null => {
   let nearest: number | null = null;
   let bestD = Infinity;
+  const reach = DECK_HIT_SKIRT * DECK_HIT_SKIRT;
   for (const place of layout.places.values()) {
-    const { cell } = place;
-    if (p.x >= cell.minX && p.x <= cell.maxX && p.y >= cell.minY && p.y <= cell.maxY) return place.did;
-    const c = centreOf(cell);
-    const d = (c.x - p.x) ** 2 + (c.y - p.y) ** 2;
+    const d = distToBoxSq(p, place.cell);
+    if (d === 0) return place.did; // inside the cell: no need to look further
     if (d < bestD) {
       bestD = d;
       nearest = place.did;
     }
   }
-  return nearest;
+  return bestD <= reach ? nearest : null;
 };
 
 /**
- * Which deck's card frame a world point is over, or null in the gutters. Strict containment, no
- * nearest fallback: this answers *hover* — "am I over the card?" — where `deckAt` answers a click,
- * which deserves the generosity. Resolved by coordinates like every other pick, so the frames
- * themselves stay pointer-transparent and panning over one is panning the sky.
+ * The box a deck actually *occupies on screen*, which is the frame in framed mode and, frameless,
+ * the frame minus the empty header band — nothing is drawn up there once the card is gone.
+ *
+ * Exported because two things have to agree on it exactly: this is the hover region, and it is the
+ * rectangle the hover fog is painted over. Let them drift and the reader gets a fog lighting up while
+ * the cursor is somewhere else.
  */
-export const frameAt = (layout: SkyLayout, p: Point): number | null => {
+export const contentBoxOf = (frame: Bounds, framed: boolean): Bounds =>
+  framed ? frame : { ...frame, minY: frame.minY + FRAME_HEAD };
+
+/**
+ * Which deck a world point is over, or null between them. Strict containment, no nearest fallback:
+ * this answers *hover* — "am I over the deck?" — where `deckAt` answers a click, which deserves the
+ * generosity. Resolved by coordinates like every other pick, so the frames themselves stay
+ * pointer-transparent and panning over one is panning the sky.
+ */
+export const frameAt = (layout: SkyLayout, p: Point, framed = true): number | null => {
   for (const place of layout.places.values()) {
-    const { frame } = place;
-    if (p.x >= frame.minX && p.x <= frame.maxX && p.y >= frame.minY && p.y <= frame.maxY) return place.did;
+    const b = contentBoxOf(place.frame, framed);
+    if (p.x >= b.minX && p.x <= b.maxX && p.y >= b.minY && p.y <= b.maxY) return place.did;
   }
   return null;
 };

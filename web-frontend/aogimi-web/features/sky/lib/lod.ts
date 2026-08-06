@@ -54,11 +54,14 @@ export const layersAt = (zoom: number): SkyLayers => {
 };
 
 /**
- * How strongly the per-star front-text labels are up at this zoom: 0 a LABEL_BAND factor below
- * LABEL_ZOOM, 1 at it. Log space for the same reason the handover is — the wheel is exponential,
- * so only a factor covers the same slice of the fade per notch at every scale. A fourth layer in
- * all but name, kept out of SkyLayers because it exists only inside a focused deck and no phase
- * reading depends on it.
+ * How strongly the per-star front-text labels are up at this zoom: 0 at LABEL_HIDE_ZOOM, 1 a
+ * LABEL_BAND factor above it (LABEL_ZOOM). Log space for the same reason the handover is — the wheel
+ * is exponential, so only a factor covers the same slice of the fade per notch at every scale. A
+ * fourth layer in all but name, kept out of SkyLayers because it exists only inside a focused deck
+ * and no phase reading depends on it.
+ *
+ * **Absolute zoom, unlike the star sizing beside it**, and that is the deliberate reading: the
+ * threshold is stated as the number the stage's readout prints, so it can be tuned by looking.
  */
 export const labelOpAt = (zoom: number) => clamp01(Math.log(zoom / LABEL_ZOOM) / Math.log(LABEL_BAND) + 1);
 

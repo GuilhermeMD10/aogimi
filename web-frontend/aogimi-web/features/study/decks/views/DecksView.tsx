@@ -72,9 +72,17 @@ import type { CardDraft, CardRecord } from '../types';
  *  offset + 340px width) and carries no gutter on purpose: the sky's dashed
  *  boundary is meant to *meet* the glass, so entering a deck spends every pixel
  *  the column leaves. The deck's own DECK_PAD is what keeps its outermost star
- *  off that edge. */
-const SKY_INSETS: Insets = { top: 96, right: 48, bottom: 216, left: 48 };
-const SKY_INSETS_LEDGER_COLLAPSED: Insets = { top: 96, right: 48, bottom: 156, left: 48 };
+ *  off that edge.
+ *
+ *  **The outer tier's `bottom` is the Dock's clearance and nothing else** now
+ *  that the stat band sits in the top row (see StageLedger). It used to be 216 —
+ *  the band's own height at the bottom of the screen — which came straight off
+ *  the axis the deck grid is starved on: a deck's cell is ~500 world units tall
+ *  before a star, so how large a deck card is drawn is set by the *height* of the
+ *  free window. 96 clears the Dock (fixed at `bottom-[22px]`, ~50px tall) with a
+ *  gutter, and gives the sky back the rest. There is no second outer-tier inset
+ *  any more, because the band has no second size. */
+const SKY_INSETS: Insets = { top: 96, right: 24, bottom: 96, left: 24 };
 const DECK_INSETS: Insets = { top: 88, right: 58, bottom: 84, left: 360 };
 const DECK_INSETS_PANEL_HIDDEN: Insets = { top: 88, right: 58, bottom: 84, left: 58 };
 
@@ -98,7 +106,6 @@ export function DecksView() {
   } = useDecks();
 
   const [panelHidden, setPanelHidden] = useState(false);
-  const [ledgerExpanded, setLedgerExpanded] = useState(true);
   const [confirm, setConfirm] = useState<Confirm>(null);
 
   /* ---------- navigation state, read off the URL and validated against the data ---------- */
@@ -348,9 +355,7 @@ export function DecksView() {
 
   const insets =
     focusedDeckKey === null
-      ? ledgerExpanded
-        ? SKY_INSETS
-        : SKY_INSETS_LEDGER_COLLAPSED
+      ? SKY_INSETS
       : panelHidden
         ? DECK_INSETS_PANEL_HIDDEN
         : DECK_INSETS;
@@ -391,12 +396,15 @@ export function DecksView() {
           block in ds-tokens.css), so the constellations sit on the same canvas
           the TopBar above them does — there is no panel edge left to frame
           them.
-          Bounded at 1440px — one step wider than the TopBar's 1300px column, so
-          the stage reads as the page's widest element without growing without
-          limit on an ultrawide display. The chrome (StageChrome, StageLedger,
-          GlassColumn) positions against the box inside this, so it is bounded
-          with the sky rather than pinned to the viewport edges. */}
-      <div className="mx-auto min-h-0 w-full max-w-[1440px] flex-1">
+          **Unbounded in width, deliberately.** It used to stop at 1440px, one
+          step wider than the TopBar's 1300px column, so the stage read as the
+          page's widest element. That cap was costing the outer view horizontal
+          room it now needs: at twenty decks the grid is a ~7×3 arrangement whose
+          fit is set by whichever axis runs out first, and on anything wider than
+          1440 the cap was throwing away the surplus. The chrome (StageChrome,
+          StageLedger, GlassColumn) positions against the box inside this, so it
+          spans with the sky rather than staying on the old column. */}
+      <div className="min-h-0 w-full flex-1">
         <div className="relative h-full w-full overflow-hidden">
           {/* ── the sky itself; the page's own night shows through before the seed lands ── */}
           <div className="absolute inset-0">
@@ -450,15 +458,11 @@ export function DecksView() {
             decks &&
             decks.length > 0 && (
               <StageLedger
-                expanded={ledgerExpanded}
-                onToggle={() => setLedgerExpanded((v) => !v)}
                 days={ledger.days}
                 stars={totals?.stars ?? null}
                 dueToday={dueLoading ? null : dueTotal}
                 mastered={totals?.mastered ?? null}
                 mix={mix}
-                upgrades={ledger.upgrades}
-                onUpgradeClick={focusAndSelect}
               />
             )
           ) : panelHidden ? (

@@ -20,6 +20,7 @@ export { Eyebrow } from './Eyebrow';
 export { JlptChip } from './JlptChip';
 export { MonoAction } from './MonoAction';
 export { PaperCard, PAPER_GHOST } from './PaperCard';
+export { GlassCard, GLASS_GHOST } from './GlassCard';
 export { ProgressTrack } from './ProgressTrack';
 export { Skeleton } from './Skeleton';
 export { SkyBar } from './SkyBar';
@@ -33,6 +34,10 @@ export {
   GLASS_SCRIM,
   GLASS_ACTIVE,
   GLASS_PRESS,
+  GLASS_GRADE,
+  GLASS_GRADE_AGAIN,
+  GLASS_GRADE_HARD,
+  GLASS_GRADE_EASY,
 } from './glass';
 export { StageDot, stageColor, stageLabel } from './StageDot';
 export type { Stage } from './StageDot';

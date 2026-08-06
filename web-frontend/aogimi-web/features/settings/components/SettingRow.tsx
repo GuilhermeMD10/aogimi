@@ -13,9 +13,9 @@ type Props = {
 };
 
 /**
- * The settings row: label block left, control right. Every writable row on
- * the page is this shape; cards rule between rows with
- * `border-t border-(--paper-bd)` (the first row skips it via the card).
+ * The settings row: label block left, control right. Every writable row in the
+ * settings list is this shape. It draws no edge of its own — the rule between
+ * rows belongs to `SettingsList` (see its `Ruled`).
  */
 export function SettingRow({ title, description, danger, control, className }: Props) {
   return (

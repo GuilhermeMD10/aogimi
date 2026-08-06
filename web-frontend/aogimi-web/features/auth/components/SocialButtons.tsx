@@ -1,5 +1,8 @@
 'use client';
 
+import { GLASS_BUTTON, GLASS_PRESS } from '@/shared/components';
+import { cn } from '@/lib/util/cn';
+
 /**
  * Google / Apple sign-in — BUILT BUT NOT RENDERED.
  *
@@ -13,6 +16,10 @@
  * To enable: flip the flag, then wire `onStart` to the provider's authorize
  * URL. The buttons are deliberately identical in both modes — the handoff is
  * explicit that the copy does not become "Sign up with".
+ *
+ * Converted to glass with the rest of the screen even though nothing renders it:
+ * a flag flip should reveal two buttons that match the panel, not two paper ones
+ * that have to be found and fixed afterwards.
  */
 
 function GoogleMark() {
@@ -45,24 +52,27 @@ function AppleMark() {
   );
 }
 
-const BUTTON = [
-  'flex h-12 w-full cursor-pointer items-center justify-center gap-[11px]',
-  'rounded-[11px] border border-(--bd) bg-(--paper)',
+const BUTTON = cn(
+  GLASS_BUTTON,
+  GLASS_PRESS,
+  'flex h-12 w-full items-center justify-center gap-[11px] rounded-[11px]',
   'font-[family-name:var(--face-ui)] text-[14px] font-bold text-(--soft)',
-  'transition-[border-color,color] duration-120 ease-[ease]',
-  'hover:border-(--ink) hover:text-(--ink)',
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
-].join(' ');
+);
+
+/* The OR rule. A background, not a border, so it can't take `HAIRLINE` — same
+   mix, stated as a fill. */
+const RULE = 'h-px flex-1 [background:color-mix(in_srgb,var(--muted)_35%,transparent)]';
 
 export function SocialButtons({ onStart }: { onStart?: (provider: 'google' | 'apple') => void }) {
   return (
     <>
       <div className="my-[26px] flex items-center gap-3.5">
-        <span className="h-px flex-1 bg-(--paper-bd)" />
+        <span className={RULE} />
         <span className="font-[family-name:var(--face-mono)] text-[9.5px] tracking-[0.18em] text-(--faint)">
           OR
         </span>
-        <span className="h-px flex-1 bg-(--paper-bd)" />
+        <span className={RULE} />
       </div>
 
       <div className="flex flex-col gap-2.5">

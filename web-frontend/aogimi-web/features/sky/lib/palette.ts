@@ -1,7 +1,4 @@
-import { HALO_ALPHA } from './config';
-
-/** Golden angle around the hue wheel, so consecutive constellation ids never look alike. */
-export const hueFor = (i: number) => `hsl(${(i * 137.5) % 360} 65% 78%)`;
+import { HALO_ALPHA, LINK_STRAND_LIFT } from './config';
 
 /**
  * The four mastery ranks. Rank drives colour, radius, glow strength and silhouette — the
@@ -51,9 +48,13 @@ export type SkyPalette = {
   label: string;
   /** New, Recent, Learned, Mastered. */
   ranks: RankRamp;
-  /** Constellation lines. */
-  line: string;
-  /** What the canvas's background gradient is tinted with, over the near-black base. */
+  /**
+   * What the canvas's background gradient is tinted with, over the near-black base.
+   *
+   * There is deliberately **no `line`** beside this. A preset used to carry one near-white for its
+   * constellation lines; the lines now take their colour from the two stars each one joins (see
+   * `strandRamps`), so the only colour a preset states is its ladder.
+   */
   tint: string;
 };
 
@@ -62,28 +63,24 @@ export const SKY_PALETTES: Record<SkyHue, SkyPalette> = {
     id: 'default',
     label: 'Aogimi',
     ranks: ['#7E78E0', '#A98BFF', '#FF7AC4', '#F4DC82'],
-    line: '#8fa0bb',
     tint: '#7E78E0',
   },
   ginga: {
     id: 'ginga',
     label: 'Ginga silver',
     ranks: ['#48545C', '#8494A0', '#DCE6EC', '#E0A448'],
-    line: '#6f7d85',
     tint: '#2D373B',
   },
   ember: {
     id: 'ember',
     label: 'Ember dusk',
     ranks: ['#4B316F', '#83405C', '#C25A45', '#F0A13C'],
-    line: '#8a6f9e',
     tint: '#2E2B64',
   },
   aurora: {
     id: 'aurora',
     label: 'Aurora field',
     ranks: ['#5E324D', '#A863A8', '#DCD0E4', '#52D46A'],
-    line: '#9d7fa0',
     tint: '#5E324D',
   },
 };
@@ -105,10 +102,6 @@ export const RANK_GLOW = [0.1, 0.14, 0.2, 0.26];
 
 /** What the panel calls each rank. Index by `rankOf`; shown to readers as "rank n+1 of 4". */
 export const RANK_LABELS = ['New', 'Recent', 'Learned', 'Mastered'];
-
-/** Constellation lines of the `default` preset (the guide's `T.line`). Every preset carries its
- *  own — the drawing path reads `palette.line`, not this. */
-export const LINE_COLOR = SKY_PALETTES.default.line;
 
 /** Star labels, per the night palette (`T.starlabel`) — legible over the sky, dimmer than a star.
  *  Preset-independent: text is chrome, and the sky is night under every hue. */
@@ -132,6 +125,22 @@ export const FRAME_CHROME = {
   gold: '#ffe085',
   goldFill: 'rgba(255, 224, 133, 0.16)',
   goldBd: 'rgba(255, 224, 133, 0.42)',
+  /**
+   * The frameless label chip's glass, **mirroring `styles/glass.css`** — `--glass-fill` and the
+   * three stops of `--glass-vl`, which is the "bright at both extremities, gone in the middle" edge
+   * the app's real glass wears. Copied rather than read because this is inside the SVG canvas: the
+   * `.glass-*` classes are CSS on HTML boxes and none of them reach an SVG shape.
+   *
+   * What cannot be mirrored is `--glass-blur`. `backdrop-filter` does not apply to SVG shapes in any
+   * browser, and `feGaussianBlur` blurs its own element rather than the backdrop (the
+   * `BackgroundImage` filter input that would have done it was never implemented anywhere). The fill
+   * and the edges carry the look instead — over a near-black sky with sparse stars behind it, a 13px
+   * blur would have almost nothing to frost.
+   */
+  chipFill: 'rgba(255, 255, 255, 0.15)',
+  chipEdgeTop: 'rgba(255, 255, 255, 0.2)',
+  chipEdgeMid: 'rgba(255, 255, 255, 0)',
+  chipEdgeBottom: 'rgba(255, 255, 255, 0.075)',
 } as const;
 
 /**
@@ -317,6 +326,20 @@ export const haloStops = (t: GroupTint): ColorStop[] => [
   { at: 1, color: t.body, alpha: 0 },
 ];
 
+/**
+ * The deck wash's fill — the always-on atmosphere under a focused deck (see WASH_LOBES).
+ *
+ * The reference's own stop shape (`.30 → .10 at 55% → 0`) with the centre alpha passed in, so the
+ * strength of the whole layer is one number in config and the falloff is not restated per caller.
+ * Takes a bare colour rather than a `GroupTint`: two of the three ellipses draw the body and the
+ * third draws the peak, and which is which is the renderer's business.
+ */
+export const washStops = (color: string, alpha: number): ColorStop[] => [
+  { at: 0, color, alpha },
+  { at: 0.55, color, alpha: alpha * 0.33 },
+  { at: 1, color, alpha: 0 },
+];
+
 /** The gold hot core: the mastered knot glinting at its own position inside a cloud (guide §6.4).
  *  Takes the peak colour rather than assuming gold, so it stays honest if the palette is swapped. */
 export const hotStops = (color: string): ColorStop[] => [
@@ -324,3 +347,105 @@ export const hotStops = (color: string): ColorStop[] => [
   { at: 0.55, color, alpha: 0.09 },
   { at: 1, color, alpha: 0 },
 ];
+
+/* ---------- the glass bead ---------- */
+
+/**
+ * A `#rrggbb` lerped toward another by `t`. The handover writes its bead stops as `mix(C, #fff, .62)`
+ * and friends; this is that operation.
+ */
+export const lerpHex = (from: string, to: string, t: number): string => {
+  const a = rgbOf(from);
+  const b = rgbOf(to);
+  const ch = (i: number) =>
+    Math.round(a[i] + (b[i] - a[i]) * t)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${ch(0)}${ch(1)}${ch(2)}`;
+};
+
+/** What the bead's stops are mixed toward: the highlight, and the shadow the rim rolls into. */
+const BEAD_LIT = '#ffffff';
+const BEAD_SHADE = '#0b1120';
+
+/** The two gradients one rank's bead is built from. */
+export type BeadRamp = { body: ColorStop[]; caustic: ColorStop[] };
+
+/**
+ * The glass bead's gradients for one rank colour — the handover's stop tables, **derived** rather
+ * than transcribed.
+ *
+ * The handover resolves its hexes for the `default` ramp only. Pasting that table would hardcode one
+ * of four presets and silently break ginga, ember and aurora, which violates the invariant this file
+ * is built on: a preset touches colour and nothing else, so every colour on the drawing path has to
+ * come from the ramp in hand.
+ *
+ * Both gradients are radius-independent — every stop is a percentage and the focal points are in
+ * objectBoundingBox units — which is what lets the renderer key one `<defs>` entry **per rank**
+ * rather than per star. Key these by radius and `<defs>` becomes camera-dependent: it would rebuild
+ * every frame and invalidate the paint cache a pure pan currently rides on.
+ */
+const beadRamp = (c: string): BeadRamp => ({
+  body: [
+    { at: 0, color: BEAD_LIT, alpha: 1 },
+    { at: 0.18, color: lerpHex(c, BEAD_LIT, 0.62), alpha: 1 },
+    { at: 0.46, color: lerpHex(c, BEAD_LIT, 0.16), alpha: 1 },
+    { at: 0.72, color: c, alpha: 1 },
+    { at: 0.92, color: lerpHex(c, BEAD_SHADE, 0.34), alpha: 1 },
+    { at: 1, color: lerpHex(c, BEAD_LIT, 0.22), alpha: 1 },
+  ],
+  // the bounce off the bottom of the bead — what makes it read as glass rather than as a sphere
+  caustic: [
+    { at: 0, color: lerpHex(c, BEAD_LIT, 0.75), alpha: 0.85 },
+    { at: 0.55, color: lerpHex(c, BEAD_LIT, 0.4), alpha: 0.2 },
+    { at: 1, color: c, alpha: 0 },
+  ],
+});
+
+/**
+ * Every rank's bead gradients for one ramp, cached against the ramp itself — the same treatment
+ * `rankRgb` gets above, and for the same reason: a ramp is a module const inside SKY_PALETTES, so
+ * the cache hits on every frame and a hue switch computes twelve stop lists exactly once.
+ */
+const beadCache = new WeakMap<RankRamp, BeadRamp[]>();
+
+export const beadRamps = (ranks: RankRamp): BeadRamp[] => {
+  const hit = beadCache.get(ranks);
+  if (hit) return hit;
+  const built = ranks.map(beadRamp);
+  beadCache.set(ranks, built);
+  return built;
+};
+
+/** The bead's rim, arc highlight and speculars — white, and the one place the star draws in it.
+ *  Kept well clear of SELECT_COLOR's job: these are shading on a hued body, never a ring around it. */
+export const BEAD_HIGHLIGHT = '#ffffff';
+
+/* ---------- the constellation strands ---------- */
+
+/**
+ * The four colours a link may be drawn in: the ranks, lifted toward white by LINK_STRAND_LIFT.
+ *
+ * A strand takes its colour from the two stars it joins, so this is the ladder again rather than a
+ * colour of its own — but it cannot be the ladder *unchanged*. A line is one or two pixels of a
+ * colour where a star is a lit disc of it, so the same hex that reads as a violet star reads as a
+ * dark smear between two of them; half the presets' low ranks are darker than the mid grey-blue
+ * that was rejected for exactly that (see LINK_STRAND_LIFT). Lifting keeps the hue, which is the
+ * part that means something, and buys back the luminance a stroke needs to sit *above* the sky.
+ *
+ * Cached against the ramp, like `rankRgb` and `beadRamps` above and for the same reason: a ramp is
+ * a module const inside SKY_PALETTES, so the renderer's per-frame call is a map lookup and a hue
+ * switch computes four lerps exactly once.
+ */
+const strandCache = new WeakMap<RankRamp, RankRamp>();
+
+export const strandRamps = (ranks: RankRamp): RankRamp => {
+  const hit = strandCache.get(ranks);
+  if (hit) return hit;
+  const lift = (c: string) => lerpHex(c, '#ffffff', LINK_STRAND_LIFT);
+  // spelled out rather than mapped: RankRamp is a four-tuple and `map` would only give back a
+  // string[] that has to be cast back into one
+  const lifted: RankRamp = [lift(ranks[0]), lift(ranks[1]), lift(ranks[2]), lift(ranks[3])];
+  strandCache.set(ranks, lifted);
+  return lifted;
+};

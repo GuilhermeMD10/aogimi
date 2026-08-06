@@ -7,8 +7,6 @@ type Props = {
   /** Whether a deck is focused, i.e. whether there is anywhere to go back to. */
   focused: boolean;
   onLeave: () => void;
-  tinted: boolean;
-  onTintedChange: (tinted: boolean) => void;
   /** Close the sky. Mining carries on; the cards simply queue up unseen. */
   hidden: boolean;
   onHiddenChange: (hidden: boolean) => void;
@@ -28,8 +26,6 @@ export const SkyControls = memo(function SkyControls({
   canSeal,
   focused,
   onLeave,
-  tinted,
-  onTintedChange,
   hidden,
   onHiddenChange,
   waiting,
@@ -49,10 +45,6 @@ export const SkyControls = memo(function SkyControls({
       >
         {hidden ? `Show sky${waiting ? ` (${waiting} new)` : ''}` : 'Hide sky'}
       </button>
-      <label className="flex items-center gap-2 text-sm text-white/50">
-        <input type="checkbox" checked={tinted} onChange={(e) => onTintedChange(e.target.checked)} />
-        tint links by session
-      </label>
     </div>
   );
 });

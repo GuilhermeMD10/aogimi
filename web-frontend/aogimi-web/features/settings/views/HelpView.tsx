@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { CloudAlert, CloudDownload, Cloudy } from 'lucide-react';
 import { Eyebrow, PaperCard } from '@/shared/components';
-import { BackToSettings } from '../components/BackToSettings';
 import { SettingsShell } from '../components/SettingsShell';
 
 /* Mirror the sync badge colours the library actually draws on book tiles —
@@ -19,10 +18,9 @@ export default function HelpView() {
   return (
     <SettingsShell>
       <div>
-        <div className="mb-3 flex items-baseline gap-3">
-          <Eyebrow>Help</Eyebrow>
-          <BackToSettings />
-        </div>
+        {/* The way back is the TopBar's "back to profile" pill — the eyebrow's
+            own "back to settings" link went with the /settings route. */}
+        <Eyebrow className="mb-3">Help</Eyebrow>
         <PaperCard className="p-[30px] pb-8">
           <h2 className="text-[27px] leading-[1.15] font-bold text-(--ink)">What is Aogimi?</h2>
           <p className="mt-3 max-w-[60ch] text-[14.5px] leading-[1.7] text-(--soft)">

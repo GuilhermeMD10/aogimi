@@ -115,13 +115,13 @@ Two themes, `light` ("Ink on paper") and `dark` ("Midnight"), selected by `html[
 - **`--active` is the one answer to "this one is selected"**, app-wide and theme-invariant (like `--accent`, and for the same reason: a marker that changes hue with the theme stops being a marker). It arrived as the dock pill's tint and was promoted because the app had been answering that question three ways — `--btn` (black on paper, white at night, so selection flipped with the theme), a `--gold` edge on the library's filter hover, and shadcn's `bg-primary`. Stated as a solid colour; glass derives the 65% density it wants (`--glass-active-fill`). Selected controls take `--active` + `--active-ink` — note `--active-ink` does **not** flip with the theme, so it is not `--btn-ink`. It is for *selection*, not for primary actions: a filled Study or Sign-in button is still `--btn`.
 - **Type**: `--face-jp`, `--face-ui`, `--face-mono` → Noto Sans JP (jp) and Switzer (ui + mono — the 2026-08 font audition retired Space Mono; the approved look wears Switzer everywhere, and the roles stay separate so re-splitting is a one-line change in ds-tokens.css). Switzer is a Fontshare family, self-hosted from `app/fonts/`. Named `--face-*`, not `--font-*`, so a role never reads as one of the `--font-switzer`/`--font-noto-sans-jp` variables `next/font` emits in `app/layout.tsx`. **No 600 cut ships in either family** (Switzer 400/500/700, Noto Sans JP 500/700), so use `font-medium` / `font-bold` — a `font-semibold` gets synthesised.
 - **Not mirrored into Tailwind's `@theme`.** Components read the tokens directly. `@theme` holds only what Tailwind itself must know: the `rounded-*` radius scale, and the shadcn colour namespace (`--color-popover`, `--color-border`, …) that the two surviving shadcn components paint with. Those are pointed at the filled `--paper-*` group, and `--color-border` reaches past shadcn — the `*` rule in the base layer makes it every element's default border colour.
-- **Cards are transparent by design** — shadow and layout separate surfaces, not a fill. `--bd` is transparent too, so hairline dividers are invisible until you fill it. Filling `--card`/`--cardalt`/`--bd` switches the whole app to filled cards with no markup change. For something that needs a real fill *now*, use the `--paper-*` group (`PaperCard`) rather than filling the shared three.
-- **Primitives are React components**, not CSS classes: `shared/components/` (`Button`, `Card`, `Chip`, `CoverTile`, `Eyebrow`, `JlptChip`, `MonoAction`, `PaperCard`, `ProgressTrack`, `Skeleton`, `SkyBar`, `StageDot`, plus `HAIRLINE`/`DASHED`). They read tokens and know nothing about the theme — there is never a light and a dark variant of a component, because the palette swaps underneath it.
+- **Cards are transparent by design** — shadow and layout separate surfaces, not a fill. `--bd` is transparent too, so hairline dividers are invisible until you fill it. Filling `--card`/`--cardalt`/`--bd` switches the whole app to filled cards with no markup change. For something that needs a real fill *now*, there are two answers: the `--paper-*` group (`PaperCard`) or, since the glass pass, `GlassCard` — the same ruled-list shell built out of `GLASS_SURFACE`. `/profile` took the glass one and is no longer a `--paper-*` consumer; settings, help and credits still are.
+- **Primitives are React components**, not CSS classes: `shared/components/` (`Button`, `Card`, `Chip`, `CoverTile`, `Eyebrow`, `JlptChip`, `MonoAction`, `PaperCard`, `GlassCard`, `ProgressTrack`, `Skeleton`, `SkyBar`, `StageDot`, plus `HAIRLINE`/`DASHED` and the `GLASS_*` class names). They read tokens and know nothing about the theme — there is never a light and a dark variant of a component, because the palette swaps underneath it.
 - **Frosted surfaces live in `styles/glass.css`**, not in tokens and not in components — the recipe needs `::before` (the specular edge lines) and a `:hover` fill, which a React component can't express without inline styles that then lose to everything. `shared/components/glass.ts` exports the greppable class names: `GLASS_SURFACE` / `GLASS_SHEEN` / `GLASS_BUTTON` / `GLASS_SHEET` for the four surfaces, plus three modifiers — `GLASS_SCRIM` (the dark variant, **only** for glass landing on cover art), `GLASS_ACTIVE` (the selected state: `--active` tint, its dark ink, brighter edge and glow, hover neutralised) and `GLASS_PRESS` (the `translateY(1px) scale(.985)` nudge, 120ms). **One material, app-wide**: the library and the dock share the white fill at 15%, blur 13, `.075` edge and the small inner glow, so the two glass screens read as the same substance. Only the book card's slide-up sheet and a live cover's ⋯ circle take the scrim. Compose with Tailwind for geometry, radius, padding and type — utilities beat the recipe, which is why a selected branch must not also set `text-*`. `GLASS_PRESS` is opt-in rather than part of `GLASS_BUTTON` because an element has one `transform` and some already spend theirs (the book card lifts on hover); a button with its own `transition-*` utility has to name `transform` in that list or the nudge snaps instead of easing.
 - **Page canvas** is app-wide chrome, set in `globals.css`: base gradient on `<html>`, star tiles on `<body>`. Split across two elements because a single 43-layer `background` would need a 43-entry `background-size` list (a shorter list gets cycled by the spec).
 - **Base-layer type**: `html` carries `--face-ui` and there is deliberately **no `h1..h6` rule**. A global heading face beats an inherited one no matter what a screen's wrapper sets, which is exactly how four migrated headings ended up rendering in the old display serif. Form controls (`button`, `input`, `select`, `textarea`) do need the face said explicitly — the UA stylesheet gives them the platform font instead of inheriting.
 
-Theme choice persists in the `aogimi-theme` localStorage key, applied by a pre-paint `<script>` in `app/layout.tsx` — an effect would fire after paint and flash. Falls back to `prefers-color-scheme`. It moves to a `users.theme` column later. The switch is the Appearance card on `/settings`.
+Theme choice persists in the `aogimi-theme` localStorage key, applied by a pre-paint `<script>` in `app/layout.tsx` — an effect would fire after paint and flash. Falls back to `prefers-color-scheme`. It moves to a `users.theme` column later. The switch is the Theme row of the settings list on `/profile`.
 
 `dark:` is redefined in `globals.css` as `html[data-theme="dark"] &`, not shadcn's `.dark *` (a class this app never sets) and not `prefers-color-scheme`. Nothing uses it — the tokens swap underneath components instead — but if you do reach for it, it now means what the theme switch means.
 
@@ -292,25 +292,33 @@ screen and the `/sky` route are all deleted in its favour.
 
 ### Settings, Help & Credits (`features/settings`)
 
-**Three routes, one shell.** `/settings`, `/help` and `/credits` each render a
-thin page over one feature view, and all three views wrap themselves in
-`components/SettingsShell.tsx` — TopBar (with the `back to profile` pill
-eyebrow) + a sticky "Settings" rail + the 900px-capped panel column. Navigating
-between them reads as the panel column swapping in place, which is the
-handoff's "Help lives inside settings" illusion done with real routes.
+**There is no `/settings` route.** Every setting is `components/SettingsList.tsx`
+— one glass ruled list — rendered as the right-hand column of `/profile`, beside
+the account card. Five rows in one `GlassCard`: Theme, Sky hue, Help, Credits,
+Delete account. Five rows across four concerns did not need a page, four eyebrows
+and four paper cards to separate them.
 
-- **Reached from `/profile`'s Settings button only** — no nav entry. Help and
-  Credits are reached only from the About card's link rows; each carries a
-  `← BACK TO SETTINGS` link in its eyebrow row.
-- **The theme picker here is the canonical control.** `TopBar`'s pill toggle is
-  gone (the pill collapsed back to a single profile link with an optional
-  eyebrow prop); the Appearance card drives `ThemeProvider` directly. The
-  swatch dots are literal colours by design — they depict the themes, so they
-  never follow the active one.
-- **Delete account** (Data card) fronts `DELETE /api/user` with a typed-
+**Two routes are left, on the old shell.** `/help` and `/credits` still render
+thin pages over their views, and both wrap themselves in
+`components/SettingsShell.tsx` — TopBar (with the `back to profile` pill
+eyebrow) + a sticky "Settings" rail + the 900px-capped panel column. The rail
+still says Settings; they are still the settings pages, they just have no
+settings page to sit under.
+
+- **Reached from the About rows of the list on `/profile`** — no nav entry, and
+  `/profile`'s Settings *button* is gone with the route it pointed at. The exit
+  from Help and Credits is the TopBar pill (the eyebrow's own
+  `← BACK TO SETTINGS` link went with `/settings`).
+- **The theme picker is the canonical control.** `TopBar`'s pill toggle is gone
+  (the pill collapsed back to a single profile link with an optional eyebrow
+  prop); `ThemeRow` drives `ThemeProvider` directly. The swatch dots are literal
+  colours by design — they depict the themes, so they never follow the active
+  one.
+- **Delete account** (the last row) fronts `DELETE /api/user` with a typed-
   "delete" native `<dialog>` confirm (`components/DeleteAccountDialog.tsx`),
-  then wipes the local session and lands on `/authenticate`. Signed out, the
-  Data card collapses to a Sign in row.
+  then wipes the local session and lands on `/authenticate`. There is no sign-out
+  row and no signed-out branch: sign out is the account card's button one column
+  over, and `AppShell` redirects a signed-out visitor before `/profile` renders.
 - **Content is hand-authored and ships with the app.** Help copy lives in
   `views/HelpView.tsx` (works offline, no CMS); the Credits list is
   `lib/credits.ts`, the audited what-we-actually-ship inventory — several data
@@ -318,7 +326,10 @@ handoff's "Help lives inside settings" illusion done with real routes.
   Typography section mirrors the `next/font` imports in `app/layout.tsx`).
 - Built on the `--paper-*` ruled-list surface; `PaperCard` / `PAPER_GHOST`
   were promoted to `shared/components` when this screen became their second
-  consumer.
+  consumer. The settings *list* has since followed `/profile` onto the glass twin
+  (`GlassCard` / `GLASS_GHOST` / `GLASS_ROW`), so the remaining paper consumers
+  are help, credits and the delete-account dialog — the obvious next screens to
+  follow it.
 
 ### Auth (`/authenticate`, `features/auth`)
 
@@ -346,9 +357,19 @@ presentational.
   because checking less means a valid-looking form returns a server error.
   **Registration is disabled server-side** (403 before validation), so signup
   cannot succeed until that guard is removed.
+- **Every control is glass; the backgrounds are untouched.** The fields are
+  `GLASS_SURFACE` panes with a `GLASS_BUTTON` password reveal inside, the submit
+  CTA is a glass button (the filled `--btn` `Button` and the handoff's blue drop
+  shadow are gone — glass ships at depth 0), and `ModeSwitch` is a glass track
+  holding two `GLASS_ROW`s with `GLASS_ACTIVE` on the selected one, which is the
+  dock's shell-and-pill arrangement at a smaller size. The right panel's
+  `bg-(--bg)` and the night `SkyPanel` are deliberately unchanged. Nothing on the
+  screen reads `--paper-*` any more.
 - **Google / Apple are built and flagged off.** `components/SocialButtons.tsx`
   renders behind `SHOW_SOCIAL_AUTH = false` in `AuthForm`; there is no OAuth on
   the backend, and two prominent buttons that do nothing are worse than none.
+  Converted to glass anyway, so flipping the flag reveals two buttons that match
+  the panel instead of two paper ones to find later.
 - Not built, by owner call: "Keep me signed in" (the refresh cookie is always
   30-day persistent — there is no session-only mode to toggle), "Forgot
   password?" (no route, no reset-token table, no mailer), terms/privacy links
@@ -364,8 +385,8 @@ The fixed bottom nav on every signed-in screen, composed by `AppShell` (hidden
 on `/authenticate`). Replaced `WorkspaceNav`, which is deleted.
 
 - **Reader · Dictionary · Decks │ Profile.** Settings lost its entry —
-  pre-decided when settings was redesigned, and `/profile`'s Settings button is
-  the way in. Sky briefly had one and lost it when the star map merged into
+  pre-decided when settings was redesigned, and settings is now a column of
+  `/profile` rather than a route at all. Sky briefly had one and lost it when the star map merged into
   `/decks`: the sky *is* the decks page now, and two entries to one destination
   is one too many. Home went the same way for the same reason — the dashboard
   was deleted and the shelf took `/`, so Home's entry would have been Reader's
@@ -443,7 +464,7 @@ fetchers the stage's ledger and the decks upgrade rows read).
 | Concern | Files |
 |---|---|
 | **Design tokens** | `styles/ds-tokens.css` (colour, shape, type, page canvas — the whole palette) |
-| **Token primitives** | `shared/components/` — React components, not CSS classes (`Button`, `Card`, `PaperCard`, `Chip`, `Eyebrow`, …) |
+| **Token primitives** | `shared/components/` — React components, not CSS classes (`Button`, `Card`, `PaperCard`, `GlassCard`, `Chip`, `Eyebrow`, …), plus the `GLASS_*` recipe class names |
 | **Auth flow** | `components/providers/AuthProvider.tsx`, `app/authenticate/page.tsx`, `lib/userApi.ts` |
 | **Reader chrome** | `components/reader/*`, `components/views/ReaderView/*` |
 | **Library / book sync** | `components/library/*`, `components/views/ReaderView/*`, `lib/booksApi.ts`, `lib/devicesApi.ts`, `components/books/utils/booksDb.ts` (sole `aogimi` IDB factory), `lib/epubIdentity.ts` |
