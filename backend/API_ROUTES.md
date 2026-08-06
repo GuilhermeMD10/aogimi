@@ -58,10 +58,10 @@ nothing to backfill from. The requirement lives in `registerSchema`, not in the
 column. Login remains username-keyed — the address is stored for later, not
 used to authenticate.
 
-**Register is disabled server-side.** `POST /api/auth/register` returns
-`403 { error: "Registration is currently disabled." }` before it reaches
-validation. The guard is the first statement in the handler and the original
-logic is intact behind it; remove the `return` to re-enable sign-ups.
+**Register is open**, rate-limited to 3/hr/IP (`registerLimiter`). It spent a
+while returning `403 { error: "Registration is currently disabled." }` as the
+handler's first statement; to close sign-ups again, restore that `return`
+rather than removing the logic behind it.
 
 ---
 

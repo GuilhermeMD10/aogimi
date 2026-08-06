@@ -87,8 +87,9 @@ once on 401 (single-flight); terminal 401 → tokens wiped, signed-out.
 **No guest mode** — signed-out is the local-first state and sign-up flushes what's pending.
 Sign-up takes `{ username, email, password }`, login `{ username, password }`; `users.email`
 is nullable in the DB for pre-redesign accounts and is **not** a login key.
-**`POST /api/auth/register` is disabled server-side** (403 as the handler's first statement;
-remove that `return` to re-enable). No OAuth, no password reset, no session-only mode.
+**`POST /api/auth/register` is open**, rate-limited to 3/hr/IP. It spent a while returning
+403 as the handler's first statement; to close it again, put that `return` back rather than
+deleting the logic under it. No OAuth, no password reset, no session-only mode.
 
 ### Backend: route → service → repository
 

@@ -1021,7 +1021,7 @@ rank colours plus a line colour and a background tint. Defined once in
 section, above) is resolved — in the sky's favour.** That entry parked the
 question of a third ramp until star colours actually existed. They exist now, so
 rather than keep two ladders that mean the same thing in different colours, the
-`--stage-*` tokens *became* the sky's ranks: `--stage-new` / `-recent` /
+`--stage-*` tokens *became* the sky's ranks: `--stage-new` / `-met` /
 `-learned` / `-mastered` are now written by the four `html[data-sky-hue]` blocks
 at the bottom of `ds-tokens.css`, and every existing consumer (`stageColor`,
 rank pills, the mix bar, progress gradients, ledger dots — ~30 call sites)

@@ -111,7 +111,7 @@ web-frontend/langecko-web/
 
 Two themes, `light` ("Ink on paper") and `dark` ("Midnight"), selected by `html[data-theme]`.
 
-- **Colour + shape tokens**: `--ink`, `--soft`, `--muted`, `--faint`, `--card`, `--cardalt`, `--bd`, `--btn`, `--active`/`--active-ink`, `--track`/`--fill`, `--cover-1..4`, `--stage-new`/`-recent`/`-learned`/`-mastered`, `--radius-*`. Read them as `text-(--ink)`, `bg-(--card)`.
+- **Colour + shape tokens**: `--ink`, `--soft`, `--muted`, `--faint`, `--card`, `--cardalt`, `--bd`, `--btn`, `--active`/`--active-ink`, `--track`/`--fill`, `--cover-1..4`, `--stage-new`/`-met`/`-learned`/`-mastered`, `--radius-*`. Read them as `text-(--ink)`, `bg-(--card)`.
 - **`--active` is the one answer to "this one is selected"**, app-wide and theme-invariant (like `--accent`, and for the same reason: a marker that changes hue with the theme stops being a marker). It arrived as the dock pill's tint and was promoted because the app had been answering that question three ways — `--btn` (black on paper, white at night, so selection flipped with the theme), a `--gold` edge on the library's filter hover, and shadcn's `bg-primary`. Stated as a solid colour; glass derives the 65% density it wants (`--glass-active-fill`). Selected controls take `--active` + `--active-ink` — note `--active-ink` does **not** flip with the theme, so it is not `--btn-ink`. It is for *selection*, not for primary actions: a filled Study or Sign-in button is still `--btn`.
 - **Type**: `--face-jp`, `--face-ui`, `--face-mono` → Noto Sans JP (jp) and Switzer (ui + mono — the 2026-08 font audition retired Space Mono; the approved look wears Switzer everywhere, and the roles stay separate so re-splitting is a one-line change in ds-tokens.css). Switzer is a Fontshare family, self-hosted from `app/fonts/`. Named `--face-*`, not `--font-*`, so a role never reads as one of the `--font-switzer`/`--font-noto-sans-jp` variables `next/font` emits in `app/layout.tsx`. **No 600 cut ships in either family** (Switzer 400/500/700, Noto Sans JP 500/700), so use `font-medium` / `font-bold` — a `font-semibold` gets synthesised.
 - **Not mirrored into Tailwind's `@theme`.** Components read the tokens directly. `@theme` holds only what Tailwind itself must know: the `rounded-*` radius scale, and the shadcn colour namespace (`--color-popover`, `--color-border`, …) that the two surviving shadcn components paint with. Those are pointed at the filled `--paper-*` group, and `--color-border` reaches past shadcn — the `*` rule in the base layer makes it every element's default border colour.
@@ -366,8 +366,8 @@ presentational.
   `validate()` in `AuthView` mirrors `backend/src/validation/auth.js` exactly
   (username 3–32 of `[a-zA-Z0-9_.-]`, password 8–72 with one non-letter),
   because checking less means a valid-looking form returns a server error.
-  **Registration is disabled server-side** (403 before validation), so signup
-  cannot succeed until that guard is removed.
+  **Registration is open** (rate-limited to 3/hr/IP). It was 403'd before
+  validation for a while; restoring that guard is how to close it again.
 - **Every control is glass; the backgrounds are untouched.** The fields are
   `GLASS_SURFACE` panes with a `GLASS_BUTTON` password reveal inside, the submit
   CTA is a glass button (the filled `--btn` `Button` and the handoff's blue drop
