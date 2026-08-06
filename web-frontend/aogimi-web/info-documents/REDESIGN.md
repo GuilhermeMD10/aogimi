@@ -88,7 +88,7 @@ Two themes, `light` and `dark`, on `html[data-theme]`.
   `--card-border` `--card-shadow` · `--btn` `--btn-ink` · `--track` `--fill` ·
   `--avatar` `--avatar-ink` · `--accent` `--accent-ink` (vermilion — two uses in
   the whole app, don't spread it) · `--cover-1..4` + `-ink` `--covtrack`
-  `--cover-shadow` · `--stage-new` `-recent` `-learned` `-mastered` · `--bg`
+  `--cover-shadow` · `--stage-new` `-met` `-learned` `-mastered` · `--bg`
   `--page-base` `--page-stars` `--page-vignette`.
   (`--sky-border` / `--sky-shadow` were here until home's sky bubble — their
   only consumer — was deleted with the rest of home.)

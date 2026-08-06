@@ -127,9 +127,9 @@ out. The server stores SHA-256 hashes; every refresh rotates.
 in a body or path, and ownership mismatches return **404, not 403**, so a probe
 can't distinguish "not yours" from "doesn't exist".
 
-`POST /api/auth/register` is **disabled server-side** (403 as the handler's first
-statement), so the signup form is built and validated but cannot succeed until
-that guard is lifted. `AuthView.validate()` mirrors `backend/src/validation/auth.js`
+`POST /api/auth/register` is **open** (rate-limited to 3/hr/IP); the guard that
+used to 403 it as the handler's first statement is gone, so the signup form
+works end to end. `AuthView.validate()` mirrors `backend/src/validation/auth.js`
 exactly (username 3–32 of `[a-zA-Z0-9_.-]`, password 8–72 with a non-letter). No
 OAuth (Google/Apple buttons exist behind `SHOW_SOCIAL_AUTH = false`), no password
 reset, no "keep me signed in" (the cookie is always 30-day), **no guest mode** —
