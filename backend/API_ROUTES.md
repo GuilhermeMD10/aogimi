@@ -226,7 +226,17 @@ third button is emitting grade 4 (Easy) on every success, which applies the
 easy bonus each time and drives difficulty to its floor. Such a client wants
 updating, not just tolerating.
 
-Submitting a review runs FSRS-6 ([`src/services/fsrs.js`](./src/services/fsrs.js),
+**A review only counts if the card is due.** Grading a card whose
+`next_due_at` is still in the future returns the card **unchanged**, with a
+`200`: no memory update, no `card_reviews` row, no `reviewed_times`, no
+`study_days` bump. Studying ahead is practice and moves nothing in either
+direction — it can't earn stability and it can't lose it. The check lives in
+`cardSrsService.isDue` and mirrors the `DUE` SQL fragment that decides which
+cards a due session serves, so a card the app tells you to study always counts.
+Clients run the same rule locally to avoid promising a rank change that won't
+happen, but this is the authority.
+
+Submitting a review of a **due** card runs FSRS-6 ([`src/services/fsrs.js`](./src/services/fsrs.js),
 wrapped by [`src/services/cardSrsService.js`](./src/services/cardSrsService.js))
 and atomically updates the card's `stability`, `difficulty`, `state`,
 `peak_rank`, `last_outcomes`, `last_reviewed_at` and `next_due_at`. The same

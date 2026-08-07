@@ -28,7 +28,7 @@ import { labelOpAt } from '../lib/lod';
 import { type ColorStop, type SkyPalette, beadRamps, lerpHex, rankOf, strandRamps } from '../lib/palette';
 import { pickStar } from '../lib/picking';
 import type { DeckDraw, SkyFrame } from '../lib/tiers';
-import type { Bounds, FocusPath, Star, View } from '../lib/types';
+import type { FocusPath, Star, View } from '../lib/types';
 
 import { SkyClouds } from './SkyClouds';
 import { type DeckFrameData, SkyFrames } from './SkyFrames';
@@ -368,8 +368,6 @@ type Props = {
    *  than read from a module: the lib is copied to mobile as-is and a mutable "active palette"
    *  there would be invisible to React and shared across SSR requests. */
   palette: SkyPalette;
-  /** The world box the camera is confined to, drawn so the pan limit is visible rather than felt. */
-  bounds: Bounds;
   focus: FocusPath;
   cam: CameraController;
   /** The open card's star id, or null. Drawn ringed; the panel is showing the same card. */
@@ -399,7 +397,6 @@ export function SkyCanvas({
   frame,
   layout,
   palette,
-  bounds,
   focus,
   cam,
   selected,
@@ -543,22 +540,6 @@ export function SkyCanvas({
         {glow}
         {bead}
       </defs>
-
-      {/* the edge of what the camera may reach — the whole grid at the outer view, one deck inside it */}
-      {!hidden && (
-        <rect
-          x={bounds.minX}
-          y={bounds.minY}
-          width={bounds.maxX - bounds.minX}
-          height={bounds.maxY - bounds.minY}
-          fill="none"
-          stroke="white"
-          strokeOpacity={0.1}
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
-          strokeDasharray="4 8"
-        />
-      )}
 
       {/* The deck card frames, under the constellations they wrap. Outer view only: a focused
           deck wears no frame, and the dimmed context decks lose theirs with the tier. */}

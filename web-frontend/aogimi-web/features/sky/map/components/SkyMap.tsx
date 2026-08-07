@@ -221,7 +221,6 @@ export function SkyMap({
         frame={frame}
         layout={stage.layout}
         palette={palette}
-        bounds={cam.bounds}
         focus={focus}
         cam={cam}
         selected={selectedStarId}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import { Button, coverPalette } from '@/shared/components';
@@ -10,18 +10,24 @@ import { StudyScreen, fetchDueCounts, useDeckOverrides } from '../session';
 import type { SessionDeck, StudySessionConfig } from '../session/types';
 
 /**
- * `/study` — the study runner's own route.
+ * `/study` — the route for sessions that **count**.
  *
  * Lives at the domain root rather than inside `study/session` because it needs
  * both sub-features: the session runner *and* the decks layer (deck names, the
  * per-deck due count, per-deck overrides). Sub-features don't import each
  * other; an orchestrator at the domain root composes them.
  *
- * Query params, and the three sessions they select:
+ * Query params, and the two sessions they select:
  *
- *   /study                 every deck, `hardest_all_decks`, capped at 20
- *   /study?deck={id}       one deck, mode + size from its saved override
  *   /study?due=1           every due card, shuffled  (+ &deck={id} to scope it)
+ *   /study?deck={id}       one deck, mode + size from its saved override
+ *
+ * **`/study` with no params redirects to `/sky`.** It used to be the
+ * study-ahead session; practising is now an overlay on the stage
+ * (`sky/components/PracticeOverlay`), because a practice session needs no
+ * backend at all and the stage is already holding every card. Fetching a
+ * session over the wire just to grade it into the void was the thing worth
+ * removing. A bare `/study` is therefore a session with nothing to run.
  *
  * A due session studies *everything* due, so its size is the due count — which
  * has to be fetched before the spec exists. Hence the gate below: the runner
@@ -29,8 +35,6 @@ import type { SessionDeck, StudySessionConfig } from '../session/types';
  * fetch off the spec and a spec that changed a beat later would start one
  * session and then throw it away.
  */
-
-const ALL_HARDEST_SESSION_SIZE = 20;
 
 export default function StudyView() {
   const router = useRouter();
@@ -53,12 +57,22 @@ export default function StudyView() {
 
   const exit = useCallback(() => router.push('/sky'), [router]);
 
+  // A bare `/study` has no session to run — practice moved to the stage overlay,
+  // which needs no route. Replace rather than push, so Back doesn't bounce the
+  // user straight back into the redirect.
+  const bare = !deckId && !dueOnly;
+  useEffect(() => {
+    if (bare) router.replace('/sky');
+  }, [bare, router]);
+
   const spec = resolveSpec({
     deckId,
     dueOnly,
     dueCount: dueCount.data,
     override: deckId && !overridesLoading ? getFor(deckId) : null,
   });
+
+  if (bare) return null;
 
   if (dueCount.error) {
     return (
@@ -81,13 +95,13 @@ export default function StudyView() {
   return (
     <div className="relative h-full min-h-0">
       <StudyScreen
-        sessionSpec={spec}
+        source={{ kind: 'remote', spec }}
         deck={sessionDeck}
-        // Only read when there's no deck. The two cross-deck sessions have none
-        // to name, so the header carries their scope instead; a deck-scoped
-        // session whose row hasn't arrived yet gets the neutral label rather
-        // than a wrong claim about its scope.
-        scopeLabel={deckId ? 'Study session' : dueOnly ? 'Due today' : 'All decks'}
+        // Only read when there's no deck. A cross-deck session has none to name,
+        // so the header carries its scope instead; a deck-scoped session whose
+        // row hasn't arrived yet gets the neutral label rather than a wrong
+        // claim about its scope.
+        scopeLabel={deckId ? 'Study session' : 'Due today'}
         onExit={exit}
       />
     </div>
@@ -131,7 +145,10 @@ function resolveSpec({
     };
   }
 
-  return { scope: 'all', mode: 'hardest_all_decks', limit: ALL_HARDEST_SESSION_SIZE };
+  // No params: nothing to run here — the caller redirects to /sky, where
+  // practice lives. Returning null would read as "still loading"; this branch
+  // is unreachable because `StudyView` bails before calling us.
+  return null;
 }
 
 function Notice({

@@ -1783,3 +1783,108 @@ stability-derived ranks.
   server accepts those, so mobile keeps working — but its third button is
   emitting grade 4 on every success, and its local rank display will disagree
   with the server's. It needs the same port.
+
+---
+
+## Studying ahead earns nothing (due-gated reviews)
+
+A review **only counts if the card is due**. Grading a card whose `next_due_at`
+is still in the future changes nothing at all: no stability, no difficulty, no
+rank, no schedule, no `card_reviews` row, no `reviewed_times`, no `study_days`.
+
+The reason is that FSRS's entire claim is "what does recall at *this*
+retrievability tell us about the memory". A card reviewed at R ≈ 0.99 tells us
+almost nothing — but §4.6 will still return a stability increase for it, because
+the formula has no notion of "you didn't need to do that". Without a gate,
+drilling a fresh card repeatedly inflates its stability for free, and the ladder
+that is supposed to mean "this will survive a year" becomes a measure of how
+many times someone clicked.
+
+**Decisions taken:**
+
+- **Strict no-op, not asymmetric.** An early *failure* doesn't count either. The
+  alternative — let a lapse through, block the gains — is defensible (failing
+  early is real evidence) and was rejected for being harder to explain than it
+  is worth: "if it isn't due, nothing you do to it matters" is a rule a user can
+  hold in their head, and "it can hurt you but not help you" invites people to
+  avoid practising.
+
+- **Early reviews are not logged at all.** No `card_reviews` row, so no `applied`
+  column and no migration. The log stays exactly what it claims to be — the
+  history that produced the current memory state — and a future parameter fit
+  can read it without having to know to filter. The cost is that we keep no
+  record of practice sessions; nothing wanted one.
+
+- **The server is the authority, the client is an optimisation.**
+  `cardService.reviewCard` runs `isDue` and returns the card untouched. The web
+  client runs the same check in `session/lib/srs.ts` for two reasons: so the UI
+  never shows a promotion the server is about to refuse, and so a practice
+  session skips the POST entirely rather than firing one dead request per card.
+  A skewed clock or an old build still can't grade its way to free stability.
+
+- **`isDue` mirrors the `DUE` SQL fragment deliberately.** One decides which
+  cards a session *serves*, the other decides whether a grade *counts*. A card
+  that qualified for one but not the other would be a card the app told you to
+  study and then gave you nothing for.
+
+- **Practice became an overlay on `/sky`, not a route.** It was `/study` with
+  no params — every card in `hardest_all_decks`, fetched over the wire, graded
+  into the void. Since a practice session provably needs no backend, and the
+  stage is *already holding every card the user owns*, navigating away to
+  re-fetch that same inventory was the thing worth deleting. `PracticeOverlay`
+  runs the same `StudyScreen` full-screen over the stage; **a bare `/study` now
+  redirects to `/sky`.** Two things fall out for free: no route to refresh into
+  an empty queue, and "makes no requests" becomes structural rather than a rule
+  each call site has to remember.
+
+  The seam is `useStudySession`'s `StudySource`: `remote` (fetched, grades run
+  FSRS and POST) or `local` (cards handed in, grades only advance the queue).
+  **Local *is* practice** — no second flag, because "we didn't fetch these" and
+  "these grades don't count" are one fact and two booleans could disagree.
+
+  The stage's one button walks them in order: gold **"Study N due"** →
+  `/study?due=1` while anything is due, then quiet **"Study ahead"** → the
+  overlay. It stops being a `<Link>` at that point and becomes a `<button>`,
+  which is the honest element for something that navigates nowhere.
+
+- **The button's loading state is its own branch.** `dueCount === null` means
+  the request is in flight, and folding it into "nothing due" flashed "Study
+  ahead" on arrival — a link that changes destination a beat after paint, at the
+  moment someone is most likely to click it.
+
+**Known consequences, accepted:**
+
+- **FSRS's same-day path is now unreachable.** A card re-seated by the
+  in-session queue (Again → +5..10 cards) is no longer due by the time it comes
+  back, so the repeat is practice. `shortTermStability` (§4.8) is kept, still
+  spec-correct and still covered by both verification harnesses, because it is
+  part of a faithful FSRS-6 implementation and one policy change would make it
+  live again — but nothing calls it today.
+
+- **A due session can contain practice cards.** Anything graded and re-seated
+  stops counting for the rest of the sitting. The screen's practice notice is
+  keyed to the *session* the user opened, not to the card in front of them, so
+  it stays off in that case; the second grade simply does nothing. Marking it
+  per card was considered and dropped as noise.
+
+- **`/study?deck={id}` still serves the deck's saved mode over all its cards**,
+  so it can be mostly practice. Nothing links to it today — it is URL-only —
+  and it will be revisited with the deck-details pass.
+
+- **Practice grades don't re-queue.** In a real session Again re-seats a card
+  5–10 further on; here every grade advances, so the bar is monotonic and the
+  sitting is finite. "Dummy buttons that move the bar forward" is the whole
+  contract, and a card that came back would imply the grade meant something.
+
+- **One request still fires: `GET /api/study/prefs`.** `StudyScreen` reads which
+  fields a card shows, and that is a user setting with no client cache. Skipping
+  it in practice would render the same word with different fields depending on
+  which session it turned up in. The *session* is backendless; the display
+  setting isn't session state.
+
+- **Practice is whole-sky only for now.** `PracticeOverlay` takes an arbitrary
+  card list, so a deck-scoped sitting is the same call with a narrower slice —
+  but the only trigger is `StageActions`, which renders on the outer sky alone
+  (the focused deck's actions were dropped pending the deck-details pass).
+  `SkyView` therefore passes every deck's cards unconditionally rather than
+  carrying a `focusedDeck` branch that cannot be reached.

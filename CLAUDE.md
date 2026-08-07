@@ -213,6 +213,18 @@ Cross-file invariants that are easy to break without noticing:
   screen can move before the POST lands. `fsrs.ts` sits at the **sky domain root**
   because `study`, `stage` and `map` all read it and sub-features can't import
   each other.
+- **A review only counts if the card is due.** `cardSrsService.isDue` (mirrored in
+  `sky/study/session/lib/srs.ts`) gates every memory update: grading a card early
+  changes nothing at all — no stability, no rank, no schedule, no `card_reviews` row,
+  no streak. Enforced server-side in `cardService.reviewCard`; the client copy only
+  keeps the UI honest and skips the round trip. **Practice is an overlay on `/sky`**
+  (`sky/components/PracticeOverlay`), not a route: the stage already holds every card,
+  so a local session needs no `/api/study/session` and no review POST. The stage's one
+  button is "Study N due" → `/study?due=1` while anything is due, then "Study ahead" →
+  the overlay. **A bare `/study` redirects to `/sky`.** `useStudySession` takes a
+  `StudySource`: `remote` (fetched, grades count) or `local` (cards handed in, grades
+  only move the bar) — local *is* practice, there is no second flag. One consequence: a card re-seated by the
+  in-session queue is no longer due, so FSRS's same-day path is currently unreachable.
 - **Rank comes from stability alone** — `new` (never reviewed) · `met` S<21 ·
   `learned` 21≤S<365 · `mastered` S≥365. Never from difficulty or answer streaks.
   `cards.peak_rank` is a high-water mark: once a card reaches `learned` the UI

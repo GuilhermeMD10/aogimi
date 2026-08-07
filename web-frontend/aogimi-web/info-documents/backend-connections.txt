@@ -263,6 +263,11 @@ POST /api/decks/cards/{cardId}/review
   Body:      { outcome: 'again' | 'hard' | 'good' | 'easy' }
   Trigger:   Card review completion (manual, once per review)
   Response:  CardRecord  -- backend updates SRS columns + next_due_at + reviewed_times
+  -- ONLY COUNTS IF THE CARD IS DUE. Grading a card whose next_due_at is
+  --  still in the future returns it UNCHANGED (200): no memory update, no
+  --  card_reviews row, no reviewed_times, no study_days. Studying ahead is
+  --  practice -- it cannot raise stability and cannot lower it. The client
+  --  runs the same isDue check and skips the request entirely in that case.
   -- The four outcomes ARE the FSRS grades 1..4. 'good' was added with
   --  migration 027; before it the third button emitted 'easy', which
   --  applied the easy bonus on every success and pinned difficulty at 1.0.

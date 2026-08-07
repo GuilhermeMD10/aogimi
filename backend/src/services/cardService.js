@@ -45,12 +45,29 @@ async function updateCard(id, { front, reading, back, notes, state, contextSente
  * appends an event to card_reviews, and bumps the user's study_days
  * counter. Not transactional: if a later write fails we'd rather have
  * the card state correct (user-facing) than refuse the whole review.
+ *
+ * **Grading a card that isn't due does nothing.** No memory update, no
+ * `card_reviews` row, no `reviewed_times`, no `study_days` bump — the card
+ * comes back exactly as it was found. Studying ahead is practice, and practice
+ * moves neither direction: it can't earn stability and it can't lose it.
+ *
+ * This is the *authoritative* check. Clients run the same rule locally so the
+ * UI doesn't promise a rank change the server won't make, and skip the request
+ * entirely for a card they can see isn't due — but that is an optimisation over
+ * this, never a substitute. A client with a skewed clock (or an old build, or
+ * curl) still can't grade its way to a free stability increase.
  */
 async function reviewCard(userId, cardId, outcome) {
   const card = await cardRepo.findById(cardId);
   if (!card) throw new Error("Card not found");
 
-  const { next, event } = srs.applyOutcome(card, outcome);
+  // One clock for the whole call, so the due check and the review timestamp
+  // can't straddle a boundary — a card due in 3ms must not be judged "not due"
+  // here and then reviewed "on time" a line later.
+  const now = new Date();
+  if (!srs.isDue(card, now)) return card;
+
+  const { next, event } = srs.applyOutcome(card, outcome, now);
 
   const updated = await cardRepo.applySrsUpdate(cardId, next);
 
