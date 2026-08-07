@@ -32,7 +32,7 @@ enumeration.
 
 | Method | Path | Body | Response | Rate limit |
 |---|---|---|---|---|
-| POST | `/api/auth/register` | `{ username, email, password }` | `{ user, accessToken, refreshToken }` (201) | 3/hr/IP |
+| POST | `/api/auth/register` | `{ username, email, password }` | **403 — closed**, see below | 3/hr/IP |
 | POST | `/api/auth/login` | `{ username, password }` | `{ user, accessToken, refreshToken }` | 5/15min/(IP+username) |
 | POST | `/api/auth/refresh` | `{ refreshToken }` | `{ user, accessToken, refreshToken }` | global only |
 | POST | `/api/auth/logout` | `{ refreshToken }` | `{ ok: true }` (idempotent) | global only |
@@ -58,10 +58,11 @@ nothing to backfill from. The requirement lives in `registerSchema`, not in the
 column. Login remains username-keyed — the address is stored for later, not
 used to authenticate.
 
-**Register is open**, rate-limited to 3/hr/IP (`registerLimiter`). It spent a
-while returning `403 { error: "Registration is currently disabled." }` as the
-handler's first statement; to close sign-ups again, restore that `return`
-rather than removing the logic behind it.
+**Register is closed**: the handler's first statement is
+`return res.status(403).json({ error: "Registration is currently disabled." })`,
+so no request gets past it — validation, `registerLimiter` (3/hr/IP) and the
+409 paths above are all still wired and simply unreachable. To open sign-ups
+again, delete that one `return` rather than rewriting the handler.
 
 ---
 

@@ -108,9 +108,11 @@ const registerLimiter = rateLimit({
 // ── Routes ───────────────────────────────────────────────────────────────
 
 router.post("/register", registerLimiter, async (req, res) => {
-  // Sign-ups are OPEN. This handler carried a `return res.status(403)` as its
-  // first statement for a while; to close registration again, put that line
-  // back rather than deleting anything below it.
+  // Sign-ups are CLOSED — the existing accounts are the only ones. Everything
+  // below stays intact: to open registration again, delete this one `return`
+  // rather than rewriting the handler.
+  return res.status(403).json({ error: "Registration is currently disabled." });
+
   const body = parseBody(registerSchema, req, res);
   if (!body) return;
 
