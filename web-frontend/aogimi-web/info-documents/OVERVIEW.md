@@ -127,9 +127,10 @@ out. The server stores SHA-256 hashes; every refresh rotates.
 in a body or path, and ownership mismatches return **404, not 403**, so a probe
 can't distinguish "not yours" from "doesn't exist".
 
-`POST /api/auth/register` is **open** (rate-limited to 3/hr/IP); the guard that
-used to 403 it as the handler's first statement is gone, so the signup form
-works end to end. `AuthView.validate()` mirrors `backend/src/validation/auth.js`
+`POST /api/auth/register` is **closed**: the handler's first statement is a
+`return res.status(403)` (`"Registration is currently disabled."`), so the
+signup form submits and gets a form-level error — the accounts that exist are
+the only ones. `AuthView.validate()` mirrors `backend/src/validation/auth.js`
 exactly (username 3–32 of `[a-zA-Z0-9_.-]`, password 8–72 with a non-letter). No
 OAuth (Google/Apple buttons exist behind `SHOW_SOCIAL_AUTH = false`), no password
 reset, no "keep me signed in" (the cookie is always 30-day), **no guest mode** —
