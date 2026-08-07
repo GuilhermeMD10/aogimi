@@ -95,11 +95,11 @@ const loginLimiter = rateLimit({
   message: { error: "Too many login attempts. Try again later." },
 });
 
-// 3 registrations / hour per IP. Aggressive on purpose — a real user
+// 5 registrations / 30 min per IP. Aggressive on purpose — a real user
 // signs up once.
 const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: 3,
+  windowMs: 30 * 60 * 1000,
+  limit: 5,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { error: "Too many sign-up attempts. Try again later." },
