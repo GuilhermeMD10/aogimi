@@ -74,6 +74,29 @@ function computeNextDue(stability, reviewedAt) {
 }
 
 /**
+ * Is this card actually asking to be reviewed right now?
+ *
+ * Mirrors the `DUE` SQL fragment in `cardRepository` exactly — never reviewed
+ * (no scheduled time yet) or the scheduled time has passed. The two must agree:
+ * one decides which cards a due session *serves*, the other decides whether a
+ * grade *counts*, and a card that qualifies for one but not the other is a card
+ * the user is told to study and then gets no credit for.
+ *
+ * **This gates every memory update.** Grading a card before it is due changes
+ * nothing at all — see `reviewCard` in `cardService.js`. Studying ahead is
+ * practice: it cannot raise stability, cannot lower it, cannot move the rank,
+ * and does not touch the schedule. The reasoning is that FSRS's whole model is
+ * "what does recall at *this* retrievability tell us about the memory", and a
+ * card reviewed at R ≈ 0.99 tells us almost nothing — but the formula will
+ * happily hand out a stability increase for it anyway, so repeatedly drilling a
+ * fresh card would inflate it for free.
+ */
+function isDue(card, now = new Date()) {
+  if (!card.next_due_at) return true;
+  return new Date(card.next_due_at).getTime() <= now.getTime();
+}
+
+/**
  * Apply an outcome to a card. Pure — touches no DB and mutates nothing.
  *
  * Returns the next SRS field values plus an event snapshot ready for
@@ -200,6 +223,7 @@ module.exports = {
   applyOutcome,
   computeRetrievability,
   computeNextDue,
+  isDue,
   rankOf: fsrs.rankOf,
   maxRank: fsrs.maxRank,
   displayedRank: fsrs.displayedRank,

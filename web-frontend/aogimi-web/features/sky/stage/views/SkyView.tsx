@@ -18,6 +18,7 @@ import { SkyMap, useSkySeed, type Insets, type SkyFrameMeta } from '@/features/s
 
 import { GlassColumn, ColumnHandle, startedLabel } from '../components/GlassColumn';
 import { NightConfirm } from '../components/NightConfirm';
+import { PracticeOverlay } from '../../components/PracticeOverlay';
 import { PendingCardOverlay, type PendingCardFlow } from '../components/PendingCardOverlay';
 import { StageActions } from '../components/StageActions';
 import { StageLedger } from '../components/StageLedger';
@@ -107,6 +108,7 @@ export function SkyView() {
 
   const [panelHidden, setPanelHidden] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
+  const [practising, setPractising] = useState(false);
 
   /* ---------- navigation state, read off the URL and validated against the data ---------- */
 
@@ -381,6 +383,27 @@ export function SkyView() {
     [decks],
   );
 
+  /**
+   * The cards "Study ahead" drills — straight off the inventory this page is
+   * already holding, which is the whole point of running practice here rather
+   * than at `/study`: it costs no request, because the request already happened.
+   *
+   * Every deck's, unconditionally. `PracticeOverlay` takes an arbitrary list and
+   * a deck name, so a deck-scoped sitting is the same call with a narrower
+   * slice — but the only trigger today is `StageActions`, which renders on the
+   * **outer sky only** (the focused deck's own actions were dropped pending the
+   * deck-details pass). Branching on `focusedDeck` here would therefore be a
+   * branch that can't be reached, so it isn't written until the button exists.
+   *
+   * Memoised on that inventory, not rebuilt per render: `useStudySession` keys
+   * its seeding on this array's identity, so a fresh one each render would
+   * reshuffle the queue under the user mid-session.
+   */
+  const practiceCards = useMemo<CardRecord[]>(
+    () => (decks ? decks.flatMap((d) => d.cards) : []),
+    [decks],
+  );
+
   /* ---------- render: TopBar column, then one stage panel — everything floats over the sky ---------- */
 
   return (
@@ -451,6 +474,7 @@ export function SkyView() {
               atDeckQuota={deckCount >= MAX_DECKS}
               deckCount={deckCount}
               onCreateDeck={createDeck}
+              onStudyAhead={() => setPractising(true)}
             />
           )}
 
@@ -483,6 +507,14 @@ export function SkyView() {
               }
             />
           )}
+
+          {/* Practice, over everything. Unmounted when closed, so re-opening
+              reshuffles rather than resuming a half-finished queue. */}
+          <PracticeOverlay
+            open={practising}
+            cards={practiceCards}
+            onClose={() => setPractising(false)}
+          />
 
           <PendingCardOverlay
             flow={pendingCardFlow}

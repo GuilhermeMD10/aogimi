@@ -48,13 +48,49 @@ export function nextIntervalDays(stability: number): number {
   return intervalDays(stability);
 }
 
+/**
+ * Is this card actually asking to be reviewed right now?
+ *
+ * Mirrors `cardSrsService.isDue` and the `DUE` SQL fragment behind the due
+ * counts — never reviewed, or the scheduled time has passed.
+ *
+ * **This gates every memory update.** Grading a card before it is due changes
+ * nothing: no stability, no difficulty, no rank, no schedule. Studying ahead is
+ * practice, and practice moves neither direction. FSRS's model is "what does
+ * recall at *this* retrievability tell us", and a card reviewed at R ≈ 0.99
+ * tells us almost nothing — but the formula would hand out a stability increase
+ * for it anyway, so drilling a fresh card repeatedly would inflate it for free.
+ *
+ * The server runs the same check and is the authority. This copy exists so the
+ * UI never shows a promotion the server is about to refuse, and so a practice
+ * session can skip the round trip altogether.
+ */
+export function isDue(card: CardRecord, now: Date = new Date()): boolean {
+  if (!card.next_due_at) return true;
+  return new Date(card.next_due_at).getTime() <= now.getTime();
+}
+
 export type SrsApplyResult = {
+  /**
+   * Whether this grade actually moved the card's memory state.
+   *
+   * `false` for a card that wasn't due — see `isDue`. When false, `next` holds
+   * the card's *unchanged* values, so a caller that spreads it blindly gets the
+   * correct no-op; what a caller must still skip is the `reviewed_times` bump
+   * and the POST.
+   */
+  applied: boolean;
+  /** Nullable like `prior`, and for one reason: on the `applied: false` path
+   *  these *are* the prior values. In practice a not-due card has always been
+   *  reviewed (only a review sets `next_due_at`), so the nulls are unreachable
+   *  there — but narrowing the type would make that an assumption the compiler
+   *  enforces on our behalf rather than a fact anyone checked. */
   next: {
-    difficulty: number;
-    stability: number;
+    difficulty: number | null;
+    stability: number | null;
     last_outcomes: string;
-    last_reviewed_at: string;
-    next_due_at: string;
+    last_reviewed_at: string | null;
+    next_due_at: string | null;
     state: CardState;
     peak_rank: CardState;
   };
@@ -75,6 +111,9 @@ export type SrsApplyResult = {
  *
  * `prior` is a complete snapshot rather than a diff because it is what Undo
  * restores; a partial one would leave the card half-rolled-back.
+ *
+ * A card that isn't due returns `applied: false` with `next` equal to `prior`,
+ * so the study screen shows exactly what the server is about to do: nothing.
  */
 export function applyOutcome(
   card: CardRecord,
@@ -86,6 +125,27 @@ export function applyOutcome(
   const prevState: CardState = card.state ?? 'new';
   const prevPeak: CardState = card.peak_rank ?? prevState;
   const prevOutcomes = card.last_outcomes ?? '';
+
+  const unchanged = {
+    difficulty: prevDifficulty,
+    stability: prevStability,
+    last_outcomes: prevOutcomes,
+    last_reviewed_at: card.last_reviewed_at,
+    next_due_at: card.next_due_at,
+    state: prevState,
+    peak_rank: prevPeak,
+  };
+
+  // Studying ahead is practice: no stability, no difficulty, no rank, no
+  // schedule, and no history entry — `last_outcomes` stays put too, because a
+  // run of grades that changed nothing isn't a run worth showing.
+  if (!isDue(card, now)) {
+    return {
+      applied: false,
+      next: unchanged,
+      prior: { ...unchanged, reviewed_times: card.reviewed_times },
+    };
+  }
 
   const result = review(
     {
@@ -102,6 +162,7 @@ export function applyOutcome(
   const nextPeak = maxRank(prevPeak, nextState);
 
   return {
+    applied: true,
     next: {
       difficulty: result.difficulty,
       stability: result.stability,

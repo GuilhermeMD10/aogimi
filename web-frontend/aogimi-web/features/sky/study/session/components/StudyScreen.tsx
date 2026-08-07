@@ -3,22 +3,24 @@
 import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Button, ProgressTrack } from '@/shared/components';
-import { useStudySession } from '../hooks/useStudySession';
+import { useStudySession, type StudySource } from '../hooks/useStudySession';
 import { useStudyDisplayPrefs } from '../hooks/useStudyDisplayPrefs';
 import { Caption } from './Caption';
 import { CardBody } from './CardBody';
 import { FinishScreen } from './FinishScreen';
 import { ResultButtons } from './ResultButtons';
 import { UndoButton } from './UndoButton';
-import type { SessionDeck, StudyOutcome, StudySessionConfig } from '../types';
+import type { SessionDeck, StudyOutcome } from '../types';
 
 type Props = {
-  sessionSpec: StudySessionConfig;
+  /** Fetched (`kind: 'remote'`) or handed over already loaded (`kind: 'local'`).
+   *  A local session is practice by construction — see `useStudySession`. */
+  source: StudySource;
   /** The deck this session is scoped to. Null on a cross-deck session, which
    *  has no name, glyph or colour of its own — see `scopeLabel`. */
   deck?: SessionDeck | null;
   /** What the header calls the session when there's no single deck:
-   *  "All decks" for `/study`, "Due today" for `/study?due=1`. */
+   *  "Study ahead" for `/study`, "Due today" for `/study?due=1`. */
   scopeLabel?: string;
   onExit: () => void;
 };
@@ -37,8 +39,8 @@ const CARD_WIDTH = 'w-full max-w-[860px]';
  * rotation, its fixed 560px stage, the segment progress bar, the interval labels
  * and the paper grain are all deliberately not built — see DECISIONS.md.
  */
-export function StudyScreen({ sessionSpec, deck, scopeLabel, onExit }: Props) {
-  const session = useStudySession(sessionSpec);
+export function StudyScreen({ source, deck, scopeLabel, onExit }: Props) {
+  const session = useStudySession(source);
   const { prefs } = useStudyDisplayPrefs();
 
   const deckName = deck?.name ?? '';
@@ -195,6 +197,8 @@ export function StudyScreen({ sessionSpec, deck, scopeLabel, onExit }: Props) {
         </div>
       </header>
 
+      {session.practice && <PracticeNotice />}
+
       <div className="mt-6 flex flex-col items-center">
         <button
           type="button"
@@ -224,6 +228,35 @@ export function StudyScreen({ sessionSpec, deck, scopeLabel, onExit }: Props) {
         )}
       </div>
     </Shell>
+  );
+}
+
+/**
+ * The standing "this doesn't count" strip for a study-ahead session.
+ *
+ * Stated once at the top rather than per grade button or per card. The fact is
+ * a property of the whole sitting — the user opened a practice session on
+ * purpose, from a button that said "Study ahead" — so repeating it four times
+ * under the grade row would be nagging about a choice already made.
+ *
+ * It says what *is* true rather than only what isn't ("free to drill" before
+ * "nothing changes"), because the honest framing of a practice session is that
+ * it's for the user, not that it's broken.
+ */
+function PracticeNotice() {
+  return (
+    <div
+      role="note"
+      className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-(--radius-input) border border-(--bd-a) bg-(--tint-b) px-4 py-2.5"
+    >
+      <span className="font-[family-name:var(--face-mono)] text-[10px] tracking-[0.16em] text-(--muted) uppercase">
+        Practice
+      </span>
+      <span className="text-[13px] text-(--soft)">
+        Nothing is due, so drill as much as you like — these grades don&rsquo;t change any
+        card&rsquo;s stability, rank or schedule.
+      </span>
+    </div>
   );
 }
 

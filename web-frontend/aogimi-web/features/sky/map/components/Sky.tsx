@@ -161,7 +161,6 @@ export default function Sky() {
             frame={frame}
             layout={stage.layout}
             palette={DEMO_PALETTE}
-            bounds={cam.bounds}
             focus={focus}
             cam={cam}
             selected={selected}
