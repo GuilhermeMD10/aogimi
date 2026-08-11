@@ -1,7 +1,5 @@
-import { DictionaryScreen as DefaultDictionaryScreen } from '@/components/dictionary/ui/DictionaryScreen';
-import { useThemedComponent } from '@/themes/useThemedComponent';
+import { DictionaryScreen } from '@/features/dictionary/components/DictionaryScreen';
 
 export default function DictionaryTab() {
-  const DictionaryScreen = useThemedComponent('DictionaryScreen', DefaultDictionaryScreen);
   return <DictionaryScreen />;
 }

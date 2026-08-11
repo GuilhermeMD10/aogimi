@@ -25,7 +25,7 @@ import {
   loadStoredBook,
   patchStoredBook,
   type StoredBookmark,
-} from '@/components/reader/utils/readerStorage';
+} from '@/features/books/reader/lib/readerStorage';
 import { getAllCachedBooks } from './syncedBookCache';
 import type { BookRecord } from '../types';
 

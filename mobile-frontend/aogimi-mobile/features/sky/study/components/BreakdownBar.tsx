@@ -8,7 +8,9 @@ type Props = {
   entries: CardSessionEntry[];
 };
 
-type StateKey = 'new' | 'seen' | 'learned' | 'mastered';
+/** Mirrors `CardState`. The tier between `new` and `learned` is `met` —
+ *  renamed from `seen` in migration 027. */
+type StateKey = 'new' | 'met' | 'learned' | 'mastered';
 
 // Visualises the per-state distribution of cards at session END.
 // Segments laid out new → mastered (low → high tier) so progression
@@ -17,7 +19,7 @@ export function BreakdownBar({ entries }: Props) {
   const c = useColors();
   const t = useT();
 
-  const counts: Record<StateKey, number> = { new: 0, seen: 0, learned: 0, mastered: 0 };
+  const counts: Record<StateKey, number> = { new: 0, met: 0, learned: 0, mastered: 0 };
   for (const e of entries) counts[e.endState] += 1;
   const total = entries.length;
 
@@ -25,7 +27,7 @@ export function BreakdownBar({ entries }: Props) {
 
   const segments: { key: StateKey; count: number; color: string; label: string }[] = [
     { key: 'new',      count: counts.new,      color: c.fgSubtle, label: t('study.state.new') },
-    { key: 'seen',     count: counts.seen,     color: c.warning,  label: t('study.state.seen') },
+    { key: 'met',      count: counts.met,      color: c.warning,  label: t('study.state.met') },
     { key: 'learned',  count: counts.learned,  color: c.success,  label: t('study.state.learned') },
     { key: 'mastered', count: counts.mastered, color: c.success,  label: t('study.state.mastered') },
   ];

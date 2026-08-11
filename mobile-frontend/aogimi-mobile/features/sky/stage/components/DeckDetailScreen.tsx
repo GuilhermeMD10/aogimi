@@ -12,19 +12,26 @@ import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import type { LocalCard } from '../types';
-import { Button } from '@/components/ui/Button';
+import type { CardDraft, LocalCard } from '../types';
+import { Button } from '@/shared/components/Button';
 import { FlashcardDrawer } from './FlashcardDrawer';
 import { DeckCover } from './DeckCover';
 import { CardGridItem } from './CardGridItem';
 import { CardEditSheet } from './CardEditSheet';
 import { useDeckDetail } from '../hooks/useDeckDetail';
-import { StateBreakdown } from '@/components/study/ui/StateBreakdown';
-import { SessionConfigSheet } from '@/components/study/ui/SessionConfigSheet';
-import { useDeckOverrides } from '@/components/study/hooks/useDeckOverrides';
-import type { DeckCardStats } from '../utils/cardLocalState';
+import { useDueCounts } from '../hooks/useDueCounts';
+import { StateBreakdown } from '@/features/sky/study/components/StateBreakdown';
+import { SessionConfigSheet } from '@/features/sky/study/components/SessionConfigSheet';
+import { useDeckOverrides } from '@/features/sky/study/hooks/useDeckOverrides';
+import type { DeckCardStats } from '../lib/cardLocalState';
 
 type Props = { deckId: string };
+
+/** "Add card" from a deck starts from nothing — there is no dictionary entry
+ *  behind it. Module-scope so the object identity is stable: `prefill` drives
+ *  the drawer's seed effect, and a fresh literal every render would re-seed the
+ *  form on each one, wiping what the user had typed. */
+const EMPTY_DRAFT: CardDraft = { front: '', reading: '', meanings: [], jlptLevel: null };
 
 export function DeckDetailScreen({ deckId }: Props) {
   const c = useColors();
@@ -36,16 +43,21 @@ export function DeckDetailScreen({ deckId }: Props) {
   const [configOpen, setConfigOpen] = useState(false);
   const { getFor, setFor } = useDeckOverrides();
   const override = getFor(deckId);
+  // One request for the whole account rather than this deck's own count
+  // endpoint: the same numbers drive the decks list, so a shared hook means one
+  // round trip for the screen instead of one per deck tile.
+  const { countFor, loading: dueLoading } = useDueCounts();
+  const dueCount = countFor(deckId);
 
   // Derive the per-state breakdown from the cards currently in scope.
   // useDeckDetail keeps `cards` in sync with the local store, so this
   // count stays accurate without another AsyncStorage round-trip.
   const stats: DeckCardStats = useMemo(() => {
-    const acc: DeckCardStats = { total: 0, new: 0, seen: 0, learned: 0, mastered: 0 };
+    const acc: DeckCardStats = { total: 0, new: 0, met: 0, learned: 0, mastered: 0 };
     for (const card of cards) {
       acc.total += 1;
       if (card.state === 'new') acc.new += 1;
-      else if (card.state === 'seen') acc.seen += 1;
+      else if (card.state === 'met') acc.met += 1;
       else if (card.state === 'learned') acc.learned += 1;
       else if (card.state === 'mastered') acc.mastered += 1;
     }
@@ -125,12 +137,17 @@ export function DeckDetailScreen({ deckId }: Props) {
         )}
 
         <View style={styles.actions}>
+          {/* Labelled with the due count, and disabled when nothing is due —
+              the session it opens is due-only, so with zero due it would open
+              on an empty queue. `cards.length === 0` stays in the condition for
+              the empty-deck case, which the count alone can't distinguish from
+              "everything is scheduled for later". */}
           <Button
-            label={t('decks.studyNow')}
-            onPress={() => router.push(`/decks/${deck.id}/study`)}
+            label={dueCount > 0 ? `${t('decks.studyNow')} · ${dueCount}` : t('decks.studyNow')}
+            onPress={() => router.push(`/sky/${deck.id}/study`)}
             full
             style={{ flex: 1 }}
-            disabled={cards.length === 0}
+            disabled={cards.length === 0 || (!dueLoading && dueCount === 0)}
           />
           <Pressable
             onPress={() => setConfigOpen(true)}
@@ -177,7 +194,7 @@ export function DeckDetailScreen({ deckId }: Props) {
 
       <FlashcardDrawer
         visible={addCardOpen}
-        prefill={{ front: '', reading: '', back: '' }}
+        prefill={EMPTY_DRAFT}
         onDismiss={() => setAddCardOpen(false)}
         onSaved={refresh}
         lockedDeckId={deck.id}

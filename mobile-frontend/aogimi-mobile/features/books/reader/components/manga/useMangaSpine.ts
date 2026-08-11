@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { isMangaEpub, prepareMangaSpine, type MangaSpineHandle } from '@/components/books/utils/mangaPages';
-import type { BookRecord } from '@/components/books/types';
+import { isMangaEpub, prepareMangaSpine, type MangaSpineHandle } from '@/features/books/lib/mangaPages';
+import type { BookRecord } from '@/features/books/types';
 
 export type MangaSpineState = {
   isManga: boolean;

@@ -9,19 +9,20 @@ import {
   View,
 } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { Screen } from '@/components/ui/Screen';
+import { useDockClearance } from '@/features/app-shell/Dock';
+import { Screen } from '@/shared/components/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { SearchResponse, WordDetails, WordResult } from '../types';
-import { FlashcardDrawer, type FlashcardPrefill } from '@/components/decks/ui/FlashcardDrawer';
+import { FlashcardDrawer, type FlashcardPrefill } from '@/features/sky/stage/components/FlashcardDrawer';
 import { DictEntry } from './DictEntry';
 import { DictResultRow } from './DictResultRow';
 import { DictEmpty } from './DictEmpty';
 import { useDictionarySearch } from '../hooks/useDictionarySearch';
 import { useDictionaryNav } from '../hooks/useDictionaryNav';
-import { getRecentSearches, pushRecentSearch, type RecentSearchItem } from '../utils/dictionaryStorage';
+import { getRecentSearches, pushRecentSearch, type RecentSearchItem } from '../lib/dictionaryStorage';
+import { wordCardDraft } from '../lib/cardDraft';
 import { useNavigation } from 'expo-router';
 
 export function DictionaryScreen() {
@@ -55,19 +56,12 @@ export function DictionaryScreen() {
     void getRecentSearches().then(setRecents);
   }, []);
 
-const addFlashcardFromDetails = useCallback((details: WordDetails) => {
-    const w = details.word;
-    setFlashcardPrefill({
-      front: w.kanji[0] ?? w.readings[0]?.form ?? '',
-      reading: w.readings[0]?.form ?? '',
-      back:
-        w.meanings
-          .filter((m) => m.lang === 'eng' || m.lang === 'en')
-          .slice(0, 2)
-          .map((m) => m.meaning)
-          .join('; ') ?? '',
-    });
-  }, []);
+  // Was an inline builder that took 2 glosses, joined them with `; ` and
+  // dropped the JLPT tier. `wordCardDraft` is the one place that decision is
+  // made now — shared with the reader, which had its own drifted copy.
+  const addFlashcardFromDetails = useCallback((details: WordDetails) => {
+    setFlashcardPrefill(wordCardDraft(details.word, query, details.sentences));
+  }, [query]);
 
   const handleOpenDetail = useCallback(
     async (id: number, lookupQuery: string) => {
@@ -213,13 +207,15 @@ function ResultsBody({
   onPick: (id: number) => void;
 }) {
   const c = useColors();
+  // Without this the last result sits under the dock's glass — see the hook.
+  const dockClearance = useDockClearance();
   const words =
     isSearching && searchState.kind === 'results' ? collectWords(searchState.response) : [];
 
   return (
     <FlatList
       style={styles.flex}
-      contentContainerStyle={styles.scrollBody}
+      contentContainerStyle={[styles.scrollBody, { paddingBottom: dockClearance }]}
       data={words}
       keyExtractor={(w) => String(w.id)}
       renderItem={({ item, index }) => (
@@ -301,11 +297,10 @@ function DetailView({
 }) {
   const c = useColors();
   const t = useT();
-  // Runtime tab bar height (already includes the bottom safe-area
-  // inset). Pushes the FAB and the scroll's bottom padding above the
-  // navbar so neither gets occluded. Returns 0 when this screen isn't
-  // inside a tab navigator — safe to apply everywhere.
-  const tabBarHeight = useBottomTabBarHeight();
+  // Room the floating dock occupies (its height plus the safe-area offset). Pushes the FAB and the
+  // scroll's bottom padding above it so neither gets occluded. Not `useBottomTabBarHeight()` — the
+  // dock is absolutely positioned inside a `box-none` host, so that hook can answer 0 here.
+  const dockClearance = useDockClearance();
   return (
     <View style={styles.flex}>
       <View style={styles.detailHeader}>
@@ -320,10 +315,10 @@ function DetailView({
         style={{ flex: 1 }}
         contentContainerStyle={[
           styles.detailScroll,
-          // Clear the FAB + the navbar. FAB sits at `tabBarHeight +
+          // Clear the FAB + the dock. FAB sits at `dockClearance +
           // spacing.lg`; add its visual height (~52) plus spacing so
           // the last word doesn't hide behind it.
-          { paddingBottom: tabBarHeight + spacing.lg + 52 + spacing.md },
+          { paddingBottom: dockClearance + spacing.lg + 52 + spacing.md },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -339,13 +334,9 @@ function DetailView({
         onPress={onAddFlashcard}
         accessibilityRole="button"
         accessibilityLabel={t('dict.addFlashcard')}
-        style={({ pressed }) => [
+        style={[
           styles.fab,
-          {
-            bottom: tabBarHeight + spacing.lg,
-            backgroundColor: c.fg,
-            opacity: pressed ? 0.85 : 1,
-          },
+          { bottom: dockClearance + spacing.lg, backgroundColor: c.fg },
         ]}
       >
         <Feather name="plus" size={20} color={c.bg} />
@@ -359,9 +350,10 @@ function DetailView({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  // paddingBottom comes from useDockClearance() at the call site — the dock floats, so the figure
+  // depends on the safe-area inset and can't be a constant here.
   scrollBody: {
     paddingTop: spacing.md,
-    paddingBottom: spacing.xxl,
   },
   backRow: {
     flexDirection: 'row',
@@ -446,11 +438,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 14,
     borderRadius: radius.pill,
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
   fabLabel: {
     fontSize: 13,

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { fetchCards, type CardsStats } from '../utils/statsApi';
+import { fetchCards, type CardsStats } from '../lib/statsApi';
 
 const EMPTY: CardsStats = {
-  byState: { new: 0, seen: 0, learned: 0, mastered: 0 },
+  byState: { new: 0, met: 0, learned: 0, mastered: 0 },
   total: 0,
   hardest: [],
 };

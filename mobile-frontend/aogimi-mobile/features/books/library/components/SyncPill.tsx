@@ -1,6 +1,6 @@
 import { type ComponentType } from 'react';
 import { Alert, type GestureResponderEvent, Pressable, StyleSheet } from 'react-native';
-import { SyncedIcon, UnsyncedIcon, ImportIcon, type SyncIconProps } from '@/components/icons/sync-icons';
+import { SyncedIcon, UnsyncedIcon, ImportIcon, type SyncIconProps } from '@/shared/icons/sync-icons';
 import { radius } from '@/theme/tokens';
 
 // Visual badge for a sync state. Two shapes:

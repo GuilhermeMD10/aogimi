@@ -1,6 +1,5 @@
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useColors, useFonts } from '@/theme/ThemeContext';
-import { createThemedComponent } from '@/theme/createThemedComponent';
 import { radius } from '@/theme/tokens';
 
 export type JlptChipProps = {
@@ -26,10 +25,10 @@ const JLPT_PALETTE: Record<number, string> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Default — soft tinted pill (matches the web JlptChip)
+// Soft tinted pill (matches the web JlptChip)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DefaultJlptChip({ level, compact, style }: JlptChipProps) {
+export function JlptChip({ level, compact, style }: JlptChipProps) {
   const c = useColors();
   const f = useFonts();
   const color = JLPT_PALETTE[level] ?? c.fgMuted;
@@ -99,13 +98,3 @@ function tint(hex: string, alpha: number): string {
   const b = n & 0xff;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Public — single JlptChip entry point
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const JlptChip = createThemedComponent<JlptChipProps>(
-  DefaultJlptChip,
-  {},
-  'JlptChip',
-);

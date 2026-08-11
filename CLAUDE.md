@@ -45,6 +45,8 @@ npx tsc --noEmit
 
 # mobile-frontend/aogimi-mobile/
 npm start | run ios | run android | lint | typecheck
+npm run verify:fsrs                                # FSRS-6 vs py-fsrs 6.3.1 vectors
+npm run verify:sky                                 # star map vs web copy + golden values
 ```
 
 No test runner anywhere, and no linter on the backend (vitest + auth tests are deferred —
@@ -255,12 +257,69 @@ Cross-file invariants that are easy to break without noticing:
 - Two prefix tests depend on the route shape and are deliberately not equality checks —
   `AppShell`'s `isOpenBook` (hides the dock) and `useReaderActions`'s `isDictSurfaceVisible`.
 
-### Mobile: mirrors the web theme pattern
+### Mobile: mid-catch-up to the web (2026-08-08)
 
-Three layers (`theme/tokens.ts`, `theme/createThemedComponent.tsx`, `themes/index.ts` +
-`themes/useThemedComponent.ts`); the Stamp theme registers `HomeScreen`, `DictionaryScreen`,
-`DictEntry`, `BottomTabBar` and uses decoration atoms in `components/theme-decorations/stamp/`.
-Documented in `mobile-frontend/aogimi-mobile/THEMES.md`. (Web has no per-theme dispatch.)
+Mobile was a release behind and is being brought level in phases. **Phases 0–5 are done, and
+phase 6 (the design-dependent half) is in progress.** `mobile-frontend/aogimi-mobile/TODO.md`
+opens with a **"Phase 6 — open items"** section that is the live, current list — what is
+unverified, which judgment calls need eyeballing, and where to resume. Read it before starting
+mobile work; don't re-derive it here. What changed, because none of it matches older notes:
+
+- **Structure now mirrors the web**: `features/<domain>/{components,hooks,lib,providers,views}`
+  + `shared/` + `lib/`, with the same one-way layer rule enforced by `import/no-restricted-paths`
+  in `eslint.config.js`. `components/` no longer exists. Decks live at `features/sky/stage`,
+  study at `features/sky/study` — the decks page *is* becoming the sky, as on the web.
+- **One theme, no dispatch.** The four-palette registry, `createThemedComponent`,
+  `ThemedDecoration`, `themes/` and `ThemePicker` are all deleted (nothing had ever registered a
+  variant). `theme/tokens.ts` holds **`palette`** under the web's token names, plus a *derived*
+  legacy `ThemeColors` bridge so the ~70 `useColors()` screens still compile. Screens drop the
+  bridge as each is redesigned; the block goes with the last one.
+- **Mobile colour was reset to a legibility baseline on 2026-08-10** and is **not** the web's
+  Midnight column any more. The ported values sat too close together on a black canvas, so
+  borders, sunken tiles and low-emphasis ink were invisible on device. Every value was re-chosen
+  against one rule — *each token must be plainly distinguishable from the token it sits on* —
+  giving a black canvas, a three-step opaque surface ladder (`bg` < `paperTile` < `paper`),
+  **opaque** borders (`bdA`/`bdB`/`paperBd` were white at 12–26% alpha, the main offender), and one
+  obvious hue per role. **It is scaffolding to redesign from, so treat the contract in that file's
+  header as the thing to preserve, not any particular hex.** The same pass retinted the three
+  off-token chrome blocks — `Dock.tsx`'s `GLASS`, `sky/stage/lib/nightChrome.ts`, `deckVisuals.ts`
+  — and left `sky/map/lib/palette.ts` alone (`verify:sky` asserts it bit-identical to the web).
+- **Mobile motion and decoration were stripped to nothing on 2026-08-10**, same intent as the
+  colour reset. No press feedback (every `({ pressed }) => …` style callback deleted — pressing a
+  control gives no response, which is a **known regression to be replaced, not preserved**), no
+  shadows or elevation (`softSurface` is zeroed, fields kept), no decorative gradients (covers and
+  heroes are flat fills), no transitions (`BottomSheet`, `FloatingBackButton`, `ReaderBottomDock`
+  and `PdfDock` are instant; the reader's foliate `animated` attribute is unset). **Gestures kept
+  working** — swipe-to-dismiss, tap-outside, pinch-zoom — they just lost their motion, and the
+  sheet/docks no longer track your finger mid-drag. **Exempt by design: the whole Dock**
+  (blur/sheens/sliding pill), `MangaScrollView`'s Reanimated pinch-zoom, and the `sky/map`
+  renderer. Radii, borders, spacing and typography are structure and were not touched.
+  The live per-item list is in `mobile-frontend/aogimi-mobile/TODO.md`.
+- **FSRS-6**, ported line-for-line from the backend; `features/sky/lib/fsrs.ts` with the due gate
+  in `features/sky/study/lib/srs.ts`. **Three mirrors now** (backend, web, mobile) and three
+  harnesses — change one, change all three, run all three.
+- **`features/sky/map/lib` is a verbatim copy of the web's** — see its README. `verify:sky`
+  asserts bit-identical output. `features/sky/lib/skyProjection.ts` is the `CardRecord` → star
+  boundary that keeps the engine free of FSRS and the API.
+- **Gone**: DeepL (entirely), the `/stats` screen, the multi-theme shell.
+- `lib/localSchema.ts` wipes local decks/cards on a `LOCAL_SCHEMA_VERSION` bump — the app is
+  undeployed, so stale local rows are dropped rather than migrated.
+
+- **Routes are restructured**: four tabs — `home` (a mobile-only dashboard the web has no
+  equivalent of) · `reader` · `dictionary` · `sky`. Profile and Settings are **pushed** screens
+  (`/profile`, `/profile/settings/*`), reached from Home's header avatar; there is no decks
+  page, so `/sky/[deckId]` and the study routes keep Sky lit. The dock is
+  `features/app-shell/Dock.tsx` — the web's glass material, and it exports **`useDockClearance()`**,
+  which screens must use for bottom padding because the dock floats.
+- **`ios/` is generated and untracked.** It is `Aogimi.xcodeproj` / `com.aogimi.mobile` / scheme
+  `aogimi`. Never hand-edit it: change `app.json`, then `npx expo prebuild --clean -p ios`. A
+  stale native project (the old Shirube one) once linked a misplaced native-module registry and
+  produced a **silent blank screen** — RN views rendered, Fabric components did not.
+
+Still outstanding, all design-dependent: fonts (Switzer + Noto Sans JP, owed by the owner), the
+sky **stage screen**, and the screen-by-screen redesign. Mobile keeps three things the web
+doesn't — an offline SQLite dictionary, reader highlights/bookmarks/annotations, and i18n
+(en/ja/pt) — none of which the redesign should remove.
 
 ### Books: per-device storage + Postgres metadata
 
@@ -314,11 +373,10 @@ Reader typography prefs are in-memory only (reset per open).
   belongs in tokens (grep `#[0-9a-f]{6}`). But a one-off value that makes a *single* component
   work is fine hardcoded with a comment saying why it isn't a token — adding to
   `ds-tokens.css` widens the palette every screen reads, which is the more expensive mistake.
-  Standing exceptions: `JlptChip` (per-level palette) and mobile decoration atoms.
+  Standing exceptions: `JlptChip` (per-level palette, both platforms) and mobile's grade-button
+  row (`ResultButtons`), whose four colours are the FSRS grades' meaning, not decoration.
 - **No inline `borderRadius: <px>`** on token-relevant surfaces — use `rounded-*` or
   `var(--radius-md)`. Pure decoratives (`'50%'`, `999`) are fine.
-- **No inline `if (theme === 'stamp')` branches** (mobile only) — move the variation into a
-  shape token or fork via the registry.
 - **`react-hooks/set-state-in-effect`** false-positives on legitimate "sync from external
   trigger" effects (`AppShell.tsx` pending fields, `PendingCardOverlay/` phase seed).
   Block-disabled with a comment where the pattern is correct.

@@ -10,17 +10,16 @@ import {
   View,
 } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
-import { BottomSheet } from '@/components/ui/BottomSheet';
-import { Button } from '@/components/ui/Button';
+import { BottomSheet } from '@/shared/components/BottomSheet';
+import { Button } from '@/shared/components/Button';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
-import { fetchWordDetails } from '../utils/dictApi';
+import { fetchWordDetails } from '../lib/dictApi';
 import { useDictionarySearch } from '../hooks/useDictionarySearch';
 import type { SearchResponse, WordDetails, WordResult } from '../types';
-import { DictEntry as DefaultDictEntry } from './DictEntry';
+import { DictEntry } from './DictEntry';
 import { DictResultRow } from './DictResultRow';
-import { useThemedComponent } from '@/themes/useThemedComponent';
 
 type Props = {
   visible: boolean;
@@ -58,7 +57,6 @@ function DictDrawerInner({
 }) {
   const c = useColors();
   const t = useT();
-  const DictEntry = useThemedComponent('DictEntry', DefaultDictEntry);
 
   const [query, setQuery] = useState(term);
   const [stage, setStage] = useState<Stage>({ kind: 'search' });

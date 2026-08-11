@@ -1,4 +1,4 @@
-import { getWordDetailsLocal, searchLocal } from '@/lib/dictionary/localDict';
+import { getWordDetailsLocal, searchLocal } from './localDict';
 import { cacheSearch, cacheWord, peekSearch, peekWord } from './dictCache';
 import type { SearchResponse, WordDetails } from '../types';
 

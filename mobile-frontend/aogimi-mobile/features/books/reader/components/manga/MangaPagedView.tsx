@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import Gallery, { type GalleryRef } from 'react-native-awesome-gallery';
-import { extractMangaPage, type MangaSpineEntry, type MangaSpineHandle } from '@/components/books/utils/mangaPages';
+import { extractMangaPage, type MangaSpineEntry, type MangaSpineHandle } from '@/features/books/lib/mangaPages';
 
 export type MangaPagedViewHandle = {
   scrollToSpine: (spineIndex: number, animated?: boolean) => void;

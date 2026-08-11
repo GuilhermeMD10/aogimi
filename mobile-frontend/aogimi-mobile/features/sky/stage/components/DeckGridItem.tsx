@@ -2,8 +2,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius } from '@/theme/tokens';
-import { SyncPill } from '@/components/books/ui/SyncPill';
-import { StateBreakdown } from '@/components/study/ui/StateBreakdown';
+import { SyncPill } from '@/features/books/library/components/SyncPill';
+import { StateBreakdown } from '@/features/sky/study/components/StateBreakdown';
 import { DeckCover } from './DeckCover';
 import type { DeckWithCount } from '../hooks/useDecks';
 
@@ -19,10 +19,7 @@ export function DeckGridItem({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.root,
-        { backgroundColor: c.bgElev, borderColor: c.border, opacity: pressed ? 0.9 : 1 },
-      ]}
+      style={[styles.root, { backgroundColor: c.bgElev, borderColor: c.border }]}
     >
       <View style={styles.coverWrap}>
         <DeckCover deckKey={deck.id} deckName={deck.name} height={92} cornerRadius={0} />

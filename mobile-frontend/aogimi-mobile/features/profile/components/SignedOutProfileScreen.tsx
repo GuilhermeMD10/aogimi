@@ -1,8 +1,8 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen } from '@/components/ui/Screen';
-import { Button } from '@/components/ui/Button';
-import { BrandGlyph } from '@/components/ui/BrandGlyph';
+import { Screen } from '@/shared/components/Screen';
+import { Button } from '@/shared/components/Button';
+import { BrandGlyph } from '@/shared/components/BrandGlyph';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';

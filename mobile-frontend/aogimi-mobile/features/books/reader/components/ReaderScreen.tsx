@@ -4,12 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/ThemeContext';
-import { sendProgressBeacon } from '@/components/books/utils/booksApi';
-import { useBookRecord } from '@/components/books/hooks/useBookRecord';
-import type { WordDetails } from '@/components/dictionary/types';
-import { locateBookFile } from '@/components/books/utils/locateBookFile';
-import { useBookFile } from '@/components/books/hooks/useBookFile';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { sendProgressBeacon } from '@/features/books/lib/booksApi';
+import { useBookRecord } from '@/features/books/hooks/useBookRecord';
+import type { WordDetails } from '@/features/dictionary/types';
+import { locateBookFile } from '@/features/books/lib/locateBookFile';
+import { useBookFile } from '@/features/books/hooks/useBookFile';
+import { useAuth } from '@/features/auth/providers/AuthContext';
 import {
   HIGHLIGHT_COLORS,
   MANGA_SHELL_BG,
@@ -18,11 +18,12 @@ import {
   saveProgressSnapshot,
   useReaderStorage,
   type HighlightColor,
-} from '../utils/readerStorage';
-import { useReaderPrefs } from '../utils/readerPrefs';
-import { DictDrawer } from '@/components/dictionary/ui/DictDrawer';
-import { FlashcardDrawer } from '@/components/decks/ui/FlashcardDrawer';
-import { Button } from '@/components/ui/Button';
+} from '../lib/readerStorage';
+import { useReaderPrefs } from '../lib/readerPrefs';
+import { DictDrawer } from '@/features/dictionary/components/DictDrawer';
+import { plainCardDraft, wordCardDraft } from '@/features/dictionary/lib/cardDraft';
+import { FlashcardDrawer } from '@/features/sky/stage/components/FlashcardDrawer';
+import { Button } from '@/shared/components/Button';
 import { ReaderTopBar } from './ReaderTopBar';
 import { FloatingBackButton } from './FloatingBackButton';
 import type { DockMode } from './ReaderBottomDock';
@@ -45,13 +46,11 @@ import { TextReader } from './novel/TextReader';
 import { NovelReader } from './novel/NovelReader';
 import { MangaReader } from './manga/MangaReader';
 import { HighlightPicker } from './HighlightPicker';
-import { DeepLPopup } from './DeepLPopup';
-import { DEEPL_ENABLED } from '@/lib/features/deepl';
-import { NativeSelectionMenu, type NativeMenuKey } from '../utils/native-selection';
-import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle } from '../utils/foliateHtml';
-import { useReaderLayoutPrefs, flowForCombo } from '../utils/readerLayout';
-import { setLocalProgress } from '@/components/books/utils/booksLocalCache';
-import { persistLocalProgress } from '@/components/books/utils/syncedBookCache';
+import { NativeSelectionMenu, type NativeMenuKey } from '../lib/native-selection';
+import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle } from '../lib/foliateHtml';
+import { useReaderLayoutPrefs, flowForCombo } from '../lib/readerLayout';
+import { setLocalProgress } from '@/features/books/lib/booksLocalCache';
+import { persistLocalProgress } from '@/features/books/lib/syncedBookCache';
 
 type Props = { bookId: string };
 
@@ -140,8 +139,6 @@ export function ReaderScreen({ bookId }: Props) {
     setDictTerm,
     flashcardPrefill,
     setFlashcardPrefill,
-    deepLText,
-    setDeepLText,
     highlightPicker,
     setHighlightPicker,
   } = useReaderModals();
@@ -257,7 +254,7 @@ export function ReaderScreen({ bookId }: Props) {
     setEpubError(message);
   }, []);
 
-  // ── Custom menu (dict / card / deepl / highlight / copy) ────────────
+  // ── Custom menu (dict / card / highlight / copy) ────────────────────
   const handleCustomMenu = useCallback(
     ({ key, selectedText }: CustomMenuEvent) => {
       const term = (selectedText || selection?.text || '').trim();
@@ -271,16 +268,10 @@ export function ReaderScreen({ bookId }: Props) {
         return;
       }
       if (key === 'card') {
-        setFlashcardPrefill({ front: term, reading: '', back: '' });
-        return;
-      }
-      if (key === 'deepl') {
-        // DeepL is feature-flagged off (see lib/features/deepl.ts).
-        // The selection menu also filters this key out, so this branch
-        // shouldn't be reachable today — kept so re-enabling is a
-        // single edit. Guard inside the if matches the popup gate
-        // below.
-        if (DEEPL_ENABLED) setDeepLText(term);
+        // No dictionary entry behind this one — the user went straight from a
+        // selection to "Card". Everything but the front is legitimately empty
+        // and the drawer opens for them to fill in.
+        setFlashcardPrefill(plainCardDraft(term));
         return;
       }
       if (key === 'highlight' && selection) {
@@ -326,29 +317,15 @@ export function ReaderScreen({ bookId }: Props) {
 
   const handleAddFlashcardFromDict = useCallback(
     (details: WordDetails) => {
-      const w = details.word;
-      // Force the searched form into the front of the card — the dictionary
-      // entry's `kanji[0]` is often a more common variant that's not what
-      // the user actually highlighted. Fall back to the entry default.
-      const q = (dictTerm ?? '').trim();
-      const front =
-        (q && (w.kanji.includes(q) || w.readings.some((r) => r.form === q))
-          ? q
-          : w.kanji[0] ?? w.readings[0]?.form) ?? '';
-      // Auto-fill context with the first example sentence the dict
-      // already loaded — saves the user from re-typing one of the
-      // sentences they just saw on the word detail.
-      const contextSentence = details.sentences[0]?.ja ?? '';
-      setFlashcardPrefill({
-        front,
-        reading: w.readings[0]?.form ?? '',
-        back: w.meanings
-          .filter((m) => m.lang === 'eng' || m.lang === 'en')
-          .slice(0, 3)
-          .map((m) => m.meaning)
-          .join('; '),
-        contextSentence,
-      });
+      // Passing `dictTerm` as the query is what forces the *searched* form onto
+      // the front: `preferredHeadword` surfaces an exact kanji/reading match
+      // over the entry's `kanji[0]`, which is often a more common variant than
+      // what the user actually highlighted.
+      //
+      // The example sentences are a *fallback* context — `wordCardDraft` only
+      // reaches for them, and the reader has nothing better to offer here
+      // because the tap already went through the dictionary drawer.
+      setFlashcardPrefill(wordCardDraft(details.word, dictTerm ?? undefined, details.sentences));
       setDictTerm(null);
     },
     [dictTerm],
@@ -744,13 +721,6 @@ export function ReaderScreen({ bookId }: Props) {
         prefill={flashcardPrefill}
         onDismiss={() => setFlashcardPrefill(null)}
       />
-
-      {/* DeepL popup feature-flagged off (see lib/features/deepl.ts).
-          The popup component, state, and dispatch are all left intact
-          so re-enabling is a single edit. */}
-      {DEEPL_ENABLED && (
-        <DeepLPopup visible={deepLText !== null} text={deepLText ?? ''} onDismiss={() => setDeepLText(null)} />
-      )}
     </SafeAreaView>
   );
 }

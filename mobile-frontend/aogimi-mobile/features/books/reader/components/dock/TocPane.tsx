@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { fontSize, spacing } from '@/theme/tokens';
-import type { EpubTocItem } from '../../utils/foliateHtml';
+import type { EpubTocItem } from '../../lib/foliateHtml';
 
 type Props = {
   toc: EpubTocItem[];
@@ -25,13 +25,7 @@ export function TocPane({ toc, onNavigate }: Props) {
             <Pressable
               key={`${item.href}-${i}`}
               onPress={() => onNavigate(item.href)}
-              style={({ pressed }) => [
-                styles.row,
-                {
-                  borderBottomColor: c.border,
-                  backgroundColor: pressed ? c.bgSunken : 'transparent',
-                },
-              ]}
+              style={[styles.row, { borderBottomColor: c.border }]}
             >
               <Text numberOfLines={2} style={[styles.label, { color: c.fg }]}>
                 {item.label || item.href}

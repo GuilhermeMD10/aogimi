@@ -17,7 +17,7 @@ import type {
   SearchResponse,
   WordDetails,
   WordResult,
-} from '@/components/dictionary/types';
+} from '@/features/dictionary/types';
 import { deinflect } from './deinflector';
 import { romajiToKana } from './romajiToKana';
 import {

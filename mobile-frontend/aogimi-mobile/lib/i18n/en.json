@@ -33,13 +33,17 @@
       "title": "Create account",
       "username": "Username",
       "usernamePlaceholder": "@yourname",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
       "password": "Password",
       "confirmPassword": "Confirm password",
       "submit": "Create account",
       "haveAccount": "Already have an account?",
       "signIn": "Sign in",
       "errorMismatch": "Passwords don't match",
-      "errorTaken": "That username is taken"
+      "errorTaken": "That username is taken",
+      "closedTitle": "Sign-ups are closed",
+      "closedBody": "New accounts are not being created at the moment. If you already have an account, sign in below."
     },
     "onboarding": {
       "syncing": "Syncing your books…",
@@ -58,7 +62,14 @@
     "title": "Reader",
     "continueReading": "Continue reading",
     "importEpub": "Import EPUB",
-    "empty": "No books yet"
+    "empty": "No books yet",
+    "greeting": "Hello, {name}",
+    "greetingSub": "Welcome back — the sky kept your place.",
+    "yourSky": "YOUR SKY · {count} STARS",
+    "cardsDue": "cards due",
+    "studyNow": "Study now",
+    "resumeReading": "Resume reading",
+    "viewAll": "VIEW ALL"
   },
   "reader": {
     "define": "Define",
@@ -93,6 +104,7 @@
     "tapToReveal": "Tap to reveal",
     "again": "Again",
     "hard": "Hard",
+    "good": "Good",
     "easy": "Easy",
     "undo": "Undo",
     "studyAgain": "Study again",
@@ -106,7 +118,7 @@
       "firstReviewed": "{n} first reviewed",
       "advanced": "{n} advanced to learned",
       "reachedMastered": "{n} reached mastered",
-      "regressedToSeen": "{n} regressed to seen",
+      "regressedToMet": "{n} regressed to met",
       "regressedToLearned": "{n} regressed to learned"
     },
     "hardest": {
@@ -114,7 +126,7 @@
     },
     "state": {
       "new": "new",
-      "seen": "seen",
+      "met": "met",
       "learned": "learned",
       "mastered": "mastered"
     },
@@ -125,7 +137,9 @@
       "oldest_only": "Oldest only",
       "newest_only": "New only",
       "by_creation": "By creation date"
-    }
+    },
+    "dueCount": "{n} due now",
+    "nothingDue": "Nothing due — all caught up"
   },
   "sessionConfig": {
     "title": "Session settings",
@@ -134,17 +148,6 @@
     "sizeHint": "Between {min} and {max}"
   },
   "stats": {
-    "title": "Stats",
-    "viewAll": "View stats",
-    "tabActivity": "Activity",
-    "tabCards": "Cards",
-    "daysStudied": "days studied",
-    "heatmap": "Last year",
-    "recent": "Last 30 days",
-    "distribution": "Distribution",
-    "total": "Total",
-    "hardestCards": "Hardest cards",
-    "noHardest": "Nothing has struggled yet",
     "animal": {
       "fox": "Fox",
       "snake": "Snake",
@@ -163,7 +166,6 @@
     "account": "Account",
     "username": "Username",
     "language": "Language",
-    "theme": "Theme",
     "currentlyReading": "Currently reading",
     "signOut": "Sign out",
     "changeAvatar": "Change avatar",
@@ -195,5 +197,11 @@
     "back": {
       "exampleSentence": "Show example sentence"
     }
+  },
+  "nav": {
+    "dictionary": "Dictionary",
+    "home": "Home",
+    "reader": "Reader",
+    "sky": "Sky"
   }
 }

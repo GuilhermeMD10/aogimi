@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit",
     "gen-foliate-bundle": "node scripts/gen-foliate-bundle.mjs",
     "postinstall": "patch-package",
-    "eas-build-pre-install": "mkdir -p assets && curl -fSL --retry 3 -H \"Authorization: Bearer $GITHUB_TOKEN\" -H \"Accept: application/octet-stream\" https://api.github.com/repos/GuilhermeMD10/japanese-study-ecosystem/releases/assets/441747993 | gunzip > assets/dictionary.sqlite"
+    "eas-build-pre-install": "mkdir -p assets && curl -fSL --retry 3 -H \"Authorization: Bearer $GITHUB_TOKEN\" -H \"Accept: application/octet-stream\" https://api.github.com/repos/GuilhermeMD10/japanese-study-ecosystem/releases/assets/441747993 | gunzip > assets/dictionary.sqlite",
+    "verify:fsrs": "node scripts/verify-fsrs.mts",
+    "verify:sky": "node scripts/verify-sky.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/lora": "^0.4.2",

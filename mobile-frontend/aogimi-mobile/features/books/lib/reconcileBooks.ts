@@ -25,7 +25,7 @@ import {
   fetchUserBooks,
   updateBookIdentity as apiUpdateBookIdentity,
 } from './booksApi';
-import { wipeBookLocalState } from '@/lib/auth/wipeBookLocalState';
+import { wipeBookLocalState } from '@/features/books/lib/wipeBookLocalState';
 import {
   bookFileExists,
   deleteBookFile,
@@ -36,7 +36,7 @@ import {
   deleteCoverBySafeName,
   listCoverSafeNames,
 } from './epubCover';
-import { listStoredBookFilenames } from '@/components/reader/utils/readerStorage';
+import { listStoredBookFilenames } from '@/features/books/reader/lib/readerStorage';
 import {
   effectiveSyncState,
   readAllEntries,

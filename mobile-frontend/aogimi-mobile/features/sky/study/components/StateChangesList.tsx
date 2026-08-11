@@ -9,16 +9,21 @@ type Props = {
 };
 
 type TransitionKey =
-  | 'firstReviewed'      // new → seen
-  | 'advanced'            // seen → learned
+  | 'firstReviewed'       // new → met
+  | 'advanced'            // met → learned
   | 'reachedMastered'     // learned → mastered
-  | 'regressedToSeen'     // learned → seen
+  | 'regressedToMet'      // learned → met
   | 'regressedToLearned'; // mastered → learned
 
 // Counts the net per-card transitions for the session and renders one
 // row per non-zero bucket. Only NET changes matter — a card that
-// bounced learned → seen → learned within the session reads as "no
+// bounced learned → met → learned within the session reads as "no
 // change" because end-state matches start-state.
+//
+// Note these are transitions of the card's *current* rank, which is what a
+// session report should show: the user wants to know what this sitting did.
+// The star on the sky draws `displayedRank()` instead, so a regression row
+// here does not mean a star visibly demoted.
 export function StateChangesList({ entries }: Props) {
   const c = useColors();
   const t = useT();
@@ -27,16 +32,16 @@ export function StateChangesList({ entries }: Props) {
     firstReviewed: 0,
     advanced: 0,
     reachedMastered: 0,
-    regressedToSeen: 0,
+    regressedToMet: 0,
     regressedToLearned: 0,
   };
 
   for (const e of entries) {
     if (e.startState === e.endState) continue;
-    if (e.startState === 'new'      && e.endState === 'seen')     counts.firstReviewed += 1;
-    else if (e.startState === 'seen'     && e.endState === 'learned')  counts.advanced += 1;
+    if (e.startState === 'new'      && e.endState === 'met')      counts.firstReviewed += 1;
+    else if (e.startState === 'met'      && e.endState === 'learned')  counts.advanced += 1;
     else if (e.startState === 'learned'  && e.endState === 'mastered') counts.reachedMastered += 1;
-    else if (e.startState === 'learned'  && e.endState === 'seen')     counts.regressedToSeen += 1;
+    else if (e.startState === 'learned'  && e.endState === 'met')      counts.regressedToMet += 1;
     else if (e.startState === 'mastered' && e.endState === 'learned')  counts.regressedToLearned += 1;
   }
 
@@ -46,7 +51,7 @@ export function StateChangesList({ entries }: Props) {
     { key: 'advanced',           positive: true,  n: counts.advanced,           labelKey: 'study.changes.advanced' },
     { key: 'reachedMastered',    positive: true,  n: counts.reachedMastered,    labelKey: 'study.changes.reachedMastered' },
     { key: 'regressedToLearned', positive: false, n: counts.regressedToLearned, labelKey: 'study.changes.regressedToLearned' },
-    { key: 'regressedToSeen',    positive: false, n: counts.regressedToSeen,    labelKey: 'study.changes.regressedToSeen' },
+    { key: 'regressedToMet',    positive: false, n: counts.regressedToMet,    labelKey: 'study.changes.regressedToMet' },
   ];
   const rows = allRows.filter((r) => r.n > 0);
 

@@ -1,7 +1,5 @@
-import { BooksScreen as DefaultBooksScreen } from '@/components/books/ui/BooksScreen';
-import { useThemedComponent } from '@/themes/useThemedComponent';
+import { BooksScreen } from '@/features/books/library/components/BooksScreen';
 
 export default function ReaderTab() {
-  const BooksScreen = useThemedComponent('BooksScreen', DefaultBooksScreen);
   return <BooksScreen />;
 }

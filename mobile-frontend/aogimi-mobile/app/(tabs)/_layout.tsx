@@ -1,17 +1,22 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useAuth } from '@/features/auth/providers/AuthContext';
 import { useT } from '@/lib/i18n/I18nContext';
-import { NotchedNavBar } from '@/components/navigation/NotchedNavBar';
+import { Dock } from '@/features/app-shell/Dock';
 
-// Tab declaration order matches NotchedNavBar's SLOTS array:
-//   profile · dictionary · reader · decks · settings.
-// The bar's notch position is computed from `state.index` against that
-// fixed order, so don't reorder these without re-deriving the SLOTS array.
+// The handoff's four tabs: Home · Reader · Dictionary · Sky. Declaration order
+// matches `SLOTS` in Dock, which is the render order.
 //
-// Signed-out users render the same tabs — Profile shows the sign-in /
-// sign-up panel for them; everything else operates local-first against
-// the same pending pipeline signed-in users use offline.
+// What is deliberately NOT a tab:
+//   · Profile / Settings — pushed screens now (`/profile`, `/profile/settings`).
+//     Profile is reached from Home's header avatar. The dock shows no active tab
+//     while they're open, which is what the handoff draws.
+//   · Decks — there is no decks page; the decks are the Sky. `/sky/[deckId]`
+//     and the study routes under it keep the Sky tab lit.
+//   · The in-book reader (`/reader/[id]`) — immersive, no dock at all.
+//
+// Signed-out users render the same tabs; everything operates local-first
+// against the same pending pipeline signed-in users use offline.
 export default function TabsLayout() {
   const { status } = useAuth();
   const t = useT();
@@ -21,13 +26,12 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{ headerShown: false }}
-      tabBar={(props: BottomTabBarProps) => <NotchedNavBar {...props} />}
+      tabBar={(props: BottomTabBarProps) => <Dock {...props} />}
     >
-      <Tabs.Screen name="profile" options={{ tabBarLabel: t('profile.title') }} />
-      <Tabs.Screen name="dictionary" options={{ tabBarLabel: t('dict.title') }} />
-      <Tabs.Screen name="reader" options={{ tabBarLabel: t('home.title') }} />
-      <Tabs.Screen name="decks" options={{ tabBarLabel: t('decks.title') }} />
-      <Tabs.Screen name="settings" options={{ tabBarLabel: t('settings.title') }} />
+      <Tabs.Screen name="home" options={{ tabBarLabel: t('nav.home') }} />
+      <Tabs.Screen name="reader" options={{ tabBarLabel: t('nav.reader') }} />
+      <Tabs.Screen name="dictionary" options={{ tabBarLabel: t('nav.dictionary') }} />
+      <Tabs.Screen name="sky" options={{ tabBarLabel: t('nav.sky') }} />
     </Tabs>
   );
 }

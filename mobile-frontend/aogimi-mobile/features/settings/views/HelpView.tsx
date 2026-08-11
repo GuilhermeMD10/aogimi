@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
-import { Screen } from '@/components/ui/Screen';
+import { Screen } from '@/shared/components/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
-import { SyncedIcon, UnsyncedIcon, ImportIcon } from '@/components/icons/sync-icons';
+import { SyncedIcon, UnsyncedIcon, ImportIcon } from '@/shared/icons/sync-icons';
 
 // Help — explains what the app is and the bits that aren't obvious from
 // poking around (sync states in particular). Prose-heavy on purpose; this
@@ -15,7 +15,7 @@ const SYNC_GREEN = '#2E9F58';
 const SYNC_BLUE = '#1E3D6B';
 const SYNC_GREY = '#6B6661';
 
-export default function HelpScreen() {
+export function HelpView() {
   const c = useColors();
   const router = useRouter();
 
@@ -45,7 +45,7 @@ export default function HelpScreen() {
           </P>
           <P fgMuted={c.fgMuted}>
             To look up a word: press and hold on it, then drag to extend the selection if you need to. When you lift
-            your finger a small action bar appears with shortcuts for Dictionary, Card, DeepL, Highlight, and Copy.
+            your finger a small action bar appears with shortcuts for Dictionary, Card, Highlight, and Copy.
           </P>
           <P fgMuted={c.fgMuted}>
             The bottom dock has chapter navigation, bookmarks, and typography settings. The floating chevron at the
@@ -71,7 +71,7 @@ export default function HelpScreen() {
         <Section heading="How sync works" fg={c.fg} fgMuted={c.fgMuted}>
           <P fgMuted={c.fgMuted}>
             Your books, highlights, bookmarks, and reading positions are saved to your account. Each device keeps a
-            local copy and pushes changes to the backend opportunistically when it's online. If you import a book while
+            local copy and pushes changes to the backend opportunistically when it&apos;s online. If you import a book while
             offline, it stays on this device — marked as unsynced — until the next sync round.
           </P>
           <P fgMuted={c.fgMuted}>The cloud badge in the corner of each book tile tells you where that book stands:</P>
@@ -139,11 +139,7 @@ function Section({
       {pinned ? (
         headingRow
       ) : (
-        <Pressable
-          onPress={() => setOpen((v) => !v)}
-          hitSlop={6}
-          style={({ pressed }) => [pressed && { opacity: 0.6 }]}
-        >
+        <Pressable onPress={() => setOpen((v) => !v)} hitSlop={6}>
           {headingRow}
         </Pressable>
       )}

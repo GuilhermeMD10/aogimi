@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
-import { BottomSheet } from '@/components/ui/BottomSheet';
-import { Button } from '@/components/ui/Button';
+import { BottomSheet } from '@/shared/components/BottomSheet';
+import { Button } from '@/shared/components/Button';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import { createDeckLocal } from '../utils/deckPush';
+import { createDeckLocal } from '../lib/deckPush';
 import type { LocalDeck } from '../types';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useAuth } from '@/features/auth/providers/AuthContext';
 
 type Props = {
   visible: boolean;

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { coverGlyphFor } from '@/lib/coverGlyph';
-import { useBookCover } from '../utils/epubCover';
+import { useBookCover } from '../../lib/epubCover';
 import { fontFamily, radius } from '@/theme/tokens';
 
 type Props = {
@@ -33,7 +32,6 @@ export function BookCover({
   // automatically triggers re-extraction via `retry`.
   const { uri: coverUri, retry } = useBookCover(filename);
   const glyph = coverGlyphFor(title);
-  const darker = darken(coverColor, 0.55);
 
   // Once the cover image loads we learn its real width:height and size
   // the shell to match, so the container hugs the artwork instead of
@@ -53,13 +51,14 @@ export function BookCover({
   if (effectiveAspect !== undefined) dims.aspectRatio = effectiveAspect;
 
   return (
-    <View style={[styles.wrap, dims, { borderRadius: cornerRadius }, style]}>
-      <LinearGradient
-        colors={[coverColor, darker]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
+    <View
+      style={[
+        styles.wrap,
+        dims,
+        { borderRadius: cornerRadius, backgroundColor: coverColor },
+        style,
+      ]}
+    >
       {coverUri ? (
         <Image
           source={{ uri: coverUri }}
@@ -98,29 +97,8 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   glyph: {
-    color: 'rgba(255,255,255,0.92)',
+    color: '#ffffff',
     fontFamily: fontFamily.jp,
     lineHeight: undefined,
   },
 });
-
-// ── helpers ──────────────────────────────────────────────────────────────────
-
-function darken(hex: string, amount: number): string {
-  const { r, g, b } = parseHex(hex);
-  const f = Math.max(0, Math.min(1, amount));
-  return rgbToHex(Math.round(r * f), Math.round(g * f), Math.round(b * f));
-}
-
-function parseHex(hex: string): { r: number; g: number; b: number } {
-  let h = hex.replace('#', '');
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
-  const n = parseInt(h, 16);
-  if (Number.isNaN(n)) return { r: 74, g: 64, b: 56 }; // fallback warm gray
-  return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  const h = (n: number) => n.toString(16).padStart(2, '0');
-  return `#${h(r)}${h(g)}${h(b)}`;
-}

@@ -1,53 +1,33 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/theme/ThemeContext';
 
 type Props = {
   onPress?: () => void;
-  /** When false, the button fades out + slides down out of the way. */
+  /** When false, the button is not rendered. */
   visible?: boolean;
 };
 
 /**
- * Floating round chevron pinned to the bottom-left corner. Used for both
- * the text reader and manga reader. Fades + slides down when `visible` is
- * false (used to clear the dock area when the user expands the bottom
- * toolbar / panes).
+ * Floating round chevron pinned to the bottom-left corner. Used for both the
+ * text reader and manga reader. Hidden outright when `visible` is false (which
+ * is how the reader clears the dock area as the user expands the bottom toolbar
+ * or panes).
+ *
+ * **Strip-to-basics 2026-08-10:** this used to fade + slide on an
+ * `Animated.Value` and carried a drop shadow. Both are gone — it appears and
+ * disappears instantly. The behaviour is unchanged; only the transition went.
  */
 export function FloatingBackButton({ onPress, visible = true }: Props) {
   const c = useColors();
   const insets = useSafeAreaInsets();
 
-  const anim = useRef(new Animated.Value(visible ? 1 : 0)).current;
-  useEffect(() => {
-    Animated.timing(anim, {
-      toValue: visible ? 1 : 0,
-      duration: 50,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [visible, anim]);
+  if (!visible) return null;
 
   return (
-    <Animated.View
-      pointerEvents={visible ? 'box-none' : 'none'}
-      style={[
-        styles.host,
-        {
-          bottom: insets.bottom + 22,
-          borderColor: c.borderStrong,
-          opacity: anim,
-          transform: [
-            {
-              translateY: anim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [24, 0],
-              }),
-            },
-          ],
-        },
-      ]}
+    <View
+      pointerEvents="box-none"
+      style={[styles.host, { bottom: insets.bottom + 22, borderColor: c.borderStrong }]}
     >
       <Pressable
         accessibilityRole="button"
@@ -58,7 +38,7 @@ export function FloatingBackButton({ onPress, visible = true }: Props) {
       >
         <Text style={styles.chevron}>‹</Text>
       </Pressable>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -76,11 +56,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
     zIndex: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 8,
   },
   pressable: {
     flex: 1,

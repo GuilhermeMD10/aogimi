@@ -20,9 +20,9 @@ import {
   createBookmark as apiCreateBookmark,
   deleteBookmark as apiDeleteBookmark,
   fetchBookmarks as apiFetchBookmarks,
-} from '@/components/books/utils/booksApi';
-import { loadStoredBook, type StoredBookmark } from '../utils/readerStorage';
-import type { BookRecord } from '@/components/books/types';
+} from '@/features/books/lib/booksApi';
+import { loadStoredBook, type StoredBookmark } from '../lib/readerStorage';
+import type { BookRecord } from '@/features/books/types';
 
 type BookmarkSyncStorage = {
   bookmarks: StoredBookmark[];

@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize } from '@/theme/tokens';
-import type { DeckCardStats } from '@/components/decks/utils/cardLocalState';
+import type { DeckCardStats } from '@/features/sky/stage/lib/cardLocalState';
 
 type Props = {
   stats: DeckCardStats;
@@ -24,7 +24,7 @@ export function StateBreakdown({ stats, variant = 'inline' }: Props) {
   const buckets = [
     { count: stats.mastered, label: t('study.state.mastered'), color: c.success },
     { count: stats.learned,  label: t('study.state.learned'),  color: c.success },
-    { count: stats.seen,     label: t('study.state.seen'),     color: c.warning },
+    { count: stats.met,      label: t('study.state.met'),      color: c.warning },
     { count: stats.new,      label: t('study.state.new'),      color: c.fgSubtle },
   ].filter((b) => b.count > 0);
 

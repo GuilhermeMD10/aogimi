@@ -9,23 +9,26 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen } from '@/components/ui/Screen';
+import { Screen } from '@/shared/components/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import { syncAllDeckChanges } from '../utils/decksSyncAll';
+import { syncAllDeckChanges } from '../lib/decksSyncAll';
 import type { LocalDeck } from '../types';
 import { useDecks } from '../hooks/useDecks';
 import { DeckGridItem } from './DeckGridItem';
 import { NewDeckSheet } from './NewDeckSheet';
-import { CloudSyncIcon } from '@/components/icons/sync-icons';
-import { useAuth } from '@/lib/auth/AuthContext';
-import { StudyAllHardestButton } from '@/components/study/ui/StudyAllHardestButton';
+import { CloudSyncIcon } from '@/shared/icons/sync-icons';
+import { useAuth } from '@/features/auth/providers/AuthContext';
+import { StudyAllHardestButton } from '@/features/sky/study/components/StudyAllHardestButton';
+import { useDockClearance } from '@/features/app-shell/Dock';
 
 export function DecksListScreen() {
   const c = useColors();
   const t = useT();
   const router = useRouter();
+  // The dock floats, so the room it needs is its height plus the safe-area offset — see the hook.
+  const dockClearance = useDockClearance();
   const { status } = useAuth();
   const cannotSync = status !== 'signed-in';
   const { decks, loading, refreshing, error, refresh, reloadLocal } = useDecks();
@@ -33,7 +36,7 @@ export function DecksListScreen() {
   const [syncing, setSyncing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const openDeck = (deck: LocalDeck) => router.push(`/decks/${deck.id}`);
+  const openDeck = (deck: LocalDeck) => router.push(`/sky/${deck.id}`);
 
   const pendingCount = decks.filter((d) => d.syncState === 'pending').length;
 
@@ -109,7 +112,7 @@ export function DecksListScreen() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, { paddingBottom: dockClearance }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.fg} />
           }
@@ -152,7 +155,7 @@ export function DecksListScreen() {
           // push (fired by createDeckLocal) will flip the SyncPill
           // from unsynced → synced later.
           void reloadLocal();
-          router.push(`/decks/${deck.id}`);
+          router.push(`/sky/${deck.id}`);
         }}
       />
     </Screen>
@@ -204,7 +207,9 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.mono,
   },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { paddingBottom: spacing.xxl },
+  // paddingBottom comes from useDockClearance() at the call site — the dock floats, so the figure
+  // depends on the safe-area inset and can't be a constant here.
+  scroll: {},
   error: { fontSize: fontSize.sm, marginBottom: spacing.md },
   emptyWrap: { paddingVertical: spacing.xxl * 2, alignItems: 'center' },
   empty: { fontSize: fontSize.md, textAlign: 'center' },

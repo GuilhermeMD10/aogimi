@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius } from '@/theme/tokens';
-import type { BookRecord } from '../types';
-import { isPendingBookId } from '../utils/bookPush';
+import type { BookRecord } from '../../types';
+import { isPendingBookId } from '../../lib/bookPush';
 import { SyncPill, type SyncPillState } from './SyncPill';
 import { BookCover } from './BookCover';
 
@@ -42,7 +42,7 @@ export function BookGridItem({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.root, { opacity: pressed ? 0.85 : 1 }]}
+      style={styles.root}
     >
       <View style={styles.coverWrap}>
         <BookCover
@@ -83,10 +83,7 @@ export function BookGridItem({
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel={`More actions for ${book.title}`}
-            style={({ pressed }) => [
-              styles.moreBtn,
-              { borderColor: c.border, opacity: pressed ? 0.55 : 1 },
-            ]}
+            style={[styles.moreBtn, { borderColor: c.border }]}
           >
             <Text style={[styles.moreGlyph, { color: c.fgMuted }]}>⋯</Text>
           </Pressable>
@@ -106,11 +103,6 @@ const styles = StyleSheet.create({
   coverWrap: { position: 'relative' },
   cover: {
     width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 4,
   },
   syncPillSlot: {
     position: 'absolute',

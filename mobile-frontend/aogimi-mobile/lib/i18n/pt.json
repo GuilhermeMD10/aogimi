@@ -33,13 +33,17 @@
       "title": "Criar conta",
       "username": "Nome de utilizador",
       "usernamePlaceholder": "@oteunome",
+      "email": "E-mail",
+      "emailPlaceholder": "voce@exemplo.com",
       "password": "Palavra-passe",
       "confirmPassword": "Confirmar palavra-passe",
       "submit": "Criar conta",
       "haveAccount": "Já tens conta?",
       "signIn": "Iniciar sessão",
       "errorMismatch": "As palavras-passe não coincidem",
-      "errorTaken": "Esse nome de utilizador já está em uso"
+      "errorTaken": "Esse nome de utilizador já está em uso",
+      "closedTitle": "Registos encerrados",
+      "closedBody": "Não estamos a criar novas contas de momento. Se já tem uma conta, inicie sessão abaixo."
     },
     "onboarding": {
       "syncing": "A sincronizar os teus livros…",
@@ -58,7 +62,14 @@
     "title": "Leitor",
     "continueReading": "Continuar a leitura",
     "importEpub": "Importar EPUB",
-    "empty": "Ainda sem livros"
+    "empty": "Ainda sem livros",
+    "greeting": "Olá, {name}",
+    "greetingSub": "Bem-vindo de volta — o céu guardou o seu lugar.",
+    "yourSky": "O SEU CÉU · {count} ESTRELAS",
+    "cardsDue": "cartões para revisar",
+    "studyNow": "Estudar agora",
+    "resumeReading": "Retomar leitura",
+    "viewAll": "VER TUDO"
   },
   "reader": {
     "define": "Definir",
@@ -93,6 +104,7 @@
     "tapToReveal": "Toca para revelar",
     "again": "De novo",
     "hard": "Difícil",
+    "good": "Bom",
     "easy": "Fácil",
     "undo": "Desfazer",
     "studyAgain": "Estudar de novo",
@@ -106,7 +118,7 @@
       "firstReviewed": "{n} revistos pela primeira vez",
       "advanced": "{n} avançaram para aprendido",
       "reachedMastered": "{n} chegaram a dominado",
-      "regressedToSeen": "{n} regrediram para visto",
+      "regressedToMet": "{n} regrediram para conhecida",
       "regressedToLearned": "{n} regrediram para aprendido"
     },
     "hardest": {
@@ -114,7 +126,7 @@
     },
     "state": {
       "new": "novo",
-      "seen": "visto",
+      "met": "conhecida",
       "learned": "aprendido",
       "mastered": "dominado"
     },
@@ -125,7 +137,9 @@
       "oldest_only": "Só os mais antigos",
       "newest_only": "Só os novos",
       "by_creation": "Por data de criação"
-    }
+    },
+    "dueCount": "{n} para rever agora",
+    "nothingDue": "Nada pendente — tudo em dia"
   },
   "sessionConfig": {
     "title": "Definições da sessão",
@@ -134,17 +148,6 @@
     "sizeHint": "Entre {min} e {max}"
   },
   "stats": {
-    "title": "Estatísticas",
-    "viewAll": "Ver estatísticas",
-    "tabActivity": "Atividade",
-    "tabCards": "Cartões",
-    "daysStudied": "dias estudados",
-    "heatmap": "Último ano",
-    "recent": "Últimos 30 dias",
-    "distribution": "Distribuição",
-    "total": "Total",
-    "hardestCards": "Cartões mais difíceis",
-    "noHardest": "Ainda nada com que estejas a lutar",
     "animal": {
       "fox": "Raposa",
       "snake": "Serpente",
@@ -163,7 +166,6 @@
     "account": "Conta",
     "username": "Nome de utilizador",
     "language": "Idioma",
-    "theme": "Tema",
     "currentlyReading": "A ler agora",
     "signOut": "Terminar sessão",
     "changeAvatar": "Mudar avatar",
@@ -195,5 +197,11 @@
     "back": {
       "exampleSentence": "Mostrar frase de exemplo"
     }
+  },
+  "nav": {
+    "dictionary": "Dicionário",
+    "home": "Início",
+    "reader": "Leitura",
+    "sky": "Céu"
   }
 }

@@ -563,19 +563,21 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
           }
           attachViewListeners();
           if (style) applyStyle(style);
-          // Enable foliate's built-in smooth-scroll animation for programmatic
-          // navigation. Without the animated attribute, view.next/prev and
-          // goTo() snap to the new offset instantly -- which reads as
-          // "teleporting" in scrolled mode. With it, foliate animates the
-          // scroll over ~300ms via easeOutQuad. Free finger-scrolling stays
-          // native and untouched (this only affects programmatic moves).
-          // Also dial in per-book-type outer margin/gap.
+          // Strip-to-basics 2026-08-10: the 'animated' attribute is no longer
+          // set (note: no backticks in this file -- it is one big template
+          // literal, so a backtick here ends the string and breaks the parse).
+          // It enabled foliate's built-in ~300ms easeOutQuad smooth scroll for
+          // programmatic navigation (view.next/prev, goTo); without it those
+          // snap straight to the new offset, which in scrolled mode reads as
+          // teleporting. That is the intended baseline for now — restore the one
+          // setAttribute below when the redesign decides the reader's motion.
+          // Free finger-scrolling was always native and is unaffected either way.
+          // Margin/gap are layout, not motion, so they stay.
           var outerMargin = bookType === 'novel' ? NOVEL_OUTER_MARGIN : TEXT_OUTER_MARGIN;
           var outerGap    = bookType === 'novel' ? NOVEL_OUTER_GAP    : TEXT_OUTER_GAP;
           try {
             if (view.renderer && view.renderer.tagName &&
                 view.renderer.tagName.toLowerCase() === 'foliate-paginator') {
-              view.renderer.setAttribute('animated', '');
               view.renderer.setAttribute('margin', outerMargin);
               view.renderer.setAttribute('gap', outerGap);
             }

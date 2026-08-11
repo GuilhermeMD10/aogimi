@@ -16,7 +16,7 @@ import {
   saveLocal,
   type DeckOverride,
   type DeckOverrides,
-} from '../utils/deckOverrides';
+} from '../lib/deckOverrides';
 
 export type DeckOverridesApi = {
   overrides: DeckOverrides;

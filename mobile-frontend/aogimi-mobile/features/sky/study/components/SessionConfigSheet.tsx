@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { BottomSheet } from '@/components/ui/BottomSheet';
+import { BottomSheet } from '@/shared/components/BottomSheet';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
@@ -159,12 +159,11 @@ function ModeRow({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.modeRow,
         {
           backgroundColor: selected ? c.bgElev : 'transparent',
           borderColor: selected ? c.borderStrong : c.border,
-          opacity: pressed ? 0.85 : 1,
         },
       ]}
     >

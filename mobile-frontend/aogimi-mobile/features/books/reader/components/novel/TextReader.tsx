@@ -1,7 +1,7 @@
 import { ReaderBottomDock, type DockMode } from '../ReaderBottomDock';
-import type { EpubTocItem } from '../../utils/foliateHtml';
-import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../../utils/readerStorage';
-import type { ReaderDirection, ReaderLayout } from '../../utils/readerLayout';
+import type { EpubTocItem } from '../../lib/foliateHtml';
+import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../../lib/readerStorage';
+import type { ReaderDirection, ReaderLayout } from '../../lib/readerLayout';
 
 export type TextReaderProps = {
   rtl?: boolean;

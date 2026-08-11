@@ -7,14 +7,26 @@
 // Distances (after the current card is dequeued):
 //   Again → +5..+10 cards out
 //   Hard  → +15..+25 cards out
+//   Good  → removed from this session
 //   Easy  → removed from this session
+//
+// **Good exits the session, like Easy.** It is FSRS's neutral success — the
+// grade a correct answer normally earns — so re-seating it would drill a card
+// the user just demonstrated they know. Only the two grades that signal
+// trouble come back round.
+//
+// One consequence worth knowing: a card re-seated here is graded a second time
+// minutes later, which lands on FSRS's same-day path (`shortTermStability`).
+// That path barely moves stability, which is exactly why cramming can't farm
+// the rank ladder.
 
-import type { CardRecord } from '../../decks/types';
+import type { CardRecord } from '../../stage/types';
 import type { StudyOutcome } from '../types';
 
 export const REQUEUE_OFFSETS: Record<StudyOutcome, [number, number]> = {
   again: [5, 10],
   hard:  [15, 25],
+  good:  [0, 0], // unused — good removes
   easy:  [0, 0], // unused — easy removes
 };
 
@@ -35,7 +47,7 @@ export function advanceQueue(
   current: CardRecord,
   outcome: StudyOutcome,
 ): CardRecord[] {
-  if (outcome === 'easy') return tail;
+  if (outcome === 'good' || outcome === 'easy') return tail;
   const [min, max] = REQUEUE_OFFSETS[outcome];
   const offset = randomInt(min, max);
   const insertAt = Math.min(tail.length, offset);

@@ -33,13 +33,17 @@
       "title": "アカウント作成",
       "username": "ユーザー名",
       "usernamePlaceholder": "@yourname",
+      "email": "メールアドレス",
+      "emailPlaceholder": "you@example.com",
       "password": "パスワード",
       "confirmPassword": "パスワード（確認）",
       "submit": "アカウント作成",
       "haveAccount": "すでにアカウントをお持ちですか？",
       "signIn": "サインイン",
       "errorMismatch": "パスワードが一致しません",
-      "errorTaken": "そのユーザー名は使用されています"
+      "errorTaken": "そのユーザー名は使用されています",
+      "closedTitle": "新規登録は停止中です",
+      "closedBody": "現在、新しいアカウントは作成できません。すでにアカウントをお持ちの方は下からサインインしてください。"
     },
     "onboarding": {
       "syncing": "本を同期しています…",
@@ -58,7 +62,14 @@
     "title": "リーダー",
     "continueReading": "読書を続ける",
     "importEpub": "EPUBを取り込む",
-    "empty": "本がまだありません"
+    "empty": "本がまだありません",
+    "greeting": "こんにちは、{name}",
+    "greetingSub": "おかえりなさい — 空はあなたの場所を覚えています。",
+    "yourSky": "あなたの空 · {count} の星",
+    "cardsDue": "枚が復習待ち",
+    "studyNow": "復習する",
+    "resumeReading": "読書を再開",
+    "viewAll": "すべて見る"
   },
   "reader": {
     "define": "意味",
@@ -93,6 +104,7 @@
     "tapToReveal": "タップして表示",
     "again": "もう一度",
     "hard": "難しい",
+    "good": "普通",
     "easy": "簡単",
     "undo": "戻す",
     "studyAgain": "もう一度学習",
@@ -106,7 +118,7 @@
       "firstReviewed": "{n}枚 初レビュー",
       "advanced": "{n}枚「覚えた」に到達",
       "reachedMastered": "{n}枚「完全に覚えた」に到達",
-      "regressedToSeen": "{n}枚「見たことあり」に戻る",
+      "regressedToMet": "{n} 件が「出会った」に戻りました",
       "regressedToLearned": "{n}枚「覚えた」に戻る"
     },
     "hardest": {
@@ -114,7 +126,7 @@
     },
     "state": {
       "new": "未学習",
-      "seen": "見たことあり",
+      "met": "出会った",
       "learned": "覚えた",
       "mastered": "完全に覚えた"
     },
@@ -125,7 +137,9 @@
       "oldest_only": "古いカードのみ",
       "newest_only": "新しいカードのみ",
       "by_creation": "作成日順"
-    }
+    },
+    "dueCount": "{n} 件が復習時期です",
+    "nothingDue": "復習待ちはありません"
   },
   "sessionConfig": {
     "title": "セッション設定",
@@ -134,17 +148,6 @@
     "sizeHint": "{min}〜{max}"
   },
   "stats": {
-    "title": "統計",
-    "viewAll": "統計を見る",
-    "tabActivity": "アクティビティ",
-    "tabCards": "カード",
-    "daysStudied": "日間学習",
-    "heatmap": "過去1年",
-    "recent": "過去30日",
-    "distribution": "分布",
-    "total": "合計",
-    "hardestCards": "難しいカード",
-    "noHardest": "まだ苦手なカードはありません",
     "animal": {
       "fox": "狐",
       "snake": "蛇",
@@ -163,7 +166,6 @@
     "account": "アカウント",
     "username": "ユーザー名",
     "language": "言語",
-    "theme": "テーマ",
     "currentlyReading": "現在読書中",
     "signOut": "サインアウト",
     "changeAvatar": "アバターを変更",
@@ -195,5 +197,11 @@
     "back": {
       "exampleSentence": "例文を表示"
     }
+  },
+  "nav": {
+    "dictionary": "辞書",
+    "home": "ホーム",
+    "reader": "読書",
+    "sky": "星空"
   }
 }

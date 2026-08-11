@@ -19,7 +19,7 @@ import type { BookRecord, LocalBookEntry, PendingPayload } from '../types';
 import { getEntry, markSynced, readAllEntries } from './bookLocalState';
 import { buildMatchCandidate } from './matchCandidate';
 import { pushForBook } from './readerStatePush';
-import { loadStoredBook } from '@/components/reader/utils/readerStorage';
+import { loadStoredBook } from '@/features/books/reader/lib/readerStorage';
 
 export type PushResult =
   | { ok: true; bookId: string }

@@ -1,6 +1,5 @@
 import { View, type ViewStyle } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
-import { createThemedComponent } from '@/theme/createThemedComponent';
 
 export type ReaderProgressBarProps = {
   /** Percent 0–100. */
@@ -12,10 +11,10 @@ export type ReaderProgressBarProps = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Default — soft hairline track + rounded fill
+// Soft hairline track + rounded fill
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DefaultReaderProgressBar({ fraction, rtl, height = 2, style }: ReaderProgressBarProps) {
+export function ReaderProgressBar({ fraction, rtl, height = 2, style }: ReaderProgressBarProps) {
   const c = useColors();
   const w = `${Math.max(0, Math.min(100, fraction))}%` as const;
   return (
@@ -42,9 +41,3 @@ function DefaultReaderProgressBar({ fraction, rtl, height = 2, style }: ReaderPr
     </View>
   );
 }
-
-export const ReaderProgressBar = createThemedComponent<ReaderProgressBarProps>(
-  DefaultReaderProgressBar,
-  {},
-  'ReaderProgressBar',
-);

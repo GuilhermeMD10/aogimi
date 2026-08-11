@@ -5,12 +5,12 @@ import Feather from '@expo/vector-icons/Feather';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useAuth } from '@/features/auth/providers/AuthContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import { Button } from '@/components/ui/Button';
-import { useBookRecord } from '../hooks/useBookRecord';
+import { Button } from '@/shared/components/Button';
+import { useBookRecord } from '../../hooks/useBookRecord';
 import { BookCover } from './BookCover';
-import { locateBookFile } from '../utils/locateBookFile';
+import { locateBookFile } from '../../lib/locateBookFile';
 
 type Props = { bookId: string };
 

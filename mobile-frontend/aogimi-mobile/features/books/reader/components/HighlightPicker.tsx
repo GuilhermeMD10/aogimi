@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import {
   HIGHLIGHT_COLORS,
   type HighlightColor,
-} from '../utils/readerStorage';
+} from '../lib/readerStorage';
 
 type Props = {
   pageX: number;
@@ -78,11 +78,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 12,
   },
   swatch: {
     width: 28,

@@ -82,7 +82,7 @@ function writeInstalledVersion(version: string): void {
  */
 async function resolveBundleAsset(): Promise<{ uri: string; hash: string }> {
   const asset = Asset.fromModule(
-    require('../../assets/dictionary.sqlite'),
+    require('../../../assets/dictionary.sqlite'),
   );
   await asset.downloadAsync();
   if (!asset.localUri) {

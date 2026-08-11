@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { queryDictionary } from '../utils/dictApi';
-import { peekSearch } from '../utils/dictCache';
+import { queryDictionary } from '../lib/dictApi';
+import { peekSearch } from '../lib/dictCache';
 import type { SearchResponse } from '../types';
 
 type SearchState =

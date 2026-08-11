@@ -6,7 +6,7 @@ import {
   HIGHLIGHT_COLORS,
   type EpubBookmark,
   type EpubHighlight,
-} from '../../utils/readerStorage';
+} from '../../lib/readerStorage';
 
 type Tab = 'bookmarks' | 'highlights';
 

@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { computeMenuPosition, type SelectionRect, type Viewport } from './menuPosition';
-import { DEEPL_ENABLED } from '@/lib/features/deepl';
 
-export type NativeMenuKey = 'dict' | 'card' | 'deepl' | 'highlight' | 'copy';
+export type NativeMenuKey = 'dict' | 'card' | 'highlight' | 'copy';
 
 type Props = {
   selectionRect: SelectionRect;
@@ -18,19 +17,12 @@ type Props = {
 type Item =
   | { key: NativeMenuKey; kind: 'text'; label: string }
   | { key: NativeMenuKey; kind: 'swatch'; color: string };
-// DeepL entry filtered out when the feature is disabled (see
-// `lib/features/deepl.ts`). Definition kept inline so re-enabling
-// only requires flipping the flag.
-const ALL_ITEMS: Item[] = [
+const ITEMS: Item[] = [
   { key: 'dict', kind: 'text', label: 'Dict' },
   { key: 'card', kind: 'text', label: 'Card' },
-  { key: 'deepl', kind: 'text', label: 'DeepL' },
   { key: 'highlight', kind: 'swatch', color: '#5B9BD5' },
   { key: 'copy', kind: 'text', label: 'Copy' },
 ];
-const ITEMS: Item[] = DEEPL_ENABLED
-  ? ALL_ITEMS
-  : ALL_ITEMS.filter((i) => i.key !== 'deepl');
 
 // Replaces the OS selection bubble. Positioned above the selection by
 // default; flips below when there's no room at the top. Tap outside to
@@ -65,7 +57,7 @@ export function NativeSelectionMenu({ selectionRect, viewport, onAction, onDismi
             {idx > 0 && <View style={styles.divider} />}
             <Pressable
               onPress={() => onAction(item.key)}
-              style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+              style={styles.item}
               hitSlop={4}
             >
               {item.kind === 'text' ? (
@@ -89,11 +81,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(26,25,24,0.96)',
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    elevation: 10,
   },
   itemWrap: { flexDirection: 'row', alignItems: 'stretch' },
   divider: {
@@ -106,7 +93,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  itemPressed: { backgroundColor: 'rgba(255,255,255,0.08)' },
   label: {
     color: '#fff',
     fontSize: 13,

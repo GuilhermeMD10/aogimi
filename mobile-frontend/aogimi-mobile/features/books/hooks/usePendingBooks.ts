@@ -8,7 +8,7 @@
 // reader-route changes.
 
 import { useCallback, useEffect, useState } from 'react';
-import { listPendingBooks } from '../utils/bookPush';
+import { listPendingBooks } from '../lib/bookPush';
 import type { BookRecord } from '../types';
 
 type UsePendingBooksResult = {

@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
-import { Screen } from '@/components/ui/Screen';
+import { Screen } from '@/shared/components/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
 import { LOCALES, useI18n, useT, type Locale } from '@/lib/i18n/I18nContext';
@@ -11,7 +11,7 @@ import { LOCALES, useI18n, useT, type Locale } from '@/lib/i18n/I18nContext';
 // new locale through `setLocale`, which the provider persists to
 // AsyncStorage — no manual save step.
 
-export default function LanguageScreen() {
+export function LanguageView() {
   const c = useColors();
   const t = useT();
   const router = useRouter();
@@ -41,13 +41,12 @@ export default function LanguageScreen() {
             <Pressable
               key={entry.code}
               onPress={() => pick(entry.code)}
-              style={({ pressed }) => [
+              style={[
                 styles.row,
                 {
                   borderTopWidth: i === 0 ? StyleSheet.hairlineWidth : 0,
                   borderBottomWidth: StyleSheet.hairlineWidth,
                   borderColor: c.border,
-                  opacity: pressed ? 0.55 : 1,
                 },
               ]}
             >

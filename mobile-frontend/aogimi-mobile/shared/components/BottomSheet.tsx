@@ -1,8 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import {
-  Animated,
   Dimensions,
-  Easing,
   Modal,
   PanResponder,
   Pressable,
@@ -28,6 +26,21 @@ const SCREEN_H = Dimensions.get('window').height;
 const SWIPE_CLOSE_VELOCITY = 0.6;        // px/ms
 const SWIPE_CLOSE_DISTANCE_RATIO = 0.3;  // fraction of sheet height
 
+/**
+ * The app's bottom sheet.
+ *
+ * **Strip-to-basics 2026-08-10.** This used to slide up on an
+ * `Animated.timing`, fade its backdrop in and out, track the drag with
+ * `translateY` and spring back on a short release; it also carried a large drop
+ * shadow. All of that is gone — the sheet simply appears and disappears, and the
+ * backdrop is a flat scrim.
+ *
+ * **Swipe-to-dismiss still works** and is unchanged in behaviour: a downward
+ * drag on the handle past either threshold closes the sheet. What it no longer
+ * does is follow your finger on the way, so there is no visual feedback until it
+ * closes. Worth restoring as a single `Animated.Value` on `translateY` when the
+ * redesign decides what motion this surface should have.
+ */
 export function BottomSheet({
   visible,
   onDismiss,
@@ -37,75 +50,18 @@ export function BottomSheet({
 }: Props) {
   const c = useColors();
   const sheetHeight = Math.round(SCREEN_H * heightRatio);
-  const translateY = useRef(new Animated.Value(sheetHeight)).current;
-  const backdrop = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 260,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdrop, {
-          toValue: 1,
-          duration: 260,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible, translateY, backdrop, sheetHeight]);
-
-  const handleDismiss = () => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: sheetHeight,
-        duration: 200,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(backdrop, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => onDismiss());
-  };
 
   // ── Swipe-down on the handle ─────────────────────────────────────────
   // The handle wrapper claims downward drags; upward overdrag is ignored.
-  // Release past distance OR velocity threshold dismisses; otherwise the
-  // sheet springs back to rest.
+  // Release past distance OR velocity threshold dismisses.
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 4 && gs.dy > 0,
-      onPanResponderMove: (_, gs) => {
-        if (gs.dy > 0) translateY.setValue(gs.dy);
-      },
       onPanResponderRelease: (_, gs) => {
         const shouldClose =
           gs.vy > SWIPE_CLOSE_VELOCITY ||
           gs.dy > sheetHeight * SWIPE_CLOSE_DISTANCE_RATIO;
-        if (shouldClose) {
-          handleDismiss();
-        } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 0,
-            speed: 16,
-          }).start();
-        }
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 0,
-          speed: 16,
-        }).start();
+        if (shouldClose) onDismiss();
       },
     }),
   ).current;
@@ -115,27 +71,18 @@ export function BottomSheet({
       transparent
       visible={visible}
       animationType="none"
-      onRequestClose={handleDismiss}
+      onRequestClose={onDismiss}
       statusBarTranslucent
     >
       <View style={styles.root}>
-        <Animated.View
-          style={[
-            styles.backdrop,
-            { opacity: backdrop },
-          ]}
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
-        </Animated.View>
+        <View style={styles.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
+        </View>
 
-        <Animated.View
+        <View
           style={[
             styles.sheet,
-            {
-              height: sheetHeight,
-              backgroundColor: c.bgElev,
-              transform: [{ translateY }],
-            },
+            { height: sheetHeight, backgroundColor: c.bgElev },
             contentStyle,
           ]}
         >
@@ -145,7 +92,7 @@ export function BottomSheet({
           <SafeAreaView style={styles.content} edges={['bottom']}>
             {children}
           </SafeAreaView>
-        </Animated.View>
+        </View>
       </View>
     </Modal>
   );
@@ -155,17 +102,12 @@ const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   sheet: {
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -12 },
-    shadowOpacity: 0.15,
-    shadowRadius: 40,
-    elevation: 20,
   },
   handleWrap: {
     paddingTop: 10,

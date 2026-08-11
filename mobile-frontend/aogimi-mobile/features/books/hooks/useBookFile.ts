@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { bookFileExists } from '../utils/bookPaths';
+import { bookFileExists } from '../lib/bookPaths';
 import type { BookRecord } from '../types';
 
 /**

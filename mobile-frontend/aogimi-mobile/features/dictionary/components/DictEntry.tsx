@@ -1,11 +1,11 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
+import { fontFamily, fontSize, palette, radius, spacing } from '@/theme/tokens';
 import type { ExampleSentence, KanjiInfo, WordResult } from '../types';
-import { JlptChip } from '@/components/ui/JlptChip';
-import { PitchAccentDiagram } from '@/components/ui/PitchAccentDiagram';
-import { RubyText } from '@/components/ui/RubyText';
-import { preferredHeadword } from './DictResultRow';
+import { JlptChip } from '@/shared/components/JlptChip';
+import { PitchAccentDiagram } from '@/shared/components/PitchAccentDiagram';
+import { RubyText } from '@/shared/components/RubyText';
+import { preferredHeadword } from '../lib/headword';
 
 type Props = {
   word: WordResult;
@@ -224,13 +224,7 @@ function KanjiCard({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Search ${kanji.literal}`}
-      style={({ pressed }) => [
-        styles.kanjiCard,
-        {
-          backgroundColor: pressed ? c.bgSunken : c.bgElev,
-          borderColor: c.border,
-        },
-      ]}
+      style={[styles.kanjiCard, { backgroundColor: c.bgElev, borderColor: c.border }]}
     >
       {body}
     </Pressable>
@@ -288,7 +282,10 @@ function Chip({
       <Text
         style={[
           styles.chipText,
-          { color: accent ? c.accentFg : c.fgMuted, fontFamily: fontFamily.ui },
+          // Cream, not the legacy `accentFg`: an accent chip is filled with the
+          // vermilion seal, and `accentFg` resolves to the dark ink meant for
+          // pale fills.
+          { color: accent ? palette.accentInk : c.fgMuted, fontFamily: fontFamily.ui },
         ]}
       >
         {text}
@@ -402,11 +399,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     padding: spacing.md,
     gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 1,
   },
   sentenceEn: {
     fontSize: 13,

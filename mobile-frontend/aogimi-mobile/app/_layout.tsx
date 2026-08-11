@@ -13,8 +13,9 @@ import {
 } from '@expo-google-fonts/lora';
 import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
 import { I18nProvider } from '@/lib/i18n/I18nContext';
-import { AuthProvider } from '@/lib/auth/AuthContext';
-import { getDictionary } from '@/lib/dictionary/openDictionary';
+import { AuthProvider } from '@/features/auth/providers/AuthContext';
+import { getDictionary } from '@/features/dictionary/lib/openDictionary';
+import { ensureLocalSchema } from '@/lib/localSchema';
 import { initNetwork } from '@/lib/network/network';
 import { useHideAndroidNavBar } from '@/lib/useHideAndroidNavBar';
 
@@ -62,7 +63,19 @@ export default function RootLayout() {
     return () => { cancelled = true; };
   }, []);
 
-  const allReady = (fontsLoaded || fontsError) && (dictReady || dictError);
+  // Local-store schema gate. Gated on in `allReady` rather than fired and
+  // forgotten: it drops the decks/cards stores when the build's schema version
+  // moved, so it has to finish before any screen reads them. It swallows its
+  // own errors, so there is no error branch to track.
+  const [schemaReady, setSchemaReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    ensureLocalSchema().finally(() => { if (!cancelled) setSchemaReady(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const allReady = (fontsLoaded || fontsError) && (dictReady || dictError) && schemaReady;
+
 
   const onLayoutReady = useCallback(() => {
     if (allReady) SplashScreen.hideAsync();
