@@ -16,7 +16,9 @@ import { TopBar } from '@/features/app-shell/TopBar';
 import { cardBack } from '@/features/dictionary/lib/cardDraft';
 import { SkyMap, useSkySeed, type Insets, type SkyFrameMeta } from '@/features/sky/map';
 
-import { GlassColumn, ColumnHandle, startedLabel } from '../components/GlassColumn';
+import { CardDetailCard } from '../components/CardDetailCard';
+import { DeckBar, startedLabel } from '../components/DeckBar';
+import { GlassColumn, ColumnHandle } from '../components/GlassColumn';
 import { NightConfirm } from '../components/NightConfirm';
 import { PracticeOverlay } from '../../components/PracticeOverlay';
 import { PendingCardOverlay, type PendingCardFlow } from '../components/PendingCardOverlay';
@@ -41,9 +43,12 @@ import type { CardDraft, CardRecord } from '../types';
  *
  *   outer sky:    every framed constellation, the stat ledger and the one
  *                 action cluster; clicking a frame is the only way into a deck.
- *   focused deck: the camera flies in, the glass column opens on the left
- *                 (search, card list, deck info).
- *   card:         a star or row swaps the column to the card's detail.
+ *   focused deck: the camera flies in, the stats bar takes the top of the stage
+ *                 (back, name, figures, mix, delete) and the card list panel
+ *                 opens on the left (this deck's session, search, rows).
+ *   card:         a star or row opens the detail as its own card on the right —
+ *                 **beside** the list, not instead of it, so you keep your place
+ *                 in the deck while reading one word.
  *
  * **The URL is the only navigation state**: `?deck={uuid}` is the focused deck,
  * `&card={uuid}` the ringed star — uuids only, never a render-local index, so a
@@ -66,14 +71,25 @@ import type { CardDraft, CardRecord } from '../types';
 
 /** Camera insets per tier — stage-relative (the stage is everything below the
  *  TopBar row, edge to edge). The chrome never moves, so these are constants:
- *  the action band at the outer tier, the glass column (or its reopen handle)
- *  inside a deck.
+ *  the action band at the outer tier, the stats bar plus the card list panel (or
+ *  its reopen handle) and the card detail inside a deck.
  *
- *  The focused tier's `left` is the column's own right edge exactly (its 20px
- *  offset + 340px width) and carries no gutter on purpose: the sky's dashed
- *  boundary is meant to *meet* the glass, so entering a deck spends every pixel
- *  the column leaves. The deck's own DECK_PAD is what keeps its outermost star
- *  off that edge.
+ *  Each edge is the chrome's own outer edge exactly and carries no gutter on
+ *  purpose: the sky's dashed boundary is meant to *meet* the glass, so entering
+ *  a deck spends every pixel the panels leave. The deck's own DECK_PAD is what
+ *  keeps its outermost star off that edge.
+ *
+ *    left    20 (the panel's offset) + 296 (its width) = 316; 58 collapsed, where
+ *            only the ≡ CARDS handle is out there.
+ *    right   58 at rest; 20 + 340 = 360 while the card detail is open on that
+ *            side. **This is the axis the detail card added** — it is the one
+ *            piece of deck chrome that comes and goes, so the focused tier is a
+ *            2×2 (panel shown/hidden × detail open/closed) rather than the two
+ *            fixed boxes it was when the detail lived inside the panel.
+ *    top     96 clears the stats bar, whose height is set by the tallest thing
+ *            in it — the 38px delete button, so 20 offset + 22 padding + 38 = 80.
+ *            The panels start at 92, a 12px gutter below it.
+ *    bottom  84 clears the Dock.
  *
  *  **The outer tier's `bottom` is the Dock's clearance and nothing else** now
  *  that the stat band sits in the top row (see StageLedger). It used to be 216 —
@@ -84,11 +100,29 @@ import type { CardDraft, CardRecord } from '../types';
  *  gutter, and gives the sky back the rest. There is no second outer-tier inset
  *  any more, because the band has no second size. */
 const SKY_INSETS: Insets = { top: 96, right: 24, bottom: 96, left: 24 };
-const DECK_INSETS: Insets = { top: 88, right: 58, bottom: 84, left: 360 };
-const DECK_INSETS_PANEL_HIDDEN: Insets = { top: 88, right: 58, bottom: 84, left: 58 };
+
+const DECK_LEFT_PANEL = 316;
+const DECK_LEFT_COLLAPSED = 58;
+const DECK_RIGHT_REST = 58;
+const DECK_RIGHT_DETAIL = 360;
+
+/** The focused tier's four boxes, off the two things that can be open. Written
+ *  as a function rather than four constants because the axes are independent —
+ *  spelling out the combinations invites the fourth to be forgotten. */
+function deckInsets(panelHidden: boolean, detailOpen: boolean): Insets {
+  return {
+    top: 96,
+    bottom: 84,
+    left: panelHidden ? DECK_LEFT_COLLAPSED : DECK_LEFT_PANEL,
+    right: detailOpen ? DECK_RIGHT_DETAIL : DECK_RIGHT_REST,
+  };
+}
 
 type Confirm =
-  | { kind: 'deck'; id: string; name: string }
+  // `cardCount` so the dialog can say what is actually being destroyed — the
+  // delete control now sits on the stats bar, one click from the mastery
+  // legend, so the confirm carries the weight.
+  | { kind: 'deck'; id: string; name: string; cardCount: number }
   | { kind: 'card'; card: CardRecord }
   | null;
 
@@ -356,11 +390,7 @@ export function SkyView() {
   }, [decks, byDeck, dueLoading]);
 
   const insets =
-    focusedDeckKey === null
-      ? SKY_INSETS
-      : panelHidden
-        ? DECK_INSETS_PANEL_HIDDEN
-        : DECK_INSETS;
+    focusedDeckKey === null ? SKY_INSETS : deckInsets(panelHidden, selectedCardId !== null);
 
   // the focused deck's own figure, for the glass column. The stage actions read the all-decks
   // total directly now that they only exist at the outer tier.
@@ -388,20 +418,21 @@ export function SkyView() {
    * already holding, which is the whole point of running practice here rather
    * than at `/study`: it costs no request, because the request already happened.
    *
-   * Every deck's, unconditionally. `PracticeOverlay` takes an arbitrary list and
-   * a deck name, so a deck-scoped sitting is the same call with a narrower
-   * slice — but the only trigger today is `StageActions`, which renders on the
-   * **outer sky only** (the focused deck's own actions were dropped pending the
-   * deck-details pass). Branching on `focusedDeck` here would therefore be a
-   * branch that can't be reached, so it isn't written until the button exists.
+   * **Scoped to whatever the button that opened it was scoped to**: the focused
+   * deck's cards when you are standing in one (the card list panel's own study
+   * button), every deck's out on the sky (`StageActions`). Both triggers set the
+   * same `practising` flag, so the scope is read off the focus rather than
+   * carried by the trigger — one source of truth for "which deck am I in", which
+   * is the URL.
    *
    * Memoised on that inventory, not rebuilt per render: `useStudySession` keys
    * its seeding on this array's identity, so a fresh one each render would
-   * reshuffle the queue under the user mid-session.
+   * reshuffle the queue under the user mid-session. The overlay covers the whole
+   * page, so the focus can't change underneath a running sitting.
    */
   const practiceCards = useMemo<CardRecord[]>(
-    () => (decks ? decks.flatMap((d) => d.cards) : []),
-    [decks],
+    () => (focusedDeck ? focusedDeck.cards : decks ? decks.flatMap((d) => d.cards) : []),
+    [focusedDeck, decks],
   );
 
   /* ---------- render: TopBar column, then one stage panel — everything floats over the sky ---------- */
@@ -467,45 +498,68 @@ export function SkyView() {
             </p>
           )}
 
-          {/* Outer sky only — a focused deck has no stage actions for now (see StageActions). */}
-          {focusedDeckKey === null && (
-            <StageActions
-              dueCount={dueLoading ? null : dueTotal}
-              atDeckQuota={deckCount >= MAX_DECKS}
-              deckCount={deckCount}
-              onCreateDeck={createDeck}
-              onStudyAhead={() => setPractising(true)}
-            />
-          )}
-
+          {/* ── whole-sky chrome: the all-decks actions and the stat band ── */}
           {focusedDeck === null ? (
-            decks &&
-            decks.length > 0 && (
-              <StageLedger
-                days={ledger.days}
-                stars={totals?.stars ?? null}
-                dueToday={dueLoading ? null : dueTotal}
-                mastered={totals?.mastered ?? null}
-                mix={mix}
+            <>
+              <StageActions
+                dueCount={dueLoading ? null : dueTotal}
+                atDeckQuota={deckCount >= MAX_DECKS}
+                deckCount={deckCount}
+                onCreateDeck={createDeck}
+                onStudyAhead={() => setPractising(true)}
               />
-            )
-          ) : panelHidden ? (
-            <ColumnHandle onOpen={() => setPanelHidden(false)} />
+              {decks && decks.length > 0 && (
+                <StageLedger
+                  days={ledger.days}
+                  stars={totals?.stars ?? null}
+                  dueToday={dueLoading ? null : dueTotal}
+                  mastered={totals?.mastered ?? null}
+                  mix={mix}
+                />
+              )}
+            </>
           ) : (
-            <GlassColumn
-              deck={focusedDeck}
-              decks={decks ?? []}
-              selectedCard={selectedCard}
-              dueCount={focusedDue}
-              onBack={back}
-              onCollapse={() => setPanelHidden(true)}
-              onSelectCard={selectCard}
-              onSearchPick={focusAndSelect}
-              onRequestDeleteCard={(card) => setConfirm({ kind: 'card', card })}
-              onRequestDeleteDeck={() =>
-                setConfirm({ kind: 'deck', id: focusedDeck.id, name: focusedDeck.name })
-              }
-            />
+            /* ── deck chrome: the stats bar in BOTH panel states (so the way
+                  back out never collapses with the panel), then the card list
+                  or its handle, and the detail card when a star is ringed. ── */
+            <>
+              <DeckBar
+                deck={focusedDeck}
+                dueCount={focusedDue}
+                onBack={() => focusDeck(null)}
+                onRequestDeleteDeck={() =>
+                  setConfirm({
+                    kind: 'deck',
+                    id: focusedDeck.id,
+                    name: focusedDeck.name,
+                    cardCount: focusedDeck.cards.length,
+                  })
+                }
+              />
+
+              {panelHidden ? (
+                <ColumnHandle onOpen={() => setPanelHidden(false)} />
+              ) : (
+                <GlassColumn
+                  deck={focusedDeck}
+                  decks={decks ?? []}
+                  selectedCardId={selectedCardId}
+                  dueCount={focusedDue}
+                  onCollapse={() => setPanelHidden(true)}
+                  onSelectCard={selectCard}
+                  onSearchPick={focusAndSelect}
+                  onStudyAhead={() => setPractising(true)}
+                />
+              )}
+
+              {selectedCard && (
+                <CardDetailCard
+                  card={selectedCard}
+                  onClose={() => selectCard(null)}
+                  onRequestDelete={() => setConfirm({ kind: 'card', card: selectedCard })}
+                />
+              )}
+            </>
           )}
 
           {/* Practice, over everything. Unmounted when closed, so re-opening
@@ -513,6 +567,7 @@ export function SkyView() {
           <PracticeOverlay
             open={practising}
             cards={practiceCards}
+            deckName={focusedDeck?.name ?? null}
             onClose={() => setPractising(false)}
           />
 
@@ -529,7 +584,9 @@ export function SkyView() {
             (confirm.kind === 'deck' ? (
               <NightConfirm
                 title={`Delete “${confirm.name}”?`}
-                body="This deletes the deck and every card in it — its constellation leaves your sky. There is no undo."
+                body={`This deletes the deck and all ${confirm.cardCount.toLocaleString()} ${
+                  confirm.cardCount === 1 ? 'card' : 'cards'
+                } in it — its constellation leaves your sky. There is no undo.`}
                 confirmLabel="Delete deck"
                 onConfirm={runConfirm}
                 onCancel={() => setConfirm(null)}

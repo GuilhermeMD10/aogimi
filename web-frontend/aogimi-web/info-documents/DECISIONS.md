@@ -1778,11 +1778,14 @@ stability-derived ranks.
   survivable when the log was only feeding stats; it matters more now that the
   log is the input to any future parameter fit.
 
-- **Mobile has not been migrated.** `mobile-frontend/aogimi-mobile/components/
-  study/algorithm/srs.ts` is still FSRS-lite and still sends three outcomes. The
-  server accepts those, so mobile keeps working — but its third button is
-  emitting grade 4 on every success, and its local rank display will disagree
-  with the server's. It needs the same port.
+- ~~**Mobile has not been migrated.**~~ **Migrated 2026-08-07.** Mobile now
+  carries its own line-for-line copy at
+  `mobile-frontend/aogimi-mobile/features/sky/lib/fsrs.ts`, with the due gate in
+  `features/sky/study/lib/srs.ts`, a fourth button, and the `seen` → `met`
+  rename. It is pinned to the same py-fsrs 6.3.1 vectors by its own
+  `scripts/verify-fsrs.mts` (138/138), which is byte-identical to the web's
+  apart from its header — so **there are now three mirrors and three harnesses.
+  Change one, change all three, and run all three.**
 
 ---
 
