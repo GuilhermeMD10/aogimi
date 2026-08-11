@@ -2,9 +2,23 @@
 // are owned by decks; this module only defines what's specific to a
 // study session (outcomes, modes, config, display prefs).
 
-import type { CardRecord } from '../decks/types';
+import type { CardRecord } from '../stage/types';
+import type { Outcome } from '../lib/fsrs';
 
-export type StudyOutcome = 'again' | 'hard' | 'easy';
+/**
+ * The four FSRS grades: Again 1 · Hard 2 · Good 3 · Easy 4.
+ *
+ * **Good was missing until the FSRS-6 port.** With three buttons there is no
+ * neutral success, so the third one stood in for it and emitted Easy on every
+ * correct answer — applying the `w16` bonus each time and pinning difficulty at
+ * its floor. That is the `all Easy` ladder in `scripts/verify-fsrs.mts`:
+ * 8 → 66 → 397 → 1875 days. Correct arithmetic on the wrong grade.
+ *
+ * Aliased to `fsrs.Outcome` rather than re-declared so the vocabulary can't
+ * drift from the one the maths and the API speak. The local name stays because
+ * it reads better at the call sites that already use it.
+ */
+export type StudyOutcome = Outcome;
 
 export type StudyMode =
   | 'hardest'
@@ -20,6 +34,21 @@ export type StudySessionConfig = {
   deckIds?: string[];
   mode: StudyMode;
   limit?: number;
+  /**
+   * Narrow the candidate **pool** to cards due right now — never reviewed, or
+   * past `next_due_at` — *before* `mode` orders it. A filter, not a mode, so it
+   * composes with all seven.
+   *
+   * **This should be `true` for any session whose grades are meant to count.**
+   * Since the FSRS-6 port, grading a card that isn't due changes nothing at all
+   * (see the due gate in `lib/srs.ts`), so an unfiltered session hands the user
+   * cards that can't earn anything — the work looks identical and vanishes.
+   *
+   * Combining it with a mode that also filters (`oldest_only`, `newest_only`)
+   * intersects both and can legitimately return fewer than `limit` cards, or
+   * none.
+   */
+  dueOnly?: boolean;
 };
 
 // ── Display prefs ──────────────────────────────────────────────────────────
@@ -65,8 +94,17 @@ export type CardSessionEntry = {
   endState: CardRecord['state'];
   /** Every outcome the user submitted on this card, in order. */
   outcomes: StudyOutcome[];
-  /** Difficulty after the most recent submit — used for the hardest list. */
-  finalDifficulty: number;
+  /**
+   * Difficulty after the most recent submit — what the hardest-cards list
+   * sorts on.
+   *
+   * **Nullable**, for two reasons that both trace to FSRS-6: difficulty is
+   * null until a card's first review, and a grade on a not-due card leaves it
+   * null because nothing was applied. Consumers rank a null last rather than
+   * coercing it to a number — a card with no measured difficulty is not the
+   * same as an easy one.
+   */
+  finalDifficulty: number | null;
 };
 
 export type SessionSummary = {

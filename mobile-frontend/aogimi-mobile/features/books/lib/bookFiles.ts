@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
-import { wipeBookLocalState } from '@/lib/auth/wipeBookLocalState';
+import { wipeBookLocalState } from '@/features/books/lib/wipeBookLocalState';
 import { booksDir } from './bookPaths';
 import { sha256Hex } from './fingerprint/hash';
 import { FINGERPRINT_VERSION } from './fingerprint/version';

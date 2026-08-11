@@ -5,19 +5,400 @@ deferred — not blockers, but worth picking up later. Each entry lists
 file:line references for the relevant code and the rationale for why
 it was parked instead of fixed inline.
 
+The **Phase 6 section immediately below is different**: it is live work, written
+2026-08-08, and the first entry in it is a blocker rather than a deferral.
+
+---
+
+# Phase 6 — open items (2026-08-08)
+
+Phase 6 is the design-dependent half of the mobile catch-up. Done so far: the
+token layer, the route restructure + Home screen, the `react-native-svg` sky
+renderer, and the glass dock. What follows is everything known to be unfinished
+or unverified, roughly in the order it should be picked up.
+
+> **Colour was reset on 2026-08-10.** The ported Midnight values are gone: too
+> many of them sat within a few points of each other on a black canvas, so
+> borders, sunken tiles and low-emphasis ink could not be seen on device.
+> `theme/tokens.ts` now carries a deliberately plain high-contrast baseline —
+> black canvas, three opaque surface steps, **opaque** borders, one obvious hue
+> per role — and its header states the contract to keep. Retinted with it:
+> `Dock.tsx`'s `GLASS`, `sky/stage/lib/nightChrome.ts`, `deckVisuals.ts`,
+> `CardGridItem`'s rank chip (now reads `RANK_COLORS`) and `ProfileScreen`'s hero
+> gradient. **This is scaffolding: the screen-by-screen pass below is expected to
+> recolour it, and every screen it touches should also drop `useColors()` for
+> `palette`.** Untouched on purpose: `sky/map/lib/palette.ts` (`verify:sky` asserts
+> it bit-identical to the web), the reader's page themes in `readerStorage.ts`,
+> and the two documented exceptions — `JlptChip` and `ResultButtons`.
+
+> **Motion and decoration were stripped the same day.** Deliberately flat now, so
+> the redesign starts from nothing rather than from someone else's easing curves:
+>
+> - **No press feedback anywhere.** Every `({ pressed }) => …` style callback is
+>   gone (~30 components). Disabled states keep their dimmed opacity; pressing a
+>   button now gives no visual response at all. **This is a real usability
+>   regression and is meant to be replaced, not kept** — the redesign should
+>   decide one press treatment and apply it via the shared primitives.
+> - **No shadows or elevation.** 13 component-level shadow blocks deleted, and
+>   `theme/tokens.ts`'s `softSurface` is zeroed (fields kept on `SurfaceShape` so
+>   restoring elevation is four numbers in one place). Cards separate by fill +
+>   border only.
+> - **No decorative gradients.** `HomeView`'s sky panel, `ProfileScreen`'s hero,
+>   `DeckCover` and `BookCover` are flat fills; `BookCover`/`DeckCover`'s local
+>   `darken`/`parseHex` helpers went with the second gradient stop.
+> - **No transitions.** `FloatingBackButton` (fade+slide), `BottomSheet` (slide +
+>   backdrop fade + drag-follow + spring-back), `ReaderBottomDock` and `PdfDock`
+>   (the pill↔pane morph and content cross-fade) are all instant. Both docks lost
+>   their second `renderMode` state along with the cross-fade. The reader's
+>   foliate `animated` attribute is no longer set, so programmatic page moves snap.
+> - **Gestures still work** — swipe-to-dismiss, tap-outside, pinch-zoom. What they
+>   lost is the motion, not the behaviour. Two now have no in-flight feedback:
+>   `BottomSheet` and both reader docks no longer follow your finger during a
+>   drag, they just close on release past the threshold.
+>
+> **Kept on purpose:** the whole **dock** (`features/app-shell/Dock.tsx` — blur,
+> sheens, sliding pill), `MangaScrollView`'s Reanimated **pinch-to-zoom**, the
+> `sky/map` renderer's SVG gradients and camera flight (that engine *is* its
+> visuals), and all radii, borders, spacing and typography — structure, not
+> decoration.
+
+> **The sky stage screen landed 2026-08-08** (`features/sky/stage/views/SkyStageView.tsx`,
+> rendered by `app/(tabs)/sky.tsx`). **`DecksListScreen.tsx` is now dead code** —
+> still on disk, imported by nothing, kept only as a reference while the
+> screen-by-screen pass runs; delete it once nothing wants a look at it.
+> **Resume here → put it on a device**: the renderer now mounts, so the
+> six judgment calls under "Sky renderer" below are finally checkable, and none
+> of them have been looked at yet.
+
+## Sky stage screen — landed 2026-08-08, never seen running
+
+Both tiers in place, as on the web: the outer chooser and the focused deck, with
+the camera flight between them. New files: `views/SkyStageView.tsx`,
+`hooks/useSkyDecks.ts`, `components/{StageActions,StageLedger,MixBar,SkyDeckBar,CardDetailSheet}.tsx`,
+`lib/{masteryMix,nightChrome}.ts`.
+
+**A latent bug it turned up.** `features/sky/lib/skyProjection.ts` returned a
+`CardContent`, but `SkyDeckSource.cards` is `SkyCard[]` — it was missing `id` and
+`createdAt`, i.e. the uuid a star hands back on tap and the timestamp that
+buckets a card into its constellation. Nothing imported the map, so `tsc` never
+saw it. Fixed; it now returns `SkyCard`.
+
+Where it deliberately diverges from the web, each reasoned at the call site:
+
+- **Navigation state is local, not the URL.** The web's URL-only rule answers to
+  links, reloads and bookmarks; a tab screen has none of those. Android's
+  hardware back is wired to the same card → deck → sky walk.
+- **No optimistic hide layer.** The web fakes a delete until the server agrees
+  because its rows come from a fetch. Mobile is local-first — `deleteDeckLocal` /
+  `deleteCardLocal` write the local store first — so re-reading already shows truth.
+- **No "Study ahead".** Mobile's `useStudySession` has no `local` source
+  (`StudySessionConfig` is scope/mode/limit/dueOnly), so practice would have to be
+  built, not wired. **Still open** — the one piece of web parity missing here.
+- **Deletes confirm through the platform `Alert`**, not a glass dialog.
+- **Signed-out shows a sign-in prompt, not a sky.** `sky_seed` is server-issued
+  and immutable, and a locally-invented one would move every card on sign-in.
+- **`nightChrome.ts` is two values, not fifty.** Mobile is pinned to one Midnight
+  palette, so `palette` *is* night; only the two translucent panel fills are new.
+- **`MixBar` reads `RANK_COLORS`**, the sky's own ramp — the first fix of the
+  `success`/`warning` bridge problem listed under "Token bridge" below.
+- **Sync-now was carried over** from `DecksListScreen` rather than dropped with it.
+
+Verified: `tsc --noEmit` clean, eslint unchanged (0 errors / 14 warnings), Metro
+bundles (HTTP 200, 13.5MB — up from 13.1, which is the renderer arriving).
+**Nothing below is verified on a device**, including whether the chrome
+measurement feeding the camera insets produces a sensible fit.
+
+## Backend: pointing the app at Railway — **URL set 2026-08-08, unverified at runtime**
+
+The backend + DB are deployed on Railway with **dev and prod environments**.
+`.env` now reads `EXPO_PUBLIC_API_URL=https://aogimi-backend-dev.up.railway.app`.
+
+> **The scheme was missing** (`aogimi-backend-dev.up.railway.app` with no
+> `https://`). `resolveApiBase()` returns the value verbatim and every call is
+> `fetch(\`${API_BASE}${path}\`)`, so RN got an invalid URL that throws rather
+> than 404s — it would have looked like the backend was down. Fixed; **if you
+> ever set this by hand again, include the scheme.**
+>
+> Not yet confirmed against the live server: no request has been made from the
+> app since. Sign-in is the check.
+
+`lib/api.ts` resolves the base URL in this order:
+
+1. `EXPO_PUBLIC_API_URL`
+2. `Constants.expoConfig.extra.apiUrl`
+3. platform default — `http://localhost:3000`, or `http://10.0.2.2:3000` on the
+   Android emulator
+
+So connecting is one line: set `EXPO_PUBLIC_API_URL` to the Railway **dev**
+public domain. Four things that matter:
+
+- **`EXPO_PUBLIC_*` is inlined at bundle time, not read at runtime.** After
+  editing `.env`, restart Metro with `npx expo start --clear`.
+- **No CORS work is needed.** The backend goes through the `cors` package with
+  an allowlist, and native clients send no `Origin`, so they pass. Same reason
+  `/auth/refresh`'s Origin check (a CSRF guard for the web) does not block the
+  app.
+- **Dev vs prod:** keep the dev URL in `.env` (git-ignored) and put the prod URL
+  in `extra.apiUrl` per EAS build profile. `EXPO_PUBLIC_API_URL` wins, so a local
+  `.env` always overrides the baked-in prod value while developing.
+- **No secret risk:** `EXPO_PUBLIC_*` ships inside the bundle, which is correct
+  for an API URL and must never hold the JWT secrets — those stay server-side.
+
+Registration is closed server-side, so sign in with an existing account. Until
+this is done the app runs local-first and signed-out: due counts come back 0 and
+decks/books do not hydrate, which is why the decks list reads "No decks yet".
+
+## First run: blank screen (2026-08-08) — **RESOLVED**
+
+**Cause: the stale native project.** The app was still `Shirube` /
+`com.shirube.mobile` with `ios/Shirube.xcodeproj` while `app.json` said Aogimi,
+and CocoaPods had been writing its generated `ExpoModulesProvider.swift` into a
+sibling `mobile-frontend/shirube-mobile/` folder — so the binary linked a
+stale/misplaced native-module registry. Plain RN views rendered; the Fabric
+components `NavigationContainer` needs did not, which is why the root layout
+never mounted and nothing errored.
+
+**Fix:** deleted `ios/` and the stray folder, then
+`npx expo prebuild --clean -p ios` + `npx expo run:ios`. The project is now
+`ios/Aogimi.xcodeproj`, `com.aogimi.mobile`, scheme `aogimi`. The rebuild
+regenerated `rnscreens-generated.mm` / `RCTThirdPartyComponentsProvider.mm` and
+the app renders. **None of the redesign work was implicated.**
+
+### What the first successful run revealed
+- **The old `com.shirube.mobile` app has been uninstalled** from the simulator
+  and must not come back — while it was installed, iOS launched the new app
+  *from* it (a `◀ Shirube` back-link in the status bar) and opened it on the
+  wrong tab.
+- Midnight tokens and the new glass dock render correctly — the `--active`
+  lavender pill with dark ink is right.
+- **Typography is still Lora** (serif headings). Expected until the fonts land.
+- **`DictionaryScreen`'s search field is pure white** — a light-palette leftover
+  of the `useColors()` bridge. Add it to the per-screen redesign list.
+
+The diagnosis that found it is kept below, because the CDP recipe is reusable.
+
+## Original diagnosis (kept for the instrumentation recipe)
+
+The app was launched on the simulator for the first time and rendered a **blank
+white screen**. What follows is measured, not inferred — expo-router itself was
+temporarily instrumented in `node_modules` to get it (all reverted).
+
+Everything is correct right up to the last step:
+
+| Stage | Result |
+|---|---|
+| Native build, Metro, RN rendering | good — a bare `AppRegistry` component rendered full-screen |
+| Route context at runtime | all 22 route keys present |
+| `routeNode` | valid, 14 children |
+| Linking config | builds without throwing (`prefixes: []`) |
+| `getInitialURL()` | returns the string `"aogimi:///"` (was `"shirube:///"`) |
+| Derived state | `initialPath "/"` → `{"routes":[{"name":"__root","state":{"routes":[{"name":"index","path":"/"}]}}]}` |
+| `RootLayout`'s first statement | **never executes** |
+| Any error anywhere | none — no exception, no `console.error`, no expo-router `ErrorBoundary` |
+
+So expo-router computes a valid tree, valid linking and a valid initial
+navigation state, and then the subtree below `NavigationContainer` never mounts.
+
+**Ruled out:** the route restructure (removing `app/sky/` changed nothing), the
+redesigned screens (a one-`View` root layout with zero imports also never
+rendered), and the URL scheme (setting it to match native changed nothing).
+
+**Suspected cause, and the action taken.** The app was still `Shirube` /
+`com.shirube.mobile` with `ios/Shirube.xcodeproj` while `app.json` said Aogimi /
+`com.aogimi.mobile` — and CocoaPods had written a generated
+`ExpoModulesProvider.swift` into a *sibling* `mobile-frontend/shirube-mobile/`
+folder, meaning a stale path was baked into the native project. A binary linking
+a stale/misplaced native-module registry would render plain RN views while
+`react-native-screens`' Fabric components render nothing, which is the exact
+symptom. So `ios/` and the stray folder were deleted and the project regenerated
+with `expo prebuild --clean -p ios`; it is now `ios/Aogimi.xcodeproj`,
+`com.aogimi.mobile`, scheme `aogimi`. The pre-regeneration `ios/` config files
+(no Pods/build) were backed up to a session scratchpad that does **not** survive
+the session — treat them as gone. Nothing was hand-edited in there, and the
+project regenerates cleanly from `app.json`.
+
+**If the blank screen survives the clean rebuild**, the next probe is inside
+`NavigationContainer` / `react-native-screens` — not JS app code, and not the
+redesign. The instrumentation recipe that produced the table above: patch
+`console.log`s into `node_modules/expo-router/build/global-state/router-store.js`
+around `getRoutes` / `getLinkingConfig` / `getInitialURL`, then read them over
+the Hermes CDP socket (`GET localhost:8081/json/list` → connect to the
+`Bridgeless` target's `webSocketDebuggerUrl` → `Runtime.enable` + `Log.enable`).
+A reconnecting client is needed to survive a relaunch and catch the boot.
+
+## Runtime verification — now possible, mostly still undone
+
+**The app runs as of 2026-08-08** (see the resolved entry above), so this is no
+longer a blocker — but almost nothing has actually been *exercised*. Static
+checks (`npx tsc --noEmit`, `npx eslint .`, `npm run verify:fsrs` 138/138,
+`npm run verify:sky` 9/9, plus a Metro bundle request) cannot tell you whether a
+pixel is right, and from here on the work **is** pixels.
+
+What that has already cost once: the phase-1 restructure left
+`features/dictionary/lib/openDictionary.ts` requiring `../../assets/…` when the
+file had moved a level deeper. `tsc` and eslint cannot see inside a
+`require()` of a `.sqlite` asset, so it passed every check while making the app
+**impossible to bundle at all** — `app/_layout.tsx` imports it. Found only by
+asking Metro for a bundle. Fixed, but the lesson stands.
+
+Confirmed rendering on device: the Midnight tokens, the glass dock (four tabs +
+the lit `--active` pill), and the route restructure.
+
+Still never exercised at runtime:
+- the four-button grade row (`features/sky/study/components/ResultButtons.tsx`)
+- the meaning-slot card forms
+- `ensureLocalSchema()` firing at boot and **wiping the local decks/cards
+  stores** — the keys were verified to match their declaring modules, so it will
+  fire; what it does when it does is unobserved
+- the entire sky renderer (see below)
+- the new Home screen (the app opened on Dictionary, so Home is still unseen)
+- every pushed route in the restructure (`/profile`, `/profile/settings/*`,
+  `/sky/[deckId]`, the two study routes)
+
+### How to run it
+`npx expo run:ios` from `mobile-frontend/aogimi-mobile`. The dev client is
+`com.aogimi.mobile`; the old `com.shirube.mobile` has been uninstalled from the
+simulator and must not come back.
+
+To read the boot without a visible Metro terminal, use the Hermes CDP socket —
+recipe in the diagnosis section above.
+
+## Sky renderer — the specific things to look at first
+
+Ported from `web-frontend/aogimi-web/features/sky/map/`. `lib/` is untouched and
+still bit-identical (`verify:sky` proves it); `hooks/useSkyFrame.ts` is a
+byte-for-byte copy. Everything below is a judgment call made *without being able
+to see the result*, and each is a plausible place for it to look wrong:
+
+- **`alignmentBaseline="central"`** stands in for the web's
+  `dominantBaseline="central"` (`SkyFrames.tsx`). If deck-name/due text sits too
+  high or low in its pill, this is why — the fallback is an explicit
+  `y + fontSize * 0.35` offset.
+- **`transform` strings use commas** (`rotate(a, x, y)`) where the web uses
+  spaces. `react-native-svg` types accept a string; if rotations are ignored,
+  clouds/orbits/wash will be axis-aligned instead of tilted.
+- **`RadialGradient` `fx`/`fy`** carry the glass bead's off-centre highlight. If
+  beads look flat, this is the first suspect.
+- **Strokes are `* u` rather than `vectorEffect="non-scaling-stroke"`.**
+  Mathematically identical (`u` = world-units-per-px), chosen so widths don't
+  depend on Fabric honouring that attribute. If strokes thicken as you zoom in,
+  the multiplication was dropped somewhere.
+- **No entry animations.** The pop / fade / pulse / breathing / cloud churn are
+  CSS keyframes with no RN equivalent; per-star Reanimated nodes were judged not
+  worth it. The web disables all of them under `prefers-reduced-motion`, so a
+  still sky is a supported state — but it is visibly quieter than the web's.
+- **`hovered` became `pressed`** — wired to tap-down so the frame brighten and
+  deck fog still have a question to answer. Needs a real finger to judge.
+- ~~**Nothing imports the map yet**~~ — `SkyStageView` mounts it as of
+  2026-08-08, so every item above is now checkable by opening the Sky tab.
+
+## Dock — done, with three things to check on a device
+
+`features/app-shell/Dock.tsx` (replaces `NotchedNavBar`, deleted) is the web's glass material —
+frosted shell, white-tinted fill, lit lavender pill that slides — on the handoff's four-equal-tab
+geometry. Every alpha is the web's own derivation from `--dock-glass-*`.
+
+- **The inner glow is not reproduced.** `inset 0 0 12px 2px` has no reliable RN equivalent at this
+  version and a soft inward glow is not expressible with plain views. The two 1px edge sheens and
+  the top specular gradient — which is what actually reads as lit glass — are exact.
+- **`BLUR_INTENSITY = 24` is a guess** at the web's `blur 13px`, since expo-blur takes 1–100. This
+  is the single value to tweak if the shell reads too clear or too milky. Android additionally
+  needs `experimentalBlurMethod="dimezisBlurView"`, which is set.
+- ~~**Screen clearance is now wrong on two screens.**~~ **Converted 2026-08-08.** All four tab
+  screens now pad from **`useDockClearance()`** (exported by `Dock.tsx`), which is the only correct
+  figure since a floating dock's footprint depends on the safe-area inset. The rule is now uniform:
+  the static style carries no `paddingBottom`, the call site supplies it from the hook.
+  - `DecksListScreen` — was `spacing.xxl` (32px), too little even for the old 75px bar.
+  - `DictionaryScreen` — was `useBottomTabBarHeight()`, which reports the tab bar's height *in the
+    navigator's layout*; this dock is absolutely positioned inside a `box-none` host, so it can
+    legitimately answer **0**. Both its surfaces were converted: the detail pane's scroll + FAB,
+    **and the results `FlatList`**, which was separately on `spacing.xxl` and so had the last
+    search result sitting under the glass regardless of what the hook answered.
+  - `BooksScreen` — was `spacing.xxl + 80` = 112, which happened to clear it.
+  - Verified: `tsc --noEmit` clean, eslint unchanged (0 errors / 14 warnings), Metro bundles
+    (HTTP 200). **Not verified on a device** — whether the padding *looks* right is still open.
+
+## Token bridge — a deliberate temporary layer
+
+`theme/tokens.ts` holds `palette` (the web's Midnight values under the web's
+names) plus a **derived** legacy `ThemeColors` so the 71 `useColors()` call sites
+keep compiling. It is derived, never a second set of literals, so the two cannot
+drift.
+
+- **Delete `LEGACY` + `ThemeColors` once the last screen is redesigned.** Each
+  screen should drop `useColors()` for `palette` as it is rewritten.
+- **`success` / `warning` are semantically wrong at ~18 call sites.** Both stand
+  in for SRS rank colours — `mastered` *and* `learned` both take `success`, i.e.
+  a four-rank ladder approximated with two colours. The real ladder is
+  `RANK_COLORS` in `features/sky/map/lib/palette.ts`; those sites should import
+  it. Mapped to `gold`/`warn` meanwhile so they read sensibly.
+- **`features/profile/components/AvatarPickerSheet.tsx`** uses vermilion for its
+  selected outline where the web would use `--active`. Legible, not broken.
+- **`features/profile/components/ProfileScreen.tsx`** still has a hardcoded
+  `['#1A1918', '#3A342C']` LinearGradient hero — light-palette leftovers.
+- **`radius` / `spacing` / `fontSize` scales are untouched.** The web's radii are
+  role-named (`--radius-tile` 6 … `--radius-chip` 20) and the handoff's are
+  per-component; mobile still has `sm/md/lg/xl/pill`.
+
+## Fonts — still owed by the owner
+
+`theme/tokens.ts` still points at `@expo-google-fonts/lora` + system faces.
+Needed: **Switzer `.otf`/`.ttf` (400/500/700)** — RN cannot load the web's
+`.woff2` — plus **Noto Sans JP**.
+
+Note the handoff says *M PLUS 1 + Space Mono*, and that is **stale**: the web's
+`ds-tokens.css` records that "the 2026-08 audition retired Space Mono — the
+approved look wears Switzer everywhere". Switzer + Noto Sans JP is correct.
+
+## Home screen — two cards omitted for missing data
+
+`features/home/views/HomeView.tsx` builds five of the handoff's six cards. Left
+out rather than faked:
+
+- **The "STUDIED · 64 days" streak pill.** Nothing computes a streak;
+  `features/profile/lib/statsApi.ts` returns per-state card counts and totals
+  only. Needs a distinct-review-days query the backend does not expose.
+- **Word of the day.** No endpoint and no curated list. Picking from the bundled
+  SQLite needs a deterministic day→word rule and a definition of "worth
+  showing" — a small feature, not a card.
+- The dictionary card shows the search entry rather than the handoff's recent
+  word/kana/gloss rows, because `dictionaryStorage` persists only the query
+  *string*.
+- The sky teaser is a gradient panel carrying the real star count, not a star
+  map — the renderer mounts inside it once the stage screen exists.
+
+## Standing context
+
+- **The mobile handoff is behind the web on six points** and must not be
+  followed literally: two themes, M PLUS 1 / Space Mono, the old `r1–r4` mastery
+  ladder, an opaque dock, a gold primary button, and a night-lightened accent.
+  Settled with the owner: **web palette + web token names win, handoff owns
+  layout.** The full divergence table is in `theme/tokens.ts`'s header.
+- **The grade row stays four buttons**, not the handoff's three — see the
+  interval blow-up documented in `ResultButtons.tsx`.
+- **Naming mismatch — resolved 2026-08-08.** Native is now
+  `ios/Aogimi.xcodeproj` / `com.aogimi.mobile` / scheme `aogimi`, matching
+  `app.json`. `ios/` is generated and untracked by git: never hand-edit it,
+  change `app.json` and re-run `npx expo prebuild --clean -p ios`.
+- **eslint is 0 errors / 14 warnings** here against the web's 3. Drive it down
+  opportunistically when already in a file.
+- **Backend `/api/translate` + `DEEPL_API_KEY` are dead code** now that no client
+  calls them. The owner asked to be consulted before the backend is touched.
+
+---
+
 ## Security
 
-### Move credentials to secure storage
-- Today: username + password are persisted as plaintext JSON in `AsyncStorage`
-  via `loadJSON(CREDS_KEY, ...)` in [lib/auth/AuthContext.tsx:128](lib/auth/AuthContext.tsx#L128).
-- Risk: AsyncStorage is sandboxed per app on iOS/Android, but plaintext
-  creds are still readable by any code running in this app (or any
-  backup pulled from a rooted device). Auth tokens / passwords belong
-  in the OS keystore.
-- Migration path: `expo-secure-store` (Keychain on iOS, EncryptedSharedPreferences
-  on Android). Swap the four read/write sites in AuthContext + delete
-  the existing AsyncStorage entry on first launch after rollout to
-  avoid a window where both stores hold the value.
+### ~~Move credentials to secure storage~~ — not a live issue (checked 2026-08-07)
+- This entry described a `CREDS_KEY` holding username + password as plaintext
+  JSON in AsyncStorage. **No such key exists**, and nothing in the app writes a
+  password to disk. It was removed at some point without the note being
+  retired, so the entry outlived the problem.
+- What auth actually persists today: the refresh token in `expo-secure-store`
+  (Keychain / Android Keystore), the access token mirrored into AsyncStorage as
+  a cold-boot hint — both documented in [lib/auth/tokenStore.ts](lib/auth/tokenStore.ts) —
+  plus a cached `UserProfile` and the last-user-id, neither of which is a
+  secret.
 
 ## Reader
 
@@ -41,70 +422,43 @@ it was parked instead of fixed inline.
 
 ## Decks / cards
 
-### Card review writeback to local store
-- Today: `reviewCard()` in [useStudySession.ts:75](components/decks/hooks/useStudySession.ts#L75)
-  is fire-and-forget. The backend returns updated `state` and
-  `reviewed_times` but the local card store never picks them up. After
-  an app restart, the card reverts to its pre-review state.
-- Marked as "future feature" — relates to the broader SRS flow we want
-  to build out. Once the SRS algorithm is local-first, the loop will
-  look different from today's "POST and forget".
+### ~~Card review writeback to local store~~ — done (2026-08-07)
+- `useStudySession.submit` now applies FSRS-6 locally and persists the result
+  through `applyLocalReview` before the POST goes out, so a review survives a
+  restart. The POST stays best-effort; the local store wins for in-session UX.
+- It writes only when the grade actually counted — see the due gate in
+  [features/sky/study/lib/srs.ts](features/sky/study/lib/srs.ts).
 
-### ⚠️ Structured card fields — mobile is behind the web (2026-08-04)
-
-**Do this next time you're in the decks/cards code.** The web frontend and
-the backend gained three structured card attributes; mobile still writes
-the old flattened shape.
-
-- **What landed** (backend migration `026_card_dictionary_fields.sql`):
-  `cards.jlpt_level smallint NULL` (1 = N1 … 5 = N5, null = unknown) and
-  `cards.meanings text[] NOT NULL DEFAULT '{}'` (the first 3 English
-  glosses, unnumbered). `cards.reading` already existed but the web only
-  *started* populating it with this change.
-- **Where the old shape lives on mobile:** `LocalCard` in
-  [components/decks/types.ts:20](components/decks/types.ts#L20), the
-  create/update payloads in
-  [components/decks/utils/cardPush.ts:31-66](components/decks/utils/cardPush.ts#L31)
-  and [:126-150](components/decks/utils/cardPush.ts#L126), and the
-  flashcard renderer
-  [components/study/ui/CardBody.tsx](components/study/ui/CardBody.tsx).
-- **Why this is not merely cosmetic drift.** `cardPush.ts` is a
-  *local-first offline queue*: cards are written to local storage and
-  POSTed later. So a card created on mobile is persisted with
-  `meanings = '{}'` and `jlpt_level = NULL`, and there is no second pass
-  that ever fills them in. Every mobile-created card is permanently
-  missing the data the web's study surfaces now render — it degrades to
-  the legacy path rather than failing loudly, which is exactly why it'll
-  go unnoticed.
-- **`back` is still required and still written.** The web keeps sending it
-  (derived from reading + meanings by `cardBack()` in the web's
-  `features/dictionary/lib/cardDraft.ts`), so mobile's current payload
-  remains *valid* — nothing is broken today. **Retiring the `back` column
-  is a deliberately deferred follow-up on the web side, and it is the
-  thing that would break mobile card sync**, including cards already
-  sitting in a user's pending queue. Migrate mobile before that lands.
-- **Read surfaces need the same either/or rule the web uses:**
-  `meanings.length > 0 ? <structured list> : <back verbatim>` — never
-  both, because on a new card the two hold the same facts. Do **not**
-  back-parse the legacy `back` blob; hand-made and mobile-made cards
-  follow no convention and a parser mangles them.
-- **JLPT chip:** `jlpt_level == null` means *unknown*, and legacy cards are
-  deliberately indistinguishable from genuinely non-JLPT words. Render
-  nothing — no placeholder, no "N—".
-- Note `user_study_prefs.display.front.jlpt` already exists server-side
-  (default `true`, since migration 022), so a mobile JLPT toggle needs no
-  backend work either.
+### ~~Structured card fields — mobile is behind the web~~ — done (2026-08-07)
+- `CardRecord` / `LocalCard` carry `jlpt_level`, `meanings`, `peak_rank` and
+  `next_due_at`; `createCardLocal` takes a `CardDraft` and `pushCard` sends
+  `jlptLevel` / `meanings` on both create and update.
+- The three inline prefill builders (dictionary screen, reader drawer, reader
+  plain selection) collapsed into
+  [features/dictionary/lib/cardDraft.ts](features/dictionary/lib/cardDraft.ts).
+  They had drifted: 2 glosses vs 3, both `; `-joined into a blob, neither
+  capturing the JLPT tier.
+- `back` is derived by [cardBack()](features/sky/stage/lib/cardBack.ts) at the
+  API boundary and is never an input, so the blob and the structured glosses
+  cannot disagree. **The one rule to keep:** its output format is
+  byte-identical to the web's, so cards from either client read the same.
+- Edit surfaces follow the either/or rule — meaning slots for a card with
+  `meanings`, the legacy free-text `back` for one without, never both, and no
+  back-parsing of the old blob.
 
 ## Theming
 
-### Stamp theme is stripped, shell kept
-- The Stamp theme variants, palette, and decoration atoms were removed
-  intentionally. The general shell (`themes/index.ts`, `useThemedComponent`,
-  `createThemedComponent`, `ThemedDecoration`) is still in place to
-  support future per-screen theme overrides.
-- To add a new theme later: declare it in `theme/tokens.ts` (ThemeName
-  + palette), register it in `themes/index.ts` (empty map is fine),
-  optionally add per-screen variants under `themes/<name>/<...>`.
+### ~~Stamp theme is stripped, shell kept~~ — shell deleted too (2026-08-07)
+- The multi-theme shell is gone: `themes/index.ts`, `useThemedComponent`,
+  `createThemedComponent`, `ThemedDecoration`, the `kanagawa` / `sakura` /
+  `hanami` palettes and the profile's `ThemePicker`. Mobile follows the web,
+  which collapsed to a single pinned look.
+- Nothing had ever registered a variant — every dispatch map was empty — so the
+  deletion changed no pixels.
+- ~~The colours are still the old `default` palette.~~ **Superseded
+  2026-08-08**: `theme/tokens.ts` now holds the web's Midnight palette under the
+  web's token names, plus a derived legacy bridge. See the Phase 6 "Token
+  bridge" section at the top of this file.
 
 ## i18n
 

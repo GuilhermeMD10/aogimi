@@ -7,17 +7,17 @@
 // correct card state because that lives in the local store.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CardRecord } from '../../decks/types';
+import type { CardRecord } from '../../stage/types';
 import {
   applyLocalReview,
   getAllCards,
   getCardsByDeckId,
   revertLocalReview,
-} from '../../decks/utils/cardLocalState';
-import { applyOutcome, type SrsApplyResult } from '../algorithm/srs';
-import { orderByMode } from '../utils/orderByMode';
-import { advanceQueue } from '../utils/reviewQueue';
-import { fetchStudySession, submitReview } from '../utils/studyApi';
+} from '../../stage/lib/cardLocalState';
+import { applyOutcome, isDue, type SrsApplyResult } from '../lib/srs';
+import { orderByMode } from '../lib/orderByMode';
+import { advanceQueue } from '../lib/reviewQueue';
+import { fetchStudySession, submitReview } from '../lib/studyApi';
 import type {
   CardSessionEntry,
   SessionSummary,
@@ -81,6 +81,18 @@ async function resolveSession(
     cards = perDeck.flat().filter((c) => c.pendingOp !== 'delete');
   } else {
     cards = [];
+  }
+
+  // Apply `dueOnly` here too. The backend filters the pool before ordering it,
+  // and this path has to match — otherwise an offline session serves cards that
+  // aren't due, the user grades them, and `applyOutcome`'s due gate discards
+  // every answer. Visible work, no effect, no explanation.
+  //
+  // `isDue` is the same predicate the server's SQL uses, mirrored in `srs.ts`,
+  // so a card offered here is one a later sync will accept a review for.
+  if (spec.dueOnly) {
+    const now = new Date();
+    cards = cards.filter((c) => isDue(c, now));
   }
 
   return orderByMode(cards, spec.mode).slice(0, limit);
@@ -156,24 +168,37 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
       const [current, ...tail] = q;
       if (!current) return q;
 
-      const { next, prior } = applyOutcome(current, outcome);
+      const { applied, next, prior } = applyOutcome(current, outcome);
 
-      // Persist locally so the next session sees the new state; never
-      // marks the card as pending (review sync is a separate concern
-      // from card create/update/delete).
-      void applyLocalReview(current.id, {
-        difficulty:       next.difficulty,
-        stability:        next.stability,
-        last_outcomes:    next.last_outcomes,
-        last_reviewed_at: next.last_reviewed_at,
-        state:            next.state,
-      });
+      // **A review only counts if the card is due.** Grading ahead of schedule
+      // changes nothing at all — no stability, no rank, no schedule, no
+      // `card_reviews` row, no `reviewed_times`. The server enforces this and
+      // is the authority; `applyOutcome` runs the same check so the UI never
+      // promises a promotion the POST is about to refuse, and so we can skip
+      // the round trip entirely rather than send a write we know is a no-op.
+      //
+      // The card still advances through the queue: the user answered it, and
+      // the session should move on. It just doesn't earn anything.
+      if (applied) {
+        // Persist locally so the next session sees the new state; never
+        // marks the card as pending (review sync is a separate concern
+        // from card create/update/delete).
+        void applyLocalReview(current.id, {
+          difficulty:       next.difficulty,
+          stability:        next.stability,
+          last_outcomes:    next.last_outcomes,
+          last_reviewed_at: next.last_reviewed_at,
+          next_due_at:      next.next_due_at,
+          state:            next.state,
+          peak_rank:        next.peak_rank,
+        });
 
-      // Backend update is best-effort; the local store wins for any
-      // in-session UX. A swallowed failure here just means stats are
-      // one event short; the next review on the same card overwrites
-      // the backend card row anyway.
-      submitReview(current.id, outcome).catch(() => {});
+        // Backend update is best-effort; the local store wins for any
+        // in-session UX. A swallowed failure here just means stats are
+        // one event short; the next review on the same card overwrites
+        // the backend card row anyway.
+        submitReview(current.id, outcome).catch(() => {});
+      }
 
       const updatedCurrent: CardRecord = {
         ...current,
@@ -181,8 +206,10 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
         stability:        next.stability,
         last_outcomes:    next.last_outcomes,
         last_reviewed_at: next.last_reviewed_at,
+        next_due_at:      next.next_due_at,
         state:            next.state,
-        reviewed_times:   current.reviewed_times + 1,
+        peak_rank:        next.peak_rank,
+        reviewed_times:   applied ? current.reviewed_times + 1 : current.reviewed_times,
       };
 
       lastReviewRef.current = { card: updatedCurrent, prior };
@@ -224,7 +251,9 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
       stability:        snapshot.prior.stability,
       last_outcomes:    snapshot.prior.last_outcomes,
       last_reviewed_at: snapshot.prior.last_reviewed_at,
+      next_due_at:      snapshot.prior.next_due_at,
       state:            snapshot.prior.state,
+      peak_rank:        snapshot.prior.peak_rank,
       reviewed_times:   snapshot.prior.reviewed_times,
     };
 

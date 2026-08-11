@@ -5,15 +5,20 @@
 
 import { coverGlyphFor } from '@/lib/coverGlyph';
 
+// Reset 2026-08-10: the eight muted earth/slate tones this held were within a
+// few points of each other and of the app's surfaces, so two adjacent decks
+// looked like the same deck and a cover barely separated from the canvas. These
+// eight are simply eight obviously-different hues at cover-appropriate darkness,
+// all safe under white ink — a baseline to recolour, not a scheme.
 const PALETTE = [
-  '#6B5A45',
-  '#2E5D4E',
-  '#263B5C',
-  '#8E3B36',
-  '#4A4E7C',
-  '#7A5B49',
-  '#45566B',
-  '#5B4E7A',
+  '#1d4ed8', // blue
+  '#047857', // green
+  '#b91c1c', // red
+  '#6d28d9', // purple
+  '#0e7490', // teal
+  '#c2410c', // orange
+  '#4338ca', // indigo
+  '#a21caf', // magenta
 ];
 
 function hash(str: string): number {

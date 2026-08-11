@@ -35,7 +35,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { extractMangaPage, type MangaSpineEntry, type MangaSpineHandle } from '@/components/books/utils/mangaPages';
+import { extractMangaPage, type MangaSpineEntry, type MangaSpineHandle } from '@/features/books/lib/mangaPages';
 
 export type MangaScrollViewHandle = {
   scrollToSpine: (spineIndex: number, animated?: boolean) => void;

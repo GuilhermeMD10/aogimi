@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import Feather from '@expo/vector-icons/Feather';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, radius, spacing } from '@/theme/tokens';
-import type { RecentSearchItem } from '../utils/dictionaryStorage';
+import type { RecentSearchItem } from '../lib/dictionaryStorage';
 
 type Props = {
   query: string;
@@ -42,10 +42,7 @@ export function DictEmpty({ query, setQuery, recents, onPickRecent, onSettings, 
         hitSlop={10}
         accessibilityRole="button"
         accessibilityLabel="Dictionary settings"
-        style={({ pressed }) => [
-          styles.settingsBtn,
-          { backgroundColor: pressed ? c.bgSunken : 'transparent', borderColor: c.border },
-        ]}
+        style={[styles.settingsBtn, { borderColor: c.border }]}
       >
         <Feather name="settings" size={16} color={c.fgMuted} />
       </Pressable>
@@ -148,10 +145,7 @@ function RecentsCarousel({
               onPress={() => onPickRecent(it.query)}
               accessibilityRole="button"
               accessibilityLabel={`Search ${it.query}`}
-              style={({ pressed }) => [
-                styles.recentChip,
-                { borderColor, backgroundColor: pressed ? borderColor : bgColor },
-              ]}
+              style={[styles.recentChip, { borderColor, backgroundColor: bgColor }]}
             >
               <Text
                 style={[styles.recentChipText, { color: fgColor, fontFamily: fontFamily.jp }]}
@@ -230,11 +224,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     marginTop: spacing.lg,
     // Subtle elevation — keeps the input bar above the card surface.
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
   },
   searchInput: {
     flex: 1,

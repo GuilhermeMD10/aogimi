@@ -3,7 +3,7 @@ import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius } from '@/theme/tokens';
 import { formatRelativeTime } from '@/lib/relativeTime';
-import type { BookRecord } from '../types';
+import type { BookRecord } from '../../types';
 import { BookCover } from './BookCover';
 
 export function ContinueReadingCard({
@@ -21,10 +21,7 @@ export function ContinueReadingCard({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: c.bgElev, borderColor: c.border, opacity: pressed ? 0.9 : 1 },
-      ]}
+      style={[styles.card, { backgroundColor: c.bgElev, borderColor: c.border }]}
     >
       <Text style={[styles.kicker, { color: c.fgMuted }]}>
         {t('home.continueReading')}

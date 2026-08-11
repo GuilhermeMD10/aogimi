@@ -3,8 +3,8 @@ import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-nativ
 import Pdf, { type PdfRef } from 'react-native-pdf';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily } from '@/theme/tokens';
-import type { BookRecord } from '@/components/books/types';
-import { bookFilePath } from '@/components/books/utils/bookPaths';
+import type { BookRecord } from '@/features/books/types';
+import { bookFilePath } from '@/features/books/lib/bookPaths';
 import { ReaderTopBar } from '../ReaderTopBar';
 import { FloatingBackButton } from '../FloatingBackButton';
 import { PdfDock } from './PdfDock';

@@ -3,7 +3,7 @@ import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import type { SuppressMenuItem } from 'react-native-webview/lib/WebViewTypes';
 import { File } from 'expo-file-system';
-import { bookFilePath } from '@/components/books/utils/bookPaths';
+import { bookFilePath } from '@/features/books/lib/bookPaths';
 import {
   FOLIATE_HTML,
   type BookType,
@@ -13,7 +13,7 @@ import {
   type HighlightStyle,
   type ReaderThemeStyle,
   type ReaderViewMode,
-} from '../../utils/foliateHtml';
+} from '../../lib/foliateHtml';
 
 // foliate-js WebView wrapper. Sole reader path after the epubjs migration.
 
@@ -55,7 +55,7 @@ export type SelectionPayload = {
   rect: { top: number; bottom: number; left: number; right: number };
 };
 
-export type CustomMenuKey = 'dict' | 'card' | 'deepl' | 'highlight' | 'copy';
+export type CustomMenuKey = 'dict' | 'card' | 'highlight' | 'copy';
 export type CustomMenuEvent = { key: CustomMenuKey; selectedText: string };
 
 // OS selection bubble is replaced by NativeSelectionMenu (rendered by the
@@ -224,7 +224,7 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
   const handleCustomMenu = useCallback(
     (e: { nativeEvent: { key: string; label: string; selectedText: string } }) => {
       const { key, selectedText } = e.nativeEvent;
-      if (key === 'dict' || key === 'card' || key === 'deepl' || key === 'highlight' || key === 'copy') {
+      if (key === 'dict' || key === 'card' || key === 'highlight' || key === 'copy') {
         onCustomMenu?.({ key: key as CustomMenuKey, selectedText });
       }
     },

@@ -8,25 +8,22 @@ import {
   Text,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import { useAuth } from '@/lib/auth/AuthContext';
-import { fetchUserBooks } from '@/components/books/utils/booksApi';
-import { fetchUserDecks } from '@/components/decks/utils/decksApi';
-import { updateUserProfile } from '../utils/profileApi';
-import { kamonFor } from '../utils/kamon';
-import { BookCover } from '@/components/books/ui/BookCover';
-import { DeckCover } from '@/components/decks/ui/DeckCover';
-import { Button } from '@/components/ui/Button';
+import { fontFamily, fontSize, palette, radius, spacing } from '@/theme/tokens';
+import { useAuth } from '@/features/auth/providers/AuthContext';
+import { fetchUserBooks } from '@/features/books/lib/booksApi';
+import { fetchUserDecks } from '@/features/sky/stage/lib/decksApi';
+import { updateUserProfile } from '../lib/profileApi';
+import { kamonFor } from '../lib/kamon';
+import { BookCover } from '@/features/books/library/components/BookCover';
+import { DeckCover } from '@/features/sky/stage/components/DeckCover';
+import { Button } from '@/shared/components/Button';
 import { AvatarPickerSheet } from './AvatarPickerSheet';
-// Theme picker hidden for v1 — only Default ships. Restore when premium themes land.
-// import { ThemePicker } from './ThemePicker';
 import { SignedOutProfileScreen } from './SignedOutProfileScreen';
 import { AnimalLabel } from './AnimalLabel';
-import { useStatsCards } from '@/components/stats/hooks/useStatsCards';
+import { useStatsCards } from '../hooks/useStatsCards';
 
 const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const;
 type JlptLevel = (typeof JLPT_LEVELS)[number];
@@ -134,14 +131,11 @@ export function ProfileScreen() {
         contentContainerStyle={{ paddingBottom: spacing.xxl * 2 }}
         showsVerticalScrollIndicator={false}
       >
-        <LinearGradient
-          colors={['#1A1918', '#3A342C']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
-        >
-          <View style={styles.heroPattern} />
-        </LinearGradient>
+        {/* The hero band. Was a corner-to-corner gradient between two hardcoded
+            browns from the retired palette, over an empty `heroPattern` overlay
+            that never got its texture; both went in the 2026-08-10 passes. One
+            flat surface step now. */}
+        <View style={styles.hero} />
 
         <View style={styles.body}>
           <View style={styles.avatarRow}>
@@ -159,7 +153,9 @@ export function ProfileScreen() {
                 hitSlop={6}
                 accessibilityLabel={t('profile.changeAvatar')}
               >
-                <Text style={[styles.avatarEditIcon, { color: c.accentFg }]}>✎</Text>
+                {/* Cream on the vermilion badge — `accentFg` is the dark ink
+                    for pale fills. Same pairing as BrandGlyph. */}
+                <Text style={[styles.avatarEditIcon, { color: palette.accentInk }]}>✎</Text>
               </Pressable>
             </View>
           </View>
@@ -227,21 +223,6 @@ export function ProfileScreen() {
             </Row>
           </Section>
 
-          {/* Theme picker hidden for v1 — only Default ships. */}
-          {/* <Section title={t('profile.theme')}>
-            <ThemePicker />
-          </Section> */}
-
-          <Section title={t('stats.title')}>
-            <Pressable
-              onPress={() => router.push('/stats' as never)}
-              style={[styles.statsLink, { backgroundColor: c.bgElev, borderColor: c.border }]}
-            >
-              <Text style={[styles.statsLinkLabel, { color: c.fg }]}>{t('stats.viewAll')}</Text>
-              <Text style={[styles.statsChevron, { color: c.fgMuted }]}>›</Text>
-            </Pressable>
-          </Section>
-
           <Section title={t('profile.currentlyReading')} subtitle={`${readingBooks.length} book${readingBooks.length !== 1 ? 's' : ''}`}>
             {readingBooks.length === 0 ? (
               <Text style={[styles.empty, { color: c.fgMuted }]}>
@@ -293,7 +274,7 @@ export function ProfileScreen() {
                 {decks.slice(0, 4).map((d) => (
                   <Pressable
                     key={d.id}
-                    onPress={() => router.push(`/decks/${d.id}`)}
+                    onPress={() => router.push(`/sky/${d.id}`)}
                     style={[styles.deckRow, { backgroundColor: c.bgElev, borderColor: c.border }]}
                   >
                     <DeckCover deckKey={d.id} deckName={d.name} width={36} height={36} cornerRadius={6} glyphSize={18} />
@@ -313,7 +294,18 @@ export function ProfileScreen() {
             )}
           </Section>
 
+          {/* Settings left the dock in the 2026-08 route restructure and is
+              pushed from here — this is its only entry point. */}
           <View style={{ marginTop: spacing.lg }}>
+            <Button
+              label={t('settings.title')}
+              variant="secondary"
+              onPress={() => router.push('/profile/settings')}
+              full
+            />
+          </View>
+
+          <View style={{ marginTop: spacing.md }}>
             <Button
               label={t('profile.signOut')}
               variant="secondary"
@@ -396,11 +388,7 @@ const styles = StyleSheet.create({
     height: HERO_HEIGHT,
     width: '100%',
     overflow: 'hidden',
-  },
-  heroPattern: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.12,
-    // A very faint repeating texture done via border; leave empty for now.
+    backgroundColor: palette.paper,
   },
   body: { paddingHorizontal: 24, marginTop: -44 },
   avatarRow: { flexDirection: 'row', alignItems: 'flex-end' },
@@ -505,14 +493,4 @@ const styles = StyleSheet.create({
   },
   deckTitle: { fontSize: fontSize.sm + 1, fontWeight: '600' },
   deckDesc: { fontSize: fontSize.xs + 1, marginTop: 2 },
-  statsLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  statsLinkLabel: { fontSize: fontSize.md, fontWeight: '500' },
-  statsChevron: { fontSize: 24, lineHeight: 26 },
 });

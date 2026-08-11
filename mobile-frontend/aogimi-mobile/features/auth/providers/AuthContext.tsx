@@ -9,15 +9,15 @@ import {
   type ReactNode,
 } from 'react';
 import { loadJSON, saveJSON } from '@/lib/storage';
-import { fetchUserById } from '@/components/profile/utils/profileApi';
-import { loginUser, registerUser, logoutUser } from './authApi';
-import { loadTokens, setTokens, clearTokens, getRefreshToken } from './tokenStore';
-import type { UserProfile } from '@/components/profile/types';
+import { fetchUserById } from '@/features/profile/lib/profileApi';
+import { loginUser, registerUser, logoutUser } from '../lib/authApi';
+import { loadTokens, setTokens, clearTokens, getRefreshToken } from '@/lib/tokenStore';
+import type { UserProfile } from '@/features/profile/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { reconcileBooks, syncPending } from '@/components/books/utils/reconcileBooks';
-import { pushAllReaderState } from '@/components/books/utils/readerStatePush';
+import { reconcileBooks, syncPending } from '@/features/books/lib/reconcileBooks';
+import { pushAllReaderState } from '@/features/books/lib/readerStatePush';
 import { subscribeOnlineTransition } from '@/lib/network/network';
-import { wipeUserData } from './wipeUserData';
+import { wipeUserData } from '../lib/wipeUserData';
 
 type AuthContextValue = {
   /** `signed-out` = no backend account (or signed out). The app is
@@ -27,7 +27,9 @@ type AuthContextValue = {
   status: 'loading' | 'signed-in' | 'signed-out';
   user: UserProfile | null;
   signIn: (username: string, password: string) => Promise<void>;
-  signUp: (username: string, password: string) => Promise<void>;
+  /** `email` is required by the backend's `registerSchema`; login stays
+   *  username-keyed. See `registerUser` — the endpoint is currently closed. */
+  signUp: (username: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
   setUser: (user: UserProfile) => void;
@@ -227,8 +229,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('signed-in');
   }, []);
 
-  const signUp = useCallback(async (username: string, password: string) => {
-    const { user: fresh, accessToken, refreshToken } = await registerUser(username, password);
+  const signUp = useCallback(async (username: string, email: string, password: string) => {
+    const { user: fresh, accessToken, refreshToken } = await registerUser(username, email, password);
     await setTokens({ access: accessToken, refresh: refreshToken });
     await maybeWipeOnAccountSwitch(fresh);
     await saveJSON(AUTH_STORAGE_KEYS.USER_CACHE, fresh);

@@ -10,7 +10,10 @@ type Props = {
   placeholder?: string;
   secure?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  autoComplete?: 'username' | 'password' | 'new-password' | 'off';
+  autoComplete?: 'username' | 'password' | 'new-password' | 'email' | 'off';
+  /** Only the variants a form here actually asks for — `email-address` drives
+   *  the `@`-bearing keyboard on the sign-up screen. */
+  keyboardType?: 'default' | 'email-address';
   returnKeyType?: 'done' | 'next' | 'go' | 'search';
   onSubmitEditing?: () => void;
 };
@@ -23,6 +26,7 @@ export function TextField({
   secure,
   autoCapitalize = 'none',
   autoComplete,
+  keyboardType,
   returnKeyType,
   onSubmitEditing,
 }: Props) {
@@ -46,6 +50,7 @@ export function TextField({
           secureTextEntry={hidden}
           autoCapitalize={autoCapitalize}
           autoComplete={autoComplete}
+          keyboardType={keyboardType}
           autoCorrect={false}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}

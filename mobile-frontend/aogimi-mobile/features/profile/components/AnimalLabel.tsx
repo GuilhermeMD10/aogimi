@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, radius } from '@/theme/tokens';
-import { getAnimalTier } from '@/components/stats/utils/animalLabel';
+import { getAnimalTier } from '../lib/animalLabel';
 
 type Props = {
   mastered: number;

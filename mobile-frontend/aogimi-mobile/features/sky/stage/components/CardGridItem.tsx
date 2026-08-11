@@ -1,7 +1,10 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius } from '@/theme/tokens';
-import { SyncPill } from '@/components/books/ui/SyncPill';
+import { fontFamily, fontSize, palette, radius } from '@/theme/tokens';
+import { RANK_COLORS } from '@/features/sky/map/lib/palette';
+import { SyncPill } from '@/features/books/library/components/SyncPill';
+import { MIX_ORDER } from '../lib/masteryMix';
+import { displayedRank } from '../../lib/fsrs';
 import type { CardState, LocalCard } from '../types';
 
 type Props = {
@@ -11,15 +14,21 @@ type Props = {
 
 export function CardGridItem({ card, onPress }: Props) {
   const c = useColors();
-  const chip = chipColors(card.state, c);
+  // **Draw the displayed rank, not `state`.** Once a card has reached Learned
+  // its rank never visibly falls again: the badge is a record of what the user
+  // achieved, and taking it away after one bad morning punishes them for the
+  // algorithm's own (correct) pessimism about a lapse. Below Learned the two
+  // are identical — there is no achievement yet to protect.
+  //
+  // The lost stability isn't hidden, it just shows on a different axis:
+  // retrievability, which the sky will draw as star brightness.
+  const rank = displayedRank(card.peak_rank, card.state);
+  const chip = chipColors(rank);
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.root,
-        { backgroundColor: c.bgElev, borderColor: c.border, opacity: pressed ? 0.9 : 1 },
-      ]}
+      style={[styles.root, { backgroundColor: c.bgElev, borderColor: c.border }]}
     >
       {/* Synced cards don't display any badge — only the unsynced ones
           get a small blue dot to nudge the user toward Sync now. */}
@@ -29,7 +38,7 @@ export function CardGridItem({ card, onPress }: Props) {
         </View>
       )}
       <View style={[styles.chip, { backgroundColor: chip.bg }]}>
-        <Text style={[styles.chipText, { color: chip.fg }]}>{card.state}</Text>
+        <Text style={[styles.chipText, { color: chip.fg }]}>{rank}</Text>
       </View>
       <Text style={[styles.front, { color: c.fg }]} numberOfLines={1}>
         {card.front}
@@ -43,22 +52,22 @@ export function CardGridItem({ card, onPress }: Props) {
   );
 }
 
-function chipColors(
-  state: CardState,
-  c: {
-    accentSoft: string;
-    fg: string;
-    warning: string;
-    success: string;
-  },
-): { bg: string; fg: string } {
-  // Memory tiers: amber for "warming up", light green once it sticks,
-  // strong green when mastered. New cards use the neutral accent so
-  // they don't visually compete with reviewed cards.
-  if (state === 'mastered') return { bg: 'rgba(59, 122, 64, 0.20)', fg: c.success };
-  if (state === 'learned')  return { bg: 'rgba(59, 122, 64, 0.10)', fg: c.success };
-  if (state === 'seen')     return { bg: 'rgba(242, 179, 61, 0.18)', fg: c.warning };
-  return { bg: c.accentSoft, fg: c.fg };
+/**
+ * The rank chip's colours.
+ *
+ * **Reset 2026-08-10.** This used to mix its own greens and ambers at 10–20%
+ * alpha, which had two problems: the fills were invisible on device, and the
+ * four ranks were being approximated with two hues (`learned` and `mastered`
+ * both took `success`) so two of them looked identical anyway.
+ *
+ * Now it reads `RANK_COLORS` — the sky's own ladder, indexed by `MIX_ORDER`
+ * exactly as `MixBar`, `StageLedger` and `CardDetailSheet` already do, so the
+ * grid can never disagree with the star map or the bars. Four ranks, four
+ * plainly different colours, on the one opaque sunken fill.
+ */
+function chipColors(state: CardState): { bg: string; fg: string } {
+  const i = MIX_ORDER.indexOf(state);
+  return { bg: palette.paperTile, fg: RANK_COLORS[i] ?? palette.ink };
 }
 
 const styles = StyleSheet.create({

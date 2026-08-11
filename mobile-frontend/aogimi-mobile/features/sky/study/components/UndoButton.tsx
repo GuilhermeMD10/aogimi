@@ -20,10 +20,7 @@ export function UndoButton({ onPress, disabled }: Props) {
       onPress={onPress}
       disabled={disabled}
       hitSlop={10}
-      style={({ pressed }) => [
-        styles.btn,
-        { opacity: disabled ? 0.3 : pressed ? 0.55 : 0.75 },
-      ]}
+      style={[styles.btn, { opacity: disabled ? 0.3 : 1 }]}
     >
       <Text style={[styles.label, { color: c.fgMuted }]}>
         {`↶  ${t('study.undo')}`}

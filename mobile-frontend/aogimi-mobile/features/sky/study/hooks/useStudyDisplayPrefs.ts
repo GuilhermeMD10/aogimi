@@ -18,7 +18,7 @@ import {
   presetPrefs,
   pushRemote,
   saveLocal,
-} from '../utils/displayPrefs';
+} from '../lib/displayPrefs';
 import type { BackPrefs, DisplayPrefs, FrontPrefs, Preset } from '../types';
 
 export type StudyDisplayPrefsApi = {

@@ -7,8 +7,8 @@ import {
   type ReaderFont,
   type ReaderPrefs,
   type ReaderTheme,
-} from '../../utils/readerStorage';
-import type { ReaderDirection, ReaderLayout } from '../../utils/readerLayout';
+} from '../../lib/readerStorage';
+import type { ReaderDirection, ReaderLayout } from '../../lib/readerLayout';
 
 // Pure settings content (font / size / line / theme + flow/view segs).
 // The dock provides the surrounding frame, handle, and animation.
@@ -241,10 +241,7 @@ function Stepper({
         onPress={onMinus}
         disabled={minusDisabled}
         hitSlop={6}
-        style={({ pressed }) => [
-          styles.stepperBtn,
-          { opacity: minusDisabled ? 0.3 : pressed ? 0.6 : 1 },
-        ]}
+        style={[styles.stepperBtn, { opacity: minusDisabled ? 0.3 : 1 }]}
       >
         <Feather name="minus" size={14} color={c.fgMuted} />
       </Pressable>
@@ -255,10 +252,7 @@ function Stepper({
         onPress={onPlus}
         disabled={plusDisabled}
         hitSlop={6}
-        style={({ pressed }) => [
-          styles.stepperBtn,
-          { opacity: plusDisabled ? 0.3 : pressed ? 0.6 : 1 },
-        ]}
+        style={[styles.stepperBtn, { opacity: plusDisabled ? 0.3 : 1 }]}
       >
         <Feather name="plus" size={14} color={c.fg} />
       </Pressable>

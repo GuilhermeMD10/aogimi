@@ -2,24 +2,25 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Screen } from '@/components/ui/Screen';
+import { Screen } from '@/shared/components/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import type { BookRecord, PendingPayload } from '../types';
-import { useAuth } from '@/lib/auth/AuthContext';
-import { bookFileExists, renameBookFile } from '../utils/bookPaths';
-import { importEpub } from '../utils/bookFiles';
-import { markPending } from '../utils/bookLocalState';
-import { pushOneBook } from '../utils/bookPush';
-import { useBooks } from '../hooks/useBooks';
+import type { BookRecord, PendingPayload } from '../../types';
+import { useAuth } from '@/features/auth/providers/AuthContext';
+import { bookFileExists, renameBookFile } from '../../lib/bookPaths';
+import { importEpub } from '../../lib/bookFiles';
+import { markPending } from '../../lib/bookLocalState';
+import { pushOneBook } from '../../lib/bookPush';
+import { useBooks } from '../../hooks/useBooks';
 import { useOnline } from '@/lib/network/network';
 import { ContinueReadingCard } from './ContinueReadingCard';
 import { BookGridItem } from './BookGridItem';
 import { BookActionsSheet } from './BookActionsSheet';
-import { runFullSync, fullSyncActivityCount, formatFullSyncDetails } from '../utils/runFullSync';
-import { findCachedBookByFileHash } from '../utils/syncedBookCache';
-import { CloudSyncIcon } from '@/components/icons/sync-icons';
+import { runFullSync, fullSyncActivityCount, formatFullSyncDetails } from '../../lib/runFullSync';
+import { findCachedBookByFileHash } from '../../lib/syncedBookCache';
+import { CloudSyncIcon } from '@/shared/icons/sync-icons';
+import { useDockClearance } from '@/features/app-shell/Dock';
 
 const AVAILABLE_ONLY_KEY = 'books_filter_available_only_v1';
 
@@ -27,6 +28,8 @@ export function BooksScreen() {
   const c = useColors();
   const t = useT();
   const router = useRouter();
+  // The dock floats, so the room it needs is its height plus the safe-area offset — see the hook.
+  const dockClearance = useDockClearance();
   const { user, status } = useAuth();
   // Hides backend-only affordances (Sync now) for users without an
   // account — matches the same set the previous `isGuest` flag covered
@@ -265,7 +268,7 @@ export function BooksScreen() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, { paddingBottom: dockClearance }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.fg} />}
           showsVerticalScrollIndicator={false}
         >
@@ -371,7 +374,9 @@ const styles = StyleSheet.create({
   },
   plus: { fontSize: 22, lineHeight: 24, fontWeight: '400' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { paddingBottom: spacing.xxl + 80 },
+  // paddingBottom comes from useDockClearance() at the call site — the dock floats, so the figure
+  // depends on the safe-area inset and can't be a constant here.
+  scroll: {},
   error: {
     fontSize: fontSize.sm,
     marginBottom: spacing.md,

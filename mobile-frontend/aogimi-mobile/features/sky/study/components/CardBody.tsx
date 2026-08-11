@@ -1,9 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
-import type { CardRecord } from '../../decks/types';
+import type { CardRecord } from '../../stage/types';
 import type { DisplayPrefs } from '../types';
-import { cloze } from '../utils/clozeContext';
+import { cloze } from '../lib/clozeContext';
 
 type Props = {
   card: CardRecord;

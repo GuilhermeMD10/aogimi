@@ -8,18 +8,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { BottomSheet } from '@/components/ui/BottomSheet';
+import { BottomSheet } from '@/shared/components/BottomSheet';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import { deleteBook, updateBookTitle } from '../utils/booksApi';
-import { deleteBookFile } from '../utils/bookPaths';
-import { evictBookCache } from '../utils/mangaPages';
-import { deleteCoverFor } from '../utils/epubCover';
-import { clearBookStorage } from '@/components/reader/utils/readerStorage';
-import { clearLocalProgress } from '../utils/booksLocalCache';
-import { syncOneBookOnDemand } from '../utils/bookPush';
-import { useAuth } from '@/lib/auth/AuthContext';
-import type { BookRecord } from '../types';
+import { deleteBook, updateBookTitle } from '../../lib/booksApi';
+import { deleteBookFile } from '../../lib/bookPaths';
+import { evictBookCache } from '../../lib/mangaPages';
+import { deleteCoverFor } from '../../lib/epubCover';
+import { clearBookStorage } from '@/features/books/reader/lib/readerStorage';
+import { clearLocalProgress } from '../../lib/booksLocalCache';
+import { syncOneBookOnDemand } from '../../lib/bookPush';
+import { useAuth } from '@/features/auth/providers/AuthContext';
+import type { BookRecord } from '../../types';
 
 type Props = {
   book: BookRecord | null;
@@ -254,10 +254,7 @@ function ActionRow({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
-        styles.actionRow,
-        { borderColor: border, opacity: pressed || disabled ? 0.55 : 1 },
-      ]}
+      style={[styles.actionRow, { borderColor: border, opacity: disabled ? 0.55 : 1 }]}
     >
       <Text style={[styles.actionText, { color: tint }]}>{label}</Text>
     </Pressable>

@@ -1,7 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
-import { fontSize, radius } from '@/theme/tokens';
-import { createThemedComponent } from '@/theme/createThemedComponent';
+import { fontSize, palette, radius } from '@/theme/tokens';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
 
@@ -16,10 +15,10 @@ export type ButtonProps = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Default — soft pill
+// Soft pill
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DefaultButton({
+export function Button({
   label,
   onPress,
   variant = 'primary',
@@ -31,10 +30,14 @@ function DefaultButton({
   const c = useColors();
   const isDisabled = disabled || loading;
 
+  // Primary reads `palette.btn` / `btnInk` directly, not the legacy `accent` /
+  // `accentFg` pair: `accent` is the app's *emphasis* hue, so wiring primary to
+  // it would make every primary button in the app accent-coloured. The primary
+  // action is the `btn` pair, whatever that pair ends up being.
   const bg =
-    variant === 'primary' ? c.accent : variant === 'secondary' ? c.bgElev : 'transparent';
+    variant === 'primary' ? palette.btn : variant === 'secondary' ? c.bgElev : 'transparent';
   const fg =
-    variant === 'primary' ? c.accentFg : variant === 'secondary' ? c.fg : c.fg;
+    variant === 'primary' ? palette.btnInk : variant === 'secondary' ? c.fg : c.fg;
   const borderColor = variant === 'secondary' ? c.borderStrong : 'transparent';
   const borderWidth = variant === 'secondary' ? StyleSheet.hairlineWidth : 0;
 
@@ -42,13 +45,13 @@ function DefaultButton({
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
-      style={({ pressed }) => [
+      style={[
         defaultStyles.base,
         {
           backgroundColor: bg,
           borderColor,
           borderWidth,
-          opacity: isDisabled ? 0.55 : pressed ? 0.85 : 1,
+          opacity: isDisabled ? 0.55 : 1,
           width: full ? '100%' : undefined,
         },
         style,
@@ -79,13 +82,3 @@ const defaultStyles = StyleSheet.create({
 // Stamp — sumi border + hard offset shadow + crisp 2px corners + display serif
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Public — single Button entry point that swaps implementations by theme.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const Button = createThemedComponent<ButtonProps>(
-  DefaultButton,
-  {},
-  'Button',
-);

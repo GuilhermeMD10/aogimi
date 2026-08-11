@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Easing, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily } from '@/theme/tokens';
-import type { MangaPageDir, ReaderDirection, ReaderLayout } from '../utils/readerLayout';
-import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../utils/readerStorage';
-import type { EpubTocItem } from '../utils/foliateHtml';
+import type { MangaPageDir, ReaderDirection, ReaderLayout } from '../lib/readerLayout';
+import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../lib/readerStorage';
+import type { EpubTocItem } from '../lib/foliateHtml';
 import { TocPane } from './dock/TocPane';
 import { AnnotationsPane } from './dock/AnnotationsPane';
 import { SettingsPane } from './dock/SettingsPane';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// One container, five visual modes. The dock owns its own mode, animates the
-// container shape (width / height / position / radius) between modes, and
+// One container, five visual modes. The dock owns its own mode, takes the
+// container shape (width / height / position / radius) from that mode, and
 // renders the appropriate content pane inside.
 //
 //   pill         · idle grip, small centered capsule
@@ -23,6 +23,14 @@ import { SettingsPane } from './dock/SettingsPane';
 //
 // Step-back semantics: swipe-down on the handle, tap on the backdrop, or tap
 // outside the dock collapses one level (pane → toolbar → pill).
+//
+// **Strip-to-basics 2026-08-10.** The container used to interpolate its four
+// box values over 200ms, fade the backdrop, cross-fade the content pane and
+// spring the drag back. All of it is gone — mode changes are instant, the
+// backdrop is a flat scrim that is either there or not. Every gesture still
+// works (swipe-down, backdrop tap, outside tap); only the motion went. The
+// second `renderMode` state went with the cross-fade — `CONTENT_FADE_MS` was
+// already 0, so the pane swap was instant even before this.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type DockMode = 'pill' | 'toolbar' | 'toc' | 'annotations' | 'settings';
@@ -102,9 +110,6 @@ const MODES: Record<
   settings: { width: SHEET_WIDTH, height: PANE_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: false },
 };
 
-const ANIM_MS = 200;
-const CONTENT_FADE_MS = 0;
-
 // Swipe-down close thresholds.
 const SWIPE_CLOSE_VELOCITY = 0.6;
 const SWIPE_CLOSE_DISTANCE = 60;
@@ -112,79 +117,13 @@ const SWIPE_CLOSE_DISTANCE = 60;
 export function ReaderBottomDock(props: Props) {
   const c = useColors();
 
-  // Target mode the user has requested. `renderMode` is what's currently
-  // visible — diverges from `mode` only during the content cross-fade.
   const [mode, setMode] = useState<DockMode>('pill');
-  const [renderMode, setRenderMode] = useState<DockMode>('pill');
+  const box = MODES[mode];
 
   const onModeChange = props.onModeChange;
   useEffect(() => {
     onModeChange?.(mode);
   }, [mode, onModeChange]);
-
-  // ── Animated values ──────────────────────────────────────────────────
-  const widthA = useRef(new Animated.Value(MODES.pill.width)).current;
-  const heightA = useRef(new Animated.Value(MODES.pill.height)).current;
-  const bottomA = useRef(new Animated.Value(MODES.pill.bottom)).current;
-  const radiusA = useRef(new Animated.Value(MODES.pill.radius)).current;
-  const backdropA = useRef(new Animated.Value(0)).current;
-  const dragY = useRef(new Animated.Value(0)).current;
-  const contentA = useRef(new Animated.Value(1)).current;
-
-  // ── Mode → animation ─────────────────────────────────────────────────
-  useEffect(() => {
-    const target = MODES[mode];
-    Animated.parallel([
-      Animated.timing(widthA, {
-        toValue: target.width,
-        duration: ANIM_MS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.timing(heightA, {
-        toValue: target.height,
-        duration: ANIM_MS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.timing(bottomA, {
-        toValue: target.bottom,
-        duration: ANIM_MS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.timing(radiusA, {
-        toValue: target.radius,
-        duration: ANIM_MS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.timing(backdropA, {
-        toValue: target.backdrop ? 0.35 : 0,
-        duration: ANIM_MS,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Content cross-fade: fade out → swap renderMode → fade back in.
-    if (renderMode !== mode) {
-      Animated.timing(contentA, {
-        toValue: 0,
-        duration: CONTENT_FADE_MS,
-        useNativeDriver: true,
-      }).start(() => {
-        setRenderMode(mode);
-        Animated.timing(contentA, {
-          toValue: 1,
-          duration: CONTENT_FADE_MS,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start();
-      });
-    }
-    // Exclude renderMode/contentA — re-running on the swap would loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
 
   // ── Step-back ────────────────────────────────────────────────────────
   // Single rule: collapse one level. Pane → toolbar → pill.
@@ -200,39 +139,23 @@ export function ReaderBottomDock(props: Props) {
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 4 && gs.dy > 0,
-      onPanResponderMove: (_, gs) => {
-        if (gs.dy > 0) dragY.setValue(gs.dy);
-      },
       onPanResponderRelease: (_, gs) => {
-        const shouldClose = gs.vy > SWIPE_CLOSE_VELOCITY || gs.dy > SWIPE_CLOSE_DISTANCE;
-        Animated.spring(dragY, {
-          toValue: 0,
-          useNativeDriver: false,
-          bounciness: 0,
-          speed: 18,
-        }).start();
-        if (shouldClose) stepBack();
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(dragY, {
-          toValue: 0,
-          useNativeDriver: false,
-          bounciness: 0,
-          speed: 18,
-        }).start();
+        if (gs.vy > SWIPE_CLOSE_VELOCITY || gs.dy > SWIPE_CLOSE_DISTANCE) stepBack();
       },
     }),
   ).current;
 
   const expanded = mode !== 'pill';
-  const showBackdrop = MODES[mode].backdrop;
+  const showBackdrop = box.backdrop;
 
   return (
     <View style={styles.host} pointerEvents="box-none">
       {/* Backdrop — visible only for toc/annotations. Tap dismisses. */}
-      <Animated.View pointerEvents={showBackdrop ? 'auto' : 'none'} style={[styles.backdrop, { opacity: backdropA }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={stepBack} />
-      </Animated.View>
+      {showBackdrop && (
+        <View style={styles.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={stepBack} />
+        </View>
+      )}
 
       {/* Outside-tap zone — fills the area above the dock when expanded
           without a backdrop (toolbar / settings). */}
@@ -240,18 +163,17 @@ export function ReaderBottomDock(props: Props) {
         <Pressable style={StyleSheet.absoluteFill} onPress={stepBack} accessibilityLabel="Close reader controls" />
       )}
 
-      {/* Animated container. */}
-      <Animated.View
+      {/* The container. */}
+      <View
         style={[
           styles.container,
           {
             backgroundColor: c.bgElev,
             borderColor: c.border,
-            width: widthA,
-            height: heightA,
-            bottom: bottomA,
-            borderRadius: radiusA,
-            transform: [{ translateY: dragY }],
+            width: box.width,
+            height: box.height,
+            bottom: box.bottom,
+            borderRadius: box.radius,
           },
         ]}
       >
@@ -261,9 +183,9 @@ export function ReaderBottomDock(props: Props) {
           </View>
         )}
 
-        <Animated.View style={[styles.contentWrap, { opacity: contentA }]}>
-          {renderMode === 'pill' && <PillContent colors={c} onPress={() => setMode('toolbar')} />}
-          {renderMode === 'toolbar' && (
+        <View style={styles.contentWrap}>
+          {mode === 'pill' && <PillContent colors={c} onPress={() => setMode('toolbar')} />}
+          {mode === 'toolbar' && (
             <ToolbarContent
               colors={c}
               bookmarked={props.bookmarked}
@@ -283,7 +205,7 @@ export function ReaderBottomDock(props: Props) {
               onChangeLayout={props.onChangeLayout}
             />
           )}
-          {renderMode === 'toc' && (
+          {mode === 'toc' && (
             <TocPane
               toc={props.toc}
               onNavigate={(href) => {
@@ -292,7 +214,7 @@ export function ReaderBottomDock(props: Props) {
               }}
             />
           )}
-          {renderMode === 'annotations' && (
+          {mode === 'annotations' && (
             <AnnotationsPane
               bookmarks={props.bookmarks}
               highlights={props.highlights}
@@ -308,7 +230,7 @@ export function ReaderBottomDock(props: Props) {
               onDeleteHighlight={props.onDeleteHighlight}
             />
           )}
-          {renderMode === 'settings' && (
+          {mode === 'settings' && (
             <SettingsPane
               prefs={props.prefs}
               layout={props.layout}
@@ -317,8 +239,8 @@ export function ReaderBottomDock(props: Props) {
               onLayoutChange={props.onChangeLayout}
             />
           )}
-        </Animated.View>
-      </Animated.View>
+        </View>
+      </View>
     </View>
   );
 }
@@ -463,7 +385,7 @@ function NavCell({
       onPress={onPress}
       accessibilityLabel={ariaLabel}
       hitSlop={8}
-      style={({ pressed }) => [styles.navCell, { backgroundColor: c.bgSunken, opacity: pressed ? 0.7 : 1 }]}
+      style={[styles.navCell, { backgroundColor: c.bgSunken }]}
     >
       <Feather name={icon} size={20} color={c.fg} />
     </Pressable>
@@ -489,7 +411,7 @@ function ToolCol({
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={4}
-      style={({ pressed }) => [styles.tool, active && { backgroundColor: c.bgSunken }, pressed && { opacity: 0.7 }]}
+      style={[styles.tool, active && { backgroundColor: c.bgSunken }]}
     >
       <Feather name={icon} size={18} color={active ? c.fg : c.fgMuted} />
       <Text
@@ -526,11 +448,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 8,
   },
   contentWrap: { flex: 1 },
 

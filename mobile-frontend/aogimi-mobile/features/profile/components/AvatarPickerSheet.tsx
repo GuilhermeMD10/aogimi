@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { BottomSheet } from '@/components/ui/BottomSheet';
-import { Button } from '@/components/ui/Button';
+import { BottomSheet } from '@/shared/components/BottomSheet';
+import { Button } from '@/shared/components/Button';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import { KAMON_SET } from '../utils/kamon';
+import { KAMON_SET } from '../lib/kamon';
 
 type Props = {
   visible: boolean;
@@ -89,9 +89,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
   },
   glyph: { fontFamily: fontFamily.jp, fontSize: 28, fontWeight: '500' },
   footer: {

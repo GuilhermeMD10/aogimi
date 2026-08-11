@@ -11,6 +11,19 @@ type Props = {
 
 const DEFAULT_LIMIT = 3;
 
+/**
+ * Difficulty at or above which a card counts as "hard" without having been
+ * missed this session, on FSRS-6's [1, 10] scale. `D0(Again)` = 6.41, so 6.0
+ * reads as "this card has taken at least one bad grade at some point" without
+ * the session needing to contain that grade.
+ *
+ * **The old threshold was 0.5 on a [0.05, 0.95] scale** — the same *idea*, not
+ * a convertible number. Left unchanged through the FSRS-6 port it would have
+ * sat below the new minimum of 1.0, so every card would have qualified and the
+ * "hardest" list would have quietly become "all cards, in difficulty order".
+ */
+const HARD_DIFFICULTY = 6.0;
+
 // Top N cards the user struggled with this session. Sort: Again count
 // desc, then post-review difficulty desc. Cards with zero Agains can
 // still surface if their difficulty climbed (e.g. multiple Hards on a
@@ -23,11 +36,14 @@ export function HardestInSessionList({ entries, limit = DEFAULT_LIMIT }: Props) 
     .map((e) => ({
       entry: e,
       agains: e.outcomes.filter((o) => o === 'again').length,
+      // Null difficulty (never reviewed, or graded while not due) sorts last
+      // and never clears the threshold — "not measured" is not "easy".
+      difficulty: e.finalDifficulty ?? 0,
     }))
-    .filter((x) => x.agains > 0 || x.entry.finalDifficulty >= 0.50)
+    .filter((x) => x.agains > 0 || x.difficulty >= HARD_DIFFICULTY)
     .sort((a, b) => {
       if (a.agains !== b.agains) return b.agains - a.agains;
-      return b.entry.finalDifficulty - a.entry.finalDifficulty;
+      return b.difficulty - a.difficulty;
     })
     .slice(0, limit);
 

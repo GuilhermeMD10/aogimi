@@ -5,9 +5,9 @@
 // Keep this in lockstep with the backend implementation — both runtimes
 // need to agree on what "oldest first" means for the same set of cards.
 
-import type { CardRecord } from '../../decks/types';
+import type { CardRecord } from '../../stage/types';
 import type { StudyMode } from '../types';
-import { hardestSortKey } from '../algorithm/srs';
+import { hardestSortKey } from '../lib/srs';
 
 const MS_PER_DAY = 86_400_000;
 const OLDEST_ONLY_CUTOFF_DAYS = 7;

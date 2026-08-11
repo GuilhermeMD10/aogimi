@@ -45,12 +45,12 @@ export async function getDeckCardCount(deckId: string): Promise<number> {
 export type DeckCardStats = {
   total: number;
   new: number;
-  seen: number;
+  met: number;
   learned: number;
   mastered: number;
 };
 
-const EMPTY_STATS: DeckCardStats = { total: 0, new: 0, seen: 0, learned: 0, mastered: 0 };
+const EMPTY_STATS: DeckCardStats = { total: 0, new: 0, met: 0, learned: 0, mastered: 0 };
 
 /**
  * Per-state breakdown for a deck. Drives the small state-counts row
@@ -63,7 +63,7 @@ export async function getDeckCardStats(deckId: string): Promise<DeckCardStats> {
     if (c.pendingOp === 'delete') return acc;
     acc.total += 1;
     if (c.state === 'new') acc.new += 1;
-    else if (c.state === 'seen') acc.seen += 1;
+    else if (c.state === 'met') acc.met += 1;
     else if (c.state === 'learned') acc.learned += 1;
     else if (c.state === 'mastered') acc.mastered += 1;
     return acc;
@@ -177,11 +177,20 @@ export async function hydrateFromBackend(
 export async function applyLocalReview(
   cardId: string,
   srsUpdate: {
-    difficulty: number;
-    stability: number;
+    difficulty: number | null;
+    stability: number | null;
     last_outcomes: string;
-    last_reviewed_at: string;
+    /** Non-null in practice on every call — a review sets it — but typed as the
+     *  SRS layer produces it rather than narrowed at the call site. */
+    last_reviewed_at: string | null;
+    /** Server-authoritative in principle, but written here too: an offline
+     *  session has no server to ask, and the next session's due filter reads
+     *  this. A later sync overwrites it with the backend's value. */
+    next_due_at: string | null;
     state: CardRecord['state'];
+    /** High-water mark — only ever climbs. Passed in rather than recomputed
+     *  because `applyOutcome` already resolved it against the prior peak. */
+    peak_rank: CardRecord['state'];
   },
 ): Promise<LocalCard | null> {
   const map = await readMap();
@@ -205,11 +214,13 @@ export async function applyLocalReview(
 export async function revertLocalReview(
   cardId: string,
   prior: {
-    difficulty: number;
-    stability: number;
+    difficulty: number | null;
+    stability: number | null;
     last_outcomes: string;
     last_reviewed_at: string | null;
+    next_due_at: string | null;
     state: CardRecord['state'];
+    peak_rank: CardRecord['state'];
     reviewed_times: number;
   },
 ): Promise<LocalCard | null> {

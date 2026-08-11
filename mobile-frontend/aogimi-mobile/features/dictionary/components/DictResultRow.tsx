@@ -2,7 +2,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { WordResult } from '../types';
-import { JlptChip } from '@/components/ui/JlptChip';
+import { preferredHeadword } from '../lib/headword';
+import { JlptChip } from '@/shared/components/JlptChip';
 
 type Props = {
   word: WordResult;
@@ -30,13 +31,14 @@ export function DictResultRow({ word, query, index, active, onPress }: Props) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.row,
         {
-          // Each row is its own white card with a soft shadow. The active
-          // row gets a tinted bg (`bgElev`) + the left accent edge for the
-          // existing keyboard-nav highlight.
-          backgroundColor: active ? c.bgElev : pressed ? c.bgSunken : '#FFFFFF',
+          // The active row is the raised surface, every other row the sunken
+          // one, plus a left accent edge for the existing keyboard-nav
+          // highlight. This used to be a hardcoded `#FFFFFF` card — a white
+          // slab left over from the light placeholder palette.
+          backgroundColor: active ? c.bgElev : c.bgSunken,
           borderColor: c.border,
           borderLeftColor: active ? c.accent : c.border,
         },
@@ -109,19 +111,6 @@ export function DictResultRow({ word, query, index, active, onPress }: Props) {
   );
 }
 
-/** Surfaces an exact-match query form (kanji or reading) as the row's
- *  headword instead of the dict's "primary" common kanji. Mirrors the web
- *  helper of the same name. */
-export function preferredHeadword(
-  word: { kanji: string[]; readings: { form: string }[] },
-  query: string | undefined,
-): string {
-  const q = (query ?? '').trim();
-  if (q && word.kanji.includes(q)) return q;
-  if (q && word.readings.some((r) => r.form === q)) return q;
-  return word.kanji[0] ?? word.readings[0]?.form ?? '—';
-}
-
 function Chip({ text, c }: { text: string; c: { fgMuted: string; border: string; bgElev: string } }) {
   return (
     <View style={[styles.chip, { borderColor: c.border, backgroundColor: c.bgElev }]}>
@@ -154,11 +143,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 2,
     borderRadius: 10,
     marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
   },
   indexNum: {
     fontSize: 11,

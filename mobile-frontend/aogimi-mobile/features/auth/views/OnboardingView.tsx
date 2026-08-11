@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen } from '@/components/ui/Screen';
-import { Button } from '@/components/ui/Button';
-import { BrandGlyph } from '@/components/ui/BrandGlyph';
+import { Screen } from '@/shared/components/Screen';
+import { Button } from '@/shared/components/Button';
+import { BrandGlyph } from '@/shared/components/BrandGlyph';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
-import { useAuth } from '@/lib/auth/AuthContext';
-import { fetchUserBooks } from '@/components/books/utils/booksApi';
-import { fetchUserDecks } from '@/components/decks/utils/decksApi';
-import { bookFileExists } from '@/components/books/utils/bookPaths';
-import { locateBookFile } from '@/components/books/utils/locateBookFile';
-import type { BookRecord } from '@/components/books/types';
+import { useAuth } from '@/features/auth/providers/AuthContext';
+import { fetchUserBooks } from '@/features/books/lib/booksApi';
+import { fetchUserDecks } from '@/features/sky/stage/lib/decksApi';
+import { bookFileExists } from '@/features/books/lib/bookPaths';
+import { locateBookFile } from '@/features/books/lib/locateBookFile';
+import type { BookRecord } from '@/features/books/types';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 
 type SyncState =
@@ -20,7 +20,7 @@ type SyncState =
   | { kind: 'done'; books: number; decks: number }
   | { kind: 'error' };
 
-export default function OnboardingScreen() {
+export function OnboardingView() {
   const c = useColors();
   const t = useT();
   const router = useRouter();
@@ -248,11 +248,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 1,
   },
   rowTitle: { fontFamily: fontFamily.jp, fontSize: fontSize.md, fontWeight: '500' },
   rowSub: { fontSize: fontSize.xs + 1, marginTop: 2 },

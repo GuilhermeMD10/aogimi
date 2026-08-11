@@ -9,9 +9,13 @@
 //
 // What we KEEP on purpose:
 //   - lgc_device_id / lgc_device_name (device identity, not user)
-//   - aogimi_theme_name              (device preference)
-//   - aogimi_credentials             (about to be overwritten by the
-//                                      new sign-in)
+//   - aogimi_local_schema_version     (a property of the build, not the user)
+//
+// Note this list used to name `aogimi_theme_name` and `aogimi_credentials`.
+// Neither exists any more: the theme key went with the collapse to a single
+// theme, and nothing has persisted credentials for some time — the refresh
+// token lives in SecureStore (`lib/tokenStore.ts`) and the password is
+// never written to disk at all.
 //
 // What we WIPE:
 //   - AsyncStorage:
@@ -32,12 +36,12 @@
 //       booksLocalCache optimistic progress patches
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { wipeAllBookFiles } from '@/components/books/utils/bookPaths';
-import { wipeAllCovers } from '@/components/books/utils/epubCover';
-import { wipeMangaCache } from '@/components/books/utils/mangaPages';
-import { clearDictionaryCaches } from '@/components/dictionary/utils/dictCache';
-import { clearLocalProgress } from '@/components/books/utils/booksLocalCache';
-import { clearAll as clearAllSyncEntries } from '@/components/books/utils/bookLocalState';
+import { wipeAllBookFiles } from '@/features/books/lib/bookPaths';
+import { wipeAllCovers } from '@/features/books/lib/epubCover';
+import { wipeMangaCache } from '@/features/books/lib/mangaPages';
+import { clearDictionaryCaches } from '@/features/dictionary/lib/dictCache';
+import { clearLocalProgress } from '@/features/books/lib/booksLocalCache';
+import { clearAll as clearAllSyncEntries } from '@/features/books/lib/bookLocalState';
 
 const USER_PREFIXES = ['reader_book_'];
 const USER_KEYS = [

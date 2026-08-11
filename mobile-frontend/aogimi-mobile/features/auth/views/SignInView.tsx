@@ -8,15 +8,15 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen } from '@/components/ui/Screen';
-import { Button } from '@/components/ui/Button';
-import { TextField } from '@/components/ui/TextField';
+import { Screen } from '@/shared/components/Screen';
+import { Button } from '@/shared/components/Button';
+import { TextField } from '@/shared/components/TextField';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useAuth } from '@/features/auth/providers/AuthContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
 
-export default function SignInScreen() {
+export function SignInView() {
   const c = useColors();
   const t = useT();
   const router = useRouter();

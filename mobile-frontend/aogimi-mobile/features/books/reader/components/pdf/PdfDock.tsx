@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
-  Animated,
   Dimensions,
-  Easing,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -15,10 +13,18 @@ import { fontFamily } from '@/theme/tokens';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Bottom dock used exclusively by the PDF reader. Mirrors the outer shell of
-// ReaderBottomDock — animated pill ↔ toolbar container, swipe-down to close,
-// tap-outside to step back — but ships only two modes and a trimmed content
-// surface. The pill carries the file title and N/total counter; the toolbar
-// adds prev/next chevrons. PDF has no notes / marks / settings panes.
+// ReaderBottomDock — pill ↔ toolbar container, swipe-down to close, tap-outside
+// to step back — but ships only two modes and a trimmed content surface. The
+// pill carries the file title and N/total counter; the toolbar adds prev/next
+// chevrons. PDF has no notes / marks / settings panes.
+//
+// **Strip-to-basics 2026-08-10.** The pill↔toolbar morph used to interpolate
+// width/height/bottom/radius over 280ms and cross-fade the contents; the drag
+// followed your finger and sprang back. All of it is gone: the box is now read
+// straight out of `MODES[mode]` and the switch is instant. Swipe-down-to-close
+// and tap-outside still work — the gestures are behaviour, only their motion
+// went. The second `renderMode` state went with the cross-fade, since there is
+// no longer a moment where the rendered contents lag the mode.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Mode = 'pill' | 'toolbar';
@@ -48,52 +54,13 @@ const MODES: Record<Mode, { width: number; height: number; bottom: number; radiu
   toolbar: { width: SHEET_WIDTH, height: TOOLBAR_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS },
 };
 
-const ANIM_MS = 280;
-const CONTENT_FADE_MS = 140;
 const SWIPE_CLOSE_VELOCITY = 0.6;
 const SWIPE_CLOSE_DISTANCE = 60;
 
 export function PdfDock({ title, page, totalPages, onPrev, onNext }: Props) {
   const c = useColors();
   const [mode, setMode] = useState<Mode>('pill');
-  const [renderMode, setRenderMode] = useState<Mode>('pill');
-
-  const widthA = useRef(new Animated.Value(MODES.pill.width)).current;
-  const heightA = useRef(new Animated.Value(MODES.pill.height)).current;
-  const bottomA = useRef(new Animated.Value(MODES.pill.bottom)).current;
-  const radiusA = useRef(new Animated.Value(MODES.pill.radius)).current;
-  const dragY = useRef(new Animated.Value(0)).current;
-  const contentA = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const target = MODES[mode];
-    Animated.parallel([
-      Animated.timing(widthA, {
-        toValue: target.width, duration: ANIM_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false,
-      }),
-      Animated.timing(heightA, {
-        toValue: target.height, duration: ANIM_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false,
-      }),
-      Animated.timing(bottomA, {
-        toValue: target.bottom, duration: ANIM_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false,
-      }),
-      Animated.timing(radiusA, {
-        toValue: target.radius, duration: ANIM_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false,
-      }),
-    ]).start();
-
-    if (renderMode !== mode) {
-      Animated.timing(contentA, {
-        toValue: 0, duration: CONTENT_FADE_MS, useNativeDriver: true,
-      }).start(() => {
-        setRenderMode(mode);
-        Animated.timing(contentA, {
-          toValue: 1, duration: CONTENT_FADE_MS, easing: Easing.out(Easing.cubic), useNativeDriver: true,
-        }).start();
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+  const box = MODES[mode];
 
   const stepBack = useCallback(() => {
     setMode((curr) => (curr === 'toolbar' ? 'pill' : curr));
@@ -102,20 +69,8 @@ export function PdfDock({ title, page, totalPages, onPrev, onNext }: Props) {
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 4 && gs.dy > 0,
-      onPanResponderMove: (_, gs) => {
-        if (gs.dy > 0) dragY.setValue(gs.dy);
-      },
       onPanResponderRelease: (_, gs) => {
-        const shouldClose = gs.vy > SWIPE_CLOSE_VELOCITY || gs.dy > SWIPE_CLOSE_DISTANCE;
-        Animated.spring(dragY, {
-          toValue: 0, useNativeDriver: false, bounciness: 0, speed: 18,
-        }).start();
-        if (shouldClose) stepBack();
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(dragY, {
-          toValue: 0, useNativeDriver: false, bounciness: 0, speed: 18,
-        }).start();
+        if (gs.vy > SWIPE_CLOSE_VELOCITY || gs.dy > SWIPE_CLOSE_DISTANCE) stepBack();
       },
     }),
   ).current;
@@ -133,17 +88,16 @@ export function PdfDock({ title, page, totalPages, onPrev, onNext }: Props) {
         />
       )}
 
-      <Animated.View
+      <View
         style={[
           styles.container,
           {
             backgroundColor: c.bgElev,
             borderColor: c.border,
-            width: widthA,
-            height: heightA,
-            bottom: bottomA,
-            borderRadius: radiusA,
-            transform: [{ translateY: dragY }],
+            width: box.width,
+            height: box.height,
+            bottom: box.bottom,
+            borderRadius: box.radius,
           },
         ]}
       >
@@ -153,8 +107,8 @@ export function PdfDock({ title, page, totalPages, onPrev, onNext }: Props) {
           </View>
         )}
 
-        <Animated.View style={[styles.contentWrap, { opacity: contentA }]}>
-          {renderMode === 'pill' ? (
+        <View style={styles.contentWrap}>
+          {mode === 'pill' ? (
             <Pressable
               onPress={() => setMode('toolbar')}
               accessibilityRole="button"
@@ -194,8 +148,8 @@ export function PdfDock({ title, page, totalPages, onPrev, onNext }: Props) {
               </View>
             </View>
           )}
-        </Animated.View>
-      </Animated.View>
+        </View>
+      </View>
     </View>
   );
 }
@@ -216,10 +170,7 @@ function NavCell({
       onPress={onPress}
       accessibilityLabel={ariaLabel}
       hitSlop={8}
-      style={({ pressed }) => [
-        styles.navCell,
-        { backgroundColor: c.bgSunken, opacity: pressed ? 0.7 : 1 },
-      ]}
+      style={[styles.navCell, { backgroundColor: c.bgSunken }]}
     >
       <Feather name={icon} size={20} color={c.fg} />
     </Pressable>
@@ -236,11 +187,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 8,
   },
   contentWrap: { flex: 1 },
   handleArea: {

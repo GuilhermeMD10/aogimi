@@ -10,26 +10,29 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { BottomSheet } from '@/components/ui/BottomSheet';
-import { Button } from '@/components/ui/Button';
+import { BottomSheet } from '@/shared/components/BottomSheet';
+import { Button } from '@/shared/components/Button';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import { createCardLocal } from '../utils/cardPush';
-import { createDeckLocal } from '../utils/deckPush';
-import { getAllDecks } from '../utils/deckLocalState';
-import type { LocalDeck } from '../types';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { createCardLocal } from '../lib/cardPush';
+import { createDeckLocal } from '../lib/deckPush';
+import { getAllDecks } from '../lib/deckLocalState';
+import { MAX_CARD_FRONT, MAX_CARD_MEANING, MAX_CARD_READING, MAX_DECK_NAME } from '../lib/limits';
+import type { CardDraft, LocalDeck } from '../types';
+import { useAuth } from '@/features/auth/providers/AuthContext';
 
-export type FlashcardPrefill = {
-  front: string;
-  reading: string;
-  back: string;
-  /** Auto-filled context sentence (e.g. dict's first example). The
-   *  drawer doesn't currently expose a field for the user to edit it
-   *  inline; it's a pass-through from the caller. */
-  contextSentence?: string;
-};
+/**
+ * What the drawer opens with.
+ *
+ * **This is now `CardDraft` itself**, not a separate `{front, reading, back}`
+ * shape. The old prefill type was the reason the two producers drifted: each
+ * built its own version inline, flattening glosses into a `back` blob with a
+ * different cap, and neither could carry `jlpt_level` because the type had
+ * nowhere to put it. Producers now call `wordCardDraft` / `kanjiCardDraft` /
+ * `plainCardDraft` and hand the result straight here.
+ */
+export type FlashcardPrefill = CardDraft;
 
 type Props = {
   visible: boolean;
@@ -68,7 +71,14 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
 
   const [deckId, setDeckId] = useState<string | null>(null);
   const form = useFlashcardForm();
-  const { front, setFront, reading, setReading, back, setBack, newDeckName, setNewDeckName, reset: resetForm } = form;
+  const {
+    front, setFront,
+    reading, setReading,
+    meanings, setMeaningAt,
+    newDeckName, setNewDeckName,
+    loadDraft, toDraft,
+    reset: resetForm,
+  } = form;
   const [creatingNewDeck, setCreatingNewDeck] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,15 +99,16 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
 
   useEffect(() => {
     if (!visible || !prefill) return;
-    setFront(prefill.front);
-    setReading(prefill.reading);
-    setBack(prefill.back);
+    loadDraft(prefill);
     setError(null);
-  }, [visible, prefill, setFront, setReading, setBack]);
+  }, [visible, prefill, loadDraft]);
 
+  // A card needs a front and at least one meaning. `back` isn't checked because
+  // it no longer exists as an input — it's derived from these at save time, so
+  // requiring it separately would be requiring the same fact twice.
   const canSave =
     front.trim().length > 0 &&
-    back.trim().length > 0 &&
+    meanings.some((m) => m.trim().length > 0) &&
     (lockedDeckId
       ? true
       : creatingNewDeck
@@ -118,12 +129,11 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
         targetDeckId = created.id;
       }
       if (!targetDeckId) throw new Error('No deck selected');
-      await createCardLocal(targetDeckId, {
-        front: front.trim(),
-        reading: reading.trim(),
-        back: back.trim(),
-        contextSentence: prefill?.contextSentence ?? '',
-      });
+      // The draft is built from the *edited* fields, not from `prefill` — the
+      // user may have changed any of them, and `back` has to be rendered from
+      // what they actually typed. `contextSentence` and `jlptLevel` ride along
+      // inside the draft; neither has an input, so they pass through unchanged.
+      await createCardLocal(targetDeckId, toDraft());
       onSaved?.();
       resetAndClose();
     } catch (err) {
@@ -152,6 +162,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
             <TextInput
               value={front}
               onChangeText={setFront}
+              maxLength={MAX_CARD_FRONT}
               style={[styles.input, styles.inputJp, { color: c.fg, backgroundColor: c.bgSunken, borderColor: c.border }]}
               placeholder="言葉"
               placeholderTextColor={c.fgSubtle}
@@ -163,6 +174,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
             <TextInput
               value={reading}
               onChangeText={setReading}
+              maxLength={MAX_CARD_READING}
               style={[styles.input, styles.inputJp, { color: c.fg, backgroundColor: c.bgSunken, borderColor: c.border }]}
               placeholder="ことば"
               placeholderTextColor={c.fgSubtle}
@@ -170,15 +182,24 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
             />
           </Field>
 
-          <Field label="Back (meaning)">
-            <TextInput
-              value={back}
-              onChangeText={setBack}
-              style={[styles.input, { color: c.fg, backgroundColor: c.bgSunken, borderColor: c.border, minHeight: 72 }]}
-              placeholder="word; language; speech"
-              placeholderTextColor={c.fgSubtle}
-              multiline
-            />
+          {/* One input per gloss instead of a single blob. The card's `back`
+              column is rendered from these at save time, so what the user sees
+              here is what the card stores — there is no second copy to drift.
+              Slots left blank are dropped. */}
+          <Field label="Meanings">
+            <View style={{ gap: 8 }}>
+              {meanings.map((m, i) => (
+                <TextInput
+                  key={i}
+                  value={m}
+                  onChangeText={(v) => setMeaningAt(i, v)}
+                  maxLength={MAX_CARD_MEANING}
+                  style={[styles.input, { color: c.fg, backgroundColor: c.bgSunken, borderColor: c.border }]}
+                  placeholder={i === 0 ? 'word' : 'optional'}
+                  placeholderTextColor={c.fgSubtle}
+                />
+              ))}
+            </View>
           </Field>
 
           {!lockedDeckId && <Field label="Deck">
@@ -218,6 +239,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
                 <TextInput
                   value={newDeckName}
                   onChangeText={setNewDeckName}
+                  maxLength={MAX_DECK_NAME}
                   style={[styles.input, { color: c.fg, backgroundColor: c.bgSunken, borderColor: c.border }]}
                   placeholder="Deck name"
                   placeholderTextColor={c.fgSubtle}

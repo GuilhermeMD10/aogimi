@@ -1,85 +1,41 @@
+// Theme access. One theme, so this provider holds no state and does no I/O —
+// it exists purely so the `useColors()` / `useFonts()` / `useShape()` call
+// shape stays what the ~100 consuming components already use, and so
+// reintroducing a light/dark pair with the design handoff is a change here
+// rather than at every call site.
+//
+// What went away with the four-palette collapse: `themeName`, `setThemeName`,
+// and the `aogimi_theme_name` AsyncStorage key that persisted the choice.
+
+import { createContext, useContext, type ReactNode } from 'react';
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
-import { loadJSON, saveJSON } from '@/lib/storage';
-import {
-  THEME_NAMES,
-  getTheme,
+  theme,
   type Theme,
   type ThemeColors,
   type ThemeFonts,
-  type ThemeName,
   type ThemeShape,
 } from './tokens';
 
 type ThemeContextValue = {
-  themeName: ThemeName;
   theme: Theme;
   colors: ThemeColors;
   fonts: ThemeFonts;
   shape: ThemeShape;
-  setThemeName: (name: ThemeName) => void;
+};
+
+// Frozen at module scope: the value never changes, so building it once means
+// consumers never re-render on a new context identity.
+const VALUE: ThemeContextValue = {
+  theme,
+  colors: theme.colors,
+  fonts: theme.fonts,
+  shape: theme.shape,
 };
 
 const ThemeCtx = createContext<ThemeContextValue | null>(null);
 
-const STORAGE_KEY = 'aogimi_theme_name';
-
-function isValidTheme(v: unknown): v is ThemeName {
-  return typeof v === 'string' && (THEME_NAMES as string[]).includes(v);
-}
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [themeName, setThemeNameState] = useState<ThemeName>('default');
-  // Track whether the initial AsyncStorage hydrate has run. Until it
-  // does, we MUST NOT persist `themeName` — otherwise the initial
-  // 'default' would overwrite whatever the user had saved before the
-  // hydrate resolved.
-  const hydratedRef = useRef(false);
-
-  // Hydrate once on mount.
-  useEffect(() => {
-    loadJSON<ThemeName | null>(STORAGE_KEY, null).then((stored) => {
-      if (isValidTheme(stored)) setThemeNameState(stored);
-      hydratedRef.current = true;
-    });
-  }, []);
-
-  // Persist whenever the user picks a new theme. Separated from
-  // `setThemeName` so the provider doesn't mix UI-state mutation with
-  // I/O side-effects in the same callback — and so the hydrate guard
-  // owns its own concern.
-  useEffect(() => {
-    if (!hydratedRef.current) return;
-    void saveJSON(STORAGE_KEY, themeName);
-  }, [themeName]);
-
-  const setThemeName = useCallback((name: ThemeName) => {
-    setThemeNameState(name);
-  }, []);
-
-  const theme = getTheme(themeName);
-
-  const value = useMemo<ThemeContextValue>(
-    () => ({
-      themeName,
-      theme,
-      colors: theme.colors,
-      fonts: theme.fonts,
-      shape: theme.shape,
-      setThemeName,
-    }),
-    [themeName, theme, setThemeName],
-  );
-
-  return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
+  return <ThemeCtx.Provider value={VALUE}>{children}</ThemeCtx.Provider>;
 }
 
 export function useTheme(): ThemeContextValue {
@@ -100,4 +56,4 @@ export function useShape(): ThemeShape {
   return useTheme().shape;
 }
 
-export type { ThemeColors, Theme, ThemeName, ThemeFonts, ThemeShape } from './tokens';
+export type { ThemeColors, Theme, ThemeFonts, ThemeShape } from './tokens';

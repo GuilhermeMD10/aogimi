@@ -17,8 +17,8 @@ import {
   HIGHLIGHT_COLORS,
   type EpubHighlight,
   type HighlightColor,
-} from '../utils/readerStorage';
-import type { FoliateReaderHandle } from '../ui/novel/FoliateReader';
+} from '../lib/readerStorage';
+import type { FoliateReaderHandle } from '../components/novel/FoliateReader';
 
 type AnnotationStorage = {
   highlights: EpubHighlight[];

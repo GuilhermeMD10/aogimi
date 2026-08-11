@@ -2,16 +2,16 @@ import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
-import { Screen } from '@/components/ui/Screen';
+import { Screen } from '@/shared/components/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
-import { CREDITS, type CreditEntry, type CreditSection } from '@/lib/credits';
+import { CREDITS, type CreditEntry, type CreditSection } from '@/features/settings/lib/credits';
 
 // Credits page — third-party data sources, fonts, and libraries used by
 // the app, grouped by tier (license-strict items first). Each entry shows
 // name + license; rows with URLs open in the device browser.
 
-export default function CreditsScreen() {
+export function CreditsView() {
   const c = useColors();
   const router = useRouter();
   return (
@@ -78,11 +78,7 @@ function Section({
       {section.pinned ? (
         headerInner
       ) : (
-        <Pressable
-          onPress={() => setOpen((v) => !v)}
-          hitSlop={6}
-          style={({ pressed }) => [pressed && { opacity: 0.6 }]}
-        >
+        <Pressable onPress={() => setOpen((v) => !v)} hitSlop={6}>
           {headerInner}
         </Pressable>
       )}
@@ -128,12 +124,11 @@ function Entry({
     <Pressable
       onPress={onPress}
       disabled={!onPress}
-      style={({ pressed }) => [
+      style={[
         styles.entry,
         {
           borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
           borderColor,
-          opacity: pressed && onPress ? 0.55 : 1,
         },
       ]}
     >

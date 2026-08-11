@@ -1,10 +1,10 @@
 import { Alert, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen } from '@/components/ui/Screen';
+import { Screen } from '@/shared/components/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useAuth } from '@/features/auth/providers/AuthContext';
 
 // Settings tab — a flat list of rows, each row pushes its own page (or
 // runs an action for sign out). Intentionally minimal: text + padding, no
@@ -16,13 +16,13 @@ type NavRow = { kind: 'nav'; labelKey: string; path: string };
 // Labels resolved through i18n at render time (not capture-time) so the
 // row text re-renders when the locale changes.
 const ROWS: NavRow[] = [
-  { kind: 'nav', labelKey: 'profile.language',    path: '/settings/language' },
-  { kind: 'nav', labelKey: 'studyDisplay.title',  path: '/settings/study-display' },
-  { kind: 'nav', labelKey: 'settings.help',       path: '/settings/help' },
-  { kind: 'nav', labelKey: 'settings.credits',    path: '/settings/credits' },
+  { kind: 'nav', labelKey: 'profile.language',    path: '/profile/settings/language' },
+  { kind: 'nav', labelKey: 'studyDisplay.title',  path: '/profile/settings/study-display' },
+  { kind: 'nav', labelKey: 'settings.help',       path: '/profile/settings/help' },
+  { kind: 'nav', labelKey: 'settings.credits',    path: '/profile/settings/credits' },
 ];
 
-export default function SettingsTab() {
+export function SettingsView() {
   const c = useColors();
   const t = useT();
   const router = useRouter();
@@ -88,13 +88,12 @@ function Row({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.row,
         {
           borderTopWidth: firstOfBlock ? StyleSheet.hairlineWidth : 0,
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderColor,
-          opacity: pressed ? 0.55 : 1,
         },
       ]}
     >

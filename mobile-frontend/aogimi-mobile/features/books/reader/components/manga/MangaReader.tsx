@@ -1,7 +1,7 @@
 import { ReaderBottomDock, type DockMode } from '../ReaderBottomDock';
-import type { EpubTocItem } from '../../utils/foliateHtml';
-import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../../utils/readerStorage';
-import type { MangaPageDir } from '../../utils/readerLayout';
+import type { EpubTocItem } from '../../lib/foliateHtml';
+import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../../lib/readerStorage';
+import type { MangaPageDir } from '../../lib/readerLayout';
 
 export type MangaReaderProps = {
   // Only used for chevron-driven prev/next spine jumps; the visible page

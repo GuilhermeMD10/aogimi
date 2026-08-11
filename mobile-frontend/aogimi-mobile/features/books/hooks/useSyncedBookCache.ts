@@ -17,7 +17,7 @@ import {
   getAllCachedBooks,
   listSessionPendingIds,
   mergeBackendBooks,
-} from '../utils/syncedBookCache';
+} from '../lib/syncedBookCache';
 import type { BookRecord } from '../types';
 
 type UseSyncedBookCacheResult = {
