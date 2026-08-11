@@ -6,9 +6,9 @@ A primer for new contributors and agents. Read this first; specialised docs ([DE
 
 ## What this is
 
-Aogimi is a **Japanese reading + vocabulary app**. Users import EPUBs / PDFs, read in-app, look up words against JMdict / KANJIDIC2, and build flashcard decks for spaced study. Decks, devices, and profile/study settings sync to a Postgres backend; the actual book files live per-device (IndexedDB) and are reconciled by hash on demand. EPUB reading position is buffered in localStorage on every page turn and flushed to the backend `book_progress` row periodically + on exit, so books resume where you left off (across devices); see the Reader section. PDF position is not tracked yet.
+Aogimi is a **Japanese reading + vocabulary app**. Users import EPUBs / PDFs, read in-app, look up words against JMdict / KANJIDIC2, and build flashcard decks for spaced study. Decks, devices, and profile/study settings sync to a Postgres backend; the actual book files live per-device (IndexedDB) and are reconciled by hash on demand. EPUB reading position is buffered in localStorage on every page turn and flushed to the backend `book_progress` row periodically + on exit, so books resume where you left off (across devices); see the Persistence model. PDFs resume too — the page number rides in the same `cfi_position` column as `page-N`, which is what the mobile reader writes.
 
-The app ships as a single Next.js client. There's a separate Expo mobile app (`mobile-frontend/langecko-mobile`) that mirrors the same backend; this doc is **web-only**.
+The app ships as a single Next.js client. There's a separate Expo mobile app (`mobile-frontend/aogimi-mobile`) that mirrors the same backend; this doc is **web-only**.
 
 ---
 
@@ -20,9 +20,9 @@ The app ships as a single Next.js client. There's a separate Expo mobile app (`m
 | React | **19.2** |
 | Styling | **Tailwind v4** (CSS variables via `@theme inline`), shadcn/Radix primitives |
 | Icons | `lucide-react` |
-| EPUB | `epubjs` |
-| PDF | `pdfjs-dist` + `react-pdf` (server-side parsing via `pdfreader` in an API route) |
-| Storage | localStorage (auth user, recent lookups, device id) + single `aogimi` IndexedDB via `idb` (book blobs + metadata + FS directory handle) |
+| EPUB | **foliate-js**, vendored in `public/foliate-js` and run in an iframe sandboxed **without `allow-scripts`** — book content is untrusted. `epubjs` is gone. |
+| PDF | `pdfjs-dist` + `react-pdf`, client-side |
+| Storage | localStorage (auth user, theme, sky hue, recent lookups, device id, per-book position) + a single `aogimi` IndexedDB via `idb` (book blobs + metadata + FS directory handle) |
 | Bundle helpers | `clsx`, `tailwind-merge`, `tw-animate-css`, `class-variance-authority` |
 
 No state library (Redux/Zustand/Jotai). State lives in **React Context providers**.
@@ -33,73 +33,74 @@ No CSS-in-JS. Themed surfaces read the design tokens directly — `bg-(--paper)`
 
 ## Top-level layout
 
+**Organised by feature, never by file type.** Three layers, and the dependency
+arrow only ever points one way: `lib`/`shared` ← `features` ← `app`. That rule is
+enforced by `import/no-restricted-paths` in `eslint.config.mjs`, not just
+convention.
+
 ```
-web-frontend/langecko-web/
-├── app/                          Next.js App Router routes + global CSS
-│   ├── layout.tsx                Root layout: fonts, providers (data-theme="default" on <html>)
-│   ├── page.tsx                  / (landing/redirect)
-│   ├── globals.css               Imports theme files + primitives + utilities; declares Tailwind @theme aliases
-│   ├── authenticate/page.tsx     /authenticate (login/signup)
-│   ├── reader/page.tsx           /reader (library + active-book reader)
+web-frontend/aogimi-web/
+├── app/                          ROUTING ONLY. Each page is a thin wrapper over one feature view.
+│   ├── layout.tsx                Fonts, the pre-paint theme script, ThemeProvider → AuthProvider → AppShell
+│   ├── globals.css               Imports the style files; declares the Tailwind @theme aliases
+│   ├── fonts/                    Self-hosted Switzer (ui + mono)
+│   ├── page.tsx                  /                    the library shelf
+│   ├── reader/[bookId]/page.tsx  /reader/[bookId]     one open book (no bare /reader page)
 │   ├── dictionary/page.tsx       /dictionary
-│   ├── decks/page.tsx            /decks
-│   ├── profile/page.tsx          /profile
+│   ├── sky/page.tsx              /sky                 the star map — and the decks screen
+│   ├── study/page.tsx            /study               the session runner
+│   ├── profile/page.tsx          /profile             account card + the settings column
+│   ├── help/page.tsx             /help
+│   ├── credits/page.tsx          /credits
+│   └── authenticate/page.tsx     /authenticate
 │
-├── components/                   Default-theme components + theme infra
-│   ├── AppShell.tsx              Auth gate, providers, bubble routing
-│   ├── WorkspaceNav.tsx          Top nav (theme-dispatched)
-│   ├── WorkspaceNav.default.tsx  Default nav variant
-│   ├── library/                  Library shelf, restore, FsAccess banner — "/" landing page
-│   ├── reader/                   Text + manga readers, toolbar, panels
-│   ├── views/                    Big page-level views (Reader, Dictionary, WordDetail, Card decks)
-│   ├── page-bubbles/             Floating overlays (Profile, Reader)
-│   ├── onboarding/               First-run explainer
-│   ├── profile/                  Profile page sections
-│   ├── icons/                    Icon set (lucide-react, mapped to canonical IconNames)
-│   ├── ui/                       shadcn primitives (button, sheet, sidebar, …)
-│   ├── AvatarPickerModal/        Profile avatar grid
-│   ├── OnboardingExplainerModal/ Auth-flow explainer wrapper
-│   └── providers/                Auth, Reader state, Bubble routing, Dictionary, Theme
+├── features/                     Self-contained slices. Each owns whichever of components/ hooks/
+│   │                             lib/ providers/ views/ types.ts it needs; index.ts is its public API.
+│   ├── app-shell/                AppShell, Dock, TopBar + the Reader / SkyHue / Theme providers
+│   ├── auth/                     /authenticate, AuthProvider, the mirrored validate()
+│   ├── books/                    library/ · reader/ (epub, pdf, text, manga + dict-sidebar,
+│   │                             reader-bubble) · lib/ (IndexedDB, hashing, progress) · views/
+│   ├── dictionary/               /dictionary, and the parts the reader's two lookup surfaces reuse
+│   ├── sky/                      map/ (the platform-free star-map engine) · stage/ (/sky + the deck
+│   │                             data layer half the app borrows) · study/ (session/ + stats/)
+│   ├── profile/  settings/  onboarding/  mobile-gate/
 │
-├── styles/                       Design-token CSS — three files, that's all
+├── shared/
+│   ├── components/               Cross-cutting primitives — PUT NEW ONES HERE
+│   ├── icons/                    The outgoing lucide-mapped set
+│   └── ui/                       Outgoing shadcn — down to button + sheet; don't add to it
+│
+├── lib/                          Feature-agnostic infra ONLY — no domain types, no feature logic
+│   ├── api.ts                    request() + apiGet / apiSend / apiSendVoid / apiSendPublic
+│   ├── tokenStore.ts             Access token in memory; the refresh token is an httpOnly cookie
+│   ├── useFetchWithAbort.ts
+│   ├── storage/_helpers.ts
+│   └── util/                     cn (Tailwind class merge), pitch, relativeTime
+│
+├── styles/
 │   ├── ds-tokens.css             The palette: colour, shape, type, page canvas (light + dark)
+│   ├── glass.css                 The frosted-surface recipe — every number, one tweak surface
 │   ├── sync-tokens.css           Book sync-state colours (synced / unsynced / to-import)
 │   └── utilities.css             Reader highlights, word hover, vertical text, selection
 │
-├── lib/                          Domain logic, no React
-│   ├── api.ts                    apiUrl, apiGet, apiSend, apiSendVoid, fetchJson
-│   ├── booksApi.ts               EPUB/PDF book + progress endpoints
-│   ├── decksApi.ts               Deck + card endpoints
-│   ├── devicesApi.ts             Multi-device sync endpoints
-│   ├── dictApi.ts                Dictionary search + word details
-│   ├── userApi.ts                Profile read/update; re-exports loginUser/registerUser/logoutUser from lib/auth/authApi.ts
-│   ├── auth/
-│   │   ├── authApi.ts            /api/auth/{login,register,logout} (public, no Authorization)
-│   │   ├── tokenStore.ts         Access + refresh token persistence (localStorage)
-│   │   └── wipeUserData.ts       Account-switch wipe
-│   ├── types/                    Domain types (book, deck, dict, user, device, epubjs)
-│   ├── storage/                  localStorage adapters per concern
-│   ├── config/                   limits.ts, deckVisuals.ts
-│   ├── util/                     cn (Tailwind class merge), deviceName
-│   ├── epubIdentity.ts           Hashing + metadata extraction for EPUB matching
-│   ├── fsAccess.ts               File System Access API helpers (uses the shared `aogimi` IDB handles store)
-│   └── japanese.ts               Tiny utilities (kana classifiers, etc.)
-│
-├── hooks/use-mobile.ts           Width-based mobile breakpoint detector
-│
-└── public/, aogimi-DS/          Static assets + design canvas reference
+└── scripts/, public/, info-documents/
 ```
+
+**Domain types live in the feature that owns them** (`features/<x>/types.ts`), and
+that feature's `lib/*Api.ts` imports them — there is no central `lib/types/`.
+Inside a feature, imports are relative; across features they go through the
+barrel (`@/features/foo`), or `@/features/foo/types` for a types-only borrow.
 
 ---
 
 ## Run-of-show: a request hits the app
 
-1. Browser loads `/` → Next.js renders `app/layout.tsx` (RSC) → root `<html>` ships with `data-theme="default"`.
-2. There is only the `default` theme, so `data-theme` is never rewritten — no pre-hydration script, no `app-theme` key.
-3. React hydrates. `ThemeProvider` exposes the single `default` theme (no persistence).
-4. `AuthProvider` reads `auth-user` from localStorage; if absent and not on `/authenticate`, `AppShell` redirects.
-5. `ReaderStateProvider`, `DictionaryStateProvider`, `BubbleProvider` mount.
-6. The current route's component renders inside `AppShell`, alongside the floating `Dock` (hidden on `/authenticate`) and any active reader bubble.
+1. Browser loads `/` → Next.js renders `app/layout.tsx` (RSC).
+2. A **pre-paint `<script>`** (`THEME_INIT`) stamps `data-theme` and `data-sky-hue` on `<html>` before first paint — an effect would fire after paint and flash. It reads `aogimi-theme` / `aogimi-sky-hue`, falls back to `prefers-color-scheme`, then applies the `FORCED_THEME` pin. `/authenticate` is the one exception: it renders `light` regardless and parks the user's real choice in `data-user-theme` for `ThemeProvider` to pick up.
+3. React hydrates. `ThemeProvider` mirrors that same decision (its own `FORCED_THEME` constant must match the script's — change one, change both).
+4. `AuthProvider` restores the session: `auth_user` from localStorage plus a silent `/api/auth/refresh` that re-mints the in-memory access token from the httpOnly cookie. No user and not on `/authenticate` → `AppShell` redirects (and the reverse: a signed-in visitor on `/authenticate` goes to `/`).
+5. `AppShell` mounts the rest, outermost first: `SkyHueProvider` → `ReaderStateProvider` → `DictionaryStateProvider` → `DecksProvider`.
+6. The route renders inside `AppShell`, alongside the floating `Dock` (hidden on `/authenticate` **and** on an open book, `/reader/<id>`) and any active reader bubble.
 
 ---
 
@@ -121,7 +122,11 @@ Two themes, `light` ("Ink on paper") and `dark` ("Midnight"), selected by `html[
 - **Page canvas** is app-wide chrome, set in `globals.css`: base gradient on `<html>`, star tiles on `<body>`. Split across two elements because a single 43-layer `background` would need a 43-entry `background-size` list (a shorter list gets cycled by the spec).
 - **Base-layer type**: `html` carries `--face-ui` and there is deliberately **no `h1..h6` rule**. A global heading face beats an inherited one no matter what a screen's wrapper sets, which is exactly how four migrated headings ended up rendering in the old display serif. Form controls (`button`, `input`, `select`, `textarea`) do need the face said explicitly — the UA stylesheet gives them the platform font instead of inheriting.
 
-Theme choice persists in the `aogimi-theme` localStorage key, applied by a pre-paint `<script>` in `app/layout.tsx` — an effect would fire after paint and flash. Falls back to `prefers-color-scheme`. It moves to a `users.theme` column later. The switch is the Theme row of the settings list on `/profile`.
+- **Sky hue is a second axis, `data-sky-hue` on `<html>`** (`default` · `ginga` · `ember` · `aurora`), owned by `features/app-shell/providers/SkyHueProvider.tsx` and persisted in `aogimi-sky-hue`. It recolours the star map only; it is not a theme and does not touch the palette above. The control is the Sky hue row of the settings list on `/profile`.
+
+Theme choice persists in the `aogimi-theme` localStorage key, applied by the pre-paint `<script>` described in the run-of-show above. Falls back to `prefers-color-scheme`. It moves to a `users.theme` column later. The switch is the Theme row of the settings list on `/profile`.
+
+**The app is currently pinned to Midnight.** `FORCED_THEME = 'dark'` in `features/app-shell/providers/ThemeProvider.tsx`, mirrored by the same constant inside `app/layout.tsx`'s init script — both must change together. While the pin is on, `ThemeProvider` reports `locked`, `setTheme`/`toggle` are no-ops and the settings row shows the state without offering the switch. The stored preference is deliberately still read and never overwritten, so unpinning restores whatever the user last chose. Light is not dead code — `/authenticate` renders in it today, and every screen is still token-driven, so **a screen that looks wrong in light is still a bug**.
 
 `dark:` is redefined in `globals.css` as `html[data-theme="dark"] &`, not shadcn's `.dark *` (a class this app never sets) and not `prefers-color-scheme`. Nothing uses it — the tokens swap underneath components instead — but if you do reach for it, it now means what the theme switch means.
 
@@ -129,17 +134,20 @@ Theme choice persists in the `aogimi-theme` localStorage key, applied by a pre-p
 
 ## State architecture
 
-All state is in **React Context providers**, mounted by `AppShell`. Nothing in localStorage / IndexedDB is read directly from a component — every adapter lives in `lib/storage/`.
+All state is in **React Context providers, each owned by the feature it belongs to** and composed by `AppShell` (`ThemeProvider` and `AuthProvider` sit above it, in `app/layout.tsx`). **No Redux, Zustand or Jotai.** To avoid barrel cycles, feature code imports a provider **by file path**, not through the owning feature's `index.ts`.
 
-| Provider | What it owns | localStorage key(s) |
-|---|---|---|
-| `AuthProvider` | Current user, login/signup/logout flows. **Token storage = "memory + httpOnly cookie"**: the access token lives in-memory only ([`lib/auth/tokenStore.ts`](lib/auth/tokenStore.ts)), the refresh token is an httpOnly cookie set by the backend (never readable by JS). On boot, a silent `/api/auth/refresh` re-mints the access token from the cookie. Session-invalidation hook in [`lib/api.ts`](lib/api.ts) auto-signs-out on unrecoverable 401/403. See [`../../docs/AUTH.md`](../../docs/AUTH.md). | `auth_user` only (tokens are no longer in localStorage) |
-| `ThemeProvider` | The single `default` theme (no setter that persists; kept as plumbing for a future redesign) | (none — no longer persisted) |
-| `ReaderStateProvider` | The reader bubble's visibility (`readerBubble`), the docked-dictionary toggle (`sidekickOpen`), and the `pendingCard` hand-off to `/decks`. The **open book is not here** — the reader is `/reader/[bookId]`, so the id in the URL is the session and `ReaderView` resolves the file, restore anchor and progress sync from it. | (none) |
-| `DictionaryStateProvider` | Search query/results + the word the reader's surfaces have open (`selectedWordId`). Nothing is persisted: `/dictionary` keeps its query and selection in the URL, and holding a second copy in localStorage gave two sources of truth that drifted. A *kanji* selection isn't here — the field is a word id and a character has none, so the reader's surfaces keep that half locally (`reader/hooks/useDictSelection.ts`). | `dictionary_recent_searches` (written by `pushRecentSearch`, not by the provider's state) |
-| `BubbleProvider` | Which page-bubble (Profile/Reader) is active | (in-memory only) |
+| Provider | Owned by | What it owns | localStorage key(s) |
+|---|---|---|---|
+| `AuthProvider` | `auth` | Current user, login/signup/logout. **Token storage = "memory + httpOnly cookie"**: the access token lives in memory only ([`lib/tokenStore.ts`](../lib/tokenStore.ts)), the refresh token is an httpOnly cookie set by the backend and never readable by JS. On boot a silent `/api/auth/refresh` re-mints the access token. The session-invalidation hook in [`lib/api.ts`](../lib/api.ts) auto-signs-out on an unrecoverable 401. See [`../../../backend/docs/AUTH.md`](../../../backend/docs/AUTH.md). | `auth_user`, `lgc_last_user_id` (tokens are **not** in localStorage — don't put them back) |
+| `ThemeProvider` | `app-shell` | `light` / `dark`, mirroring the pre-paint script. Currently pinned by `FORCED_THEME` (see Theming). | `aogimi-theme` |
+| `SkyHueProvider` | `app-shell` | The star map's hue preset (`default`/`ginga`/`ember`/`aurora`), stamped as `data-sky-hue`. | `aogimi-sky-hue` |
+| `ReaderStateProvider` | `app-shell` | The reader bubble's visibility (`readerBubble`), the docked-dictionary toggle (`sidekickOpen`), and the `pendingCard` hand-off to `/sky`. The **open book is not here** — the reader is `/reader/[bookId]`, so the id in the URL is the session and `ReaderView` resolves the file, restore anchor and progress sync from it. | (none) |
+| `DictionaryStateProvider` | `dictionary` | Search query/results + the word the reader's surfaces have open (`selectedWordId`). Nothing is persisted: `/dictionary` keeps query and selection in the URL, and a second copy in localStorage gave two sources of truth that drifted. A *kanji* selection isn't here — the field is a word id and a character has none, so the reader's surfaces keep that half locally (`reader/hooks/useDictSelection.ts`). | `dictionary_recent_searches` (written by `pushRecentSearch`, not by provider state) |
+| `DecksProvider` | `sky/stage` | Deck summaries the rest of the app reads (the add-card flow, the study runner's deck identity), plus `createDeck` / `deleteDeck` / `bumpCardCount`. The `/sky` page holds its own fuller copy — see that section for why both exist. | (none) |
 
-The reader and the dictionary talk through **`features/app-shell/hooks/useReaderActions.ts`**, not through pending fields. `requestDictLookup(word, sentence)` runs the search and opens the bubble *only* if no dictionary surface is already visible (`/dictionary`, or the reader with its column docked — a prefix test on `/reader/`, because `/reader` exactly is the shelf). `requestAddCard` opens the bubble and also sets `pendingCard`, which `/decks` consumes on mount if it happens to be there; `AppShell` clears both together on close so the card can't be created twice. The old `pendingDictSearch` / `pendingBookOpen` fields and their `fired*Ref` guards are gone — the consumer logic now lives at the call site, gated by stable function identity.
+**Cross-feature signalling goes through "pending fields"** on `ReaderStateProvider`: the reader sets `pendingCard`, `SkyView` picks it up on mount and nulls it. Effects guard double-fire with a `useRef` of the last-handled trigger *object* (`AppShell.tsx`, `PendingCardOverlay.tsx`) — this is the documented false positive of `react-hooks/set-state-in-effect`, block-disabled with a comment where the pattern is correct.
+
+The reader and the dictionary, though, talk through **`features/app-shell/hooks/useReaderActions.ts`**, not through pending fields. `requestDictLookup(word, sentence)` runs the search and opens the bubble *only* if no dictionary surface is already visible (`/dictionary`, or the reader with its column docked — a prefix test on `/reader/`, because `/reader` bare is not a page). `requestAddCard` opens the bubble and also sets `pendingCard`, which `/sky` consumes on mount if it happens to be there; `AppShell` clears both together on close so the card can't be created twice. The old `pendingDictSearch` / `pendingBookOpen` fields and their `fired*Ref` guards are gone — that logic now lives at the call site, gated by stable function identity.
 
 ---
 
@@ -175,10 +183,12 @@ There are no server-only Next.js API routes — every data call goes straight to
 | Where | What | Notes |
 |---|---|---|
 | **Backend (Postgres)** | Users (incl. `onboarding_completed`, avatar, study display prefs + deck overrides), books metadata + "finished" flag, decks, cards, devices, JMdict/KANJIDIC2 | Everything that should sync across devices; single source of truth for settings (no local cache) |
-| **IndexedDB** (`aogimi`) | EPUB / PDF blobs (`files`) + per-file metadata (`metadata`) + FS Access directory handle (`handles`) | Per-device — files don't leave the browser. Single DB; the old `aogimi-books` + `aogimi-fs` DBs were merged (one-time copy-then-delete migration in `components/books/utils/booksDb.ts`). |
-| **localStorage** | `auth_user`, `dictionary_recent_searches`, device-id (`lgc_device_id`) | Per-device, low-stakes. No theme / reader / study / avatar / onboarding keys anymore. |
+| **IndexedDB** (`aogimi`) | EPUB / PDF blobs (`files`) + per-file metadata (`metadata`) + the FS Access directory handle (`handles`) | Per-device — files don't leave the browser. **`features/books/lib/booksDb.ts` is the sole connection factory**; `getDb()` runs a one-time idempotent migration from the two former DBs (`aogimi-books` + `aogimi-fs`). |
+| **localStorage** | `auth_user`, `lgc_last_user_id`, `aogimi-theme`, `aogimi-sky-hue`, `dictionary_recent_searches`, `library-dir`, `lgc_device_id`, and `reader_progress_<filename>` per book | Per-device, low-stakes. **`lgc_device_id` and `lgc_last_user_id` keep their old prefix on purpose** — renaming them orphans every install's device identity. |
 
-Library mount reconciles all three: load local IndexedDB → register device → fetch backend records → call `POST /api/books/match` to resolve unidentified local files against existing user books → backfill identity (`PUT /api/books/{id}/identity`) where needed → call `POST /api/devices/{deviceId}/books/{bookId}/available` for files present locally. See [components/library/RestoreLibrary.tsx](components/library/RestoreLibrary.tsx) for the reconciliation flow.
+Library mount reconciles all three: load local IndexedDB → register the device (`POST /api/devices`) if absent → fetch backend books (`GET /api/books/user/{id}`) → `POST /api/books/match` to resolve unidentified local files **by hash priority: `file_hash` → `content_hash` → `dc_identifier`+title → filename** → backfill identity (`PUT /api/books/{id}/identity`) for matched-but-stale rows → `POST /api/devices/{deviceId}/books/{bookId}/available` for files present locally. See [`features/books/library/components/RestoreBooks.tsx`](../features/books/library/components/RestoreBooks.tsx), driven by `views/BooksView.tsx`.
+
+**Reading position is backend-buffered, not written per page turn.** Two tiers: `reader_progress_<filename>` in localStorage on every relocate (the per-device buffer and the source of truth between flushes), and `book_progress` on the backend flushed ~60s, **on exit** (`visibilitychange:hidden`/`pagehide`, via `fetch(keepalive)` — *not* `sendBeacon`, so it carries the in-memory Bearer token) and **on unmount** (a normal fetch: "back to library" is an SPA nav that fires no unload event). `features/books/views/useProgressSync.ts` owns the wiring. On open, the restore anchor is the **newer** of the local snapshot and the backend row, and the first relocate of a session only seeds the dedup baseline — so opening a book never writes back the position it just restored. **PDFs need no extra column**: `features/books/reader/lib/pdfPosition.ts` encodes the page as `page-N` in the `cfi_position` slot (mirrored into `spine_index`), which is exactly what the mobile PDF reader writes, so the two resume each other.
 
 ---
 
@@ -186,7 +196,11 @@ Library mount reconciles all three: load local IndexedDB → register device →
 
 App-level features that ride on top of the architecture above. Document new features here as they land — describe what the feature is, the entry points, where state lives, and any non-obvious behaviour. Keep entries terse; details belong in the source.
 
-> The `/study` route and the theme switch are described in the repo-root `CLAUDE.md` but have never been written up here. Fold them in when someone next touches them. (Home was the third item on this list; it was deleted on 2026-08-05 and the library shelf took `/`, so it never needed writing up.)
+> **Still missing from this section:** the Reader and the Library shelf — the
+> biggest feature in the app has no entry of its own, and the Persistence model
+> above is currently standing in for it. Write it up when someone next works in
+> `features/books`. (`/study` and the theme switch used to be on this list; both
+> are covered now — study under Sky, the theme switch under Theming.)
 
 ### Dictionary (`features/dictionary`)
 
@@ -204,102 +218,230 @@ App-level features that ride on top of the architecture above. Document new feat
 - **`EntryBack` is the last `--accent` border hover** in the feature (the "← Results" control the reader's two surfaces show and `/dictionary` doesn't). Not converted.
 - **The reader's two lookup surfaces are built out of this screen's parts, not beside them.** `features/books/reader/dict-sidebar/` (the column docked beside the book, 320–480px) and `features/books/reader/reader-bubble/` (the floating 880×620 panel, five phases) render the same `WordRow`/`KanjiRow`, the same `RailList` and the same `EntryDetail`/`KanjiEntryDetail` — at `scale="compact"` and `scale="full"` respectively. The barrel exists to make that possible; the pieces own no width, fill, edge, scroll or padding, and the surface supplies the box. `DictionarySidekick` and `WordDetailView`, which were hand-written copies on the retired `--lgc-*` palette, are deleted.
 
-### Decks (`features/study/decks`)
+### Sky, decks & study (`features/sky`)
 
-**`/decks` is the sky stage: the whole star map and the decks page fused into
-one full-viewport screen** (`views/DecksView.tsx`, no page scroll). Every deck
-is a constellation wrapped in a "deck card" frame; clicking a frame flies the
-camera into the deck and opens a glass column; clicking a star (or list row)
-swaps the column to the card's detail. The old deck grid, the deck detail
-screen and the `/sky` route are all deleted in its favour.
+**One domain, three sub-features, two routes.** `/sky` is the star map *and* the
+decks screen — the old deck grid, the deck-detail screen and the separate `/sky`
+star map all merged into it, so **there is no `/decks` route**; the Dock's
+"Decks" entry points at `/sky`. `/study` is the session runner. Everything under
+`features/sky` is one of:
 
-- **Navigation state is the URL**: `/decks?deck={uuid}&card={uuid}`, uuids
-  only. Focus changes `push`, selection changes `replace` (dictionary
-  precedent); a stale uuid degrades to the outer view; Escape walks
-  confirm → card → deck. Search results and upgrade rows focus the deck, then
-  ring the star only once the camera flight lands (`onSettled`).
-- **The sky is `SkyMap`** (from `@/features/sky`) with two host-supplied
-  extras: `frameMeta` (per-deck due count via `hooks/useDeckDueCounts.ts` — one
-  `/api/study/due/counts` call for frames, chrome and ledger — plus
-  `deckVisuals` cover colour/glyph and a "STARTED MAR 2026" subtitle) and
-  `insets`, the camera's chrome allowance per tier, T/R/B/L (sky 96/48/216/48,
-  ledger collapsed 156 bottom; focused 88/58/84 with left **360** column-open —
-  the column's own right edge, no gutter, so the sky's dashed boundary meets the
-  glass — or 58 hidden). An insets change re-fits the camera as a 400ms flight,
-  so collapsing the column glides rather than snaps.
-- **A focused deck rests filling the free window, not at MAX_ZOOM.** The deck
-  tier passes `adaptiveZoomLimits`, so `focusLimits` (in `features/sky/lib/camera.ts`)
-  resolves *both* limits from the deck's own box: the resting fit is the
-  fill-the-window zoom capped at `FOCUS_FIT_MAX_ZOOM` (4) instead of `MAX_ZOOM`
-  (2) — a sparse deck used to float in the middle of the free window — and the
-  ceiling is that fit × `FOCUS_ZOOM_HEADROOM`, clamped to
-  `MAX_ZOOM..FOCUS_MAX_ZOOM`, so there is always somewhere further in to go. The
-  fit only ever *caps*, so the whole deck is on screen at every tier.
+| Sub-feature | What | Knows about |
+|---|---|---|
+| `sky/map` | The star-map engine: platform-free `lib/`, camera/frame `hooks/`, the SVG renderer. | Nothing above it — not decks, not routes. |
+| `sky/stage` | `views/SkyView.tsx` (the `/sky` page) **and** the deck data layer half the app borrows: `DecksProvider`, `decksApi`, quota caps, `CardDraft`. | Decks and cards. |
+| `sky/study` | `session/` (the runner) + `stats/` (`lib/statsApi.ts`, the `/api/stats` fetchers). | Cards and grades. |
+
+Two files sit at the **domain root** rather than in a sub-feature, because
+siblings don't import each other and both of these are shared by more than one:
+`lib/fsrs.ts` (`stage` reads it for retrievability and the rank ladder, `study`
+for scheduling — `map` does not, it only draws what it is handed) and
+`components/PracticeOverlay.tsx` (the one thing that composes `stage`'s
+inventory with `study`'s runner). `sky/index.ts` exports only the two views;
+everything else comes from the sub-barrel that owns it.
+
+#### `/sky` — the stage
+
+Every deck is a constellation in a card frame on the page's own night canvas,
+filling the viewport below the shared `TopBar` (no page scroll). Three tiers:
+
+- **outer sky** — every framed constellation, the stat ledger, one action cluster;
+  clicking a frame is the only way in.
+- **focused deck** — the camera flies in, the stats bar takes the top of the stage
+  and the card list panel opens on the left.
+- **card** — a star or a row opens the detail as its own card on the right,
+  *beside* the list rather than instead of it.
+
+Details worth knowing:
+
+- **Navigation state is the URL, and nothing else.** `?deck={uuid}&card={uuid}`,
+  uuids only — never a render-local index, so a link means the same sky after any
+  reorder. Focus changes `push` (a tier is a place to come back to), selection
+  changes `replace` (the map never leaves the screen, so "back" to the previous
+  ring is meaningless) — the dictionary's precedent. A stale or foreign uuid
+  degrades to the outer view rather than erroring. Escape walks
+  confirm → card → deck → sky. Two invariants live in the setters: a selected
+  card's deck is always the focused deck, and changing focus clears the
+  selection — the URL builder simply never emits `card` without `deck`. **Nothing
+  is persisted**; a localStorage mirror of the same facts drifted.
+- **The sky is `SkyMap`** (from `sky/map`) with two host-supplied extras.
+  `frameMeta` carries the per-deck due count (`hooks/useDeckDueCounts.ts` — one
+  `/api/study/due/counts` call feeding frames, chrome and ledger alike), the
+  `deckVisuals` cover colour/glyph and a "STARTED MAR 2026" subtitle; card and
+  mastered counts are deliberately omitted, since `SkyMap` derives them from the
+  same cards array the page already handed it and so cannot disagree.
+- **`insets` is the camera's chrome allowance, T/R/B/L, stage-relative.** Outer:
+  `96/24/96/24` — `bottom` is the Dock's clearance and nothing more, now that the
+  stat band sits in the top row. It used to be 216 (the band's own height at the
+  bottom of the screen), and that came straight off the axis the deck grid is
+  starved on: a deck's cell is ~500 world units tall *before* a single star, so
+  how large a deck is drawn is set by the **height** of the free window.
+  Focused is a **2×2**, `deckInsets(panelHidden, detailOpen)` — `left` 316 (the
+  list panel's own right edge, no gutter, so the sky's dashed boundary meets the
+  glass) or 58 collapsed; `right` 58 at rest or 360 while the detail card is
+  open. An insets change re-fits the camera as a 400ms flight, so opening a card
+  or collapsing the panel glides rather than snaps. Hosts may build the object
+  fresh per render — `useCamera` normalises it to its four numbers.
+- **A focused deck rests filling the free window, not at `MAX_ZOOM`.** The deck
+  tier passes `adaptiveZoomLimits`, so `focusLimits` (`sky/map/lib/camera.ts`)
+  resolves *both* limits from the deck's own box: the resting fit is capped at
+  `FOCUS_FIT_MAX_ZOOM` (4) instead of `MAX_ZOOM` (2) — a sparse deck used to
+  float in the middle of the window — and the ceiling is that fit ×
+  `FOCUS_ZOOM_HEADROOM`, so there is always somewhere further in to go. The fit
+  only ever *caps*, so the whole deck is on screen at every tier.
 - **Leaving a deck by wheel takes a deliberate second push.** Wheel-out while
   already pinned at the floor accumulates `|deltaY|` and calls `onZoomOutFloor`
-  (→ the outer tier) only past `ESCAPE_PUSH_PX` (320), decaying after
-  `ESCAPE_PUSH_DECAY_MS` (500) and cleared by any zoom-in. One notch used to
-  leave, which meant a flick aimed at the fitted view usually exited the deck.
-- **Suspended chrome** (`components/StageChrome.tsx`): brand mark top-left;
-  top-right "Study N due" (all decks → `/study?due=1`, deck-scoped →
-  `/study?deck={id}`) plus "New deck" (glass popover form, provider
-  `createDeck`) at the outer tier or the delete-deck danger button inside one
-  (the same act is also in the column's deck-info drawer; both open the same
-  confirm). Destructive acts confirm through `components/NightConfirm.tsx`.
-- **The bottom ledger** (`components/StageLedger.tsx`, outer tier only): DAYS
-  STUDIED / STARS IN YOUR SKY / DUE TODAY / MASTERED, the all-decks mastery mix
-  (`components/MixBar.tsx`), and recent-upgrade rows; click toggles
-  expanded/collapsed. Stars/mastered/mix are counted off the cards already in
-  memory; days + upgrades come from `hooks/useSkyLedger.ts` (`/api/stats/*`).
-- **The glass column** (`components/GlassColumn.tsx`, 340px, deck tier), top to
-  bottom: back chevron (card → list, list → sky); the deck name, which is
-  itself the disclosure for the **deck-info drawer** — closed by default, so the
-  card list keeps the height — holding the stat tiles, the mastery mix and
-  **Delete deck**; the all-decks search (`components/CardSearch.tsx`, in-memory
-  filter — no endpoint, so results can't disagree with the map), rendered in the
-  list state only; then either the card list (SORT chips Added/Mastery, cycling
-  desc → asc → off) or the card detail (meanings, IN CONTEXT, the
-  `lib/rankProgress.ts` mastery meter, dictionary lookup + delete-card actions).
-  The « button collapses the whole column to a "≡ CARDS" handle and the camera
-  re-fits. The drawer's old RECENT UPGRADES block is gone — the outer tier's
-  ledger already carries the promotion feed, and repeating it cost a request per
-  deck (`hooks/useDeckUpgrades.ts` is orphaned by that, still present).
+  only past `ESCAPE_PUSH_PX` (320), decaying after `ESCAPE_PUSH_DECAY_MS` (500)
+  and cleared by any zoom-in. One notch used to leave, which meant a flick aimed
+  at the fitted view usually exited the deck.
+
+**Whole-sky chrome** — `components/StageActions.tsx`, right-aligned inside the
+same bounded column the TopBar uses (`max-w-[1300px]` + `px-11`), so its right
+edge lands on the TopBar's rather than on the deliberately-unbounded stage's; the
+wrapper is `pointer-events-none` so the sky stays draggable through the empty
+half of the row. It holds the all-decks `StudyButton` and "New deck" (glass
+popover form → `DecksProvider.createDeck`). `components/StageLedger.tsx` sits in
+the same top row: DAYS STUDIED / STARS IN YOUR SKY / DUE TODAY / MASTERED plus
+the all-decks mastery mix (`components/MixBar.tsx`), one fixed size. Stars,
+mastered and the mix are counted off cards already in memory; only `days` is a
+request (`hooks/useSkyLedger.ts` → `/api/stats/activity`). The ledger's expanded
+state and its recent-upgrades feed are gone — that section was the sole consumer
+of `/api/stats/recent-upgrades`, so the outer tier now makes one request fewer.
+`components/UpgradeRows.tsx` and `hooks/useDeckUpgrades.ts` are **orphaned by
+that and still present**.
+
+**Focused-deck chrome** — three surfaces, all glass:
+
+- `components/DeckBar.tsx` — the stats bar, full width across the top, rendered
+  in **both** panel states so the way out never collapses with the panel. Back ·
+  deck name · CARDS / MASTERED / DUE TODAY / STARTED · mastery mix · delete deck.
+  It replaced the breadcrumb, the old panel header and the panel's collapsible
+  deck-info drawer — that drawer borrowed the card list's own height to show
+  figures you consult once. **One fixed-height line, and that is load-bearing**:
+  the bar is 80px to its bottom edge (20 offset + 22 padding + its tallest cell,
+  the 38px delete button), and the panels below it and the camera's top inset are
+  hard-coded off that number, so a cell that wrapped would push the bar down over
+  sky the camera had already been fitted to. Every cell is `shrink-0` or
+  ellipsised and the mix legend clips rather than wraps; STARTED hides below
+  1100px. The deck name carries no meta line — `{n} cards · {n} due · started`
+  would restate three figures standing 200px to its right.
+- `components/GlassColumn.tsx` — the card list panel, 296px, list only. This
+  deck's `StudyButton` pinned at the top (`/study?deck={id}`, or practice when
+  nothing is due), the all-decks search (`components/CardSearch.tsx`, an
+  in-memory filter over every card the page holds — no endpoint and no debounce,
+  so results can never disagree with the map) with the collapse control beside
+  it, the sort row, then rows of **rank dot · word · the active sort's figure**.
+  Reading and glosses left the rows when the detail stopped replacing the list —
+  printing them twice was what made rows three lines tall and the column 340px
+  wide. The « button collapses it to a "≡ CARDS" handle and the camera re-fits.
+- `components/CardDetailCard.tsx` — the selected card, floating on the opposite
+  side of the sky: rank pill, headword + reading, `JlptChip`, all meanings
+  numbered, IN CONTEXT, the `lib/rankProgress.ts` mastery meter, ADDED, and a
+  footer of Dictionary + Remove. It used to be a second state of the list panel;
+  the list now stays up and keeps its row highlight, and the camera simply takes
+  a second inset on the right.
+
+Destructive acts confirm through `components/NightConfirm.tsx` — the page owns
+the confirm step, the surfaces only request it.
+
 - **Data is one request**: `GET /api/decks/user/:userId/cards` via
-  `hooks/useSkyDecks.ts` — the sky, the column, the search index and the
-  ledger counts all read the same rows. Mutations go through `DecksProvider`
-  (summaries) *and* the hook's optimistic `hideDeck`/`hideCard` + `refresh`,
-  so frames, stars and lists can never hold a ghost.
-- **The night chrome palette is `lib/nightChrome.ts`, not tokens.** The stage
-  is night in both themes, so all glass on it is light-on-dark always — the
-  same reasoning as the dock's `--dock-glass-*` block, kept as feature-local
-  constants. Two exceptions reference tokens instead: `active`/`activeInk` are
-  `--active`, so the sort chips agree with the dock and the library about what
-  selected looks like. Rank dots/bars/pills read `stageColor()` so the list
-  chrome and the stars agree.
+  `hooks/useSkyDecks.ts` — the sky, the panels, the search index and the ledger
+  counts all read the same rows. **Mutations flow through both owners** so
+  nothing holds a ghost: `DecksProvider` (the summaries the rest of the app
+  reads) takes the API call, and `useSkyDecks` hides the row optimistically then
+  refetches.
+- **The night chrome palette is `lib/nightChrome.ts`, deliberately not tokens.**
+  The stage is night in *both* themes, so everything floating on it is
+  light-on-dark always — the same reasoning as the dock's `--dock-glass-*` block,
+  kept feature-local because these are one feature's constants rather than app
+  chrome. Two exceptions reference tokens: `active`/`activeInk` are `--active`,
+  so the stage agrees with the dock about what selected looks like. Rank
+  dots/bars/pills read `stageColor()` (the `--stage-*` ramp) so the list chrome
+  and the stars always agree — that is also why the stats bar's MASTERED figure
+  is `stageColor('mastered')` and not a chrome gold.
+- **Three sorts: Added, Mastery, JLPT**, each chip cycling desc → asc → off (off
+  = the order the endpoint returned). JLPT became possible with migration 026,
+  which snapshots `jlpt_level` onto the card at add time; cards older than it
+  have `null` and the sort parks them last **in both directions**, since flipping
+  the arrow shouldn't promote the rows that have nothing to sort by.
+- **The reader's pending-card hand-off lands here**: `SkyView` consumes
+  `ReaderStateProvider.pendingCard` on mount behind a handled-ref guard and runs
+  `components/PendingCardOverlay/` over the stage; submitting creates the card,
+  refreshes the sky and focuses that deck via the URL. `back` is derived at the
+  API boundary by `cardBack()` and only there — `CardDraft` deliberately carries
+  no `back`, because it would be a second representation of the same reading and
+  glosses.
+- **Quotas mirror the backend**: `MAX_DECKS` 50, `MAX_CARDS_PER_DECK` 5000,
+  `MAX_MEANINGS_ON_CARD` 3 (`lib/limits.ts`, `lib/cardLimits.ts`). Exported from
+  the barrel because the reader bubble creates decks and cards too and must show
+  the same caps.
+- **Deck descriptions don't exist on the web** — dropped with the redesign. The
+  column and the mobile app still have the feature.
+
+#### Rank, and why it is only ever stability
+
 - **Rank is a threshold on FSRS stability, and `lib/rankProgress.ts` only
-  presents it.** `features/sky/lib/fsrs.ts` owns the ladder — `new` (never
-  reviewed) · `met` S<21 · `learned` 21≤S<365 · `mastered` S≥365 — and mirrors
-  `backend/src/services/fsrs.js`, so retuning means changing both and re-running
-  both verification harnesses. This replaced a streak-and-difficulty meter that
-  had to show the *lower* of two gates and could never quite explain itself.
-  The bar interpolates in **log space** because stability grows multiplicatively
-  (2.3 → 11 → 46 → 163 → 497 on the Good-only path); linear, it would sit near
-  empty for three reviews and then jump most of its length in one.
-- **`peak_rank` is a high-water mark, and it's what gets drawn.** Once a card
+  presents it.** `sky/lib/fsrs.ts` owns the ladder — `new` (never reviewed) ·
+  `met` S<21 · `learned` 21≤S<365 · `mastered` S≥365 — and **mirrors
+  `backend/src/services/fsrs.js` line for line** (FSRS-6, 21 parameters, verified
+  against py-fsrs 6.3.1). Change one, change both, then run *both* harnesses:
+  `backend/scripts/verify-fsrs.js` and `scripts/verify-fsrs.mts`. The backend is
+  the only writer; the web copy exists so the study screen can move before the
+  POST lands. Never derive rank from difficulty or answer streaks — this replaced
+  a streak-and-difficulty meter that had to show the *lower* of two gates and
+  could never quite explain itself. The bar interpolates in **log space**, because
+  stability grows multiplicatively (2.3 → 11 → 46 → 163 → 497 on the Good-only
+  path); linear, it would sit near empty for three reviews and then jump most of
+  its length in one.
+- **`peak_rank` is a high-water mark, and it is what gets drawn.** Once a card
   reaches `learned`, `shownRank()` holds that tier through any lapse — the star's
-  shape is a record of what the user achieved. The lost stability is shown as
+  shape is a record of what the user achieved. The lost stability shows as
   **brightness** instead (retrievability, `Star.glow`), so a slipped mastered word
   reads as "you knew this, go refresh it" rather than "you lost it". Every rank
   render site goes through `shownRank()`; reading `state` directly puts the list
-  chrome a tier out of step with the sky beside it.
-- **Two sorts, not three.** Added and Mastery. JLPT is impossible rather than
-  unwanted: `cards` has no `word_id`, so a card can't reach a JLPT level.
-- **The reader's pending-card hand-off lands here**: `DecksView` consumes
-  `ReaderStateProvider.pendingCard` on mount (handled-ref guard) and runs
-  `components/PendingCardOverlay/` over the stage; submit creates the card,
-  refreshes the sky and focuses that deck via the URL.
-- **Deck descriptions don't exist on the web** — dropped with the redesign.
-  The column and the mobile app still have the feature.
+  chrome a tier out of step with the sky beside it. Brightness is the one place
+  fractional elapsed days are correct — **scheduling always floors to whole days**,
+  and desired retention is fixed at 0.9 and deliberately not exposed.
+
+#### `/study` — the session runner
+
+**Reads its whole config from the query string** (`sky/study/views/StudyView.tsx`):
+
+    /study?due=1          every due card, shuffled  (+ &deck={id} to scope it)
+    /study?deck={id}      one deck, mode + size from its saved override
+
+A **bare `/study` `replace`s to `/sky`** — `replace`, not `push`, so Back doesn't
+bounce straight into the redirect. It used to be the study-ahead session; see
+below. Exits go to `/sky`. A due session studies everything due, so its size is
+the due count, which has to be fetched before the spec exists — hence the gate
+before the runner mounts: `useStudySession` fires off the spec, and a spec that
+changed a beat later would start one session and throw it away.
+
+- **A review only counts if the card is due.** `cardSrsService.isDue` on the
+  server (mirrored in `study/session/lib/srs.ts`) gates every memory update:
+  grading a card early changes **nothing at all** — no stability, no rank, no
+  schedule, no `card_reviews` row, no streak. The client copy only keeps the UI
+  honest and skips the round trip. One consequence: a card re-seated by the
+  in-session queue is no longer due, so FSRS's same-day path is currently
+  unreachable.
+- **That gate is why the study button's order is a feature, not styling.** It is
+  "Study N due" while anything is due and only becomes "Study ahead" once the
+  queue is empty — offering practice while real work is waiting would send people
+  to the one place their effort cannot count. `components/StudyButton.tsx` is
+  shared by the stage's action cluster and the focused deck's panel; only `due`
+  and `href` differ. Its `null` count is a **third state**, deliberately not
+  folded into "nothing due": `null` means the request is still in flight, and
+  treating it as zero flashed "Study ahead" on arrival — a link that changes
+  destination a beat after paint, at the moment someone is most likely to click.
+- **Practice is an overlay on `/sky`, not a route.** `sky/components/PracticeOverlay.tsx`
+  drills cards the stage is already holding — the focused deck's when you are in
+  one, every deck's out on the sky — so it needs no `/api/study/session` and
+  posts no reviews. Navigating to `/study` would only have thrown that inventory
+  away and re-fetched it to grade into the void. `useStudySession` takes a
+  `StudySource`: `remote` (fetched, grades count) or `local` (cards handed in,
+  grades only move the bar). **Local *is* practice — there is no second flag.**
+  One request still fires: `useStudyDisplayPrefs` reads `/api/study/prefs`, so a
+  card shows the same fields in practice as in a real session.
 
 ### Settings, Help & Credits (`features/settings`)
 
@@ -366,8 +508,11 @@ presentational.
   `validate()` in `AuthView` mirrors `backend/src/validation/auth.js` exactly
   (username 3–32 of `[a-zA-Z0-9_.-]`, password 8–72 with one non-letter),
   because checking less means a valid-looking form returns a server error.
-  **Registration is open** (rate-limited to 3/hr/IP). It was 403'd before
-  validation for a while; restoring that guard is how to close it again.
+  **Registration is currently CLOSED.** `POST /api/auth/register` opens with
+  `return res.status(403)` as the handler's first statement, so nothing behind
+  it runs — the validation, the 3/hr/IP limiter and the 409 paths are all still
+  wired underneath. **To reopen, delete that one `return`**; don't rewrite the
+  handler. The web form is unchanged and will start working the moment it goes.
 - **Every control is glass; the backgrounds are untouched.** The fields are
   `GLASS_SURFACE` panes with a `GLASS_BUTTON` password reveal inside, the submit
   CTA is a glass button (the filled `--btn` `Button` and the handoff's blue drop
@@ -397,9 +542,10 @@ on `/authenticate`). Replaced `WorkspaceNav`, which is deleted.
 
 - **Reader · Dictionary · Decks │ Profile.** Settings lost its entry —
   pre-decided when settings was redesigned, and settings is now a column of
-  `/profile` rather than a route at all. Sky briefly had one and lost it when the star map merged into
-  `/decks`: the sky *is* the decks page now, and two entries to one destination
-  is one too many. Home went the same way for the same reason — the dashboard
+  `/profile` rather than a route at all. Sky and Decks are **one entry**: the two
+  merged, and the surviving route is `/sky`, so a second entry would be the same
+  destination twice. The key and label still say "decks" (`Dock.types.ts`)
+  because that is what the page is *for*; only the path moved. Home went the same way for the same reason — the dashboard
   was deleted and the shelf took `/`, so Home's entry would have been Reader's
   destination under a second name. **Reader's path is therefore `/`**, matched
   exactly; `/reader/<bookId>` is an open book and hides the dock outright.
@@ -432,18 +578,22 @@ on `/authenticate`). Replaced `WorkspaceNav`, which is deleted.
 - Icons are inlined at the handoff's geometry; `shared/icons` is the outgoing
   lucide set and its shapes are not these. Pages reserve `pb-[140px]`.
 
-### Sky engine (`features/sky`)
+### Sky engine (`features/sky/map`)
 
-**There is no `/sky` route** — the star map is the `/decks` page (see the
-Decks entry above). What remains here is the engine: `lib/` (pure TypeScript,
-written to be copied to mobile — see `lib/README.md`), the web-binding hooks
-(`useCamera`, `useSkyFrame`, `useSkySeed`), and the SVG renderer
-(`SkyCanvas`/`SkyStars`/`SkyClouds`/`SkyFrames`). The barrel's production
-surface is `SkyMap` (uuid-keyed focus/selection, `frameMeta`, `insets`) plus
-`useSkySeed`; the demo harness `Sky.tsx` remains the unrouted reference. The
-route's other former tenant — the study-stats tab screen — is also gone
-(`features/study/stats` holds only `lib/statsApi.ts`, the `/api/stats`
-fetchers the stage's ledger and the decks upgrade rows read).
+The **rendering half** of the sky domain, and the only part with no idea decks
+exist — see the Sky, decks & study entry above for the page that hosts it.
+`lib/` is pure TypeScript written to be copied to mobile (see `lib/README.md`),
+plus the web-binding hooks (`useCamera`, `useSkyFrame`, `useSkyGenerator`,
+`useSkySeed`) and the SVG renderer
+(`SkyCanvas`/`SkyStars`/`SkyClouds`/`SkyFrames`/`SkyPanel`/`SkyWash`). The
+sub-barrel's production surface is **`SkyMap`** (uuid-keyed focus/selection,
+`frameMeta`, `insets`, `onSettled`) plus `useSkySeed`; `Sky.tsx` remains the
+unrouted demo harness.
+
+The old `/sky` route's other tenant, the study-stats tab screen, is gone:
+`features/sky/study/stats` holds only `lib/statsApi.ts` — the `/api/stats`
+fetchers the stage ledger reads (`fetchActivity`), plus `fetchCards` and
+`fetchRecentUpgrades`, which currently have no consumer.
 
 - **Moving between tiers is a camera flight** (`useCamera.flyTo`,
   `CAMERA_TWEEN_MS` = 400ms, interruptible); the host selects after the flight
@@ -462,7 +612,10 @@ fetchers the stage's ledger and the decks upgrade rows read).
 ## Conventions to know
 
 - **`'use client'` everywhere a component uses hooks**. RSC opportunities exist (static layout shells) but haven't been pursued.
-- **Domain types live in `lib/types/`**; `lib/<x>Api.ts` only contains fetch helpers.
+- **File placement is by feature, never by file type.** Pick an existing feature under `features/`; create one only for a genuinely new user-nameable concern. Fixed sub-folder names: `components/` (PascalCase), `hooks/` (`useFoo.ts`), `lib/` (camelCase, `fooApi.ts`), `providers/` (`FooProvider.tsx`), `views/` (`FooView.tsx`), plus `types.ts`. **Only create a sub-folder that will hold a file** — no empty scaffolding. Cross-cutting primitives go to `shared/components` (**not** `shared/ui`, which is outgoing), global icons to `shared/icons`, feature-agnostic infra to `lib/`.
+- **Domain types live in the owning feature's `types.ts`**, and that feature's `lib/*Api.ts` imports them. There is no `lib/types/`; a fetch helper never declares a domain type beside itself.
+- **A domain with sub-features nests them as siblings** (`books`, `sky`), each with its own barrel; what they share sits at the domain root. **Sub-features don't import each other** — an orchestrator view at the domain root composes them.
+- **All `*Api.ts` fetch helpers accept an optional `AbortSignal`** — pair with `useEffect` cleanup.
 - **`lib/util/cn.ts`** is the Tailwind class merger. shadcn's `components.json` aliases `utils` to `@/lib/util/cn` — this means new shadcn-generated code uses the right path.
 - **No hex literals in components.** One acceptable exception: `JlptChip`'s per-level palette (5 hardcoded colors by design). Everything else reads the design tokens. A one-off value that exists to make a *single* component work may stay hardcoded there with a comment saying why it isn't a token — widening the palette every screen reads is the more expensive mistake.
 - **No inline `borderRadius: <pixel>` on token-relevant surfaces.** Use Tailwind `rounded-*` (which reads `--radius-*`) or `style={{ borderRadius: 'var(--radius-md)' }}`. Pure decorative shapes (`'50%'`, `999`) are fine.
@@ -475,14 +628,16 @@ fetchers the stage's ledger and the decks upgrade rows read).
 | Concern | Files |
 |---|---|
 | **Design tokens** | `styles/ds-tokens.css` (colour, shape, type, page canvas — the whole palette) |
-| **Token primitives** | `shared/components/` — React components, not CSS classes (`Button`, `Card`, `PaperCard`, `GlassCard`, `Chip`, `Eyebrow`, …), plus the `GLASS_*` recipe class names |
-| **Auth flow** | `components/providers/AuthProvider.tsx`, `app/authenticate/page.tsx`, `lib/userApi.ts` |
-| **Reader chrome** | `components/reader/*`, `components/views/ReaderView/*` |
-| **Library / book sync** | `components/library/*`, `components/views/ReaderView/*`, `lib/booksApi.ts`, `lib/devicesApi.ts`, `components/books/utils/booksDb.ts` (sole `aogimi` IDB factory), `lib/epubIdentity.ts` |
-| **Dictionary** | `app/dictionary/page.tsx` → `features/dictionary/` (`views/DictionaryView.tsx` owns the URL, `views/SearchView.tsx` is the rail + entry layout, `components/`, `hooks/useWordDetails.ts`, `lib/results.ts`, `lib/dictApi.ts`, `providers/DictionaryStateProvider.tsx`) |
-| **Decks / study** | `app/decks/page.tsx`, `components/views/cards/*`, `lib/decksApi.ts` |
-| **Reader bubbles (overlays)** | `components/page-bubbles/*`, `components/providers/BubbleProvider.tsx` |
-| **Profile** | `app/profile/page.tsx`, `components/profile/*` |
+| **Glass** | `styles/glass.css` (every number, in its `:root` block) + `shared/components/glass.ts` (the class names) |
+| **Token primitives** | `shared/components/` — React components, not CSS classes (`Button`, `Card`, `PaperCard`, `GlassCard`, `Chip`, `Eyebrow`, `JlptChip`, `StageDot`, …), plus the `GLASS_*` recipe names |
+| **App shell / nav** | `features/app-shell/` — `AppShell.tsx` (auth gate + provider composition), `Dock.tsx` + `Dock.types.ts`, `TopBar.tsx`, `providers/`, `hooks/useReaderActions.ts` |
+| **Auth flow** | `features/auth/` — `views/AuthView.tsx`, `providers/AuthProvider.tsx`, `lib/authApi.ts`, `lib/wipeUserData.ts`; tokens in `lib/tokenStore.ts`, injection + refresh-retry in `lib/api.ts` |
+| **Library / book sync** | `features/books/library/`, `features/books/views/BooksView.tsx`, `features/books/lib/` (`booksDb.ts` is the sole `aogimi` IDB factory, plus `booksApi.ts`, `epubIdentity.ts`, `pdfIdentity.ts`, `reconcileBooks.ts`) |
+| **Reader** | `features/books/reader/` — engines in `components/`, the two lookup surfaces in `dict-sidebar/` + `reader-bubble/`, position maths in `lib/pdfPosition.ts` / `lib/readerSession.ts`; sync wiring in `features/books/views/useProgressSync.ts` |
+| **Dictionary** | `app/dictionary/page.tsx` → `features/dictionary/` (`views/DictionaryView.tsx` owns the URL, `views/SearchView.tsx` is the rail + entry layout, `hooks/useWordDetails.ts`, `lib/results.ts`, `lib/dictApi.ts`, `providers/DictionaryStateProvider.tsx`) |
+| **Sky / decks** | `app/sky/page.tsx` → `features/sky/stage/views/SkyView.tsx`; engine in `features/sky/map/`, data layer in `features/sky/stage/lib/decksApi.ts` + `providers/DecksProvider.tsx` |
+| **Study / SRS** | `app/study/page.tsx` → `features/sky/study/views/StudyView.tsx`; the ladder in `features/sky/lib/fsrs.ts` (**mirrors `backend/src/services/fsrs.js`**), presentation in `features/sky/stage/lib/rankProgress.ts` |
+| **Profile / settings** | `app/profile/page.tsx` → `features/profile/`; the settings list, help and credits in `features/settings/` (`lib/credits.ts` is the audited ship inventory) |
 
 ---
 
@@ -492,7 +647,9 @@ fetchers the stage's ledger and the decks upgrade rows read).
 |---|---|
 | Change a primary button's look across the whole app | [shared/components/Button.tsx](../shared/components/Button.tsx) — `BASE` + the `VARIANTS` map. |
 | Change a color across the whole app | Edit the token in [styles/ds-tokens.css](../styles/ds-tokens.css), in **both** the `light` and `dark` blocks. |
-| Wire a new backend endpoint | Add types in [lib/types/](lib/types/), fetch helper in `lib/<domain>Api.ts`, update [backend-connections.txt](backend-connections.txt). |
+| Wire a new backend endpoint | Add the type to the owning feature's `types.ts`, the fetch helper to its `lib/<domain>Api.ts` (taking an optional `AbortSignal`), then update [backend-connections.txt](backend-connections.txt) — and `backend/SCHEMA.md` + `backend/API_ROUTES.md` if the backend changed. |
+| Change how a frosted surface looks | The `:root` block of [styles/glass.css](../styles/glass.css) — every value the recipe reads is declared there. |
+| Retune the SRS | [features/sky/lib/fsrs.ts](../features/sky/lib/fsrs.ts) **and** `backend/src/services/fsrs.js` together, then run both harnesses (`backend/scripts/verify-fsrs.js`, `scripts/verify-fsrs.mts`). |
 | Add a new page route | New folder under `app/`, add `page.tsx`. Auth-gated routes hide naturally — `AppShell` redirects when there's no user. |
 | Cancel an in-flight fetch | Pass an `AbortSignal` to the API call; clean up in `useEffect`. |
 
@@ -502,9 +659,11 @@ fetchers the stage's ledger and the decks upgrade rows read).
 
 Tracked in [DECISIONS.md](DECISIONS.md). Highlights:
 
-- Reading-position persistence is **EPUB-only** (localStorage buffer + periodic/exit backend flush via `useProgressSync`); resume-where-you-left-off works across devices. PDF position is deferred (no backend column yet).
+- Reading position covers **EPUB and PDF** (localStorage buffer + periodic/exit backend flush via `useProgressSync`); resume works across devices, and PDFs share the EPUB column via `page-N`. *Where inside a page* isn't stored.
 - Highlights / bookmarks / annotations removed entirely (UI, storage, and foliate wiring) — not currently a feature.
-- Backend-backed theme storage deferred (theme is the single `default`, not persisted).
+- Backend-backed theme storage deferred (theme is a localStorage key, and is currently pinned to `dark` by `FORCED_THEME` anyway).
+- No OAuth, no password reset, no session-only sign-in, and **no guest mode** — signed-out is the local-first state, and signing up flushes what's pending.
+- No test runner in this package. Web lint is the quality bar: **0 errors, 0 warnings** as of 2026-08-07 — don't add to it.
 - Backend-backed reader typography prefs deferred (in-memory only, reset each time a book opens).
 - PDF reader is parse-only, no real reader UI.
 - Anki `.apkg` export.

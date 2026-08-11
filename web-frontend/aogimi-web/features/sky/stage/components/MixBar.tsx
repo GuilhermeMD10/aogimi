@@ -11,7 +11,22 @@ import { NIGHT } from '../lib/nightChrome';
  * `stageColor` — the `--stage-*` ramp the sky's palette mirrors — so the bar
  * and the stars always agree.
  */
-export function MixBar({ mix, barHeight = 9 }: { mix: MasteryMix | null; barHeight?: number }) {
+export function MixBar({
+  mix,
+  barHeight = 9,
+  nowrap = false,
+}: {
+  mix: MasteryMix | null;
+  barHeight?: number;
+  /**
+   * Clip the legend instead of wrapping it. The stats-bar variant: that bar is
+   * one fixed-height line sharing a row with the deck name, four figures and
+   * the delete button, so a second legend line would push the whole bar taller
+   * — and the bar's height is what the camera's top inset is cut to. The
+   * ledger, which owns its own width, keeps the wrapping default.
+   */
+  nowrap?: boolean;
+}) {
   const total = mix ? MIX_ORDER.reduce((n, s) => n + mix[s], 0) : 0;
 
   return (
@@ -29,7 +44,11 @@ export function MixBar({ mix, barHeight = 9 }: { mix: MasteryMix | null; barHeig
               ),
           )}
       </div>
-      <div className="mt-2 flex flex-wrap gap-x-3.5 gap-y-1">
+      <div
+        className={`mt-2 flex gap-x-3.5 gap-y-1 ${
+          nowrap ? 'flex-nowrap overflow-hidden' : 'flex-wrap'
+        }`}
+      >
         {MIX_ORDER.map((s) => (
           <span
             key={s}
