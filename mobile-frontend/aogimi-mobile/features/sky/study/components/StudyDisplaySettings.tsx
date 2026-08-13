@@ -1,5 +1,6 @@
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Screen } from '@/shared/components/Screen';
+import { BackBar } from '@/shared/components/BackBar';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
@@ -30,9 +31,13 @@ export function StudyDisplaySettings() {
   const t = useT();
   const { prefs, loading, setPreset, toggleFront, toggleBack } = useStudyDisplayPrefs();
 
+  // The back bar renders in the loading branch too. It is the only way off this
+  // screen — there is no dock on a pushed page — so a slow `useStudyDisplayPrefs`
+  // would otherwise strand the user on a spinner with no exit.
   if (loading) {
     return (
       <Screen padded>
+        <BackBar title={t('studyDisplay.title')} />
         <View style={styles.centered}>
           <ActivityIndicator color={c.fg} />
         </View>
@@ -42,9 +47,7 @@ export function StudyDisplaySettings() {
 
   return (
     <Screen padded>
-      <Text style={[styles.title, { color: c.fg, fontFamily: fontFamily.ui }]}>
-        {t('studyDisplay.title')}
-      </Text>
+      <BackBar title={t('studyDisplay.title')} />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <Section label={t('studyDisplay.sectionPreset')} c={c}>
@@ -117,11 +120,6 @@ function ToggleRow({
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: {
-    fontSize: fontSize.xl,
-    fontWeight: '600',
-    marginBottom: spacing.md,
-  },
   scroll: { paddingBottom: spacing.xxl, gap: spacing.lg },
   section: { gap: 8 },
   sectionLabel: {
