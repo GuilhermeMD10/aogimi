@@ -20,6 +20,7 @@
 // to install the NetInfo subscription. After that everything works
 // from the cached state.
 
+import { useEffect, useState } from 'react';
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 
 let online = true;
@@ -74,8 +75,6 @@ export function subscribeOnlineTransition(cb: () => void): () => void {
 }
 
 // React-side surface ────────────────────────────────────────────────
-
-import { useEffect, useState } from 'react';
 
 export function useOnline(): boolean {
   const [state, setState] = useState<boolean>(online);

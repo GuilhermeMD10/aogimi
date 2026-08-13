@@ -1,6 +1,19 @@
 import type { WordReading } from '../types';
 
 /**
+ * Whether a meaning's `lang` is English.
+ *
+ * JMdict tags English as `eng`, but some rows in our import carry the 2-letter
+ * `en` — so both spellings have to pass or a chunk of entries render with no
+ * gloss at all. Lives here, next to `preferredHeadword`, because it is the same
+ * kind of thing: a pure "which part of this entry do we show" rule, shared by
+ * the result row, the card-draft builder and the recent-lookups store.
+ */
+export function isEnglish(lang: string): boolean {
+  return lang === 'eng' || lang === 'en';
+}
+
+/**
  * The form to show as an entry's title.
  *
  * If the user's query matches one of the entry's kanji or reading forms

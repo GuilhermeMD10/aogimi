@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { fontFamily } from '@/theme/tokens';
+import { fontFamily, palette } from '@/theme/tokens';
 import { deckColorFor, deckGlyphFor } from '../lib/deckVisuals';
 
 type Props = {
@@ -60,7 +60,9 @@ export function DeckCover({
 const styles = StyleSheet.create({
   wrap: { overflow: 'hidden', justifyContent: 'flex-end', padding: 12 },
   glyph: {
-    color: '#ffffff',
+    // A cover glyph is text, so it follows the reset's one rule. `deckColorFor`
+    // returns pale tints precisely so this can be black.
+    color: palette.ink,
     fontFamily: fontFamily.jp,
     lineHeight: undefined,
   },

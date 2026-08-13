@@ -11,17 +11,23 @@ export type JlptChipProps = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Per-level palette — warm for easy levels, cool for hard. Mirrors the web
-// `components/ui/JlptChip.tsx` palette so a user moving between web and mobile
-// gets the same color signal at a glance.
+// Per-level palette — warm for easy levels, cool for hard. One of the two
+// standing hex exceptions (with `ResultButtons`): the level *is* the colour's
+// meaning, so it doesn't come from `palette`.
+//
+// **Darkened 2026-08-11.** These were the web's mid-tones (#8FB08A, #D9A557, …),
+// chosen to sit on a dark chip. This component uses each value twice — as the
+// label ink *and*, at 18/32% alpha, as the chip's fill and border — so on the
+// light baseline the mid-tones became pale text on a pale wash. Same five hues,
+// same warm→cool ordering, taken down to where they read as text on white.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const JLPT_PALETTE: Record<number, string> = {
-  5: '#8FB08A', // green   — N5 (easiest)
-  4: '#B5A27C', // sand
-  3: '#D9A557', // amber
-  2: '#D97757', // orange  (matches accent family)
-  1: '#A05C7B', // plum    — N1 (hardest)
+  5: '#3F6B39', // green   — N5 (easiest)
+  4: '#6B5A2E', // sand
+  3: '#8A5A00', // amber
+  2: '#9A3E1E', // orange  (matches accent family)
+  1: '#6E2F4C', // plum    — N1 (hardest)
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

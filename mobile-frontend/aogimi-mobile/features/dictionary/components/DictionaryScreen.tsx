@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -21,9 +21,14 @@ import { DictResultRow } from './DictResultRow';
 import { DictEmpty } from './DictEmpty';
 import { useDictionarySearch } from '../hooks/useDictionarySearch';
 import { useDictionaryNav } from '../hooks/useDictionaryNav';
-import { getRecentSearches, pushRecentSearch, type RecentSearchItem } from '../lib/dictionaryStorage';
+import {
+  getRecentSearches,
+  pushRecentLookup,
+  pushRecentSearch,
+  type RecentSearchItem,
+} from '../lib/dictionaryStorage';
 import { wordCardDraft } from '../lib/cardDraft';
-import { useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 export function DictionaryScreen() {
   const c = useColors();
@@ -56,6 +61,28 @@ export function DictionaryScreen() {
     void getRecentSearches().then(setRecents);
   }, []);
 
+  // ── Deep link: `?word=<id>&n=<nonce>` opens that entry directly ────────────
+  // Home's recent-lookups rows arrive here. The id, not a query string, because
+  // the user already chose an entry — re-running a *search* could land them on
+  // a different word with the same spelling.
+  //
+  // `n` is a nonce and is load-bearing: this tab stays mounted, so pushing the
+  // same `word` twice would leave the params identical and the dedupe below
+  // would swallow the second tap.
+  const { word: wordParam, n: nonceParam } = useLocalSearchParams<{
+    word?: string;
+    n?: string;
+  }>();
+  const handledLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!wordParam) return;
+    const token = `${wordParam}:${nonceParam ?? ''}`;
+    if (handledLinkRef.current === token) return;
+    handledLinkRef.current = token;
+    const id = Number(wordParam);
+    if (Number.isFinite(id)) void openDetail(id);
+  }, [wordParam, nonceParam, openDetail]);
+
   // Was an inline builder that took 2 glosses, joined them with `; ` and
   // dropped the JLPT tier. `wordCardDraft` is the one place that decision is
   // made now — shared with the reader, which had its own drifted copy.
@@ -72,7 +99,12 @@ export function DictionaryScreen() {
         const next = await pushRecentSearch(trimmed);
         setRecents(next);
       }
-      await openDetail(id);
+      const details = await openDetail(id);
+      // The *entry* recents, which Home reads — a separate store from the
+      // query recents above, because "words I looked at" and "things I typed"
+      // are different lists. Written after the detail resolves, so a lookup
+      // that failed to load never lands in the list.
+      if (details) void pushRecentLookup(details.word, trimmed || undefined);
     },
     [openDetail],
   );

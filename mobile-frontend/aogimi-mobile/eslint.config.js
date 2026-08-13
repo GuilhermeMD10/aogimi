@@ -5,7 +5,11 @@ const expoConfig = require("eslint-config-expo/flat");
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ["dist/*"],
+    // `.expo/` is generated on every `expo start` and git-ignored. Its
+    // `types/router.d.ts` opens with a blanket `/* eslint-disable */` that this
+    // config reports as unused — and since expo-router rewrites the file, the
+    // only durable fix is to not lint it.
+    ignores: ["dist/*", ".expo/*"],
   },
   {
     // Layer rule, mirroring `eslint.config.mjs` in the web app. Three layers,

@@ -1,6 +1,6 @@
 import { MAX_CARD_MEANINGS } from '@/features/sky/stage/lib/limits';
 import type { CardDraft } from '@/features/sky/stage/types';
-import { preferredHeadword } from './headword';
+import { isEnglish, preferredHeadword } from './headword';
 import type { ExampleSentence, KanjiInfo, WordResult } from '../types';
 
 /**
@@ -20,12 +20,6 @@ import type { ExampleSentence, KanjiInfo, WordResult } from '../types';
  * Mirrors the web's `features/dictionary/lib/cardDraft.ts`. Cards made on
  * either client should be indistinguishable in the database.
  */
-
-/** JMdict tags English glosses `eng`; some older rows in this app's cache used
- *  `en`. Both are accepted rather than normalised at the boundary, because the
- *  read surfaces already accept both and fixing it in one place only would make
- *  the two disagree. */
-const isEnglish = (lang: string) => lang === 'eng' || lang === 'en';
 
 /**
  * A word entry's draft.

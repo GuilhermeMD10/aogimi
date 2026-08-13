@@ -82,6 +82,13 @@ function writeInstalledVersion(version: string): void {
  */
 async function resolveBundleAsset(): Promise<{ uri: string; hash: string }> {
   const asset = Asset.fromModule(
+    // `require()`, not `import`: Metro's asset registry only picks up a
+    // *static* require of a non-JS file, and `Asset.fromModule` wants the
+    // numeric module id it returns. An ESM import of a `.sqlite` doesn't
+    // resolve at all. The path is relative and neither tsc nor eslint can see
+    // inside it — moving this file without fixing it breaks the bundle while
+    // every static check still passes (it has happened once).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('../../../assets/dictionary.sqlite'),
   );
   await asset.downloadAsync();

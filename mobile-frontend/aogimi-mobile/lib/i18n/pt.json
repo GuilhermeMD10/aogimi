@@ -69,7 +69,8 @@
     "cardsDue": "cartões para revisar",
     "studyNow": "Estudar agora",
     "resumeReading": "Retomar leitura",
-    "viewAll": "VER TUDO"
+    "viewAll": "VER TUDO",
+    "daysStudied": "DIAS DE ESTUDO"
   },
   "reader": {
     "define": "Definir",
@@ -203,5 +204,14 @@
     "home": "Início",
     "reader": "Leitura",
     "sky": "Céu"
+  },
+  "appearance": {
+    "title": "Aparência",
+    "system": "Seguir o dispositivo",
+    "systemSub": "Usa a definição clara ou escura do sistema",
+    "day": "Dia",
+    "daySub": "Tinta sobre papel",
+    "night": "Noite",
+    "nightSub": "Meia-noite"
   }
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { palette } from '@/theme/tokens';
 import { computeMenuPosition, type SelectionRect, type Viewport } from './menuPosition';
 
 export type NativeMenuKey = 'dict' | 'card' | 'highlight' | 'copy';
@@ -74,18 +75,22 @@ export function NativeSelectionMenu({ selectionRect, viewport, onAction, onDismi
 }
 
 const styles = StyleSheet.create({
+  // Was a near-black bubble with white labels and white hairlines. Light panel,
+  // black labels, token borders under the 2026-08-11 reset.
   menu: {
     position: 'absolute',
     flexDirection: 'row',
     alignItems: 'stretch',
-    backgroundColor: 'rgba(26,25,24,0.96)',
+    backgroundColor: palette.paper,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.paperBd,
     borderRadius: 12,
     overflow: 'hidden',
   },
   itemWrap: { flexDirection: 'row', alignItems: 'stretch' },
   divider: {
     width: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: palette.paperBd,
   },
   item: {
     paddingHorizontal: 12,
@@ -94,7 +99,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    color: '#fff',
+    color: palette.ink,
     fontSize: 13,
     fontWeight: '500',
     letterSpacing: 0.2,
@@ -103,8 +108,8 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 3,
-    // Subtle outline so the swatch reads on the dark menu background.
+    // Outline so the swatch reads against the light menu background.
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.4)',
+    borderColor: palette.bdA,
   },
 });

@@ -176,7 +176,7 @@ function ReconcileView({
           return (
             <View
               key={b.id}
-              style={[styles.row, { backgroundColor: '#FFFFFF', borderColor: c.border }]}
+              style={[styles.row, { backgroundColor: c.bgElev, borderColor: c.border }]}
             >
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[styles.rowTitle, { color: c.fg }]} numberOfLines={1}>

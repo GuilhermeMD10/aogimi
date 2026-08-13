@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
+import { palette } from '@/theme/tokens';
 import {
   HIGHLIGHT_COLORS,
   type HighlightColor,
@@ -51,7 +52,10 @@ export function HighlightPicker({
                 styles.swatch,
                 {
                   backgroundColor: HIGHLIGHT_COLORS[color],
-                  borderColor: active ? '#fff' : 'transparent',
+                  // The "this one is applied" ring. Ink, not white — the menu is
+                  // a light panel now, so a white ring on a pale yellow swatch
+                  // was invisible.
+                  borderColor: active ? palette.ink : 'transparent',
                 },
               ]}
               hitSlop={6}
@@ -74,7 +78,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(26,25,24,0.96)',
+    // Was a near-black slab with white detailing. Light panel + ink detailing
+    // under the 2026-08-11 reset, like every other popover.
+    backgroundColor: palette.paper,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.paperBd,
     borderRadius: 24,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -95,7 +103,7 @@ const styles = StyleSheet.create({
   clearLine: {
     width: 16,
     height: 2,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: palette.ink,
     borderRadius: 1,
   },
 });

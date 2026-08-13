@@ -6,7 +6,6 @@
  */
 export function stripControl(s: string | null | undefined): string | null {
   if (s == null) return null;
-  // eslint-disable-next-line no-control-regex
   const cleaned = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '').trim();
   return cleaned || null;
 }

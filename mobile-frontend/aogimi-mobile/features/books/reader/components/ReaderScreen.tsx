@@ -283,7 +283,10 @@ export function ReaderScreen({ bookId }: Props) {
         });
       }
     },
-    [selection],
+    // The three setters come from `useReaderModals`, which returns raw
+    // `useState` setters — stable across renders, so listing them satisfies
+    // the rule without adding a re-render path.
+    [selection, setDictTerm, setFlashcardPrefill, setHighlightPicker],
   );
 
   // ── Highlight create / replace / remove ─────────────────────────────
@@ -328,7 +331,7 @@ export function ReaderScreen({ bookId }: Props) {
       setFlashcardPrefill(wordCardDraft(details.word, dictTerm ?? undefined, details.sentences));
       setDictTerm(null);
     },
-    [dictTerm],
+    [dictTerm, setDictTerm, setFlashcardPrefill],
   );
 
   // ── Bookmark add/toggle (+ backend sync) ────────────────────────────

@@ -152,7 +152,7 @@ export function DictEntry({ word, kanjis = [], sentences = [], compact, query, o
           {sentences.map((s) => (
             <View
               key={s.id}
-              style={[styles.sentenceCard, { backgroundColor: '#FFFFFF', borderColor: c.border }]}
+              style={[styles.sentenceCard, { backgroundColor: c.bgElev, borderColor: c.border }]}
             >
               <RubyText html={s.jaRuby} fallback={s.ja} color={c.fg} />
               <Text

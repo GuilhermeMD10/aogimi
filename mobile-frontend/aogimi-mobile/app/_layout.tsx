@@ -11,6 +11,12 @@ import {
   Lora_700Bold,
   Lora_400Regular_Italic,
 } from '@expo-google-fonts/lora';
+import {
+  NotoSansJP_400Regular,
+  NotoSansJP_500Medium,
+  NotoSansJP_700Bold,
+} from '@expo-google-fonts/noto-sans-jp';
+import { switzerFonts } from '@/theme/switzer';
 import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
 import { I18nProvider } from '@/lib/i18n/I18nContext';
 import { AuthProvider } from '@/features/auth/providers/AuthContext';
@@ -41,11 +47,20 @@ export default function RootLayout() {
     initNetwork();
   }, []);
 
+  // Three families, three roles. **Switzer is the app's Latin UI face and is
+  // not in the repo yet** — `theme/switzer.ts` explains why and how to add it;
+  // until then `switzerFonts` spreads to nothing and the UI roles resolve to
+  // the platform sans. Noto Sans JP carries every Japanese glyph in the app,
+  // Lora is the reader's body face only.
   const [fontsLoaded, fontsError] = useFonts({
     Lora_400Regular,
     Lora_600SemiBold,
     Lora_700Bold,
     Lora_400Regular_Italic,
+    NotoSansJP_400Regular,
+    NotoSansJP_500Medium,
+    NotoSansJP_700Bold,
+    ...switzerFonts,
   });
 
   // First-launch dictionary setup. `getDictionary()` copies the
