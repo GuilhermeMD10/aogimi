@@ -1,120 +1,108 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/shared/components/Screen';
-import { useColors } from '@/theme/ThemeContext';
-import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, spacing } from '@/theme/tokens';
+import { BackBar } from '@/shared/components/BackBar';
+import { DangerButton } from '@/shared/components/DangerButton';
+import { RowGroup, Row, SectionLabel } from '@/shared/components/RowGroup';
+import { LOCALES, useI18n, useT } from '@/lib/i18n/I18nContext';
+import { useTheme } from '@/theme/ThemeContext';
+import { spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 
-// Settings tab — a flat list of rows, each row pushes its own page (or
-// runs an action for sign out). Intentionally minimal: text + padding, no
-// icons or subtitles. New rows go in `ROWS` below; sign out is a sibling
-// action since it doesn't navigate.
-
-type NavRow = { kind: 'nav'; labelKey: string; path: string };
-
-// Labels resolved through i18n at render time (not capture-time) so the
-// row text re-renders when the locale changes.
-const ROWS: NavRow[] = [
-  { kind: 'nav', labelKey: 'appearance.title',    path: '/profile/settings/appearance' },
-  { kind: 'nav', labelKey: 'profile.language',    path: '/profile/settings/language' },
-  { kind: 'nav', labelKey: 'studyDisplay.title',  path: '/profile/settings/study-display' },
-  { kind: 'nav', labelKey: 'settings.help',       path: '/profile/settings/help' },
-  { kind: 'nav', labelKey: 'settings.credits',    path: '/profile/settings/credits' },
-];
-
+/**
+ * Settings — the handoff's grouped-card layout, carrying **exactly** the rows
+ * this app already had.
+ *
+ * The handoff draws rows this app has no feature behind: a Japanese-font
+ * picker, three study toggles wired to nothing here, sync status, CSV export,
+ * delete-all-data, and a version footer. **None of them are built.** Drawing a
+ * row implies a working setting, and a settings screen that lies is worse than
+ * a short one. What changed is only the *arrangement*: a flat list of five
+ * undifferentiated rows became three labelled groups, which is the part of the
+ * handoff that is a design and not a feature request.
+ *
+ * The groups are named for what our rows actually are, so APPEARANCE and STUDY
+ * match the handoff and its DATA group is replaced by ABOUT — we have no data
+ * controls to put in one.
+ */
 export function SettingsView() {
-  const c = useColors();
   const t = useT();
   const router = useRouter();
   const { signOut, status } = useAuth();
-  // Sign-out only meaningful when there's a backend account to leave.
-  // Signed-out users will see sign-up / sign-in on the Profile tab.
+  const { preference } = useTheme();
+  const { locale } = useI18n();
+
+  // Sign-out is only meaningful when there is a backend account to leave.
+  // Signed-out users see sign-up / sign-in on the Profile screen instead.
   const isSignedIn = status === 'signed-in';
 
   const handleSignOut = () => {
-    Alert.alert(t('profile.signOut'), 'Sign out of this device?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('profile.signOut'), t('settings.signOutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       { text: t('profile.signOut'), style: 'destructive', onPress: () => void signOut() },
     ]);
   };
 
+  // Each row shows its current value, which the flat list did not. The theme
+  // and locale are the two settings whose value is worth seeing without
+  // opening the page.
+  const themeValue = t(`appearance.${preference}`);
+  const localeLabel = LOCALES.find((l) => l.code === locale)?.nativeLabel ?? locale;
+
   return (
     <Screen padded>
-      <Text style={[styles.title, { color: c.fg, fontFamily: fontFamily.ui }]}>
-        {t('settings.title')}
-      </Text>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <BackBar title={t('settings.title')} subtitle="設定" />
 
-      <ScrollView contentContainerStyle={styles.list}>
-        {ROWS.map((row, i) => (
+        <SectionLabel>{t('settings.groupAppearance')}</SectionLabel>
+        <RowGroup>
           <Row
-            key={row.path}
-            label={t(row.labelKey)}
-            onPress={() => router.push(row.path as never)}
-            firstOfBlock={i === 0}
-            color={c.fg}
-            borderColor={c.border}
+            label={t('appearance.title')}
+            value={themeValue}
+            chevron
+            onPress={() => router.push('/profile/settings/appearance')}
           />
-        ))}
+          <Row
+            label={t('profile.language')}
+            value={localeLabel}
+            chevron
+            onPress={() => router.push('/profile/settings/language')}
+          />
+        </RowGroup>
 
-        {/* Sign out only renders when there's a real account to leave.
-            Signed-out users sign up / sign in via the Profile tab. */}
+        <SectionLabel>{t('settings.groupStudy')}</SectionLabel>
+        <RowGroup>
+          <Row
+            label={t('studyDisplay.title')}
+            chevron
+            onPress={() => router.push('/profile/settings/study-display')}
+          />
+        </RowGroup>
+
+        <SectionLabel>{t('settings.groupAbout')}</SectionLabel>
+        <RowGroup>
+          <Row
+            label={t('settings.help')}
+            chevron
+            onPress={() => router.push('/profile/settings/help')}
+          />
+          <Row
+            label={t('settings.credits')}
+            chevron
+            onPress={() => router.push('/profile/settings/credits')}
+          />
+        </RowGroup>
+
         {isSignedIn && (
-          <Row
-            label={t('profile.signOut')}
-            onPress={handleSignOut}
-            firstOfBlock={ROWS.length === 0}
-            color={c.fg}
-            borderColor={c.border}
-          />
+          <View>
+            <DangerButton label={t('profile.signOut')} onPress={handleSignOut} />
+          </View>
         )}
       </ScrollView>
     </Screen>
   );
 }
 
-function Row({
-  label,
-  onPress,
-  firstOfBlock,
-  color,
-  borderColor,
-}: {
-  label: string;
-  onPress: () => void;
-  firstOfBlock: boolean;
-  color: string;
-  borderColor: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.row,
-        {
-          borderTopWidth: firstOfBlock ? StyleSheet.hairlineWidth : 0,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderColor,
-        },
-      ]}
-    >
-      <Text style={[styles.rowLabel, { color }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  title: {
-    fontSize: fontSize.xl,
-    fontWeight: '600',
-    marginBottom: spacing.md,
-  },
-  list: { paddingBottom: spacing.xxl },
-  row: {
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-  },
-  rowLabel: {
-    fontSize: fontSize.md,
-  },
+  scroll: { paddingBottom: spacing.xxl },
 });

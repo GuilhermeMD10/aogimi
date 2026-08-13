@@ -5,7 +5,7 @@ import type { DeckRecord } from '@/features/sky/stage/types';
 import { deckGlyphFor } from '@/features/sky/stage/lib/deckVisuals';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
-import { HomeCard } from './HomeCard';
+import { Card } from './HomeCard';
 
 /**
  * The due-cards card: a count, one chip per deck with something due, and the
@@ -48,7 +48,7 @@ export function StudyCard({
   const nothingDue = total === 0;
 
   return (
-    <HomeCard>
+    <Card>
       <View style={styles.head}>
         <Text style={styles.count}>{total}</Text>
         <Text style={styles.countLabel}>{dueLabel}</Text>
@@ -81,7 +81,7 @@ export function StudyCard({
         <Feather name="star" size={13} color={p.btnInk} />
         <Text style={styles.buttonLabel}>{studyLabel}</Text>
       </Pressable>
-    </HomeCard>
+    </Card>
   );
 }
 

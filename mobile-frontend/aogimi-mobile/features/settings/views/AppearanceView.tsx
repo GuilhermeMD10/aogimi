@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { Screen } from '@/shared/components/Screen';
+import { BackBar } from '@/shared/components/BackBar';
 import { useColors, useTheme, type ThemePreference } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
 import { useT } from '@/lib/i18n/I18nContext';
@@ -29,15 +30,7 @@ export function AppearanceView() {
 
   return (
     <Screen padded>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backRow}>
-          <Feather name="chevron-left" size={22} color={c.fg} />
-          <Text style={[styles.backLabel, { color: c.fg }]}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={[styles.title, { color: c.fg, fontFamily: fontFamily.ui }]}>
-          {t('appearance.title')}
-        </Text>
-      </View>
+      <BackBar title={t('appearance.title')} />
 
       <ScrollView contentContainerStyle={styles.list}>
         {OPTIONS.map((opt, i) => {
@@ -71,16 +64,6 @@ export function AppearanceView() {
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: spacing.md },
-  backRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm, gap: 2 },
-  backLabel: { fontSize: fontSize.md },
-  title: {
-    fontSize: fontSize.xl,
-    // '700', not the '600' the sibling settings pages still use: Switzer has no
-    // 600 cut, so that weight is synthesised. Those pages get it when they are
-    // redesigned — see TODO.md.
-    fontWeight: '700',
-  },
   list: { paddingBottom: spacing.xxl },
   row: {
     paddingVertical: 16,

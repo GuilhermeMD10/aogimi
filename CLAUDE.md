@@ -339,12 +339,26 @@ mobile work; don't re-derive it here. What changed, because none of it matches o
   page, so `/sky/[deckId]` and the study routes keep Sky lit. The dock is
   `features/app-shell/Dock.tsx` — the web's glass material, and it exports **`useDockClearance()`**,
   which screens must use for bottom padding because the dock floats.
-- **Home is the first screen rebuilt against a handoff (2026-08-12)** and is the pattern for the
-  rest: `views/HomeView.tsx` is composition + data only, every card is its own file in
-  `features/home/components/`, and each reads `usePalette()` + a `useMemo`'d style factory. The
-  handoff's Library and Word-of-the-Day cards were **cut, not deferred** — Library duplicates the
-  Reader tab, and there is no word-of-the-day data. Continue-reading shows **% only**: `page_count`
-  is PDF-only, so "page N / M" would be present on some books and absent on others.
+- **Home (2026-08-12), then Profile + Settings (2026-08-13), are rebuilt against handoffs** and set
+  the pattern: the view is composition + data only, every card is its own file in the feature's
+  `components/`, and each reads `usePalette()` + a `useMemo`'d style factory. The handoff's Library
+  and Word-of-the-Day cards were **cut, not deferred** — Library duplicates the Reader tab, and
+  there is no word-of-the-day data. Continue-reading shows **% only**: `page_count` is PDF-only, so
+  "page N / M" would be present on some books and absent on others.
+- **A handoff never adds a feature.** Drawing a row implies a working setting, so a row with nothing
+  behind it does not get built: Settings kept exactly its five existing entries and only changed
+  *arrangement* (flat list → the handoff's labelled groups), skipping the font picker, study
+  toggles, sync/export/delete and version footer. Profile skipped Daily goal, Study reminder and the
+  sky strip, and its stat strip reads DAYS STUDIED · MASTERED · STARS because **nothing counts
+  "sessions"** — `study_days` rolls up per day, `card_reviews` logs single grades.
+- **Pushed screens exit via `shared/components/BackBar`** (chevron + "Back" + the title), not the
+  handoff's boxed icon-only chevron, and they **do not draw the dock** — a tab bar on a pushed screen
+  offers two competing ways back. Used by Profile, Settings, Language, Appearance.
+- **Shared surfaces live in `shared/components/`**: `Card` (the `paper`/`paperBd`/radius-16 box, no
+  shadow), `RowGroup` + `Row` + `SectionLabel` (the handoff's grouped settings list — `RowGroup`
+  suppresses the last row's divider itself, including when that row is conditional), `DangerButton`
+  (48px outline, the only destructive affordance). All theme-aware; `shared/components/Button` is
+  **not** — it still reads the Day-locked static palette.
 - **Recent dictionary lookups are device-local and have no web counterpart.** Two stores in
   `features/dictionary/lib/dictionaryStorage.ts`: recent *searches* (strings typed, drives the
   dictionary tab's suggestions) and recent *lookups* (entries opened, drives Home's card, written

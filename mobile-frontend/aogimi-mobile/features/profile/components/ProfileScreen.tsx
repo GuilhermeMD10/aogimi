@@ -1,78 +1,72 @@
-import { useCallback, useState } from 'react';
-import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useColors } from '@/theme/ThemeContext';
+import { Screen } from '@/shared/components/Screen';
+import { BackBar } from '@/shared/components/BackBar';
+import { DangerButton } from '@/shared/components/DangerButton';
+import { RowGroup, Row, SectionLabel } from '@/shared/components/RowGroup';
+import { usePalette } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, palette, radius, spacing } from '@/theme/tokens';
+import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { fetchUserBooks } from '@/features/books/lib/booksApi';
-import { fetchUserDecks } from '@/features/sky/stage/lib/decksApi';
 import { updateUserProfile } from '../lib/profileApi';
 import { kamonFor } from '../lib/kamon';
-import { BookCover } from '@/features/books/library/components/BookCover';
-import { DeckCover } from '@/features/sky/stage/components/DeckCover';
-import { Button } from '@/shared/components/Button';
 import { AvatarPickerSheet } from './AvatarPickerSheet';
 import { SignedOutProfileScreen } from './SignedOutProfileScreen';
 import { AnimalLabel } from './AnimalLabel';
+import { ProfileIdentity } from './ProfileIdentity';
+import { ProfileStats } from './ProfileStats';
+import { ProfileHeaderButton } from './ProfileHeaderButton';
 import { useStatsCards } from '../hooks/useStatsCards';
+import { useStatsActivity } from '../hooks/useStatsActivity';
 
 const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const;
 type JlptLevel = (typeof JLPT_LEVELS)[number];
 
+/**
+ * Profile — rebuilt against the design handoff (2026-08-13).
+ *
+ * **No dock, and a back chevron out.** Profile is a pushed screen reached from
+ * Home's avatar, so it keeps the app's existing exit affordance rather than the
+ * handoff's boxed chevron, and it does *not* draw the tab bar the handoff shows
+ * underneath. A dock on a pushed screen offers two competing ways back.
+ *
+ * ── Cut from the previous screen ────────────────────────────────────────────
+ * The "currently reading" list and the "your decks" list are gone. Both were
+ * shortcuts to places the app already reaches faster — Home's continue-reading
+ * card and the Sky tab — and both cost a `fetchUserBooks` + `fetchUserDecks`
+ * round trip on every open. Dropping them removed the screen's only data fetch
+ * beyond the two stats hooks.
+ *
+ * ── Not taken from the handoff ──────────────────────────────────────────────
+ * The sky strip (Home already has one, and Sky is a tab), Daily goal and Study
+ * reminder (neither exists — a reminder needs a notifications feature, not a
+ * row). The JLPT row stays, because it is real and already worked.
+ */
 export function ProfileScreen() {
-  const c = useColors();
   const t = useT();
+  const p = usePalette();
   const router = useRouter();
   const { user, signOut, setUser, status } = useAuth();
+  const styles = useStyles(p);
 
-  // Signed-out users see a different surface (sign-up / sign-in CTAs)
-  // but rules of hooks require unconditional hook order — run every
-  // hook below first, then branch on `status` at the JSX level.
+  // Signed-out users get a different surface, but rules of hooks require an
+  // unconditional hook order — every hook runs, then the JSX branches.
   const isSignedOut = status === 'signed-out';
 
-  const userId = user?.id;
-  const { data, loading } = useFetchWithAbort(
-    async (signal) => {
-      const [books, decks] = await Promise.all([
-        fetchUserBooks(userId!, signal),
-        fetchUserDecks(userId!, signal),
-      ]);
-      return { books, decks };
-    },
-    [userId],
-    { enabled: !isSignedOut && userId != null },
-  );
-  const books = data?.books ?? [];
-  const decks = data?.decks ?? [];
-
-  // Mastered count drives the AnimalLabel chip. Hook always fires
-  // (rules of hooks) — for signed-out users it 401s silently and the
-  // signed-out branch below short-circuits before the chip renders.
   const { data: cardsStats } = useStatsCards();
-  const masteredCount = cardsStats.byState.mastered;
+  const { data: activity } = useStatsActivity();
 
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
-  // Single busy-field flag — only one profile mutation is ever in flight.
+  // One busy flag — only ever one profile mutation in flight.
   const [savingField, setSavingField] = useState<'avatar' | 'level' | null>(null);
-  const savingAvatar = savingField === 'avatar';
-  const savingLevel = savingField === 'level';
 
   const handleAvatarSelect = useCallback(
     async (idx: number) => {
       if (!user) return;
       setSavingField('avatar');
       try {
-        const updated = await updateUserProfile({ avatar_index: idx });
-        setUser(updated);
+        setUser(await updateUserProfile({ avatar_index: idx }));
       } catch {
         /* surface later if needed */
       } finally {
@@ -84,236 +78,118 @@ export function ProfileScreen() {
 
   const handleLevelSelect = useCallback(
     async (level: JlptLevel) => {
-      if (!user || savingLevel) return;
+      if (!user || savingField === 'level') return;
       setSavingField('level');
       try {
-        const updated = await updateUserProfile({ language: level });
-        setUser(updated);
+        setUser(await updateUserProfile({ language: level }));
       } catch {
         /* ignore */
       } finally {
         setSavingField(null);
       }
     },
-    [user, savingLevel, setUser],
+    [user, savingField, setUser],
   );
 
-  // Branch after all hooks have run. Guest first (no backend fetch
-  // needed), then the loading state, then the real profile.
+  const stats = useMemo(
+    () => [
+      { value: activity.daysStudied, label: t('profile.statDaysStudied') },
+      { value: cardsStats.byState.mastered, label: t('profile.statMastered') },
+      { value: cardsStats.total, label: t('profile.statStars'), highlight: true },
+    ],
+    [activity.daysStudied, cardsStats.byState.mastered, cardsStats.total, t],
+  );
+
   if (isSignedOut) return <SignedOutProfileScreen />;
-  if (loading || !user) {
+  if (!user) {
     return (
-      <View style={[styles.root, { backgroundColor: c.bg }]}>
-        <ActivityIndicator color={c.fg} />
-      </View>
+      <Screen>
+        <View style={styles.loading}>
+          <ActivityIndicator color={p.ink} />
+        </View>
+      </Screen>
     );
   }
 
   const displayName = user.display_name || user.username;
-  const email = user.email;
-  const joinDate = new Date(user.created_at).toLocaleDateString(undefined, {
+  const joined = new Date(user.created_at).toLocaleDateString(undefined, {
     month: 'short',
     year: 'numeric',
   });
-  const currentLevel = user.language && JLPT_LEVELS.includes(user.language as JlptLevel)
-    ? (user.language as JlptLevel)
-    : null;
-  const avatar = kamonFor(user.avatar_index);
-
-  const readingBooks = books
-    .filter((b) => b.progress > 0 && b.progress < 100)
-    .sort((a, b) => new Date(b.last_read_at).getTime() - new Date(a.last_read_at).getTime())
-    .slice(0, 3);
+  const currentLevel =
+    user.language && JLPT_LEVELS.includes(user.language as JlptLevel)
+      ? (user.language as JlptLevel)
+      : null;
+  const hasEmail = typeof user.email === 'string' && user.email.length > 0;
 
   return (
-    <View style={[styles.root, { backgroundColor: c.bg }]}>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: spacing.xxl * 2 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* The hero band. Was a corner-to-corner gradient between two hardcoded
-            browns from the retired palette, over an empty `heroPattern` overlay
-            that never got its texture; both went in the 2026-08-10 passes. One
-            flat surface step now. */}
-        <View style={styles.hero} />
-
-        <View style={styles.body}>
-          <View style={styles.avatarRow}>
-            <View style={styles.avatarWrap}>
-              <View style={[styles.avatar, { backgroundColor: c.fg, borderColor: c.bg }]}>
-                <Text style={[styles.avatarGlyph, { color: c.accentFg }]}>{avatar.char}</Text>
-              </View>
-              <Pressable
+    <Screen padded>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <BackBar
+          title={t('profile.title')}
+          right={
+            <>
+              <ProfileHeaderButton
+                label={t('profile.changeAvatar')}
                 onPress={() => setAvatarPickerOpen(true)}
-                disabled={savingAvatar}
-                style={[
-                  styles.avatarEdit,
-                  { backgroundColor: c.accent, borderColor: c.bg, opacity: savingAvatar ? 0.6 : 1 },
-                ]}
-                hitSlop={6}
-                accessibilityLabel={t('profile.changeAvatar')}
-              >
-                {/* Cream on the vermilion badge — `accentFg` is the dark ink
-                    for pale fills. Same pairing as BrandGlyph. */}
-                <Text style={[styles.avatarEditIcon, { color: palette.accentInk }]}>✎</Text>
-              </Pressable>
-            </View>
-          </View>
+              />
+              <ProfileHeaderButton
+                label={t('settings.title')}
+                icon="settings"
+                iconOnly
+                onPress={() => router.push('/profile/settings')}
+              />
+            </>
+          }
+        />
 
-          <Text style={[styles.displayName, { color: c.fg }]}>{displayName}</Text>
-          <Text style={[styles.handle, { color: c.fgMuted }]}>@{user.username}</Text>
+        <ProfileIdentity
+          glyph={kamonFor(user.avatar_index).char}
+          displayName={displayName}
+          since={t('profile.lookingUpSince', { date: joined.toUpperCase() })}
+          changeAvatarLabel={t('profile.changeAvatar')}
+          saving={savingField === 'avatar'}
+          onPressAvatar={() => setAvatarPickerOpen(true)}
+        />
 
-          <View style={styles.chipsRow}>
-            {currentLevel && (
-              <View
-                style={[styles.chip, { backgroundColor: c.accentSoft, borderColor: 'transparent' }]}
-              >
-                <Text style={[styles.chipText, { color: c.accent, fontWeight: '600' }]}>
-                  日本語 · {currentLevel}
-                </Text>
-              </View>
-            )}
-            <AnimalLabel mastered={masteredCount} />
-            <View
-              style={[styles.chip, { backgroundColor: c.bgSunken, borderColor: 'transparent' }]}
-            >
-              <Text style={[styles.chipText, { color: c.fgMuted }]}>Joined {joinDate}</Text>
-            </View>
-          </View>
-
-          <Section title={t('profile.account')}>
-            <Row label={t('profile.username')} value={user.username} borderColor={c.border} labelColor={c.fgMuted} valueColor={c.fg} />
-            {email && (
-              <Row label="Email" value={email} borderColor={c.border} labelColor={c.fgMuted} valueColor={c.fg} />
-            )}
-            <Row
-              label="Language level"
-              borderColor={c.border}
-              labelColor={c.fgMuted}
-              valueColor={c.fg}
-            >
-              <View style={styles.levelRow}>
-                {JLPT_LEVELS.map((l) => {
-                  const active = currentLevel === l;
-                  return (
-                    <Pressable
-                      key={l}
-                      onPress={() => handleLevelSelect(l)}
-                      style={[
-                        styles.levelChip,
-                        {
-                          backgroundColor: active ? c.fg : c.bgSunken,
-                        },
-                      ]}
-                      hitSlop={2}
-                    >
-                      <Text
-                        style={{
-                          color: active ? c.accentFg : c.fgMuted,
-                          fontSize: fontSize.xs + 1,
-                          fontWeight: active ? '600' : '400',
-                        }}
-                      >
-                        {l}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </Row>
-          </Section>
-
-          <Section title={t('profile.currentlyReading')} subtitle={`${readingBooks.length} book${readingBooks.length !== 1 ? 's' : ''}`}>
-            {readingBooks.length === 0 ? (
-              <Text style={[styles.empty, { color: c.fgMuted }]}>
-                Nothing in progress right now.
-              </Text>
-            ) : (
-              <View style={{ gap: 10 }}>
-                {readingBooks.map((b) => (
-                  <Pressable
-                    key={b.id}
-                    onPress={() => router.push(`/reader/${b.id}`)}
-                    style={[styles.readingRow, { backgroundColor: c.bgElev, borderColor: c.border }]}
-                  >
-                    <BookCover
-                      title={b.title}
-                      coverColor={b.cover_color}
-                      filename={b.filename}
-                      width={44}
-                      height={60}
-                      cornerRadius={6}
-                    />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={[styles.readingTitle, { color: c.fg }]} numberOfLines={1}>
-                        {b.title}
-                      </Text>
-                      <Text style={[styles.readingMeta, { color: c.fgMuted }]} numberOfLines={1}>
-                        {b.author ? `${b.author} · ` : ''}{b.progress}%
-                      </Text>
-                      <View style={[styles.miniTrack, { backgroundColor: c.bgSunken }]}>
-                        <View
-                          style={[
-                            styles.miniFill,
-                            { backgroundColor: c.fg, width: `${b.progress}%` },
-                          ]}
-                        />
-                      </View>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </Section>
-
-          <Section title="Your decks" subtitle={`${decks.length} deck${decks.length !== 1 ? 's' : ''}`}>
-            {decks.length === 0 ? (
-              <Text style={[styles.empty, { color: c.fgMuted }]}>No decks yet.</Text>
-            ) : (
-              <View style={{ gap: 10 }}>
-                {decks.slice(0, 4).map((d) => (
-                  <Pressable
-                    key={d.id}
-                    onPress={() => router.push(`/sky/${d.id}`)}
-                    style={[styles.deckRow, { backgroundColor: c.bgElev, borderColor: c.border }]}
-                  >
-                    <DeckCover deckKey={d.id} deckName={d.name} width={36} height={36} cornerRadius={6} glyphSize={18} />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={[styles.deckTitle, { color: c.fg }]} numberOfLines={1}>
-                        {d.name}
-                      </Text>
-                      {d.description.length > 0 && (
-                        <Text style={[styles.deckDesc, { color: c.fgMuted }]} numberOfLines={1}>
-                          {d.description}
-                        </Text>
-                      )}
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </Section>
-
-          {/* Settings left the dock in the 2026-08 route restructure and is
-              pushed from here — this is its only entry point. */}
-          <View style={{ marginTop: spacing.lg }}>
-            <Button
-              label={t('settings.title')}
-              variant="secondary"
-              onPress={() => router.push('/profile/settings')}
-              full
-            />
-          </View>
-
-          <View style={{ marginTop: spacing.md }}>
-            <Button
-              label={t('profile.signOut')}
-              variant="secondary"
-              onPress={signOut}
-              full
-            />
-          </View>
+        <View style={styles.chipRow}>
+          <AnimalLabel mastered={cardsStats.byState.mastered} />
         </View>
+
+        <ProfileStats stats={stats} />
+
+        <SectionLabel>{t('profile.account')}</SectionLabel>
+        <RowGroup>
+          <Row label={t('profile.username')} value={user.username} />
+          {/* Pre-redesign accounts have no email, and it is nullable in the DB.
+              A boolean rather than `{user.email && …}`: an empty string is a
+              *kept* child in `Children.toArray`, so it would count as the last
+              row and steal the divider suppression from the JLPT row. */}
+          {hasEmail && <Row label={t('profile.email')} value={user.email ?? ''} />}
+          <Row label={t('profile.jlptLevel')}>
+            {/* Inline chips rather than the handoff's chevron-into-a-subpage:
+                five options fit on the row, and this already worked. */}
+            <View style={styles.levelRow}>
+              {JLPT_LEVELS.map((l) => {
+                const active = currentLevel === l;
+                return (
+                  <Pressable
+                    key={l}
+                    onPress={() => handleLevelSelect(l)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    hitSlop={2}
+                    style={[styles.levelChip, active && styles.levelChipActive]}
+                  >
+                    <Text style={[styles.levelText, active && styles.levelTextActive]}>{l}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Row>
+        </RowGroup>
+
+        <DangerButton label={t('profile.signOut')} onPress={() => void signOut()} />
       </ScrollView>
 
       <AvatarPickerSheet
@@ -322,175 +198,32 @@ export function ProfileScreen() {
         onDismiss={() => setAvatarPickerOpen(false)}
         onSelect={handleAvatarSelect}
       />
-    </View>
+    </Screen>
   );
 }
 
-// ── Section wrapper ─────────────────────────────────────────────────────────
-
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  const c = useColors();
-  return (
-    <View style={{ marginTop: spacing.xl }}>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: c.fgMuted }]}>{title}</Text>
-        {subtitle && (
-          <Text style={[styles.sectionSubtitle, { color: c.fgSubtle }]}>{subtitle}</Text>
-        )}
-      </View>
-      {children}
-    </View>
+function useStyles(p: Palette) {
+  return useMemo(
+    () =>
+      StyleSheet.create({
+        scroll: { paddingBottom: spacing.xxl },
+        loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+        chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.md },
+        levelRow: { flexDirection: 'row', gap: 5 },
+        levelChip: {
+          paddingHorizontal: 9,
+          paddingVertical: 4,
+          borderRadius: radius.pill,
+          backgroundColor: p.paperTile,
+        },
+        levelChipActive: { backgroundColor: p.active },
+        levelText: {
+          fontFamily: fontFamily.ui,
+          fontSize: fontSize.xs + 1,
+          color: p.muted,
+        },
+        levelTextActive: { color: p.activeInk, fontWeight: '700' },
+      }),
+    [p],
   );
 }
-
-function Row({
-  label,
-  value,
-  children,
-  borderColor,
-  labelColor,
-  valueColor,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-  borderColor: string;
-  labelColor: string;
-  valueColor: string;
-}) {
-  return (
-    <View style={[styles.row, { borderTopColor: borderColor }]}>
-      <Text style={[styles.rowLabel, { color: labelColor }]}>{label}</Text>
-      <View style={{ flex: 1, alignItems: 'flex-end' }}>
-        {children ?? (
-          <Text style={[styles.rowValue, { color: valueColor }]} numberOfLines={1}>
-            {value}
-          </Text>
-        )}
-      </View>
-    </View>
-  );
-}
-
-const HERO_HEIGHT = 108;
-
-const styles = StyleSheet.create({
-  root: { flex: 1 },
-  hero: {
-    height: HERO_HEIGHT,
-    width: '100%',
-    overflow: 'hidden',
-    backgroundColor: palette.paper,
-  },
-  body: { paddingHorizontal: 24, marginTop: -44 },
-  avatarRow: { flexDirection: 'row', alignItems: 'flex-end' },
-  avatarWrap: { position: 'relative' },
-  avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarGlyph: { fontFamily: fontFamily.jp, fontSize: 40, fontWeight: '500' },
-  avatarEdit: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarEditIcon: { fontSize: 12, lineHeight: 14 },
-  displayName: {
-    fontFamily: fontFamily.displayBold,
-    fontSize: 26,
-    letterSpacing: -0.3,
-    marginTop: spacing.md,
-  },
-  handle: { fontSize: fontSize.sm, marginTop: 2 },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 10,
-  },
-  chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  chipText: { fontSize: 11 },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 10,
-    paddingHorizontal: 2,
-  },
-  sectionTitle: {
-    fontSize: fontSize.xs,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  sectionSubtitle: { fontSize: fontSize.xs },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  rowLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    width: 120,
-  },
-  rowValue: { fontSize: fontSize.sm + 1 },
-  levelRow: { flexDirection: 'row', gap: 5 },
-  levelChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
-  empty: { fontSize: fontSize.sm, paddingVertical: 10 },
-  readingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 10,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  readingTitle: { fontFamily: fontFamily.jp, fontSize: fontSize.md, fontWeight: '500' },
-  readingMeta: { fontSize: fontSize.xs + 1, marginTop: 2 },
-  miniTrack: {
-    height: 2,
-    borderRadius: 99,
-    marginTop: 6,
-    overflow: 'hidden',
-  },
-  miniFill: { height: '100%', borderRadius: 99 },
-  deckRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 10,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  deckTitle: { fontSize: fontSize.sm + 1, fontWeight: '600' },
-  deckDesc: { fontSize: fontSize.xs + 1, marginTop: 2 },
-});

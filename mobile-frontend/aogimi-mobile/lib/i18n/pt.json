@@ -172,12 +172,22 @@
     "changeAvatar": "Mudar avatar",
     "signedOut": {
       "note": "Podes continuar a ler e a criar baralhos sem conta — os teus dados ficam neste dispositivo. Cria conta mais tarde para sincronizar entre dispositivos."
-    }
+    },
+    "email": "E-mail",
+    "jlptLevel": "Nível JLPT",
+    "lookingUpSince": "A OLHAR PARA CIMA DESDE {date}",
+    "statDaysStudied": "DIAS DE ESTUDO",
+    "statMastered": "DOMINADAS",
+    "statStars": "ESTRELAS"
   },
   "settings": {
     "title": "Definições",
     "help": "Ajuda",
-    "credits": "Créditos"
+    "credits": "Créditos",
+    "groupAppearance": "APARÊNCIA",
+    "groupStudy": "ESTUDO",
+    "groupAbout": "SOBRE",
+    "signOutConfirm": "Terminar sessão neste dispositivo?"
   },
   "studyDisplay": {
     "title": "Visualização de estudo",

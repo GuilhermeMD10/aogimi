@@ -68,6 +68,30 @@ is **% only** — `page_count` is PDF-only, so "page N / M" can't be shown
 consistently. The sky panel is a **shortcut container with an empty body**: the
 real `SkyMap` renderer exists and mounts inside it later; nothing is faked.
 
+## 2026-08-13 — Profile + Settings
+
+**Profile** dropped its currently-reading and decks lists — both were slower
+routes to places the app already reaches (Home's card, the Sky tab) and both
+cost a `fetchUserBooks` + `fetchUserDecks` round trip on every open, which is
+now gone. Settings moved from a button at the bottom to the header beside Edit.
+Not taken from the handoff: the sky strip, Daily goal, Study reminder. The JLPT
+row stayed and still uses inline chips rather than a chevron-into-a-subpage.
+
+**Settings** is the same five rows it always had, rearranged into the handoff's
+labelled groups (APPEARANCE / STUDY / ABOUT — its DATA group has no counterpart
+here). Deliberately **not** built, because nothing is behind them: the Japanese
+font picker, the three study toggles, sync status, CSV export, delete-all-data,
+and the version footer.
+
+**New shared primitives**, all theme-aware: `Card`, `BackBar`, `RowGroup`/`Row`/
+`SectionLabel`, `DangerButton`. `Card` was promoted out of `features/home/`
+(which now re-exports it) on its second caller, per the house rule. `BackBar`
+absorbed the duplicated header blocks in `LanguageView` and `AppearanceView`.
+
+**Still owed here:** `AvatarPickerSheet`, `AnimalLabel` and
+`SignedOutProfileScreen` are untouched and still on the `useColors()` bridge —
+they follow the theme but were not redesigned.
+
 **Recent lookups** are a new device-local feature with no web counterpart —
 `dictionaryStorage.ts` now has two stores, and the reader's drawer writes to the
 lookup one as well as the dictionary tab. Deliberate divergence, not a sync gap.

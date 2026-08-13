@@ -172,12 +172,22 @@
     "changeAvatar": "アバターを変更",
     "signedOut": {
       "note": "アカウントなしでも読書やデッキの作成は続けられます。データはこの端末に保存されます。後でサインアップすると、端末間で同期できるようになります。"
-    }
+    },
+    "email": "メールアドレス",
+    "jlptLevel": "JLPTレベル",
+    "lookingUpSince": "{date} から仰ぎ見る",
+    "statDaysStudied": "学習日数",
+    "statMastered": "習得",
+    "statStars": "星"
   },
   "settings": {
     "title": "設定",
     "help": "ヘルプ",
-    "credits": "クレジット"
+    "credits": "クレジット",
+    "groupAppearance": "外観",
+    "groupStudy": "学習",
+    "groupAbout": "アプリについて",
+    "signOutConfirm": "この端末からサインアウトしますか？"
   },
   "studyDisplay": {
     "title": "学習表示",
