@@ -13,23 +13,106 @@ The **Phase 6 section immediately below is different**: it is live work, written
 # Phase 6 — open items (2026-08-08)
 
 Phase 6 is the design-dependent half of the mobile catch-up. Done so far: the
-token layer, the route restructure + Home screen, the `react-native-svg` sky
-renderer, and the glass dock. What follows is everything known to be unfinished
-or unverified, roughly in the order it should be picked up.
+token layer, the route restructure, the `react-native-svg` sky renderer, the
+glass dock, and — as of 2026-08-12 — the **real palette and the first
+handoff-driven screen (Home)**. What follows is everything known to be
+unfinished or unverified, roughly in the order it should be picked up.
 
-> **Colour was reset on 2026-08-10.** The ported Midnight values are gone: too
-> many of them sat within a few points of each other on a black canvas, so
-> borders, sunken tiles and low-emphasis ink could not be seen on device.
-> `theme/tokens.ts` now carries a deliberately plain high-contrast baseline —
-> black canvas, three opaque surface steps, **opaque** borders, one obvious hue
-> per role — and its header states the contract to keep. Retinted with it:
-> `Dock.tsx`'s `GLASS`, `sky/stage/lib/nightChrome.ts`, `deckVisuals.ts`,
-> `CardGridItem`'s rank chip (now reads `RANK_COLORS`) and `ProfileScreen`'s hero
-> gradient. **This is scaffolding: the screen-by-screen pass below is expected to
-> recolour it, and every screen it touches should also drop `useColors()` for
-> `palette`.** Untouched on purpose: `sky/map/lib/palette.ts` (`verify:sky` asserts
-> it bit-identical to the web), the reader's page themes in `readerStorage.ts`,
-> and the two documented exceptions — `JlptChip` and `ResultButtons`.
+## 2026-08-12 — the design handoff landed (Home)
+
+This supersedes the two colour-reset notes below, which are kept as history.
+Read `theme/tokens.ts`'s header for the live contract.
+
+**Fonts are done (2026-08-13).** Switzer (400/500/700 `.otf`, committed to
+`assets/fonts/` under the ITF Free Font License) + Noto Sans JP (400/500/700
+via `@expo-google-fonts/noto-sans-jp`). `theme/switzer.ts` is the only place a
+font file is registered; `theme/tokens.ts` maps them to roles. The standing rule
+(in CLAUDE.md): handoffs name their own typefaces — this one wants M PLUS 1 +
+Space Mono — and we always substitute ours at the token layer, never at a call
+site.
+
+- **Follow-up: ~60 `fontWeight: '600'` uses across ~37 un-redesigned files.**
+  Neither family ships a 600 cut, so every one of those is now a synthesised
+  fake semibold — visible since the real fonts started loading. They were
+  harmless while the UI was on the system sans. `ChipShape` and `sectionLabel`
+  no longer *type*-permit '600', but inline `StyleSheet` values are typed by
+  RN's `TextStyle` and can't be caught that way. Fix each to `'700'` as its
+  screen is redesigned; `grep -rn "fontWeight: '600'"` is the list.
+
+**Day + Night are back.** `PALETTES = { day, night }`, one `Palette` type,
+`usePalette()` for redesigned screens, preference persisted to
+`aogimi_theme_name` and defaulting to the OS. Picker at
+`/profile/settings/appearance`.
+
+- **Known and accepted: Night degrades on screens the redesign hasn't reached.**
+  The `useColors()` bridge is derived from the active column, so those ~61
+  screens follow the theme — but the hardcoded `#FFFFFF` fills catalogued below
+  don't, and on Night they are white-on-white again. Each screen fixes itself as
+  it is redesigned. If it becomes too noisy to work in, pinning `themeName` to
+  `'day'` in `ThemeContext` is one line.
+- **~21 modules are Day-locked** behind the deprecated static `palette` export —
+  they read it inside a module-scope `StyleSheet.create`, which can't call a
+  hook. Migrating one is mechanical: swap to `usePalette()` and move the
+  `StyleSheet.create` into a `useMemo`'d `useStyles(p)` factory. `features/home/`
+  is the worked example.
+- **The surface ladder inverted**: cards now sit *above* the canvas, and the
+  contract is about role rather than lightness. `paperTile` is judged against
+  `paper`, not against `bg`.
+- Radii re-valued to the handoff: `md` 10 → 12, `lg` 14 → 16.
+
+**Home is rebuilt** — the pattern for every screen after it. `HomeView` is
+composition + data only; six components in `features/home/components/`. Two
+handoff cards were **cut, not deferred**: Library (duplicates the Reader tab)
+and Word of the Day (no data, and inventing it is a feature). Continue-reading
+is **% only** — `page_count` is PDF-only, so "page N / M" can't be shown
+consistently. The sky panel is a **shortcut container with an empty body**: the
+real `SkyMap` renderer exists and mounts inside it later; nothing is faked.
+
+**Recent lookups** are a new device-local feature with no web counterpart —
+`dictionaryStorage.ts` now has two stores, and the reader's drawer writes to the
+lookup one as well as the dictionary tab. Deliberate divergence, not a sync gap.
+
+**Still owed on Home:** the star field inside `SkyShortcut`, and press feedback
+(this screen has none, same as the rest of the app — see the motion note below;
+it should be decided once and applied through shared primitives, not here).
+
+> **Colour was reset on 2026-08-10 and flipped light on 2026-08-11.** The ported
+> Midnight values are gone: too many of them sat within a few points of each other
+> on a black canvas, so borders, sunken tiles and low-emphasis ink could not be
+> seen on device. The dark baseline that replaced them was legible, but the app is
+> still full of pre-Midnight light-theme leftovers — hardcoded `#FFFFFF` search
+> fields, white cards, pale popovers — and on a dark palette every one became
+> white ink on a white fill. So the baseline went light: **text is black, surfaces
+> are light**, which makes the leftovers correct instead of invisible.
+>
+> `theme/tokens.ts` carries the whole thing and its header states the contract to
+> keep. Flipped with it: `Dock.tsx`'s `GLASS` (black wash, `tint="light"` blur,
+> and `Sheens` gained a `lineEdge` prop so the shell's black specular line and the
+> pill's white one each fade to their own channel), `nightChrome.ts` (light
+> panels), `deckVisuals.ts` + `palette.cover*` (pale tints, **black** glyphs),
+> `JlptChip` (five hues darkened — each is used as label ink *and* as an 18% fill,
+> so mid-tones became pale-on-pale), `meta.isDark` → `false` for the status bar,
+> the two dark reader popovers (`NativeSelectionMenu`, `HighlightPicker`), and the
+> hardcoded whites in `DictEmpty` / `DictDrawer` / `DictEntry` / `OnboardingView` /
+> `FloatingBackButton`. Both scrims now read `palette.scrim`.
+>
+> **This is scaffolding: the screen-by-screen pass below is expected to recolour
+> it, and every screen it touches should also drop `useColors()` for `palette`.**
+>
+> Untouched on purpose: `sky/map/lib/palette.ts` (`verify:sky` asserts it
+> bit-identical to the web) and `sky1..3`/`deckSky` — stars need night, which is
+> exactly why `nightChrome`'s panels had to invert; the reader's page themes and
+> `HIGHLIGHT_COLORS` in `readerStorage.ts`; the manga shell (black, for image
+> viewing, with white status text — a correct pair); `ResultButtons`' four grade
+> hues; and `bookPush`'s `cover_color`, which is pushed to the backend and drawn
+> by the web, so it is shared data rather than styling — `BookCover` uses the
+> stored hex as a *key* into the four pale fills instead of painting it.
+>
+> **Known and left for the redesign:** `RANK_COLORS` is tuned for the dark sky, so
+> on the now-light `StageLedger` / `MixBar` / `CardGridItem` chips the top rank
+> (`#F4DC82`, pale yellow) is washed out. It cannot be fixed here — that module is
+> the harness-verified copy — so the fix is a darker chip behind the swatch, or a
+> light-surface variant of the ladder, decided at redesign time.
 
 > **Motion and decoration were stripped the same day.** Deliberately flat now, so
 > the redesign starts from nothing rather than from someone else's easing curves:
@@ -380,8 +463,12 @@ out rather than faked:
   `ios/Aogimi.xcodeproj` / `com.aogimi.mobile` / scheme `aogimi`, matching
   `app.json`. `ios/` is generated and untracked by git: never hand-edit it,
   change `app.json` and re-run `npx expo prebuild --clean -p ios`.
-- **eslint is 0 errors / 14 warnings** here against the web's 3. Drive it down
-  opportunistically when already in a file.
+- **eslint is 0 errors / 0 warnings as of 2026-08-11** — the 14 warnings this
+  file recorded earlier are cleared (six stale `eslint-disable` directives, two
+  unused type imports, an unused `t`, an `Array<T>`, a late `import`, two
+  `useCallback` dep arrays, the asset `require()` now disabled with a reason,
+  and `.expo/` added to the config's ignores since it is generated). **Zero is
+  the baseline; don't reintroduce any.** The web still sits at 3.
 - **Backend `/api/translate` + `DEEPL_API_KEY` are dead code** now that no client
   calls them. The owner asked to be consulted before the backend is touched.
 

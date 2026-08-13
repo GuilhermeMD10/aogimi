@@ -10,7 +10,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { makeAsyncJsonStore } from '@/lib/storage';
-import type { DeckRecord, LocalDeck, SyncState } from '../types';
+import type { DeckRecord, LocalDeck } from '../types';
 
 const KEY = 'deck_local_state_v1';
 

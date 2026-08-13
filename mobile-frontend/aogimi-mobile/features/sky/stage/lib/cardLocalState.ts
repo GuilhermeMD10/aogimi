@@ -10,7 +10,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { makeAsyncJsonStore } from '@/lib/storage';
-import type { CardRecord, LocalCard, SyncState } from '../types';
+import type { CardRecord, LocalCard } from '../types';
 
 const KEY = 'card_local_state_v1';
 

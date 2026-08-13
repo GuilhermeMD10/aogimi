@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, LayoutChangeEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import Feather from '@expo/vector-icons/Feather';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { fontFamily, palette } from '@/theme/tokens';
+import { usePalette, useTheme } from '@/theme/ThemeContext';
+import { fontFamily, type Palette } from '@/theme/tokens';
 
 /**
  * The bottom dock — app chrome on every tab screen.
@@ -43,37 +44,85 @@ import { fontFamily, palette } from '@/theme/tokens';
  * the pill).
  */
 
-/* ── Dock material, reset for legibility (2026-08-10) ─────────────────────────────────────────────
+/* ── Dock material, reset for legibility (2026-08-10, re-tinted 2026-08-11) ───────────────────────
    Was the web's `--dock-glass-*` block resolved verbatim: a 15%-white shell with 3.8–13.8% sheens
    and a lavender pill. Every one of those alphas was tuned against the web's lit canvas, and on a
    flat-black phone screen the shell edge and both sheens were invisible — the dock read as a
-   floating pill with nothing around it.
+   floating pill with nothing around it. The 08-10 pass made them all visible.
 
-   So the shell keeps its translucency (it must not hide the screen scrolling under it) but at a
-   density you can actually see, and everything that was a hairline alpha is now **opaque**. The pill
-   is a solid `palette.active` rather than a 65% tint, so "which tab am I on" needs no squinting.
+   The 08-11 light flip then inverted the *tint*: a white wash over a white page is nothing at all,
+   so the shell is a **black** wash and its sheens are black too. That is the same material as
+   before, read the other way up — a translucent film that darkens what scrolls under it, so the
+   dock still reads as a distinct object without hiding the page.
 
-   Still local consts rather than theme tokens: the dock is one material, and the redesign will want
-   to tune it as a unit. The two inks come from `palette` because "inactive tab label" and "ink on the
-   selected pill" are exactly `muted` and `activeInk`. */
-const GLASS = {
-  /** shell · white tint, dense enough to read as a surface on a black canvas */
-  fill: 'rgba(255, 255, 255, 0.16)',
-  bd: '#8a8a8a',
-  sheenTop: 'rgba(255, 255, 255, 0.22)',
-  sheenBottom: 'rgba(255, 255, 255, 0.10)',
-  /** the top specular line, brightest in the middle */
-  lineMid: 'rgba(255, 255, 255, 0.55)',
-  /** pill · solid selection colour, so the active tab is unmistakable */
-  pillFill: palette.active,
-  pillBd: '#ffffff',
-  pillSheenTop: 'rgba(255, 255, 255, 0.32)',
-  pillSheenBottom: 'rgba(255, 255, 255, 0.12)',
-  pillLineMid: 'rgba(255, 255, 255, 0.6)',
-  /** inks. The active one sits ON the pill, so it pairs with `pillFill`. */
-  ink: palette.muted,
-  inkActive: palette.activeInk,
-} as const;
+   ── One material, two directions (2026-08-12) ──────────────────────────────────────────────────
+   The wash **inverts with the theme**, because a translucent film only reads if it darkens or
+   lightens what scrolls under it. On Day's off-white canvas that means a black tint (the 08-11
+   values); on Night's near-black canvas a black tint over black is nothing at all, so Night takes
+   the web's original white one. The blur `tint` prop flips with it. Everything else — the alphas'
+   ratios, the geometry, the pill — is shared.
+
+   Still local consts rather than theme tokens: the dock is one material and the redesign will want
+   to tune it as a unit. The three palette reads are the ones that genuinely belong to the app's
+   vocabulary: "the selected thing" and the two inks.
+
+   (Untouched by the strip-to-basics pass, on request: this is the one component that keeps its blur,
+   its sheens and its sliding pill.) */
+type Glass = {
+  fill: string;
+  bd: string;
+  sheenTop: string;
+  sheenBottom: string;
+  lineMid: string;
+  pillFill: string;
+  pillBd: string;
+  pillSheenTop: string;
+  pillSheenBottom: string;
+  pillLineMid: string;
+  ink: string;
+  inkActive: string;
+  /** What `BlurView` should tint toward — follows the wash, not the theme name. */
+  blurTint: 'light' | 'dark';
+};
+
+function glassFor(p: Palette, isNight: boolean): Glass {
+  // The shell wash and its two sheens, in whichever direction reads against
+  // this theme's canvas. Ratios are the web's derivation (border 0.30r, top
+  // sheen 0.55r, bottom 0.15r, specular line 0.80r).
+  const wash = isNight
+    ? {
+        fill: 'rgba(255, 255, 255, 0.10)',
+        bd: 'rgba(255, 255, 255, 0.30)',
+        sheenTop: 'rgba(255, 255, 255, 0.14)',
+        sheenBottom: 'rgba(255, 255, 255, 0.05)',
+        lineMid: 'rgba(255, 255, 255, 0.32)',
+      }
+    : {
+        fill: 'rgba(0, 0, 0, 0.10)',
+        bd: '#666666',
+        sheenTop: 'rgba(0, 0, 0, 0.10)',
+        sheenBottom: 'rgba(0, 0, 0, 0.04)',
+        lineMid: 'rgba(0, 0, 0, 0.28)',
+      };
+
+  return {
+    ...wash,
+    /** pill · solid selection colour, so the active tab is unmistakable */
+    pillFill: p.active,
+    pillBd: p.ink,
+    // The pill's own sheens stay light in both: it is a *lit* object sitting on
+    // the shell, and its ground is the saturated `active` fill rather than the
+    // page, so it does not invert with the canvas.
+    pillSheenTop: 'rgba(255, 255, 255, 0.28)',
+    pillSheenBottom: 'rgba(255, 255, 255, 0.10)',
+    pillLineMid: 'rgba(255, 255, 255, 0.5)',
+    /** inks. The active one sits ON the pill, so it pairs with `pillFill` —
+     *  which is why it is `activeInk` and not `ink`. */
+    ink: p.muted,
+    inkActive: p.activeInk,
+    blurTint: isNight ? 'dark' : 'light',
+  };
+}
 
 /** `--dock-glass-blur: 13px`. expo-blur takes 1–100 rather than px; 13px of backdrop blur sits
  *  around here, and it is the one value to tweak if the shell reads too clear or too milky. */
@@ -152,6 +201,19 @@ export function useDockClearance(): number {
 
 export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const p = usePalette();
+  const { themeName } = useTheme();
+  const GLASS = useMemo(() => glassFor(p, themeName === 'night'), [p, themeName]);
+  // Only the three colour-bearing style rules depend on the theme; the rest of
+  // `styles` is geometry and stays a module-scope StyleSheet.
+  const themed = useMemo(
+    () => ({
+      shell: { borderColor: GLASS.bd },
+      pill: { borderColor: GLASS.pillBd },
+      pillFace: { backgroundColor: GLASS.pillFill },
+    }),
+    [GLASS],
+  );
   const activeRouteName = state.routes[state.index]?.name ?? '';
   const activeIdx = Math.max(0, SLOTS.indexOf(activeRouteName as SlotKey));
 
@@ -188,20 +250,27 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
 
   return (
     <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(SHELL_BOTTOM, insets.bottom) }]}>
-      <View style={styles.shell}>
+      <View style={[styles.shell, themed.shell]}>
         {/* The frosted material. `overflow: hidden` on the shell is what clips the blur, the
             hairlines and the pill to the rounded corners — the web gets that from
             `border-radius: inherit` on its pseudo-elements. */}
         <BlurView
           intensity={BLUR_INTENSITY}
-          tint="dark"
+          // Follows the wash: a dark frost over a light page turns the dock into a black slab and
+          // swallows the tab ink, and a light frost over a dark page does the mirror of that.
+          tint={GLASS.blurTint}
           // Android has no real backdrop blur without this; without it the fill alone carries the
-          // surface there, which is why the fill is a visible 15% rather than a token 1%.
+          // surface there, which is why the fill is a visible 10% rather than a token 1%.
           experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
           style={StyleSheet.absoluteFill}
         />
         <View style={[StyleSheet.absoluteFill, { backgroundColor: GLASS.fill }]} />
-        <Sheens top={GLASS.sheenTop} bottom={GLASS.sheenBottom} lineMid={GLASS.lineMid} />
+        <Sheens
+          top={GLASS.sheenTop}
+          bottom={GLASS.sheenBottom}
+          lineMid={GLASS.lineMid}
+          lineEdge={themeName === 'night' ? 'rgba(255, 255, 255, 0)' : 'rgba(0, 0, 0, 0)'}
+        />
 
         <View style={styles.row} onLayout={onRowLayout}>
           {/* Under the items and inert: the pill is the only thing that fills behind an active
@@ -211,14 +280,16 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
               pointerEvents="none"
               style={[
                 styles.pill,
+                themed.pill,
                 { width: tabW, transform: [{ translateX: slide }] },
               ]}
             >
-              <View style={[StyleSheet.absoluteFill, styles.pillFace]} />
+              <View style={[StyleSheet.absoluteFill, styles.pillFace, themed.pillFace]} />
               <Sheens
                 top={GLASS.pillSheenTop}
                 bottom={GLASS.pillSheenBottom}
                 lineMid={GLASS.pillLineMid}
+                lineEdge="rgba(255, 255, 255, 0)"
                 radius={TAB_RADIUS}
               />
             </Animated.View>
@@ -277,25 +348,31 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
  * horizontal gradient that is brightest in the middle — the web's `::before` with
  * `background-size: 100% 1px`.
  *
- * The light is white on both the shell and the pill, at different strengths. It is the light hitting
- * the surface, not the surface's colour, which is why only the fill takes the lavender tint.
+ * Since the 2026-08-11 light flip the two surfaces light *differently*: the shell's sheens are black
+ * (a white sheen on a pale shell is nothing), the pill's are still white because the pill is a solid
+ * dark blue. So `lineEdge` — the specular line's transparent end-stops — is a parameter rather than a
+ * constant: it has to be the zero-alpha form of the *same* channel as `lineMid`, or the gradient
+ * fades through a halo of the opposite colour on its way to transparent.
  */
 function Sheens({
   top,
   bottom,
   lineMid,
+  lineEdge,
   radius,
 }: {
   top: string;
   bottom: string;
   lineMid: string;
+  /** Zero-alpha form of `lineMid`'s channel — see the note above. */
+  lineEdge: string;
   radius?: number;
 }) {
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, radius ? { borderRadius: radius } : null]}>
       <View style={[styles.hairline, { top: 0, backgroundColor: top }]} />
       <LinearGradient
-        colors={['rgba(255, 255, 255, 0)', lineMid, 'rgba(255, 255, 255, 0)']}
+        colors={[lineEdge, lineMid, lineEdge]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={[styles.hairline, { top: 0 }]}
@@ -312,10 +389,12 @@ const styles = StyleSheet.create({
     right: SHELL_INSET_X,
     zIndex: 55,
   },
+  // The three rules below carry geometry only — `borderColor` / `backgroundColor`
+  // come from `themed` at the call site, since they flip with the theme and a
+  // module-scope StyleSheet cannot see it.
   shell: {
     borderRadius: SHELL_RADIUS,
     borderWidth: 1,
-    borderColor: GLASS.bd,
     paddingVertical: SHELL_PAD_V,
     paddingHorizontal: SHELL_PAD_H,
     // clips the blur, the hairlines and the pill to the rounded corners
@@ -342,10 +421,9 @@ const styles = StyleSheet.create({
     left: 0,
     borderRadius: TAB_RADIUS,
     borderWidth: 1,
-    borderColor: GLASS.pillBd,
     overflow: 'hidden',
   },
-  pillFace: { backgroundColor: GLASS.pillFill, borderRadius: TAB_RADIUS },
+  pillFace: { borderRadius: TAB_RADIUS },
   slot: {
     flex: 1,
     alignItems: 'center',

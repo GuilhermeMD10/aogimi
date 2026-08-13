@@ -87,7 +87,6 @@ export async function markSynced(filename: string): Promise<void> {
   const prev = map[filename];
   if (!prev) return;
   // Strip pendingPayload by destructuring it out.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { pendingPayload: _payload, ...rest } = prev;
   map[filename] = { ...rest, syncState: 'synced' };
   await writeMap(map);

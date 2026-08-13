@@ -69,7 +69,8 @@
     "cardsDue": "枚が復習待ち",
     "studyNow": "復習する",
     "resumeReading": "読書を再開",
-    "viewAll": "すべて見る"
+    "viewAll": "すべて見る",
+    "daysStudied": "学習日数"
   },
   "reader": {
     "define": "意味",
@@ -203,5 +204,14 @@
     "home": "ホーム",
     "reader": "読書",
     "sky": "星空"
+  },
+  "appearance": {
+    "title": "外観",
+    "system": "端末に合わせる",
+    "systemSub": "端末のライト／ダーク設定に従います",
+    "day": "デイ",
+    "daySub": "紙と墨",
+    "night": "ナイト",
+    "nightSub": "真夜中"
   }
 }

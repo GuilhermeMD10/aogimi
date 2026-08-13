@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dimensions, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { useColors } from '@/theme/ThemeContext';
-import { fontFamily } from '@/theme/tokens';
+import { fontFamily, palette } from '@/theme/tokens';
 import type { MangaPageDir, ReaderDirection, ReaderLayout } from '../lib/readerLayout';
 import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../lib/readerStorage';
 import type { EpubTocItem } from '../lib/foliateHtml';
@@ -442,7 +442,9 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    // The one scrim token, same as `BottomSheet`. Was `rgba(0,0,0,0.35)` behind
+    // an animated 0→0.35 opacity, i.e. ~12% at full strength — barely a dim.
+    backgroundColor: palette.scrim,
   },
   container: {
     position: 'absolute',

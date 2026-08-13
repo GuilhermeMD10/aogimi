@@ -23,7 +23,8 @@ export type DictNav = {
   query: string;
   detailError: string | null;
   setQuery: (v: string) => void;
-  openDetail: (id: number) => Promise<void>;
+  /** Resolves to the opened entry, or `null` if the load failed. */
+  openDetail: (id: number) => Promise<WordDetails | null>;
   openKanjiSearch: (char: string) => void;
   back: () => void;
 };
@@ -68,8 +69,11 @@ export function useDictionaryNav(): DictNav {
     [],
   );
 
+  // Returns the resolved entry, or `null` when the load failed. The caller
+  // needs it to record the lookup in the recents store, and returning it beats
+  // making the caller watch `current` for a frame transition.
   const openDetail = useCallback(
-    async (id: number) => {
+    async (id: number): Promise<WordDetails | null> => {
       setDetailError(null);
       // Fast path: word already in the LRU cache from a previous lookup.
       // Skip the 'detailLoading' frame entirely so the user sees no
@@ -77,7 +81,7 @@ export function useDictionaryNav(): DictNav {
       const cached = peekWord(id);
       if (cached) {
         push({ kind: 'detail', details: cached });
-        return;
+        return cached;
       }
       push({ kind: 'detailLoading' });
       try {
@@ -90,6 +94,7 @@ export function useDictionaryNav(): DictNav {
           if (top.kind !== 'detailLoading') return h;
           return [...h.slice(0, -1), { kind: 'detail', details }];
         });
+        return details;
       } catch (err) {
         setDetailError(err instanceof Error ? err.message : 'Failed to load word');
         // Drop the loading frame.
@@ -98,6 +103,7 @@ export function useDictionaryNav(): DictNav {
           if (top.kind !== 'detailLoading') return h;
           return h.slice(0, -1);
         });
+        return null;
       }
     },
     [push],

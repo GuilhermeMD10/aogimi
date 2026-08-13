@@ -62,9 +62,10 @@ export function DictEmpty({ query, setQuery, recents, onPickRecent, onSettings, 
           onPress={() => inputRef.current?.focus()}
           style={[
             styles.searchField,
-            // Pure white surface + soft shadow gives the input bar a clear
-            // "raised" affordance against the page's bg-elev card.
-            { backgroundColor: '#FFFFFF', borderColor: c.border },
+            // Was a hardcoded `#FFFFFF` from the pre-Midnight light theme, which
+            // is what put white ink on a white bar. Tokens now, so the field
+            // follows the palette wherever it goes next.
+            { backgroundColor: c.bgElev, borderColor: c.border },
           ]}
         >
           <Feather name="search" size={16} color={c.fgSubtle} />

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/theme/ThemeContext';
+import { palette } from '@/theme/tokens';
 
 type Props = {
   onPress?: () => void;
@@ -53,7 +54,9 @@ const styles = StyleSheet.create({
     height: SIZE,
     borderRadius: SIZE / 2,
     borderWidth: StyleSheet.hairlineWidth,
-    backgroundColor: '#FFFFFF',
+    // Tokens rather than the `#FFFFFF` / `'black'` literals this carried: the
+    // pair was already light-on-dark by luck, and now it says so.
+    backgroundColor: palette.bg,
     overflow: 'hidden',
     zIndex: 10,
   },
@@ -66,6 +69,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 26,
     fontWeight: '300',
-    color: 'black',
+    color: palette.ink,
   },
 });

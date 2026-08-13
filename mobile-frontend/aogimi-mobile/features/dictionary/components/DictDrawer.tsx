@@ -16,6 +16,7 @@ import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
 import { fetchWordDetails } from '../lib/dictApi';
+import { pushRecentLookup } from '../lib/dictionaryStorage';
 import { useDictionarySearch } from '../hooks/useDictionarySearch';
 import type { SearchResponse, WordDetails, WordResult } from '../types';
 import { DictEntry } from './DictEntry';
@@ -70,7 +71,14 @@ function DictDrawerInner({
     setStage({ kind: 'detailLoading' });
     const controller = new AbortController();
     fetchWordDetails(id, controller.signal)
-      .then((details) => setStage({ kind: 'detail', details }))
+      .then((details) => {
+        setStage({ kind: 'detail', details });
+        // A lookup from inside the reader counts the same as one from the
+        // dictionary tab — one store, every surface. `query` rather than
+        // `term`: the user may have edited the tapped selection before
+        // picking, and the edited text is what should pick the headword.
+        void pushRecentLookup(details.word, query);
+      })
       .catch((err) => {
         if (controller.signal.aborted) return;
         setDetailErr(err instanceof Error ? err.message : t('common.error'));
@@ -123,7 +131,8 @@ function DictDrawerInner({
         <View
           style={[
             styles.searchField,
-            { backgroundColor: '#FFFFFF', borderColor: c.border },
+            // Tokens, not a hardcoded `#FFFFFF` — see the twin in `DictEmpty`.
+            { backgroundColor: c.bgElev, borderColor: c.border },
           ]}
         >
           <Feather name="search" size={16} color={c.fgSubtle} />

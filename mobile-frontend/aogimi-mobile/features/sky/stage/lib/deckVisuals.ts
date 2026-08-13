@@ -5,20 +5,22 @@
 
 import { coverGlyphFor } from '@/lib/coverGlyph';
 
-// Reset 2026-08-10: the eight muted earth/slate tones this held were within a
-// few points of each other and of the app's surfaces, so two adjacent decks
-// looked like the same deck and a cover barely separated from the canvas. These
-// eight are simply eight obviously-different hues at cover-appropriate darkness,
-// all safe under white ink — a baseline to recolour, not a scheme.
+// Reset 2026-08-10, lightened 2026-08-11. The eight muted earth/slate tones
+// this held originally were within a few points of each other and of the app's
+// surfaces, so two adjacent decks looked like the same deck. These eight are
+// simply eight obviously-different hues — now as pale tints, because the colour
+// reset says **cover glyphs are black like all other text**, and black needs a
+// light fill under it. Mirrors `palette.cover1..4`. A baseline to recolour, not
+// a scheme.
 const PALETTE = [
-  '#1d4ed8', // blue
-  '#047857', // green
-  '#b91c1c', // red
-  '#6d28d9', // purple
-  '#0e7490', // teal
-  '#c2410c', // orange
-  '#4338ca', // indigo
-  '#a21caf', // magenta
+  '#cfe0ff', // blue
+  '#cff0e0', // green
+  '#ffd6d6', // red
+  '#e6d6ff', // purple
+  '#cfeaf0', // teal
+  '#ffe2cc', // orange
+  '#d8daff', // indigo
+  '#f6d6f0', // magenta
 ];
 
 function hash(str: string): number {

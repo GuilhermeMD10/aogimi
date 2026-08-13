@@ -1,93 +1,125 @@
-import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import Feather from '@expo/vector-icons/Feather';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, palette, radius, spacing } from '@/theme/tokens';
+import { usePalette } from '@/theme/ThemeContext';
+import { spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { useBooks } from '@/features/books/hooks/useBooks';
 import { useDecks } from '@/features/sky/stage/hooks/useDecks';
 import { useDueCounts } from '@/features/sky/stage/hooks/useDueCounts';
+import { useStatsActivity } from '@/features/profile/hooks/useStatsActivity';
 import { useStatsCards } from '@/features/profile/hooks/useStatsCards';
 import { kamonFor } from '@/features/profile/lib/kamon';
-import { BookCover } from '@/features/books/library/components/BookCover';
-import { deckGlyphFor } from '@/features/sky/stage/lib/deckVisuals';
-import { BrandGlyph } from '@/shared/components/BrandGlyph';
+import {
+  getRecentLookups,
+  type RecentLookup,
+} from '@/features/dictionary/lib/dictionaryStorage';
 import { useDockClearance } from '@/features/app-shell/Dock';
+import { HomeTopBar } from '../components/HomeTopBar';
+import { HomeHero } from '../components/HomeHero';
+import { SkyShortcut } from '../components/SkyShortcut';
+import { ContinueReadingCard } from '../components/ContinueReadingCard';
+import { StudyCard } from '../components/StudyCard';
+import { DictionaryCard } from '../components/DictionaryCard';
 
 /**
- * Home — handoff screen 02.
+ * Home — the mobile-only dashboard, rebuilt against the design handoff
+ * (2026-08-12).
  *
- * The one screen mobile has that the web does not: the web's `/` is the library
- * shelf and it deliberately has no dashboard. Added because the handoff's dock
- * is four tabs with Home first, and because on a phone the header avatar is the
- * only route to Profile now that Profile has left the dock.
+ * The web has no equivalent: its `/` is the library shelf and it deliberately
+ * has no dashboard. This exists because the dock is four tabs with Home first,
+ * and because on a phone the header avatar is the only route to Profile.
  *
- * ── Two cards the handoff draws that are NOT here ────────────────────────────
- * Both are missing *data*, not missing layout, so they are omitted rather than
- * faked:
+ * **This file is composition and data only.** Every card is its own component
+ * in `../components`; anything visual belongs there. The order is the handoff's:
+ * top bar, hero, sky, continue reading, study, dictionary.
  *
- *  · **The "STUDIED · 64 days" streak pill.** Nothing in the app or the API
- *    computes a streak — `statsApi` returns per-state card counts and totals
- *    only. A streak needs a distinct-review-days query the backend does not
- *    expose. The header keeps the avatar (which is load-bearing: it is the way
- *    to Profile) and drops the pill.
+ * ── Two cards from the handoff that are not built ───────────────────────────
+ * Both cut deliberately, not deferred:
  *
- *  · **Word of the day.** There is no such endpoint or curated list. Picking one
- *    from the bundled SQLite would need a deterministic day→word rule and a
- *    definition of "worth showing", i.e. a small feature rather than a card.
+ *  · **Library.** Its job — browse every book — is the Reader tab, one tap away
+ *    in the dock. A three-cover strip on Home duplicated that tab's top row.
+ *  · **Word of the day.** There is no endpoint and no curated list. Picking one
+ *    from the bundled SQLite needs a deterministic day→word rule *and* a
+ *    definition of "worth showing", which is a feature rather than a card.
  *
- * The dictionary card shows recent *queries* rather than the handoff's
- * word/kana/gloss rows, because `dictionaryStorage` stores the query string and
- * nothing else — resolving each to an entry would be N lookups on mount.
- *
- * ── The sky teaser ──────────────────────────────────────────────────────────
- * A gradient panel carrying the real star count, not a star map: the
- * `react-native-svg` renderer is the next phase-6 item. When it lands it mounts
- * inside this panel and the gradient becomes its backdrop — the panel's box,
- * caption and chevron are already the handoff's.
+ * ── Empty states ────────────────────────────────────────────────────────────
+ * No placeholders anywhere. No in-progress book → the card is absent. Nothing
+ * due → the study button is disabled (grading early does nothing, so an enabled
+ * button would be a lie). No lookups → the dictionary card is its field alone.
+ * Signed out, every count is 0 and the page degrades to hero + sky + an empty
+ * study card, which is a legitimate first-run screen.
  */
 export function HomeView() {
   const t = useT();
   const router = useRouter();
   const { user } = useAuth();
+  const p = usePalette();
 
-  // The dock floats, so the room it needs is its height plus the safe-area offset — see the hook.
+  // The dock floats, so the room it needs is its height plus the safe-area
+  // offset — see the hook. Never a hardcoded spacer.
   const dockClearance = useDockClearance();
 
-  // Home is the one screen that draws its top bar in a bare `View` rather than
-  // through `Screen` (SafeAreaView edges={['top']}), because the canvas should
-  // run under the status bar while the content starts below it. That means the
-  // top inset is this screen's own job: without it the brand row and the avatar
-  // button sit *under* the notch — unreadable, and the avatar untappable on a
-  // notched iPhone. Applied to the scroll content, not the root, so the page
-  // still scrolls up behind the status bar.
+  // Home draws its own top inset rather than going through `Screen`
+  // (SafeAreaView edges={['top']}), because the canvas should run under the
+  // status bar while the content starts below it. Applied to the scroll
+  // content, not the root, so the page still scrolls up behind the status bar.
+  // Without it the brand row sits under the notch and the avatar — the only
+  // route to Profile — is untappable.
   const insets = useSafeAreaInsets();
 
-  const { books: allBooks } = useBooks();
+  const { books } = useBooks();
   const { decks } = useDecks();
-  const { counts } = useDueCounts();
+  const { counts, countFor } = useDueCounts();
   const { data: cardStats } = useStatsCards();
-  // Newest-read first; the handoff's continue-reading card is the single most
-  // recent in-progress book.
-  const reading = allBooks
+  const { data: activity } = useStatsActivity();
+
+  // The single most recently opened book that is started but not finished.
+  const current = books
     .filter((b) => b.progress > 0 && b.progress < 100)
     .sort(
       (a, b) => new Date(b.last_read_at).getTime() - new Date(a.last_read_at).getTime(),
-    );
-  const current = reading[0];
-  const shelf = allBooks.slice(0, 3);
+    )[0];
 
-  // Deck chips: only decks with something due, which is what the numbers on
-  // them mean. `byDeck` omits zero-due decks, so this filter is the same set.
-  const dueDecks = decks.filter((d) => counts.byDeck[d.id]);
+  // `byDeck` omits decks with nothing due, so this filter and the chip counts
+  // are the same set by construction.
+  const dueDecks = decks.filter((d) => countFor(d.id) > 0);
+
+  // Recents are written by the dictionary tab and the reader's drawer, not by
+  // this screen — so they are re-read on focus rather than once on mount, or a
+  // word looked up mid-session would not appear until the app restarted.
+  const [recents, setRecents] = useState<RecentLookup[]>([]);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void getRecentLookups().then((next) => {
+        if (!cancelled) setRecents(next);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   // `kamonFor` wraps its index, so 0 is a valid default for a user without one.
   const avatar = kamonFor(user?.avatar_index ?? 0);
   const displayName = user?.display_name || user?.username || '';
 
+  const openLookup = useCallback(
+    (lookup: RecentLookup) => {
+      // `n` is a nonce — the dictionary tab stays mounted, so re-opening the
+      // same word needs the params to differ. See DictionaryScreen's deep link.
+      router.push(
+        `/(tabs)/dictionary?word=${lookup.wordId}&n=${Date.now()}` as never,
+      );
+    },
+    [router],
+  );
+
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: p.bg }]}>
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
@@ -95,393 +127,66 @@ export function HomeView() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <View style={styles.header}>
-          <View style={styles.brandRow}>
-            <BrandGlyph size={32} />
-            <Text style={styles.brandName}>aogimi</Text>
-          </View>
-          <Pressable
-            onPress={() => router.push('/profile')}
-            accessibilityRole="button"
-            accessibilityLabel={t('profile.title')}
-            hitSlop={8}
-            style={styles.avatar}
-          >
-            <Text style={styles.avatarGlyph}>{avatar.char}</Text>
-          </Pressable>
-        </View>
+        <HomeTopBar
+          avatarGlyph={avatar.char}
+          daysStudied={activity.daysStudied}
+          studiedLabel={t('home.daysStudied')}
+          profileLabel={t('profile.title')}
+          onProfilePress={() => router.push('/profile')}
+        />
 
-        {displayName ? (
-          <Text style={styles.greeting} numberOfLines={1}>
-            {t('home.greeting', { name: displayName })}
-          </Text>
-        ) : null}
-        <Text style={styles.greetingSub}>{t('home.greetingSub')}</Text>
+        <HomeHero
+          greeting={displayName ? t('home.greeting', { name: displayName }) : null}
+          caption={t('home.greetingSub')}
+        />
 
-        {/* ── 1 · Sky teaser ─────────────────────────────────────────────── */}
-        {/* Flat `sky2` fill. This was a three-stop sky1→sky2→sky3 gradient
-            until the 2026-08-10 strip-to-basics pass; the middle stop alone
-            reads as "night" without the decoration. */}
-        <Pressable
-          onPress={() => router.push('/sky')}
-          accessibilityRole="button"
-          style={styles.skyPanel}
-        >
-          <View style={styles.skyFooter}>
-            <Text style={styles.skyCaption}>
-              {t('home.yourSky', { count: cardStats.total })}
-            </Text>
-            <Feather name="chevron-right" size={16} color={palette.soft} />
-          </View>
-        </Pressable>
-
-        {/* ── 2 · Continue reading ───────────────────────────────────────── */}
-        {current ? (
-          <Card>
-            <Text style={styles.kicker}>{t('home.continueReading')}</Text>
-            <View style={styles.readRow}>
-              <BookCover
-                title={current.title}
-                coverColor={current.cover_color}
-                filename={current.filename}
-                width={62}
-                height={88}
-                cornerRadius={radius.sm}
-              />
-              <View style={styles.readMeta}>
-                <Text style={styles.readTitle} numberOfLines={1}>
-                  {current.title}
-                </Text>
-                <Text style={styles.readProgress}>{Math.round(current.progress)}%</Text>
-                <View style={styles.track}>
-                  <View style={[styles.fill, { width: `${current.progress}%` }]} />
-                </View>
-                <Pressable
-                  onPress={() => router.push(`/reader/${current.id}`)}
-                  style={styles.primaryBtn}
-                >
-                  <Feather name="play" size={12} color={palette.btnInk} />
-                  <Text style={styles.primaryBtnLabel}>{t('home.resumeReading')}</Text>
-                </Pressable>
-              </View>
-            </View>
-          </Card>
-        ) : null}
-
-        {/* ── 3 · Study due ──────────────────────────────────────────────── */}
-        <Card>
-          <View style={styles.dueHead}>
-            <Text style={styles.dueCount}>{counts.total}</Text>
-            <Text style={styles.dueLabel}>{t('home.cardsDue')}</Text>
-          </View>
-          {dueDecks.length > 0 ? (
-            <View style={styles.chipRow}>
-              {dueDecks.map((d) => (
-                <View key={d.id} style={styles.deckChip}>
-                  <Text style={styles.deckChipText}>
-                    {deckGlyphFor(d.name)} {d.name} · {counts.byDeck[d.id]}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-          <Pressable
-            onPress={() => router.push('/sky/study')}
-            // A session with nothing due can only hand out cards whose grades
-            // silently do not count — see useDueCounts. So the button refuses.
-            disabled={counts.total === 0}
-            style={[styles.primaryBtnWide, counts.total === 0 && styles.btnDisabled]}
-          >
-            <Feather name="star" size={13} color={palette.btnInk} />
-            <Text style={styles.primaryBtnLabel}>{t('home.studyNow')}</Text>
-          </Pressable>
-        </Card>
-
-        {/* ── 4 · Library ────────────────────────────────────────────────── */}
-        {shelf.length > 0 ? (
-          <Card>
-            <SectionHead
-              title={t('nav.reader')}
-              onPress={() => router.push('/(tabs)/reader')}
-              viewAll={t('home.viewAll')}
-            />
-            <View style={styles.shelf}>
-              {shelf.map((b) => (
-                <Pressable
-                  key={b.id}
-                  onPress={() => router.push(`/reader/${b.id}`)}
-                  style={styles.shelfItem}
-                >
-                  <BookCover
-                    title={b.title}
-                    coverColor={b.cover_color}
-                    filename={b.filename}
-                    width={96}
-                    height={140}
-                    cornerRadius={radius.sm}
-                    style={styles.shelfCover}
-                  />
-                </Pressable>
-              ))}
-            </View>
-          </Card>
-        ) : null}
-
-        {/* ── 5 · Dictionary ─────────────────────────────────────────────── */}
-        <Card>
-          <SectionHead
-            title={t('nav.dictionary')}
-            onPress={() => router.push('/(tabs)/dictionary')}
-            viewAll={t('home.viewAll')}
+        <View style={styles.stack}>
+          <SkyShortcut
+            caption={t('home.yourSky', { count: cardStats.total })}
+            accessibilityLabel={t('nav.sky')}
+            onPress={() => router.push('/sky')}
           />
-          <Pressable
-            onPress={() => router.push('/(tabs)/dictionary')}
-            style={styles.searchField}
-          >
-            <Feather name="search" size={15} color={palette.accent} />
-            <Text style={styles.searchPlaceholder}>{t('dict.search')}</Text>
-          </Pressable>
-        </Card>
+
+          {current && (
+            <ContinueReadingCard
+              book={current}
+              kicker={t('home.continueReading')}
+              resumeLabel={t('home.resumeReading')}
+              onResume={() => router.push(`/reader/${current.id}`)}
+            />
+          )}
+
+          <StudyCard
+            total={counts.total}
+            decks={dueDecks}
+            countFor={countFor}
+            dueLabel={t('home.cardsDue')}
+            studyLabel={t('home.studyNow')}
+            onStudyAll={() => router.push('/sky/study')}
+            onStudyDeck={(deckId) => router.push(`/sky/${deckId}/study`)}
+          />
+
+          <DictionaryCard
+            title={t('nav.dictionary')}
+            viewAllLabel={t('home.viewAll')}
+            placeholder={t('dict.search')}
+            recents={recents}
+            onOpenDictionary={() => router.push('/(tabs)/dictionary')}
+            onOpenLookup={openLookup}
+          />
+        </View>
       </ScrollView>
     </View>
   );
 }
 
-/** The handoff's card: filled paper surface, 16px radius, hairline edge. */
-function Card({ children }: { children: React.ReactNode }) {
-  return <View style={styles.card}>{children}</View>;
-}
-
-function SectionHead({
-  title,
-  viewAll,
-  onPress,
-}: {
-  title: string;
-  viewAll: string;
-  onPress: () => void;
-}) {
-  return (
-    <View style={styles.sectionHead}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Pressable onPress={onPress} hitSlop={6}>
-        <Text style={styles.viewAll}>{viewAll} →</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.bg },
-  // Both vertical paddings come from the call site, because both depend on the
-  // safe-area insets and neither can be a constant here: `paddingTop` clears the
-  // notch/status bar (`insets.top`) and `paddingBottom` clears the floating dock
-  // (`useDockClearance()`, which is the dock's height plus the bottom inset).
+  root: { flex: 1 },
+  // Both vertical paddings come from the call site: `paddingTop` clears the
+  // notch and `paddingBottom` clears the floating dock, and neither is a
+  // constant.
   scroll: { paddingHorizontal: spacing.lg },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: spacing.sm,
-  },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  brandName: {
-    fontFamily: fontFamily.ui,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: palette.ink,
-  },
-  avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: palette.avatar,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarGlyph: {
-    fontFamily: fontFamily.jp,
-    fontSize: fontSize.sm,
-    fontWeight: '700',
-    color: palette.avatarInk,
-  },
-
-  greeting: {
-    fontFamily: fontFamily.ui,
-    fontSize: 30,
-    fontWeight: '700',
-    color: palette.ink,
-    marginTop: spacing.lg,
-  },
-  greetingSub: {
-    fontFamily: fontFamily.ui,
-    fontSize: fontSize.sm,
-    color: palette.soft,
-    marginTop: spacing.xs + 2,
-  },
-
-  skyPanel: {
-    height: 172,
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: palette.bdA,
-    backgroundColor: palette.sky2,
-    marginTop: spacing.lg,
-    justifyContent: 'flex-end',
-  },
-  skyFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
-  skyCaption: {
-    fontFamily: fontFamily.mono,
-    fontSize: fontSize.xs - 1,
-    letterSpacing: 1.2,
-    color: palette.gold,
-  },
-
-  card: {
-    backgroundColor: palette.paper,
-    borderWidth: 1,
-    borderColor: palette.paperBd,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginTop: spacing.md,
-  },
-  kicker: {
-    fontFamily: fontFamily.mono,
-    fontSize: fontSize.xs - 2,
-    letterSpacing: 1.4,
-    color: palette.faint,
-  },
-
-  readRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
-  readMeta: { flex: 1, minWidth: 0 },
-  readTitle: {
-    fontFamily: fontFamily.ui,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: palette.ink,
-  },
-  readProgress: {
-    fontFamily: fontFamily.mono,
-    fontSize: fontSize.xs,
-    color: palette.muted,
-    marginTop: spacing.xs,
-  },
-  track: {
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: palette.track,
-    overflow: 'hidden',
-    marginTop: spacing.xs,
-  },
-  fill: { height: '100%', backgroundColor: palette.fill },
-
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm - 1,
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: palette.btn,
-    marginTop: spacing.md,
-  },
-  primaryBtnWide: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    height: 44,
-    borderRadius: radius.md,
-    backgroundColor: palette.btn,
-    marginTop: spacing.md,
-  },
-  btnDisabled: { opacity: 0.4 },
-  primaryBtnLabel: {
-    fontFamily: fontFamily.ui,
-    fontSize: fontSize.sm,
-    fontWeight: '700',
-    color: palette.btnInk,
-  },
-
-  dueHead: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
-  dueCount: {
-    fontFamily: fontFamily.ui,
-    fontSize: 30,
-    fontWeight: '700',
-    color: palette.ink,
-  },
-  dueLabel: {
-    fontFamily: fontFamily.ui,
-    fontSize: fontSize.sm,
-    fontWeight: '700',
-    color: palette.soft,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm - 1,
-    marginTop: spacing.md - 1,
-  },
-  deckChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 11,
-    borderRadius: radius.xl,
-    backgroundColor: palette.paperTile,
-    borderWidth: 1,
-    borderColor: palette.paperBd,
-  },
-  deckChipText: {
-    fontFamily: fontFamily.ui,
-    fontSize: fontSize.xs,
-    fontWeight: '700',
-    color: palette.soft,
-  },
-
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    fontFamily: fontFamily.ui,
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: palette.ink,
-  },
-  viewAll: {
-    fontFamily: fontFamily.mono,
-    fontSize: fontSize.xs - 1,
-    letterSpacing: 1,
-    color: palette.muted,
-  },
-
-  shelf: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
-  shelfItem: { flex: 1 },
-  shelfCover: { width: '100%' },
-
-  searchField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm + 1,
-    borderWidth: 1.5,
-    borderColor: palette.ink,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md + 2,
-    marginTop: spacing.md,
-  },
-  searchPlaceholder: {
-    fontFamily: fontFamily.ui,
-    fontSize: fontSize.sm,
-    color: palette.faint,
-  },
+  // One gap rule for the card stack, rather than a `marginTop` on each card —
+  // that way a card that renders conditionally cannot leave a double gap.
+  stack: { marginTop: spacing.lg, gap: spacing.md + 2 },
 });

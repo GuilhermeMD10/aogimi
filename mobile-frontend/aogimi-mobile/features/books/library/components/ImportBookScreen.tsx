@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@expo/vector-icons/Feather';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/ThemeContext';
-import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import { Button } from '@/shared/components/Button';
@@ -24,7 +23,6 @@ type Props = { bookId: string };
 // nothing to read until the file is on the device.
 export function ImportBookScreen({ bookId }: Props) {
   const c = useColors();
-  const t = useT();
   const router = useRouter();
   const { user } = useAuth();
   const { book, loading, error } = useBookRecord(bookId);

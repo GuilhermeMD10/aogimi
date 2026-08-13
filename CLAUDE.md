@@ -269,21 +269,49 @@ mobile work; don't re-derive it here. What changed, because none of it matches o
   + `shared/` + `lib/`, with the same one-way layer rule enforced by `import/no-restricted-paths`
   in `eslint.config.js`. `components/` no longer exists. Decks live at `features/sky/stage`,
   study at `features/sky/study` — the decks page *is* becoming the sky, as on the web.
-- **One theme, no dispatch.** The four-palette registry, `createThemedComponent`,
-  `ThemedDecoration`, `themes/` and `ThemePicker` are all deleted (nothing had ever registered a
-  variant). `theme/tokens.ts` holds **`palette`** under the web's token names, plus a *derived*
-  legacy `ThemeColors` bridge so the ~70 `useColors()` screens still compile. Screens drop the
-  bridge as each is redesigned; the block goes with the last one.
-- **Mobile colour was reset to a legibility baseline on 2026-08-10** and is **not** the web's
-  Midnight column any more. The ported values sat too close together on a black canvas, so
-  borders, sunken tiles and low-emphasis ink were invisible on device. Every value was re-chosen
-  against one rule — *each token must be plainly distinguishable from the token it sits on* —
-  giving a black canvas, a three-step opaque surface ladder (`bg` < `paperTile` < `paper`),
-  **opaque** borders (`bdA`/`bdB`/`paperBd` were white at 12–26% alpha, the main offender), and one
-  obvious hue per role. **It is scaffolding to redesign from, so treat the contract in that file's
-  header as the thing to preserve, not any particular hex.** The same pass retinted the three
-  off-token chrome blocks — `Dock.tsx`'s `GLASS`, `sky/stage/lib/nightChrome.ts`, `deckVisuals.ts`
-  — and left `sky/map/lib/palette.ts` alone (`verify:sky` asserts it bit-identical to the web).
+- **Always our fonts, never the handoff's.** Design handoffs arrive naming their own typefaces —
+  the Home board asks for M PLUS 1 + Space Mono. The answer is always no. Mobile uses **Switzer**
+  (the `ui`/`display`/`mono` roles) + **Noto Sans JP** (`jp`/`jpSans`), matching the web's
+  `--face-ui` / `--face-mono` / `--face-jp`; Lora stays, but only as the *reader's* body face.
+  Substitute in `theme/tokens.ts`, **never at a call site** — no component names a family.
+  `theme/switzer.ts` is the one place a font file is registered (`.otf` in `assets/fonts/`,
+  committed under the ITF Free Font License; the web's `.woff2` can't be reused — RN has no woff2).
+  **Neither family ships a 600 cut**, so `fontWeight: '600'` gets synthesised and looks wrong — the
+  `ChipShape`/`sectionLabel` unions no longer permit it, but ~60 inline uses survive on
+  un-redesigned screens and each should go to `'700'` as its screen is reached.
+- **Two themes: Day ("Ink on paper") + Night ("Midnight").** Restored 2026-08-12 with the handoff,
+  after phase 6 had collapsed the app to one. `theme/tokens.ts` exports `PALETTES = { day, night }`
+  typed by a single `Palette` (mapped over Day, so a key missing from Night is a compile error);
+  `ThemeContext` resolves one and exposes **`usePalette()`**, which is what a redesigned screen
+  reads. Preference is `'day' | 'night' | 'system'`, persisted to `aogimi_theme_name`, default
+  `'system'` via `useColorScheme()`, changed at `/profile/settings/appearance`.
+  - The legacy `useColors()` bridge is now `legacyColors(palette)`, **derived from the active
+    column**, so the ~61 screens still on it follow the theme for free. What they can't follow is a
+    *hardcoded* `#FFFFFF`, of which there are still many — so **Night looks wrong on screens the
+    redesign hasn't reached**, and that is expected, not a bug to chase globally.
+  - `export const palette` survives as a **deprecated Day-locked alias** for the ~21 modules that
+    read it inside a module-scope `StyleSheet.create` (which can't call a hook). Don't add call
+    sites; a screen being redesigned switches to `usePalette()` + a `useMemo`'d style factory.
+  - **The surface contract is about role, not lightness** — the reset's `paperTile` < `paper` ≤ `bg`
+    ladder is gone, because the columns order themselves differently (Day `paper` > `bg` >
+    `paperTile`, Night `paper` > `paperTile` > `bg`). The rule: `paper` is the **raised card** and
+    separates from `bg`; `paperTile` is an **inset within a card** and is judged against `paper`,
+    not against the canvas. Cards sit *above* the canvas now.
+  - **Alpha is allowed again** in `tintA/B`, `bdA/B` and the `*Bg`/`*Bd` washes — the reset banned it
+    because one column's alphas vanished on the other ground, and two columns each carrying their
+    own removes that failure mode. `paperBd` stays opaque in both.
+  - Radii were re-valued to the handoff's steps: `md` 10 → **12** (buttons), `lg` 14 → **16** (cards).
+    Names unchanged.
+  - **`sky1..3`/`deckSky` stay dark in Day too** — stars need night. That's why `nightChrome`'s
+    panels are light: black ink on a near-black panel was the least readable pair in the app.
+    Untouched by the handoff: `sky/map/lib/palette.ts` (`verify:sky` asserts it bit-identical to the
+    web — the handoff prints the rank ladder as `r1..r4`; **do not re-declare those hexes**), the
+    reader's page themes in `readerStorage.ts`, the manga shell (black, for image viewing),
+    `ResultButtons`' four grade hues, and `bookPush`'s `cover_color` — that one is pushed to the
+    backend and rendered by the web, so it's shared data, not styling. `BookCover` uses the stored
+    hex as a *key* into the four cover fills rather than painting it.
+  - **No `dock*` group.** The handoff draws a flat slab; `Dock.tsx` keeps the web's glass. Standing
+    rule for this redesign: **the handoff owns geometry, the web owns material.**
 - **Mobile motion and decoration were stripped to nothing on 2026-08-10**, same intent as the
   colour reset. No press feedback (every `({ pressed }) => …` style callback deleted — pressing a
   control gives no response, which is a **known regression to be replaced, not preserved**), no
@@ -311,13 +339,25 @@ mobile work; don't re-derive it here. What changed, because none of it matches o
   page, so `/sky/[deckId]` and the study routes keep Sky lit. The dock is
   `features/app-shell/Dock.tsx` — the web's glass material, and it exports **`useDockClearance()`**,
   which screens must use for bottom padding because the dock floats.
+- **Home is the first screen rebuilt against a handoff (2026-08-12)** and is the pattern for the
+  rest: `views/HomeView.tsx` is composition + data only, every card is its own file in
+  `features/home/components/`, and each reads `usePalette()` + a `useMemo`'d style factory. The
+  handoff's Library and Word-of-the-Day cards were **cut, not deferred** — Library duplicates the
+  Reader tab, and there is no word-of-the-day data. Continue-reading shows **% only**: `page_count`
+  is PDF-only, so "page N / M" would be present on some books and absent on others.
+- **Recent dictionary lookups are device-local and have no web counterpart.** Two stores in
+  `features/dictionary/lib/dictionaryStorage.ts`: recent *searches* (strings typed, drives the
+  dictionary tab's suggestions) and recent *lookups* (entries opened, drives Home's card, written
+  by **every** surface that opens a word — the tab and the reader's drawer). Lookups snapshot
+  headword/reading/gloss at write time rather than storing an id, so Home never does N SQLite
+  reads on mount. Not a sync gap — reading history stays on the phone.
 - **`ios/` is generated and untracked.** It is `Aogimi.xcodeproj` / `com.aogimi.mobile` / scheme
   `aogimi`. Never hand-edit it: change `app.json`, then `npx expo prebuild --clean -p ios`. A
   stale native project (the old Shirube one) once linked a misplaced native-module registry and
   produced a **silent blank screen** — RN views rendered, Fabric components did not.
 
-Still outstanding, all design-dependent: fonts (Switzer + Noto Sans JP, owed by the owner), the
-sky **stage screen**, and the screen-by-screen redesign. Mobile keeps three things the web
+Still outstanding: the sky **stage screen**, and the screen-by-screen redesign, of which Home is
+done. Fonts are **in** (Switzer + Noto Sans JP, both loading). Mobile keeps three things the web
 doesn't — an offline SQLite dictionary, reader highlights/bookmarks/annotations, and i18n
 (en/ja/pt) — none of which the redesign should remove.
 

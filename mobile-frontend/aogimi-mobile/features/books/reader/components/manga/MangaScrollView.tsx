@@ -27,8 +27,7 @@ import { FlatList, Gesture, GestureDetector } from 'react-native-gesture-handler
 import Animated, {
   // runOnJS is deprecated in reanimated v4 (replacement is the auto-bridge
   // from worklet -> JS), but still works and the alternative isn't a clean
-  // drop-in here. Suppress the hint via eslint pragma when needed.
-  // eslint-disable-next-line @typescript-eslint/no-deprecated
+  // drop-in here.
   runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -191,7 +190,6 @@ export const MangaScrollView = forwardRef<MangaScrollViewHandle, Props>(function
     () => pinchActive.value || scale.value > 1.01,
     (locked, prev) => {
       if (locked === prev) return;
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
       runOnJS(setScrollNative)(!locked);
     },
   );

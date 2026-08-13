@@ -200,7 +200,7 @@ export function deinflect(form: string): DeinflectCandidate[] {
   if (!form) return [];
 
   const seen = new Map<string, string[]>();
-  const queue: Array<[string, string[]]> = [[form, []]];
+  const queue: [string, string[]][] = [[form, []]];
 
   while (queue.length) {
     const [cur, path] = queue.shift()!;

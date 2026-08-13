@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '@/theme/ThemeContext';
+import { palette } from '@/theme/tokens';
 
 type Props = {
   visible: boolean;
@@ -102,7 +103,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    // `palette.scrim` — one scrim value for every sheet and popover, and it stays
+    // a dark wash whichever way the palette runs.
+    backgroundColor: palette.scrim,
   },
   sheet: {
     borderTopLeftRadius: 22,

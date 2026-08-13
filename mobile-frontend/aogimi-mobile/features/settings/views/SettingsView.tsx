@@ -16,6 +16,7 @@ type NavRow = { kind: 'nav'; labelKey: string; path: string };
 // Labels resolved through i18n at render time (not capture-time) so the
 // row text re-renders when the locale changes.
 const ROWS: NavRow[] = [
+  { kind: 'nav', labelKey: 'appearance.title',    path: '/profile/settings/appearance' },
   { kind: 'nav', labelKey: 'profile.language',    path: '/profile/settings/language' },
   { kind: 'nav', labelKey: 'studyDisplay.title',  path: '/profile/settings/study-display' },
   { kind: 'nav', labelKey: 'settings.help',       path: '/profile/settings/help' },

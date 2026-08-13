@@ -69,7 +69,8 @@
     "cardsDue": "cards due",
     "studyNow": "Study now",
     "resumeReading": "Resume reading",
-    "viewAll": "VIEW ALL"
+    "viewAll": "VIEW ALL",
+    "daysStudied": "DAYS STUDIED"
   },
   "reader": {
     "define": "Define",
@@ -203,5 +204,14 @@
     "home": "Home",
     "reader": "Reader",
     "sky": "Sky"
+  },
+  "appearance": {
+    "title": "Appearance",
+    "system": "Match device",
+    "systemSub": "Follow the system light or dark setting",
+    "day": "Day",
+    "daySub": "Ink on paper",
+    "night": "Night",
+    "nightSub": "Midnight"
   }
 }
