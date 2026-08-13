@@ -1,33 +1,18 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Card } from '@/shared/components/Card';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
+import { fontFamily, fontSize, type Palette } from '@/theme/tokens';
 
 /**
- * Home's card shell, and the section header that goes inside it.
+ * Home's section header.
  *
- * The handoff's surface recipe, unchanged in both columns: `paper` fill, a 1px
- * `paperBd` hairline, radius 16, **no shadow**. Separation comes from the fill
- * and the edge, which is what lets the same component work on Night's charcoal
- * as on Day's white.
- *
- * ── Why this is local to `home/` ────────────────────────────────────────────
- * It looks like a shared primitive and will probably become one. The house rule
- * is that a primitive earns `shared/components/` once a *second* feature uses
- * it, and right now nothing else does — promoting it early would freeze an API
- * against exactly one caller. Move it when the next redesigned screen wants it.
+ * **The card surface moved to `shared/components/Card`** when Profile and
+ * Settings became its second and third callers — the house rule is that a
+ * primitive earns a shared home on its second use. `Card` is re-exported here
+ * so Home's components keep one import for "the box and its header".
  */
-export function HomeCard({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: ViewStyle;
-}) {
-  const p = usePalette();
-  const styles = useStyles(p);
-  return <View style={[styles.card, style]}>{children}</View>;
-}
+export { Card } from '@/shared/components/Card';
 
 /**
  * A card's title row with a trailing "VIEW ALL →" affordance.
@@ -69,13 +54,6 @@ function useStyles(p: Palette) {
   return useMemo(
     () =>
       StyleSheet.create({
-        card: {
-          backgroundColor: p.paper,
-          borderWidth: 1,
-          borderColor: p.paperBd,
-          borderRadius: radius.lg,
-          padding: spacing.lg,
-        },
         sectionHead: {
           flexDirection: 'row',
           alignItems: 'baseline',

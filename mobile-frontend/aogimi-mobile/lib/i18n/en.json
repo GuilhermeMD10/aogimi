@@ -172,12 +172,22 @@
     "changeAvatar": "Change avatar",
     "signedOut": {
       "note": "You can keep reading and building decks without an account — your data stays on this device. Sign up later to sync it across devices."
-    }
+    },
+    "email": "Email",
+    "jlptLevel": "JLPT level",
+    "lookingUpSince": "LOOKING UP SINCE {date}",
+    "statDaysStudied": "DAYS STUDIED",
+    "statMastered": "MASTERED",
+    "statStars": "STARS"
   },
   "settings": {
     "title": "Settings",
     "help": "Help",
-    "credits": "Credits"
+    "credits": "Credits",
+    "groupAppearance": "APPEARANCE",
+    "groupStudy": "STUDY",
+    "groupAbout": "ABOUT",
+    "signOutConfirm": "Sign out of this device?"
   },
   "studyDisplay": {
     "title": "Study display",

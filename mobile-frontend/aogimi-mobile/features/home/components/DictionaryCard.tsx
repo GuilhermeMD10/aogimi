@@ -4,7 +4,7 @@ import Feather from '@expo/vector-icons/Feather';
 import type { RecentLookup } from '@/features/dictionary/lib/dictionaryStorage';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
-import { HomeCard, SectionHead } from './HomeCard';
+import { Card, SectionHead } from './HomeCard';
 
 /** How many recent lookups the card shows. The store keeps ten; this is a
  *  glanceable summary, and more than two starts competing with the cards below
@@ -43,7 +43,7 @@ export function DictionaryCard({
   const shown = recents.slice(0, VISIBLE);
 
   return (
-    <HomeCard>
+    <Card>
       <SectionHead title={title} action={viewAllLabel} onPress={onOpenDictionary} />
 
       <Pressable
@@ -82,7 +82,7 @@ export function DictionaryCard({
           </View>
         </Pressable>
       ))}
-    </HomeCard>
+    </Card>
   );
 }
 

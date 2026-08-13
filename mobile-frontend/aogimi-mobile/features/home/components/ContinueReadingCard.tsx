@@ -5,7 +5,7 @@ import { BookCover } from '@/features/books/library/components/BookCover';
 import type { BookRecord } from '@/features/books/types';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
-import { HomeCard } from './HomeCard';
+import { Card } from './HomeCard';
 
 /**
  * "Continue reading" — the single most recently opened in-progress book.
@@ -38,7 +38,7 @@ export function ContinueReadingCard({
   const pct = Math.max(0, Math.min(100, book.progress));
 
   return (
-    <HomeCard>
+    <Card>
       <Text style={styles.kicker}>{kicker}</Text>
       <View style={styles.row}>
         <BookCover
@@ -67,7 +67,7 @@ export function ContinueReadingCard({
           </Pressable>
         </View>
       </View>
-    </HomeCard>
+    </Card>
   );
 }
 
