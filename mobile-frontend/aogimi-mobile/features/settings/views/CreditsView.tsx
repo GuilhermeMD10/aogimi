@@ -3,6 +3,7 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { Screen } from '@/shared/components/Screen';
+import { BackBar } from '@/shared/components/BackBar';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing } from '@/theme/tokens';
 import { CREDITS, type CreditEntry, type CreditSection } from '@/features/settings/lib/credits';
@@ -16,15 +17,7 @@ export function CreditsView() {
   const router = useRouter();
   return (
     <Screen padded>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backRow}>
-          <Feather name="chevron-left" size={20} color={c.fg} />
-          <Text style={[styles.backLabel, { color: c.fgMuted, fontFamily: fontFamily.ui }]}>
-            Settings
-          </Text>
-        </Pressable>
-        <Text style={[styles.title, { color: c.fg, fontFamily: fontFamily.ui }]}>Credits</Text>
-      </View>
+      <BackBar title="Credits" />
 
       <ScrollView contentContainerStyle={styles.body}>
         {CREDITS.map((section) => (
@@ -147,10 +140,6 @@ function Entry({
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: spacing.md },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 4 },
-  backLabel: { fontSize: fontSize.sm },
-  title: { fontSize: fontSize.xl, fontWeight: '600' },
   body: { paddingBottom: spacing.xxl, gap: spacing.lg },
   section: { gap: spacing.xs },
   headingRow: {
