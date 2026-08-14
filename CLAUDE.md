@@ -47,6 +47,7 @@ npx tsc --noEmit
 npm start | run ios | run android | lint | typecheck
 npm run verify:fsrs                                # FSRS-6 vs py-fsrs 6.3.1 vectors
 npm run verify:sky                                 # star map vs web copy + golden values
+npm run verify:camera                              # UI-thread clamp mirror vs lib/camera.ts
 ```
 
 No test runner anywhere, and no linter on the backend (vitest + auth tests are deferred —
@@ -329,6 +330,16 @@ mobile work; don't re-derive it here. What changed, because none of it matches o
 - **`features/sky/map/lib` is a verbatim copy of the web's** — see its README. `verify:sky`
   asserts bit-identical output. `features/sky/lib/skyProjection.ts` is the `CardRecord` → star
   boundary that keeps the engine free of FSRS and the API.
+- **Mobile's sky renderer is `@shopify/react-native-skia`, not `react-native-svg`** (2026-08-13), and
+  the camera's live pose lives in Reanimated shared values on the **UI thread** — a pan or pinch is a
+  matrix on a world-space scene, with no React render at all. `hooks/useSkyCamera.ts` holds the two
+  poses (live, and the *committed* one LOD/culling resolve against) and explains the one trade: between
+  commits a pinch scales the picture, so star radii drift and snap back at each commit
+  (`COMMIT_ZOOM_RATIO`). **The outer tier is no longer locked** — the web's immobile chooser was wrong
+  on a phone. Consequence worth knowing: worklets **cannot** call `lib/camera.ts` (Reanimated only
+  workletizes imports under experimental `bundleMode`), so its clamp law is mirrored as worklets in
+  `map/native/cameraWorklet.ts` — a **fourth** verified mirror alongside the three FSRS copies. Change
+  one, change both, run `verify:camera`. Native module: changing it needs `expo prebuild`.
 - **Gone**: DeepL (entirely), the `/stats` screen, the multi-theme shell.
 - `lib/localSchema.ts` wipes local decks/cards on a `LOCAL_SCHEMA_VERSION` bump — the app is
   undeployed, so stale local rows are dropped rather than migrated.

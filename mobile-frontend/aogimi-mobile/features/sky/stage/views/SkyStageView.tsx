@@ -10,10 +10,13 @@ import {
   Text,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDockClearance } from '@/features/app-shell/Dock';
+import { useHideDock } from '@/features/app-shell/DockVisibility';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { SkyMap, type Insets, type SkyFrameMeta } from '@/features/sky/map';
 import { fontFamily, fontSize, palette, radius, spacing } from '@/theme/tokens';
@@ -30,6 +33,7 @@ import { deckColorFor, deckGlyphFor } from '../lib/deckVisuals';
 import { deleteDeckLocal } from '../lib/deckPush';
 import { syncAllDeckChanges } from '../lib/decksSyncAll';
 import { MAX_DECKS } from '../lib/limits';
+import { NIGHT } from '../lib/nightChrome';
 import { masteryMixOf } from '../lib/masteryMix';
 
 /**
@@ -77,6 +81,24 @@ import { masteryMixOf } from '../lib/masteryMix';
  *  this is the one number that decides how close a star may come to the glass. */
 const GUTTER = 16;
 
+/**
+ * The stage's night, behind everything — `sky1` at the top down to `sky3` at the
+ * base, which is the gradient `theme/tokens.ts` unrolled the handoff's `skybg`
+ * into. **Theme-invariant**: see `NIGHT.bgStops`. Rendered by both returns below
+ * so the signed-out prompt sits on the same sky the map does rather than on a
+ * flat slab.
+ */
+const NightBackdrop = () => (
+  <>
+    <LinearGradient colors={NIGHT.bgStops} style={StyleSheet.absoluteFill} pointerEvents="none" />
+    {/* The app's status-bar ink comes from `theme.meta.isDark` (`app/_layout.tsx`'s
+        ThemedStatusBar), which is `false` on the light baseline — dark glyphs. This
+        screen is night whatever the theme says, so it overrides to light while it
+        is focused. Mounted with the backdrop because the two are the same fact. */}
+    <StatusBar style="light" />
+  </>
+);
+
 export function SkyStageView() {
   const router = useRouter();
   const safeArea = useSafeAreaInsets();
@@ -123,6 +145,14 @@ export function SkyStageView() {
     [decks, focusedDeckId],
   );
   const focusedDeckKey = focusedDeck?.id ?? null;
+
+  /**
+   * **A focused deck hides the dock.** Focusing is not a navigation — the stage never leaves the
+   * screen — so nothing takes the tab bar away the way a push would, and inside a deck it is actively
+   * wrong: `SkyDeckBar` already owns going back, and `useDockClearance()` feeds the camera's bottom
+   * inset, so a dock nobody is using is costing stars. Restores itself on unmount.
+   */
+  useHideDock(focusedDeckId !== null);
 
   const selectedCard = useMemo(
     () =>
@@ -287,6 +317,7 @@ export function SkyStageView() {
   if (status !== 'signed-in') {
     return (
       <View style={styles.root}>
+        <NightBackdrop />
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>Your sky needs an account</Text>
           <Text style={styles.emptyBody}>
@@ -315,7 +346,9 @@ export function SkyStageView() {
 
   return (
     <View style={styles.root}>
-      {/* ── the sky itself, edge to edge; the page's night shows through ── */}
+      <NightBackdrop />
+
+      {/* ── the sky itself, edge to edge; the stage's night shows through ── */}
       <View style={StyleSheet.absoluteFill}>
         {hasSky && (
           <SkyMap
@@ -333,7 +366,7 @@ export function SkyStageView() {
 
       {loading && !hasSky && (
         <View style={styles.centered}>
-          <ActivityIndicator color={palette.ink} />
+          <ActivityIndicator color={NIGHT.ink} />
         </View>
       )}
 
@@ -418,7 +451,7 @@ export function SkyStageView() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.bg },
+  root: { flex: 1, backgroundColor: NIGHT.bgStops[2] },
   centered: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
@@ -429,7 +462,7 @@ const styles = StyleSheet.create({
   topChrome: { position: 'absolute', left: GUTTER, right: GUTTER, gap: spacing.sm },
   cardDock: { position: 'absolute', left: GUTTER, right: GUTTER },
   error: {
-    color: palette.soft,
+    color: NIGHT.ink,
     backgroundColor: palette.dangerBg,
     borderColor: palette.dangerBd,
     borderWidth: StyleSheet.hairlineWidth,
@@ -440,20 +473,20 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
   },
   emptyTitle: {
-    color: palette.ink,
+    color: NIGHT.ink,
     fontFamily: fontFamily.displayBold,
     fontSize: fontSize.xl,
     textAlign: 'center',
   },
   emptyBody: {
-    color: palette.muted,
+    color: NIGHT.soft,
     fontFamily: fontFamily.ui,
     fontSize: fontSize.sm,
     lineHeight: 21,
     textAlign: 'center',
   },
   emptyNote: {
-    color: palette.faint,
+    color: NIGHT.faint,
     fontFamily: fontFamily.mono,
     fontSize: fontSize.xs,
     textAlign: 'center',

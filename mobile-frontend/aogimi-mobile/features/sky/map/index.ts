@@ -9,9 +9,11 @@
  *                 `npm run verify:sky` asserts it produces bit-identical output, so one seed makes
  *                 one sky on every platform. Read `lib/README.md` before touching anything in it.
  *   `hooks/`      the native bindings: `useSkyFrame` is copied unchanged (it is pure React + lib),
- *                 `useCamera` is the rewritten platform half — `onLayout` and gesture verbs where
- *                 the web has a ResizeObserver and a wheel listener.
- *   `components/` the `react-native-svg` renderer.
+ *                 `useSkyCamera` is the rewritten platform half — the live pose lives in Reanimated
+ *                 shared values on the UI thread, where the web has a ResizeObserver and a wheel
+ *                 listener. Its clamp runs from `native/cameraWorklet.ts`, a mirror of the lib's own
+ *                 guarded by `npm run verify:camera`.
+ *   `components/` the **Skia** renderer.
  *
  * Mirrors `web-frontend/aogimi-web/features/sky/map/index.ts`. Two exports there are deliberately
  * absent here:
