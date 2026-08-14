@@ -26,6 +26,10 @@ import type { Bounds } from '../lib/types';
 import { fontFamily } from '@/theme/tokens';
 
 /**
+ * **UNUSED — imported by nothing.** The `react-native-svg` original, kept on disk as the reference for
+ * the frames pass: the outer tier's card frames are being rebuilt as an RN overlay above the Skia
+ * canvas, not ported into it (see `SkyCanvas.tsx`'s header for why). Delete this file once that lands.
+ *
  * The deck card frames of the outer view — the native port of the web's `SkyFrames.tsx`. See that
  * file for the design and, in particular, for why **type is screen px while the card is world
  * space**, and why that trade is what makes the frameless mode necessary past `FRAME_LOD_EXIT_PX`.

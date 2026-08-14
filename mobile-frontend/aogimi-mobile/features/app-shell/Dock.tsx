@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, LayoutChangeEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import Feather from '@expo/vector-icons/Feather';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useDockHidden } from '@/features/app-shell/DockVisibility';
 import { usePalette, useTheme } from '@/theme/ThemeContext';
 import { fontFamily, type Palette } from '@/theme/tokens';
 
@@ -194,12 +195,21 @@ const DOCK_SHELL_HEIGHT = 64;
  * contributes nothing to that layout and the hook can legitimately answer 0. A screen padded from it
  * would have its last row sitting under the glass.
  */
+/** How long the dock takes to fade out of the way of a focused deck, and back. */
+const DOCK_FADE_MS = 180;
+
 export function useDockClearance(): number {
   const insets = useSafeAreaInsets();
+  const hidden = useDockHidden();
+  // Zero while hidden, so a screen that hides the dock gets the height back rather than padding
+  // around glass that is not there. The sky's camera insets read this, so a focused deck spends
+  // every pixel the dock stops occupying.
+  if (hidden) return 0;
   return DOCK_SHELL_HEIGHT + Math.max(SHELL_BOTTOM, insets.bottom) + SHELL_BOTTOM;
 }
 
 export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
+  const hidden = useDockHidden();
   const insets = useSafeAreaInsets();
   const p = usePalette();
   const { themeName } = useTheme();
@@ -248,8 +258,34 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
     }).start();
   }, [activeIdx, tabW, slide]);
 
+  // Native-driven, like the pill: opacity is the one property that can leave the JS thread entirely,
+  // which is the whole point of fading rather than unmounting.
+  const fade = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.timing(fade, {
+      toValue: hidden ? 0 : 1,
+      duration: DOCK_FADE_MS,
+      easing: SLIDE_EASING,
+      useNativeDriver: true,
+    }).start();
+  }, [hidden, fade]);
+
+  /**
+   * Hiding **fades; it does not unmount.**
+   *
+   * `return null` was the first version, and it cost a frame at the worst moment: leaving a focused
+   * deck remounts the whole dock — BlurView init, gradients, the row measurement, the pill's slide —
+   * as JS work landing in the middle of the camera's zoom-out flight. It was also why the expo-blur
+   * warnings appeared *on that transition* specifically: they are logged per BlurView mount.
+   *
+   * The trade is that an invisible dock still composites. If that shows up on device, gate the
+   * `<BlurView>` child on a fully-hidden state rather than going back to unmounting the host.
+   */
   return (
-    <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(SHELL_BOTTOM, insets.bottom) }]}>
+    <Animated.View
+      pointerEvents={hidden ? 'none' : 'box-none'}
+      style={[styles.host, { bottom: Math.max(SHELL_BOTTOM, insets.bottom), opacity: fade }]}
+    >
       <View style={[styles.shell, themed.shell]}>
         {/* The frosted material. `overflow: hidden` on the shell is what clips the blur, the
             hairlines and the pill to the rounded corners — the web gets that from
@@ -259,9 +295,13 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
           // Follows the wash: a dark frost over a light page turns the dock into a black slab and
           // swallows the tab ink, and a light frost over a dark page does the mirror of that.
           tint={GLASS.blurTint}
-          // Android has no real backdrop blur without this; without it the fill alone carries the
-          // surface there, which is why the fill is a visible 10% rather than a token 1%.
-          experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+          // **No Android blur method on purpose.** `dimezisBlurView` was set here, and expo-blur 55
+          // logs two warnings for it: `experimentalBlurMethod` is deprecated in favour of
+          // `blurMethod`, and `dimezisBlurView` now requires a `blurTarget` ref or it "will fallback
+          // to none blur method to avoid errors". So it was already doing nothing while warning twice
+          // per mount. `blurTarget` wants a ref to the view being blurred, which a dock floating over
+          // whichever screen is beneath it cannot name — so Android keeps the fill as its surface,
+          // which is exactly why the fill is a visible 10% rather than a token 1%.
           style={StyleSheet.absoluteFill}
         />
         <View style={[StyleSheet.absoluteFill, { backgroundColor: GLASS.fill }]} />
@@ -339,7 +379,7 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
           })}
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

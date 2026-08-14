@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-import { useCamera } from '../hooks/useCamera';
+import { useSkyCamera } from '../hooks/useSkyCamera';
 import { useSkyDraw, useSkyStage } from '../hooks/useSkyFrame';
 import { buildSky, todayBucket, type SkyDeckSource } from '../lib/buildSky';
-import { fitZoom } from '../lib/camera';
 import { openConstellationOf } from '../lib/generator';
-import { framedAt } from '../lib/layout';
 import { DEFAULT_SKY_HUE, SKY_PALETTES, type SkyHue } from '../lib/palette';
 import type { FocusPath, Insets, Star } from '../lib/types';
 import { SkyCanvas } from './SkyCanvas';
-import { type DeckFrameData, FALLBACK_COVER } from './SkyFrames';
 
 /**
  * The whole sky — every deck at once. The native port of the web's `SkyMap.tsx`, and the only
@@ -72,7 +69,14 @@ type Props = {
   onSelectCard: (cardId: string | null) => void;
   /** The flight into (or out of) the current focus has landed. */
   onSettled?: () => void;
-  /** Frame display data by deck uuid. The frames render without it. */
+  /**
+   * Frame display data by deck uuid — due count, cover tile, subtitle.
+   *
+   * **Deliberately accepted and not yet consumed.** The outer tier draws bare constellations with
+   * their names in this pass (see `SkyCanvas`'s header); the card frames come back as an RN overlay
+   * above the canvas, and that overlay is what reads this. Keeping the prop on the contract now means
+   * the host's call site does not change when it lands.
+   */
   frameMeta?: ReadonlyMap<string, SkyFrameMeta>;
   /** How much of each viewport edge the host's overlays cover, in px. Applied to every camera fit
    *  and clamp; compared by value, and a change re-fits the camera as a flight. */
@@ -89,7 +93,6 @@ export function SkyMap({
   onFocusDeck,
   onSelectCard,
   onSettled,
-  frameMeta,
   insets,
   hue = DEFAULT_SKY_HUE,
 }: Props) {
@@ -104,13 +107,14 @@ export function SkyMap({
 
   const stage = useSkyStage(snapshot, focus, palette.ranks);
 
-  // the outer view is a chooser, so it is immobile; inside a single deck the boundary is the
-  // container itself (fillViewport)
-  const locked = focusedDid === null;
+  // Inside a single deck — a focused one, or a sky that only has one — the boundary is the container
+  // itself, so the fitted view fills the stage edge to edge instead of letterboxing a smaller
+  // rectangle inside it.
   const singleDeck = focusedDid !== null || snapshot.decks.length <= 1;
   const leave = useCallback(() => onFocusDeck(null), [onFocusDeck]);
-  const cam = useCamera(stage.bounds, {
-    locked,
+  const cam = useSkyCamera(stage.bounds, {
+    // The chooser is immobile; only a focused deck is navigable. See `useSkyCamera`'s header.
+    locked: focusedDid === null,
     fillViewport: singleDeck,
     // pinching out past a focused deck's fit means "leave" — the same motion that got you around
     // inside it. At the outer view there is nothing above to escape to.
@@ -121,43 +125,6 @@ export function SkyMap({
   });
 
   const frame = useSkyDraw(stage, focus, cam.camera, cam.view);
-
-  /**
-   * Frame LOD — derived during render, no state and no effect. That is only possible because the
-   * layout ignores the mode: `stage.layout` and its fit are the same whichever way this resolves, so
-   * reading the measured viewport here creates no cycle. Always framed inside a deck, where no frames
-   * are drawn at all and the question is moot.
-   */
-  const framed =
-    focusedDid !== null || framedAt(stage.layout, fitZoom(stage.layout.bounds, cam.viewport, insets));
-
-  // The outer view's card frames: the layout's boxes joined to each deck's display data. Memoised
-  // like the snapshot is — SkyFrames is a memo, so a stable array keeps the whole layer out of the
-  // per-frame work.
-  const frames = useMemo<DeckFrameData[]>(() => {
-    const out: DeckFrameData[] = [];
-    decks.forEach((deck, did) => {
-      const place = stage.layout.places.get(did);
-      if (!place) return; // a deck with no placeable cards has no box, so no frame
-      const meta = frameMeta?.get(deck.key);
-      let mastered = 0;
-      for (const c of deck.cards) if (c.mastery >= 3) mastered++;
-      out.push({
-        did,
-        frame: place.frame,
-        name: deck.name,
-        cardCount: meta?.cardCount ?? deck.cards.length,
-        masteredCount: meta?.masteredCount ?? mastered,
-        dueCount: meta?.dueCount ?? null,
-        coverColor: meta?.coverColor ?? FALLBACK_COVER.color,
-        coverInk: meta?.coverInk ?? FALLBACK_COVER.ink,
-        // spread, not charAt: the glyph may be an astral-plane character
-        coverGlyph: meta?.coverGlyph ?? [...deck.name][0] ?? '·',
-        subtitle: meta?.subtitle ?? null,
-      });
-    });
-    return out;
-  }, [decks, frameMeta, stage.layout]);
 
   /* ---------- the flight between tiers ---------- */
 
@@ -209,10 +176,9 @@ export function SkyMap({
       palette={palette}
       focus={focus}
       cam={cam}
+      names={stage.index.names}
       selected={selectedStarId}
       openTip={openTip}
-      frames={frames}
-      framed={framed}
       onEnterDeck={enterDeck}
       onStarClick={starClick}
       onMiss={miss}
