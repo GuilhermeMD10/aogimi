@@ -4,15 +4,11 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const wordsRouter     = require("./routes/words");
-const kanjiRouter     = require("./routes/kanji");
-const namesRouter     = require("./routes/names");
 const searchRouter    = require("./routes/search");
-const translateRouter = require("./routes/translate");
 const authRouter      = require("./routes/auth");
 const userRouter      = require("./routes/user");
 const booksRouter     = require("./routes/books");
 const decksRouter     = require("./routes/decks");
-const devicesRouter   = require("./routes/devices");
 const studyRouter     = require("./routes/study");
 const statsRouter     = require("./routes/stats");
 const { authenticateJWT } = require("./middleware/authenticateJWT");
@@ -109,23 +105,26 @@ app.use("/api", globalLimiter);
 // users and contain no PII. Auth itself is also public (the endpoints
 // here ARE how you authenticate). Per-endpoint rate limiters live
 // inside the auth router so /login can be tighter than /search.
-app.use("/api/auth",      authRouter);
-app.use("/api/search",    searchRouter);
-app.use("/api/words",     wordsRouter);
-app.use("/api/kanji",     kanjiRouter);
-app.use("/api/names",     namesRouter);
-app.use("/api/translate", translateRouter);
+//
+// The dictionary surface is two endpoints now: `/api/search` (the ranked
+// pipeline) and `/api/words/:id/details`. The former `/api/kanji` and
+// `/api/names` routers, and nine of the eleven `/api/words` lookups, were
+// direct-query endpoints that predated the search pipeline and had no callers;
+// they were removed rather than maintained in parallel. `/api/translate` (a
+// DeepL proxy) went with the translation feature the clients dropped.
+app.use("/api/auth",   authRouter);
+app.use("/api/search", searchRouter);
+app.use("/api/words",  wordsRouter);
 
 // ── Protected routes ────────────────────────────────────────────────────────
 // Everything below requires a valid access token. `authenticateJWT`
 // attaches `req.user = { userId, username }`; routes use that as the
 // only source of identity (body `userId`s are ignored).
-app.use("/api/user",    authenticateJWT, userRouter);
-app.use("/api/books",   authenticateJWT, booksRouter);
-app.use("/api/decks",   authenticateJWT, decksRouter);
-app.use("/api/devices", authenticateJWT, devicesRouter);
-app.use("/api/study",   authenticateJWT, studyRouter);
-app.use("/api/stats",   authenticateJWT, statsRouter);
+app.use("/api/user",  authenticateJWT, userRouter);
+app.use("/api/books", authenticateJWT, booksRouter);
+app.use("/api/decks", authenticateJWT, decksRouter);
+app.use("/api/study", authenticateJWT, studyRouter);
+app.use("/api/stats", authenticateJWT, statsRouter);
 
 // ── Terminal error handler ────────────────────────────────────────────────
 // Mounted last. Anything that reaches Express's error path (a CORS

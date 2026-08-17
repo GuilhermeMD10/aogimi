@@ -136,21 +136,13 @@ router.get("/:id/cards", async (req, res) => {
   }
 });
 
-// Due cards in this deck only (never-reviewed or past next_due_at).
-router.get("/:id/cards/due", async (req, res) => {
-  if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
-    return res.status(404).json({ error: "Not found" });
-  }
-  try {
-    const cards = await cardService.getDueDeckCards(req.params.id);
-    return res.json(cards);
-  } catch (err) {
-    return res.status(500).json({ error: "Read failed" });
-  }
-});
-
 // Just the due count for this deck — for a badge that would otherwise pull
 // every due card row to call `.length` on it.
+//
+// There was a `GET /:id/cards/due` beside this returning the rows themselves.
+// Nothing called it: clients build a session from `POST /api/study/session`
+// (which applies mode, ordering and a size cap) and only ever want the bare
+// integer here. Removed along with `cardService.getDueDeckCards`.
 router.get("/:id/cards/due/count", async (req, res) => {
   if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });

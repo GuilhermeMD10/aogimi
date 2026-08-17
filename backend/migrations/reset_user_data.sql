@@ -7,6 +7,10 @@
 BEGIN;
 
 -- ── Drop in dependency order ────────────────────────────────────────────────
+--
+-- The first two are legacy: migration 028 removed the device registry, so
+-- nothing below recreates them. They stay here so this script also cleans a
+-- database that predates 028.
 
 DROP TABLE IF EXISTS book_availability CASCADE;
 DROP TABLE IF EXISTS devices           CASCADE;
@@ -217,26 +221,9 @@ CREATE TABLE user_study_prefs (
   updated_at     timestamptz  NOT NULL DEFAULT now()
 );
 
--- ── devices ─────────────────────────────────────────────────────────────────
-
-CREATE TABLE devices (
-  device_id    text         NOT NULL,
-  user_id      int          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name         text         NOT NULL DEFAULT '',
-  last_seen_at timestamptz  NOT NULL DEFAULT now(),
-  created_at   timestamptz  NOT NULL DEFAULT now(),
-  PRIMARY KEY (device_id, user_id)
-);
-
--- ── book_availability ───────────────────────────────────────────────────────
-
-CREATE TABLE book_availability (
-  user_id      int          NOT NULL,
-  device_id    text         NOT NULL,
-  book_id      uuid         NOT NULL REFERENCES book_progress(id) ON DELETE CASCADE,
-  available_at timestamptz  NOT NULL DEFAULT now(),
-  PRIMARY KEY (user_id, device_id, book_id),
-  FOREIGN KEY (device_id, user_id) REFERENCES devices(device_id, user_id) ON DELETE CASCADE
-);
+-- `devices` and `book_availability` were recreated here until migration 028
+-- dropped them. The DROPs above are kept deliberately: this script's job is to
+-- converge any database on the current schema, and a database that predates 028
+-- still has both tables. Nothing recreates them.
 
 COMMIT;

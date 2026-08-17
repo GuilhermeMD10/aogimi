@@ -49,21 +49,8 @@ module.exports = {
     return result.rows;
   },
 
-  // Cards due for review in a single deck. Most-overdue first; never-reviewed
-  // cards sort ahead of everything (NULLS FIRST).
-  findDueByDeck: async (deckId) => {
-    const result = await pool.query(
-      `SELECT * FROM cards
-        WHERE deck_id = $1
-          AND ${DUE}
-        ORDER BY next_due_at ASC NULLS FIRST`,
-      [deckId]
-    );
-    return result.rows;
-  },
-
-  // Same predicate, pooled across many decks (used for the all-decks due
-  // queue). Empty input → empty result, no query.
+  // The due predicate, pooled across many decks — the session builder's input.
+  // Empty input → empty result, no query.
   findDueByDeckIds: async (deckIds) => {
     if (!deckIds || deckIds.length === 0) return [];
     const result = await pool.query(
@@ -104,25 +91,6 @@ module.exports = {
       [deckIds]
     );
     return result.rows;
-  },
-
-  // One card picked at random out of the due pool across many decks. Used by
-  // the single-card "study something now" entry point, so ordering is
-  // irrelevant — only the pick matters. `ORDER BY random()` sorts the whole
-  // due set, which is fine at the deck sizes we expect (same assumption
-  // studyService makes when it orders sessions in JS). Returns undefined when
-  // nothing is due.
-  findRandomDueByDeckIds: async (deckIds) => {
-    if (!deckIds || deckIds.length === 0) return undefined;
-    const result = await pool.query(
-      `SELECT * FROM cards
-        WHERE deck_id = ANY($1::uuid[])
-          AND ${DUE}
-        ORDER BY random()
-        LIMIT 1`,
-      [deckIds]
-    );
-    return result.rows[0];
   },
 
   findById: async (id) => {

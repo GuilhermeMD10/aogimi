@@ -59,17 +59,9 @@ async function bookmarkOwnedBy(userId, bookmarkId) {
   );
 }
 
-async function deviceOwnedBy(userId, deviceId) {
-  return ownsBy(
-    "SELECT 1 FROM devices WHERE device_id = $1 AND user_id = $2",
-    [deviceId, userId],
-  );
-}
-
 module.exports = {
   bookOwnedBy,
   deckOwnedBy,
   cardOwnedBy,
   bookmarkOwnedBy,
-  deviceOwnedBy,
 };
