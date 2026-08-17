@@ -276,37 +276,20 @@ mode is one of `hardest | random | oldest_first | oldest_only | newest_only | by
 
 ---
 
-## devices
+## Removed: `devices` and `book_availability`
 
-Per-device library state. The (deviceId, userId) compound PK means
-device ids are scoped to their owning user — same device id on two
-users is two distinct rows.
+Dropped by [`028_drop_devices.sql`](./migrations/028_drop_devices.sql). The
+per-device book-availability feature was built end to end and never wired into
+a client — neither frontend ever generated a `deviceId` or marked a book
+available — so the two tables only ever held zero rows. The API layer went
+first; 028 removed the storage.
 
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| device_id | text | NOT NULL | Client-generated UUID |
-| user_id | int | NOT NULL, FK → users(id) ON DELETE CASCADE | |
-| name | text | NOT NULL DEFAULT '' | User-supplied device label |
-| last_seen_at | timestamptz | NOT NULL DEFAULT now() | |
-| created_at | timestamptz | NOT NULL DEFAULT now() | |
+The library's "you have this book, but not on this device" state does not
+depend on them: it is derived client-side by comparing the backend book list
+against what is present in local IndexedDB / `documents/books/`.
 
-**PK:** `(device_id, user_id)`
-
----
-
-## book_availability
-
-Which devices currently have a local file for a given book.
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| user_id | int | NOT NULL | |
-| device_id | text | NOT NULL | |
-| book_id | uuid | NOT NULL, FK → book_progress(id) ON DELETE CASCADE | |
-| available_at | timestamptz | NOT NULL DEFAULT now() | |
-
-**PK:** `(user_id, device_id, book_id)`
-**FK:** `(device_id, user_id)` → `devices(device_id, user_id)` ON DELETE CASCADE
+Column definitions, if you need to resurrect them, are in
+[`021_auth_hardening.sql`](./migrations/021_auth_hardening.sql) lines 165–183.
 
 ---
 

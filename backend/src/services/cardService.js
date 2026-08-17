@@ -16,12 +16,6 @@ async function getDeckCards(deckId) {
   return await cardRepo.findByDeck(deckId);
 }
 
-// Cards in this deck that are due for review right now (never-reviewed or
-// past their scheduled next_due_at), most-overdue first.
-async function getDueDeckCards(deckId) {
-  return await cardRepo.findDueByDeck(deckId);
-}
-
 // Just the count, for deck badges that don't need the cards themselves.
 async function getDueDeckCardCount(deckId) {
   return await cardRepo.countDueByDeck(deckId);
@@ -96,4 +90,4 @@ async function deleteCard(id) {
   return true;
 }
 
-module.exports = { createCard, getDeckCards, getDueDeckCards, getDueDeckCardCount, getCard, updateCard, reviewCard, deleteCard };
+module.exports = { createCard, getDeckCards, getDueDeckCardCount, getCard, updateCard, reviewCard, deleteCard };

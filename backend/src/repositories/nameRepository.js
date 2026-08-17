@@ -30,34 +30,7 @@ async function findByKana(kana) {
   return rows;
 }
 
-async function findByKanaPrefix(prefix, limit = 20) {
-  const { rows } = await pool.query(
-    `${NAME_SELECT} FROM names
-     WHERE kana LIKE $1
-     ORDER BY kana
-     LIMIT $2`,
-    [`${prefix}%`, Math.min(limit, CAP)]
-  );
-  return rows;
-}
 
-async function findByType(type) {
-  const { rows } = await pool.query(
-    `${NAME_SELECT} FROM names
-     WHERE name_type LIKE $1
-     ORDER BY kana
-     LIMIT $2`,
-    [`%${type}%`, CAP]
-  );
-  return rows;
-}
 
-async function findByMeaning(query) {
-  const { rows } = await pool.query(
-    `${NAME_SELECT} FROM names WHERE meaning ILIKE $1 LIMIT $2`,
-    [`%${query}%`, CAP]
-  );
-  return rows;
-}
 
-module.exports = { findByKanji, findByKana, findByKanaPrefix, findByType, findByMeaning };
+module.exports = { findByKanji, findByKana };

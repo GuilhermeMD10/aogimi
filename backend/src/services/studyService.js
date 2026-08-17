@@ -126,33 +126,6 @@ async function fetchSessionCards(userId, { scope, deckIds, mode, limit, dueOnly 
 }
 
 /**
- * Every card the user has due right now, across all the decks they own.
- * "Due" = never reviewed (next_due_at IS NULL) or next_due_at <= now.
- * Ordered most-overdue first; the client decides how many to actually study
- * (no limit is applied here — the per-deck and all-decks due lists are the
- * raw inventory the UI builds a session from).
- */
-async function fetchDueCards(userId) {
-  const userDecks = await deckRepo.findByUser(userId);
-  const ownedIds = userDecks.map((d) => d.id);
-  if (ownedIds.length === 0) return [];
-  return await cardRepo.findDueByDeckIds(ownedIds);
-}
-
-/**
- * One card picked at random from everything the user has due right now.
- * Returns null when the user owns no decks or has nothing due — "nothing to
- * study" is a normal state, not an error.
- */
-async function fetchRandomDueCard(userId) {
-  const userDecks = await deckRepo.findByUser(userId);
-  const ownedIds = userDecks.map((d) => d.id);
-  if (ownedIds.length === 0) return null;
-  const card = await cardRepo.findRandomDueByDeckIds(ownedIds);
-  return card ?? null;
-}
-
-/**
  * How many cards are due, in total and per deck, across everything the user
  * owns. One round trip — the alternative is fetching the whole due inventory
  * just to measure it, which is what the home screen would otherwise do to
@@ -179,7 +152,5 @@ module.exports = {
   VALID_MODES,
   DEFAULT_SESSION_SIZE,
   fetchSessionCards,
-  fetchDueCards,
-  fetchRandomDueCard,
   fetchDueCounts,
 };

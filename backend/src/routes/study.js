@@ -36,17 +36,15 @@ router.post("/session", async (req, res) => {
 });
 
 // ── Due ──────────────────────────────────────────────────────────────────────
-// Every card due right now across all the user's decks. Identity from the
-// token; ownership is implicit (only the caller's own decks are pooled).
-
-router.get("/due", async (req, res) => {
-  try {
-    const cards = await studyService.fetchDueCards(req.user.userId);
-    return res.json({ cards });
-  } catch (err) {
-    return res.status(500).json({ error: "Due resolution failed" });
-  }
-});
+// Identity from the token; ownership is implicit (only the caller's own decks
+// are pooled).
+//
+// Two siblings were removed here, both uncalled. `GET /due` returned the whole
+// due inventory as rows — clients get an ordered, size-capped set from
+// `POST /session` with `dueOnly` instead, so the raw list had no consumer.
+// `GET /due/random` served a single-card "study something now" entry point
+// that no longer exists in either UI. `studyService.fetchDueCards` and
+// `fetchRandomDueCard` went with them.
 
 // Due counts across every deck the user owns. Serves a "N cards due" figure
 // plus per-deck chips from one request; decks with nothing due are omitted
@@ -55,18 +53,6 @@ router.get("/due/counts", async (req, res) => {
   try {
     const payload = await studyService.fetchDueCounts(req.user.userId);
     return res.json(payload);
-  } catch (err) {
-    return res.status(500).json({ error: "Due resolution failed" });
-  }
-});
-
-// One random due card — the single-card "study something now" entry point.
-// `card` is null when nothing is due; that's a 200, not a 404, because having
-// nothing due is a normal state rather than a missing resource.
-router.get("/due/random", async (req, res) => {
-  try {
-    const card = await studyService.fetchRandomDueCard(req.user.userId);
-    return res.json({ card });
   } catch (err) {
     return res.status(500).json({ error: "Due resolution failed" });
   }

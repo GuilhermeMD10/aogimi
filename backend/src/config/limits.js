@@ -22,7 +22,6 @@ module.exports = {
     DECKS_PER_USER: 50,
     CARDS_PER_DECK: 5000,
     BOOKMARKS_PER_BOOK: 500,
-    DEVICES_PER_USER: 10,
   },
 
   // ── Text field lengths (characters, post-trim) ─────────────────────────
@@ -53,9 +52,6 @@ module.exports = {
     BOOK_PRODUCER: 500,
 
     BOOKMARK_LABEL: 100,
-
-    DEVICE_ID: 128,
-    DEVICE_NAME: 100,
 
     DISPLAY_NAME: 64,
     EMAIL: 254,

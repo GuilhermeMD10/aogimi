@@ -78,45 +78,14 @@ again, delete that one `return` rather than rewriting the handler.
 
 | Method | Path | Params | Response | DB Tables |
 |---|---|---|---|---|
-| GET | `/api/words/:id` | `id` | Single word | words |
 | GET | `/api/words/:id/details` | `id` | Word + kanji breakdown + readings (with pitchAccents) + ≤ 5 example sentences | words, kanji, example_sentences |
-| GET | `/api/words/:id/langs` | `id` | All translations across languages | words |
-| GET | `/api/words/meaning?q=eat&lang=eng` | `q`, `lang?` | Words by meaning | words |
-| GET | `/api/words/meaning/pos?q=study&pos=suru&lang=eng` | `q`, `pos`, `lang?` | Words by meaning + POS | words |
-| GET | `/api/words/pos?pos=noun&lang=eng` | `pos`, `lang?` | Words by POS | words |
-| GET | `/api/words/priority?marker=ichi1` | `marker` | Words by priority marker | words |
-| GET | `/api/words/kana-only?limit=50` | `limit?` | Kana-only words | words |
-| GET | `/api/words/kanji/:kanji?common=true` | `kanji`, `common?` | Words containing kanji | words |
-| GET | `/api/words/kana/:kana` | `kana` | Words by kana reading | words |
-| GET | `/api/words/kana-prefix/:prefix?limit=20` | `prefix`, `limit?` | Words by kana prefix | words |
 
-### Kanji
-
-| Method | Path | Params | Response | DB Tables |
-|---|---|---|---|---|
-| GET | `/api/kanji/:literal` | `literal` | Single kanji | kanji |
-| GET | `/api/kanji?grade=2` | `grade` (int or range "1-6") | Kanji by grade | kanji |
-| GET | `/api/kanji?strokes=9` | `strokes` (int or range "8-12") | Kanji by stroke count | kanji |
-| GET | `/api/kanji?radical=72` | `radical` (int) | Kanji by radical | kanji |
-| GET | `/api/kanji?meaning=water` | `meaning` | Kanji by meaning | kanji |
-| GET | `/api/kanji?on=ショク` | `on` (katakana) | Kanji by on reading | kanji |
-| GET | `/api/kanji?kun=た.べ` | `kun` (hiragana) | Kanji by kun reading | kanji |
-
-### Names
-
-| Method | Path | Params | Response | DB Tables |
-|---|---|---|---|---|
-| GET | `/api/names?q=tanaka` | `q` | Search proper-name dictionary | names |
-
-### Translate (DeepL proxy)
-
-| Method | Path | Body | Response |
-|---|---|---|---|
-| POST | `/api/translate` | `{ text, targetLang }` | `{ translated }` |
-
-Disabled when `DEEPL_API_KEY` is not set.
-
----
+> Ten other direct-lookup endpoints lived here (`/:id`, `/:id/langs`, `/meaning`,
+> `/meaning/pos`, `/pos`, `/priority`, `/kana-only`, `/kanji/:kanji`, `/kana/:kana`,
+> `/kana-prefix/:prefix`), plus the `/api/kanji` and `/api/names` routers and the
+> `/api/translate` DeepL proxy. All predated `/api/search`, none had a caller, and
+> all were removed. Kanji and name data still reach clients — through the ranked
+> search pipeline, which returns them inline for single-kanji and kana queries.
 
 ## Protected — User profile
 
@@ -215,7 +184,6 @@ card quota.
 |---|---|---|---|---|
 | POST | `/api/decks/:id/cards` | `{ front, reading?, back, notes?, contextSentence?, jlptLevel?, meanings? }` | `CardRecord` | `deckOwnedBy(:id)` |
 | GET | `/api/decks/:id/cards` | — | `CardRecord[]` | `deckOwnedBy(:id)` |
-| GET | `/api/decks/:id/cards/due` | — | `CardRecord[]` (due in this deck, most-overdue first) | `deckOwnedBy(:id)` |
 | GET | `/api/decks/:id/cards/due/count` | — | `{ count: number }` | `deckOwnedBy(:id)` |
 | PUT | `/api/decks/cards/:cardId` | `{ front?, reading?, back?, notes?, state?, contextSentence?, jlptLevel?, meanings? }` | `CardRecord` | `cardOwnedBy` |
 | POST | `/api/decks/cards/:cardId/review` | `{ outcome: 'again' \| 'hard' \| 'good' \| 'easy' }` | `CardRecord` (with updated SRS columns) | `cardOwnedBy` |
@@ -293,28 +261,28 @@ because they hand-pick their columns and neither renders a JLPT chip: the
 review recomputes `next_due_at = last_reviewed_at + stability ·
 ln(1/0.9)` (≈ `stability/10` days).
 
-Six surfaces expose that predicate, all sharing one SQL fragment
+Three surfaces expose that predicate, all sharing one SQL fragment
 (`DUE` in [`src/repositories/cardRepository.js`](./src/repositories/cardRepository.js))
 so the definition can't drift between them:
 
 | Surface | Shape |
 |---|---|
-| `GET /api/decks/:id/cards/due` | raw inventory for one deck, no `limit` |
-| `GET /api/study/due` | raw inventory across all decks, no `limit` |
 | `GET /api/decks/:id/cards/due/count` | `{ count }` for one deck |
 | `GET /api/study/due/counts` | `{ total, byDeck }` across all decks |
-| `GET /api/study/due/random` | one random due card |
 | `POST /api/study/session` + `dueOnly: true` | a ready-to-study session — mode-ordered and `limit`-capped |
 
-The two inventory endpoints apply no `limit` and order most-overdue first with
-never-reviewed cards first; the client decides session size.
-
 Reach for the right one:
-- **A count** → a count endpoint. Never fetch an inventory to read its
-  `.length`; that ships every card row to produce one integer.
-- **A session** → `dueOnly`. It reuses the mode ordering and the cap instead of
+- **A count** → a count endpoint. Never fetch a session to read its `.length`;
+  that ships every card row to produce one integer.
+- **The cards** → `dueOnly`. It reuses the mode ordering and the cap instead of
   making the client re-implement them.
-- **An inventory** → only when the client genuinely needs the rows themselves.
+
+There used to be three raw-inventory endpoints beside these —
+`GET /api/decks/:id/cards/due`, `GET /api/study/due` and `GET /api/study/due/random`
+— returning unlimited card rows. No client called any of them: both frontends
+build a due session from `POST /api/study/session` with `dueOnly: true` and an
+explicit `limit` taken from the count endpoint. They were removed rather than
+maintained as a second way to ask the same question.
 
 ---
 
@@ -323,9 +291,7 @@ Reach for the right one:
 | Method | Path | Body | Response | Notes |
 |---|---|---|---|---|
 | POST | `/api/study/session` | `{ scope, deckIds?, mode, limit?, dueOnly? }` | `{ cards: CardRecord[] }` | Cards already in display order |
-| GET | `/api/study/due` | — | `{ cards: CardRecord[] }` | All cards due now across every deck the user owns, most-overdue first |
 | GET | `/api/study/due/counts` | — | `{ total: number, byDeck: { [deckId]: number } }` | Due counts without the card rows. Decks with nothing due are **omitted** from `byDeck` |
-| GET | `/api/study/due/random` | — | `{ card: CardRecord \| null }` | One random due card. `null` (with 200) when nothing is due |
 | GET | `/api/study/prefs` | — | `{ display, deckOverrides }` | Returns defaults when no row exists |
 | PUT | `/api/study/prefs` | `{ display?, deckOverrides? }` | `{ display, deckOverrides }` | Upsert; either field optional |
 
@@ -419,23 +385,6 @@ transition it actually caused and later reviews don't overwrite it.
 
 ---
 
-## Protected — Devices
-
-Per-device book availability tracking (which device has the local
-file for which book).
-
-| Method | Path | Body / Params | Response | Ownership check |
-|---|---|---|---|---|
-| POST | `/api/devices` | `{ deviceId, name? }` | `DeviceRecord` | user is `req.user.userId` |
-| GET | `/api/devices/user/:userId` | — | `DeviceRecord[]` | `:userId` ↔ token user |
-| PUT | `/api/devices/:deviceId` | `{ name }` | `DeviceRecord` | `deviceOwnedBy` |
-| DELETE | `/api/devices/:deviceId` | — | `{ message }` | `deviceOwnedBy` |
-| POST | `/api/devices/:deviceId/books/:bookId/available` | — | `BookAvailability` | `deviceOwnedBy` AND `bookOwnedBy` |
-| DELETE | `/api/devices/:deviceId/books/:bookId/available` | — | `{ message }` | (same) |
-| GET | `/api/devices/:deviceId/books` | — | `BookProgressRecord[]` (with `available` flag) | `deviceOwnedBy` |
-
----
-
 ## Quotas + input limits
 
 Every write endpoint validates its body against a zod schema
@@ -449,12 +398,11 @@ Every write endpoint validates its body against a zod schema
 | Decks per user | 50 | `DECK_QUOTA_EXCEEDED` |
 | Cards per deck | 5000 | `CARD_QUOTA_EXCEEDED` |
 | Bookmarks per book | 500 | `BOOKMARK_QUOTA_EXCEEDED` |
-| Devices per user | 10 | `DEVICE_QUOTA_EXCEEDED` |
 
 Field caps (characters, after trim): deck name 100 · card front/reading 200 ·
 card back/notes/context 2000 · card meaning (one entry of `meanings`) 200 ·
 book title/author/filename 500 · book CFI 2000 · bookmark label 100 ·
-device id 128 · device name 100 · display_name 64 · email 254 · language 16.
+display_name 64 · email 254 · language 16.
 
 Array caps: `books/match` candidates 200 · `pageHashes`/`pagePhashes` 5000 ·
 session `deckIds` 50 · card `meanings` 3.
@@ -475,8 +423,6 @@ than an insert:
 - `POST /api/books` with a `filename` the user already has returns the
   existing row, so it is not refused at the book quota (re-syncing a library
   from a second device still works at the cap).
-- `POST /api/devices` for a device already registered to the user is a
-  `last_seen_at` touch, so it is not refused at the device quota.
 
 **`?limit=` is clamped, not rejected.** Public dictionary endpoints cap at 100
 results; `POST /api/study/session` caps at 200 cards. An over-large value

@@ -3,8 +3,8 @@
 // work, and the answer decides the status code.
 //
 // WHY: no route counted rows before inserting. A signed-in client — or
-// anything holding a valid token — could create decks, cards, books,
-// bookmarks and devices without bound. The global limiter (100 req/min) caps
+// anything holding a valid token — could create decks, cards, books and
+// bookmarks without bound. The global limiter (100 req/min) caps
 // the RATE, not the total: that's ~144k rows/day per IP.
 //
 // These checks are the real enforcement. The web client mirrors the same
@@ -23,7 +23,6 @@ const deckRepo = require("../repositories/deckRepository");
 const cardRepo = require("../repositories/cardRepository");
 const bookRepo = require("../repositories/bookRepository");
 const bookmarkRepo = require("../repositories/bookmarkRepository");
-const deviceRepo = require("../repositories/deviceRepository");
 
 /** Build the error a route turns into a 409. */
 function quotaError(code, message, limit, current) {
@@ -110,26 +109,10 @@ async function bookmarkQuota(bookId) {
   }
 }
 
-/** Devices are upserted, so a repeat registration of a device the user
- *  already has is free — only a new (device_id, user_id) row counts. */
-async function deviceQuota(userId, deviceId) {
-  if (await deviceRepo.exists(deviceId, userId)) return;
-  const current = await deviceRepo.countByUser(userId);
-  if (current >= QUOTAS.DEVICES_PER_USER) {
-    throw quotaError(
-      "DEVICE_QUOTA_EXCEEDED",
-      `Device limit reached (${QUOTAS.DEVICES_PER_USER}). Remove a device to register this one.`,
-      QUOTAS.DEVICES_PER_USER,
-      current,
-    );
-  }
-}
-
 module.exports = {
   enforce,
   deckQuota,
   cardQuota,
   bookQuota,
   bookmarkQuota,
-  deviceQuota,
 };
