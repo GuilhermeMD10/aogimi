@@ -5,13 +5,13 @@ import { useT } from "@/lib/i18n/I18nContext";
 import { Dock } from "@/features/app-shell/Dock";
 import { DockVisibilityProvider } from "@/features/app-shell/DockVisibility";
 
-// The handoff's four tabs: Home · Reader · Dictionary · Sky. Declaration order
-// matches `SLOTS` in Dock, which is the render order.
+// Four tabs: Home · Reader · Dictionary · Sky. Declaration order matches
+// `SLOTS` in Dock, which is the render order.
 //
 // What is deliberately NOT a tab:
-//   · Profile / Settings — pushed screens now (`/profile`, `/profile/settings`).
-//     Profile is reached from Home's header avatar. The dock shows no active tab
-//     while they're open, which is what the handoff draws.
+//   · Profile / Settings — pushed screens (`/profile`, `/profile/settings`).
+//     Profile is reached from Home's header avatar. The dock shows no active
+//     tab while they're open.
 //   · Decks — there is no decks page; the decks are the Sky. `/sky/[deckId]`
 //     and the study routes under it keep the Sky tab lit.
 //   · The in-book reader (`/reader/[id]`) — immersive, no dock at all.

@@ -91,10 +91,10 @@ import type { CardDraft, CardRecord } from '../types';
  *            The panels start at 92, a 12px gutter below it.
  *    bottom  84 clears the Dock.
  *
- *  **The outer tier's `bottom` is the Dock's clearance and nothing else** now
- *  that the stat band sits in the top row (see StageLedger). It used to be 216 —
- *  the band's own height at the bottom of the screen — which came straight off
- *  the axis the deck grid is starved on: a deck's cell is ~500 world units tall
+ *  **The outer tier's `bottom` is the Dock's clearance and nothing else**,
+ *  because the stat band sits in the top row (see StageLedger). Reserving the
+ *  band's height down here instead would come straight off the axis the deck
+ *  grid is starved on: a deck's cell is ~500 world units tall
  *  before a star, so how large a deck card is drawn is set by the *height* of the
  *  free window. 96 clears the Dock (fixed at `bottom-[22px]`, ~50px tall) with a
  *  gutter, and gives the sky back the rest. There is no second outer-tier inset
@@ -245,7 +245,7 @@ export function SkyView() {
 
   // Guard against replaying the seed (Strict Mode double-invocation, remount
   // ordering): stash the last-handled object identity so the flow is seeded
-  // once per hand-off. The pending-fields idiom CLAUDE.md prescribes. setState
+  // once per hand-off. The pending-fields idiom this app uses. setState
   // in the effect is intentional — the flow *is* local state synced from an
   // external trigger (the reader's pending field), the documented false
   // positive of this rule.

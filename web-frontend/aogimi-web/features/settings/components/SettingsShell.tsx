@@ -5,13 +5,13 @@ import { TopBar } from '@/features/app-shell/TopBar';
  * The page frame all three settings routes share: TopBar with the
  * back-to-profile pill, a sticky title rail, and the panel column. /help and
  * /credits render this too, so navigating between them only appears to swap
- * the right-hand column — the handoff's "Help lives inside settings" illusion,
- * done with routes instead of local view state.
+ * the right-hand column — "Help lives inside settings" as an illusion, done
+ * with routes instead of local view state.
  *
  * The rail is a fixed 236px (it holds one short title and must not grow); the
  * panel column caps at 900px because settings rows are label-left /
  * control-right, and past that the gap between the halves reads as a mistake.
- * Same 1300px column discipline as home and profile, not the handoff's 1500px.
+ * Same 1300px column discipline as home and profile.
  */
 export function SettingsShell({ children }: { children: ReactNode }) {
   return (

@@ -29,7 +29,7 @@ const TITLE_MAX = 25;
 /**
  * A character cap, not a CSS one. The title sits in the toolbar's `1fr` column
  * next to the author and can't shrink (it must not wrap or squeeze mid-word), so
- * a long one used to widen that column and shove the centred progress cluster
+ * a long one would widen that column and shove the centred progress cluster
  * off-centre — a filename-derived title on a PDF reaches halfway across the bar.
  * Cutting the string is what bounds the column; `title={…}` on the span still
  * carries the whole thing for hover.

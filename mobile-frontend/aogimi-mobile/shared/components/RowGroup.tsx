@@ -6,7 +6,7 @@ import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
 import { Card } from './Card';
 
 /**
- * The handoff's settings shape: a mono micro-label above a card of rows
+ * The settings shape: a mono micro-label above a card of rows
  * separated by hairlines.
  *
  * Three pieces, because the label sits *outside* the card and the dividers sit
@@ -52,7 +52,7 @@ export function RowGroup({ children }: { children: React.ReactNode }) {
 
 export function Row({
   label,
-  /** Secondary line under the label — the handoff's toggle-row description. */
+  /** Secondary line under the label — the toggle-row description. */
   description,
   /** Right-aligned value text. Ignored when `children` is given. */
   value,

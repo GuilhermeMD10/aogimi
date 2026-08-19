@@ -48,8 +48,8 @@
    which is right when the page scroll is the window's — the browser chrome and
    the content edge already say "there is more". An inner pane says nothing: the
    library shelf ends mid-viewport with the dock below it, and with no thumb
-   there is no affordance at all that it moves. The handoff specifies this bar:
-   6px, 3px radius, transparent track. */
+   there is no affordance at all that it moves. This bar is 6px, 3px radius,
+   transparent track. */
 .inner-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--paper-bd) transparent;

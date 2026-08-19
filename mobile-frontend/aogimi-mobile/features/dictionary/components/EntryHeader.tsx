@@ -12,17 +12,14 @@ import { MetaChip } from './MetaChip';
 /**
  * The entry's title block: headword, reading, pitch, and the chip row.
  *
- * **The handoff's little dot-and-line drawing beside the headword is a pitch
- * diagram, and we have a real one** — `pitchAccents` comes from Kanjium and
- * `PitchAccentDiagram` renders the actual pattern rather than an ornament. So
- * the mock's SVG is dropped and the component takes its place, under the
- * reading instead of beside it (it is as wide as the word is long, which the
- * mock's fixed 110px box could not be). Kanjium does not span all of JMdict, so
- * it renders nothing for a good fraction of entries and the block simply
- * closes up.
+ * **The pitch diagram is real data, not an ornament** — `pitchAccents` comes
+ * from Kanjium and `PitchAccentDiagram` renders the actual pattern, under the
+ * reading (it is as wide as the word is long, so it cannot sit in a fixed box
+ * beside it). Kanjium does not span all of JMdict, so it renders nothing for a
+ * good fraction of entries and the block simply closes up.
  *
- * **No audio.** The mock draws a speaker; there is no audio data anywhere in
- * the app, so the affordance is cut rather than stubbed.
+ * **No audio.** There is no audio data anywhere in the app, so the affordance
+ * is absent rather than stubbed.
  */
 export function EntryHeader({
   word,
@@ -87,8 +84,8 @@ function useStyles(p: Palette) {
   return useMemo(
     () =>
       StyleSheet.create({
-        // 54px is the handoff's, above the `fontSize` scale's `hero` (42) and
-        // used only here — the entry's headword is the largest type in the app.
+        // 54px sits above the `fontSize` scale's `hero` (42) and is used only
+        // here — the entry's headword is the largest type in the app.
         headword: {
           fontFamily: fontFamily.jp,
           fontSize: 54,

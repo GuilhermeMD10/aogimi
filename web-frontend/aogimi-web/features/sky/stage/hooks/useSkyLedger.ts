@@ -11,10 +11,8 @@ import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
  * split), and the ledger reads that response's `total` rather than fetching the same endpoint a
  * second time.
  *
- * **Recent upgrades went with the ledger's expanded state.** There used to be a second fetch here,
- * to `/api/stats/recent-upgrades`, and the section `StageLedger` no longer renders was its only
- * consumer — so the outer tier now makes one request fewer. The endpoint is still up, and
- * `useDeckUpgrades` is still the deck-scoped helper for it.
+ * **No recent-upgrades fetch.** `/api/stats/recent-upgrades` is not called here: the section that
+ * consumed it is not rendered, so the outer tier makes one request fewer.
  *
  * Importing the stats fetchers from study/stats crosses sub-features — the established exception
  * (`useDeckDueCounts` does the same), because a second copy of a fetch helper is how two callers of

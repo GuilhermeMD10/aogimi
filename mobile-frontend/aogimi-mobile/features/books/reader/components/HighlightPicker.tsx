@@ -78,8 +78,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    // Was a near-black slab with white detailing. Light panel + ink detailing
-    // under the 2026-08-11 reset, like every other popover.
+    // Light panel + ink detailing, like every other popover.
     backgroundColor: palette.paper,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.paperBd,

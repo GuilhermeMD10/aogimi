@@ -27,8 +27,8 @@
 //   - Run on every refresh. Refresh just re-fetches the list. Reconcile
 //     is a heavier operation reserved for first load + the explicit
 //     Sync-now action.
-//   - Confirm with the user before wiping. Aggressive wipe per the
-//     project decision. Add a > 25% safety threshold here if data-loss
+//   - Confirm with the user before wiping. The wipe is deliberately
+//     aggressive. Add a > 25% safety threshold here if data-loss
 //     anxiety becomes an issue.
 
 import {

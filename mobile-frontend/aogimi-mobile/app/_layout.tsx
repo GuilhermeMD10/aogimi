@@ -27,13 +27,11 @@ import { useHideAndroidNavBar } from '@/lib/useHideAndroidNavBar';
 
 SplashScreen.preventAutoHideAsync();
 
-// Note on Android nav bar: we previously installed a custom immersive
-// behavior via expo-navigation-bar (setPosition / setBehavior / hide). All
-// of those are no-ops + warn under edge-to-edge mode, which is the Expo
-// SDK 52+ default — and edge-to-edge already gives us the "content draws
-// under the system bars" look without manual API calls. If you ever need
-// the swipe-to-reveal immersive variant back, it has to be set up via the
-// Android theme (app.json android plugin) rather than the JS API.
+// Android nav bar: expo-navigation-bar's setPosition / setBehavior / hide
+// are no-ops that warn under edge-to-edge mode (the Expo SDK 52+ default),
+// and edge-to-edge already draws content under the system bars. A
+// swipe-to-reveal immersive variant would have to be set up via the Android
+// theme (app.json android plugin), not the JS API.
 
 export default function RootLayout() {
   // App-wide Android nav-bar hide. RootLayout never unmounts, so the
@@ -47,11 +45,9 @@ export default function RootLayout() {
     initNetwork();
   }, []);
 
-  // Three families, three roles. **Switzer is the app's Latin UI face and is
-  // not in the repo yet** — `theme/switzer.ts` explains why and how to add it;
-  // until then `switzerFonts` spreads to nothing and the UI roles resolve to
-  // the platform sans. Noto Sans JP carries every Japanese glyph in the app,
-  // Lora is the reader's body face only.
+  // Three families, three roles: Switzer is the app's Latin UI face
+  // (registered in `theme/switzer.ts`), Noto Sans JP carries every Japanese
+  // glyph in the app, and Lora is the reader's body face only.
   const [fontsLoaded, fontsError] = useFonts({
     Lora_400Regular,
     Lora_600SemiBold,

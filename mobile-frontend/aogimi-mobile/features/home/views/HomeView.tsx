@@ -25,22 +25,20 @@ import { StudyCard } from '../components/StudyCard';
 import { DictionaryCard } from '../components/DictionaryCard';
 
 /**
- * Home — the mobile-only dashboard, rebuilt against the design handoff
- * (2026-08-12).
+ * Home — the mobile-only dashboard.
  *
  * The web has no equivalent: its `/` is the library shelf and it deliberately
  * has no dashboard. This exists because the dock is four tabs with Home first,
  * and because on a phone the header avatar is the only route to Profile.
  *
  * **This file is composition and data only.** Every card is its own component
- * in `../components`; anything visual belongs there. The order is the handoff's:
- * top bar, hero, sky, continue reading, study, dictionary.
+ * in `../components`; anything visual belongs there. Order: top bar, hero,
+ * sky, continue reading, study, dictionary.
  *
- * ── Two cards from the handoff that are not built ───────────────────────────
- * Both cut deliberately, not deferred:
+ * ── Two cards deliberately not built ─────────────────────────────────────────
  *
  *  · **Library.** Its job — browse every book — is the Reader tab, one tap away
- *    in the dock. A three-cover strip on Home duplicated that tab's top row.
+ *    in the dock. A three-cover strip on Home would duplicate that tab's top row.
  *  · **Word of the day.** There is no endpoint and no curated list. Picking one
  *    from the bundled SQLite needs a deterministic day→word rule *and* a
  *    definition of "worth showing", which is a feature rather than a card.

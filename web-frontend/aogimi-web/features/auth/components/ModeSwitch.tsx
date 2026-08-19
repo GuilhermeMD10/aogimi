@@ -7,12 +7,11 @@ import type { AuthMode } from '../types';
 /**
  * The log-in / create-account switcher.
  *
- * Semantics: a **radiogroup**, not a tablist. The handoff says "implement as a
- * real tablist", but there are no tab panels here — both modes render the same
- * form with one field added, so `role="tab"` would promise a `tabpanel`
- * relationship that doesn't exist. A radiogroup describes what this actually
- * is (pick one of two) and gets the same arrow-key behaviour for free from the
- * native roving-focus pattern below.
+ * Semantics: a **radiogroup**, not a tablist. There are no tab panels here —
+ * both modes render the same form with one field added, so `role="tab"` would
+ * promise a `tabpanel` relationship that doesn't exist. A radiogroup describes
+ * what this actually is (pick one of two) and gets the same arrow-key
+ * behaviour for free from the native roving-focus pattern below.
  *
  * This control must never move when the mode changes — see the layout note in
  * `AuthForm`. It's the first thing in the panel and the panel's height is
@@ -21,9 +20,6 @@ import type { AuthMode } from '../types';
  * Glass: a `GLASS_SURFACE` track holding two `GLASS_ROW`s, the selected one
  * lit by `GLASS_ACTIVE`. That is the dock's shell-and-pill arrangement at a
  * smaller size, and it is the app's one answer to "this is the selected one".
- * It replaced a `--cardalt` track and a `bg-(--paper)` chip with a hardcoded
- * drop shadow — paper being the filled group that existed because `--card` is
- * transparent, which is the same problem glass now solves on this screen.
  */
 export function ModeSwitch({
   mode,

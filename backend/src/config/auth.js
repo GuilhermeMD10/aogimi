@@ -1,11 +1,6 @@
 // Centralised auth constants. Everything that's sensitive comes from
 // environment variables; everything else is in this file so the rest
 // of the codebase can `require` it without scattering literals around.
-//
-// Fail-fast on missing secrets: there's no safe default for a JWT
-// signing key, so the server refuses to start without one. This is
-// loud on purpose — silently signing with "dev-secret" in production
-// is the kind of bug you only find after it's already shipped.
 
 function requireEnv(name) {
   const v = process.env[name];
@@ -51,9 +46,7 @@ module.exports = {
   // api.aogimi.com (shared registrable domain). That makes SameSite=Lax
   // sufficient — the cookie is sent on the cross-origin-but-same-site
   // refresh call — and lets the cookie stay host-only (no Domain), so it is
-  // never shared with other subdomains. The same config works in dev
-  // (localhost:3001 → localhost:3000 is also same-site). Override via env if
-  // the API is ever moved to a different registrable domain (then you need
+  // never shared with other subdomains.
   // COOKIE_SAMESITE=none, which forces Secure on).
   REFRESH_COOKIE_NAME: "aogimi_refresh",
   REFRESH_COOKIE_PATH: "/api/auth",

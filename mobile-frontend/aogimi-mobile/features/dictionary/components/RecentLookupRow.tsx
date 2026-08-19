@@ -93,8 +93,8 @@ function useStyles(p: Palette) {
           color: p.ink,
           flexShrink: 1,
         },
-        // The handoff sets kana in its mono face; ours is Latin-only, so
-        // readings take `jp` at the size that label would have occupied.
+        // The mono face is Latin-only, so readings take `jp` at the size the
+        // mono label would have occupied.
         reading: {
           fontFamily: fontFamily.jp,
           fontSize: fontSize.xs - 1,

@@ -75,8 +75,7 @@ export function NativeSelectionMenu({ selectionRect, viewport, onAction, onDismi
 }
 
 const styles = StyleSheet.create({
-  // Was a near-black bubble with white labels and white hairlines. Light panel,
-  // black labels, token borders under the 2026-08-11 reset.
+  // Light panel, black labels, token borders — like every other popover.
   menu: {
     position: 'absolute',
     flexDirection: 'row',

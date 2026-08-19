@@ -9,9 +9,7 @@ import { cn } from '@/lib/util/cn';
  *
  * The field is a `GLASS_SURFACE` (a pane — there is nothing to hover) and the
  * password reveal is a `GLASS_BUTTON` sitting inside it, which is the same
- * pairing the dictionary's search field uses for its ✕. It replaced a
- * `bg-(--paper)` fill and a `hover:bg-(--paper-tile)` on the reveal; the panel's
- * own background is untouched.
+ * pairing the dictionary's search field uses for its ✕.
  *
  * As on `/profile`'s rename field, the specular top line does not paint here:
  * `<input>` is a replaced element and browsers don't render `::before` on one.

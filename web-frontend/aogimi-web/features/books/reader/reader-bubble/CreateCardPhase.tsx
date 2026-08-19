@@ -130,8 +130,8 @@ export function CreateCardPhase({
       });
       onCreated();
     } catch (err) {
-      // Previously this only cleared `submitting`: a deck at the card quota, or
-      // a dropped connection, put the button back and said nothing at all.
+      // Surface the failure: a deck at the card quota, or a dropped
+      // connection, must not just put the button back and say nothing.
       setError(err instanceof Error ? err.message : 'Could not add that card.');
       setSubmitting(false);
     }

@@ -7,12 +7,10 @@ import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tok
 /**
  * The one search input, shared by the dictionary tab and the reader's drawer.
  *
- * Two looks, as the handoff draws them: at rest a `paperBd` hairline on the
- * card fill, and **once there is a query, an `ink` border** — the field is the
- * page's subject while results are showing, so it gains weight rather than
- * losing it. The handoff also blinks a vermillion caret in the resting state;
- * that is a prototype standing in for a real cursor, and a live `TextInput`
- * already draws one (tinted `accent` here).
+ * Two looks: at rest a `paperBd` hairline on the card fill, and **once there
+ * is a query, an `ink` border** — the field is the page's subject while
+ * results are showing, so it gains weight rather than losing it. The caret is
+ * the live `TextInput`'s own, tinted `accent`.
  *
  * `compact` is the drawer's step-down: same component, smaller box, because the
  * reader sheet is 65% of a phone and the tab's padding would eat the results.

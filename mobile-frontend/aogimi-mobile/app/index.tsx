@@ -15,9 +15,9 @@ export default function Index() {
     );
   }
 
-  // Both signed-in and signed-out users land in the tabs, on Home — the
-  // handoff's first tab, and the only screen carrying the avatar that leads to
-  // Profile now that Profile is a pushed screen rather than a tab.
+  // Both signed-in and signed-out users land in the tabs, on Home — the first
+  // tab, and the only screen carrying the avatar that leads to Profile, which
+  // is a pushed screen rather than a tab.
   //
   // Signed-out users use the app local-first; Home → avatar → Profile is where
   // they can sign in to start syncing. Home itself degrades rather than

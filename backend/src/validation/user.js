@@ -1,14 +1,10 @@
 // Zod schema for PATCH /api/user.
 //
-// `userService.ALLOWED_UPDATES` already filtered which COLUMNS a client can
-// write; nothing checked the VALUES. Consequences that this closes:
-//   - `email` took any string of any length, with no format check. Since
-//     `users_email_lower_idx` is UNIQUE, a duplicate threw 23505 and surfaced
-//     as a 500 — the route now maps it to 409.
-//   - `avatar_index` took any value. A string hit the `smallint` column and
-//     came back as 22P02 → 500; an out-of-range int as 22003 → 500.
-//   - `display_name` / `language` were unbounded (the web client's
-//     `maxLength={64}` is browser-side only).
+// `userService.ALLOWED_UPDATES` filters which COLUMNS a client can write;
+// this schema checks the VALUES. Without it, a bad `email` or `avatar_index`
+// only fails at the column (23505 / 22P02 / 22003) and surfaces as a 500 for
+// what is a client error, and `display_name` / `language` are unbounded
+// (the web client's `maxLength={64}` is browser-side only).
 //
 // `.strict()` rejects unknown keys rather than silently dropping them, so a
 // client that misspells a field gets told instead of watching the write

@@ -9,11 +9,10 @@ import { cn } from '@/lib/util/cn';
  * The chrome both of the reader's lookup surfaces wear — the docked column and
  * the bubble.
  *
- * It lives here rather than inside either of them because the bubble used to
- * carry four copies of its own header, one per phase, and they had already
- * drifted: three different back-button labels, two different paddings, and a
- * title that was a `<span>` in one phase and absent in another. One component
- * with the parts optional is the only version of this that can't drift.
+ * It lives here rather than inside either of them because per-phase copies
+ * drift — back-button labels, paddings, whether the title renders at all. One
+ * component with the parts optional is the only version of this that can't
+ * drift.
  *
  * Identity is `title` + a Japanese `subtitle`, which is deliberately the same
  * shape as `ReaderPanel`'s header (Contents · 目次, Display · 表示): the

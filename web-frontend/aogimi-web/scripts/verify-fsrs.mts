@@ -97,7 +97,7 @@ near(retrievability(0, 5), 1.0, 'R(0, S)');
 near(initialDifficultyRaw(1), 6.4133, 'D0(1)');
 near(initialDifficultyRaw(2), 5.1122, 'D0(2)');
 near(initialDifficultyRaw(3), 2.1181, 'D0(3)');
-// The handoff quotes D0(4) as -4.7723; that constant is a transcription slip.
+// D0(4) circulates as -4.7723; that constant is a transcription slip.
 // `w4 - exp(w5·3) + 1` = -4.771631, and the same expression reproduces D0(1..3)
 // exactly. With w7 = 0.001 the two differ by ~7e-7 in every later difficulty.
 near(initialDifficultyRaw(4), -4.771631, 'D0(4) unclamped');

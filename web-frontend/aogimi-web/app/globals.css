@@ -37,22 +37,21 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 @theme inline {
-  /* ── shadcn system ────────────────────────────────────────────────────
-     Two shadcn components survive — `shared/ui/sheet.tsx` and the ghost
-     `Button` it closes with, used by the study session's config sheet. They
-     paint with `bg-popover` / `text-foreground` / `border-border` rather than
-     token call sites, so those names need somewhere to point.
+  /* ── shadcn colour namespace ──────────────────────────────────────────
+     The shadcn scale pointed at this system's tokens, so anything added later
+     with `shadcn add` paints in-theme without being rewritten. No shadcn
+     component ships in the app today; `--color-border` and
+     `--color-muted-foreground` are the two names in live use.
 
      Mapped at the filled `--paper-*` group, not `--card`/`--cardalt`/`--bd`:
      those three are transparent app-wide (shadow separates a card from the
-     canvas), and a sheet sliding over the page has nothing behind it to
+     canvas), and an overlay sliding over the page has nothing behind it to
      separate against. Same reasoning as `PaperCard`.
 
      `--color-border` is the one that reaches past shadcn: the `*` rule in the
      base layer applies it as every element's default border color, so a bare
-     `border` utility now draws a theme-aware hairline instead of the old
-     light-only `#E5E3DE`. Call sites that need a visible edge still say so
-     with `HAIRLINE`. */
+     `border` utility draws a theme-aware hairline. Call sites that need a
+     visible edge still say so with `HAIRLINE`. */
   --color-background:           var(--bg);
   --color-foreground:           var(--ink);
   --color-card:                 var(--paper);

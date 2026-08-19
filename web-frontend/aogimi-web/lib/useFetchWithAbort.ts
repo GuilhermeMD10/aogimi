@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 /**
  * Request-lifecycle helpers.
  *
- * Centralizes the AbortController dance every fetch screen used to hand-roll:
+ * Centralizes the AbortController dance every fetch screen needs:
  * start a fetch, abort the in-flight one when inputs change or on unmount,
  * ignore `AbortError`. `loading` is the first-load spinner; `refreshing`
  * tracks user-driven re-fetches that should keep prior data visible.

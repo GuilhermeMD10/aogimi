@@ -20,9 +20,8 @@ const DEFAULT_DISPLAY = Object.freeze({
 
 // ── Session ────────────────────────────────────────────────────────────────
 
-// Validation moved to validation/study.js — same rules as before plus two
-// bounds the hand-rolled checks didn't have: `limit` has a ceiling (it was
-// any magnitude) and `deckIds` has a length cap and a uuid-per-entry check.
+// Validated by validation/study.js: `limit` has a ceiling and `deckIds`
+// has a length cap and a uuid-per-entry check.
 router.post("/session", async (req, res) => {
   const body = parseBody(sessionSchema, req, res);
   if (!body) return;
@@ -38,13 +37,6 @@ router.post("/session", async (req, res) => {
 // ── Due ──────────────────────────────────────────────────────────────────────
 // Identity from the token; ownership is implicit (only the caller's own decks
 // are pooled).
-//
-// Two siblings were removed here, both uncalled. `GET /due` returned the whole
-// due inventory as rows — clients get an ordered, size-capped set from
-// `POST /session` with `dueOnly` instead, so the raw list had no consumer.
-// `GET /due/random` served a single-card "study something now" entry point
-// that no longer exists in either UI. `studyService.fetchDueCards` and
-// `fetchRandomDueCard` went with them.
 
 // Due counts across every deck the user owns. Serves a "N cards due" figure
 // plus per-deck chips from one request; decks with nothing due are omitted
@@ -76,11 +68,10 @@ router.get("/prefs", async (req, res) => {
   }
 });
 
-// Both documents are stored as JSONB. They used to be stringified and
-// written verbatim, which made the column arbitrary user-controlled storage
-// up to the body cap; the schema now bounds shape, key count and value types
-// while staying open enough for new display toggles (SCHEMA.md documents
-// `display` as deliberately schema-free).
+// Both documents are stored as JSONB. The schema bounds shape, key count and
+// value types — otherwise the column becomes arbitrary user-controlled storage
+// up to the body cap — while staying open enough for new display toggles
+// (SCHEMA.md documents `display` as deliberately schema-free).
 router.put("/prefs", async (req, res) => {
   const body = parseBody(prefsSchema, req, res);
   if (!body) return;

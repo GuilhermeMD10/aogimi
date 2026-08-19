@@ -24,24 +24,20 @@ const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const;
 type JlptLevel = (typeof JLPT_LEVELS)[number];
 
 /**
- * Profile — rebuilt against the design handoff (2026-08-13).
+ * Profile.
  *
  * **No dock, and a back chevron out.** Profile is a pushed screen reached from
- * Home's avatar, so it keeps the app's existing exit affordance rather than the
- * handoff's boxed chevron, and it does *not* draw the tab bar the handoff shows
- * underneath. A dock on a pushed screen offers two competing ways back.
+ * Home's avatar, so it uses the app's standard exit affordance (`BackBar`) and
+ * does *not* draw the tab bar — a dock on a pushed screen offers two competing
+ * ways back.
  *
- * ── Cut from the previous screen ────────────────────────────────────────────
- * The "currently reading" list and the "your decks" list are gone. Both were
- * shortcuts to places the app already reaches faster — Home's continue-reading
- * card and the Sky tab — and both cost a `fetchUserBooks` + `fetchUserDecks`
- * round trip on every open. Dropping them removed the screen's only data fetch
- * beyond the two stats hooks.
- *
- * ── Not taken from the handoff ──────────────────────────────────────────────
- * The sky strip (Home already has one, and Sky is a tab), Daily goal and Study
- * reminder (neither exists — a reminder needs a notifications feature, not a
- * row). The JLPT row stays, because it is real and already worked.
+ * ── Deliberately not here ────────────────────────────────────────────────────
+ * A "currently reading" list and a "your decks" list: both would be shortcuts
+ * to places the app already reaches faster — Home's continue-reading card and
+ * the Sky tab — and both would cost a `fetchUserBooks` + `fetchUserDecks`
+ * round trip on every open. A sky strip (Home already has one, and Sky is a
+ * tab), Daily goal and Study reminder (neither exists — a reminder needs a
+ * notifications feature, not a row).
  */
 export function ProfileScreen() {
   const t = useT();
@@ -161,14 +157,14 @@ export function ProfileScreen() {
         <SectionLabel>{t('profile.account')}</SectionLabel>
         <RowGroup>
           <Row label={t('profile.username')} value={user.username} />
-          {/* Pre-redesign accounts have no email, and it is nullable in the DB.
+          {/* Older accounts have no email, and it is nullable in the DB.
               A boolean rather than `{user.email && …}`: an empty string is a
               *kept* child in `Children.toArray`, so it would count as the last
               row and steal the divider suppression from the JLPT row. */}
           {hasEmail && <Row label={t('profile.email')} value={user.email ?? ''} />}
           <Row label={t('profile.jlptLevel')}>
-            {/* Inline chips rather than the handoff's chevron-into-a-subpage:
-                five options fit on the row, and this already worked. */}
+            {/* Inline chips rather than a chevron into a subpage: five
+                options fit on the row. */}
             <View style={styles.levelRow}>
               {JLPT_LEVELS.map((l) => {
                 const active = currentLevel === l;

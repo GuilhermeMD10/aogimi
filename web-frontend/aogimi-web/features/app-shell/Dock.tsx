@@ -7,32 +7,27 @@ import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { DOCK_PRIMARY, type DockKey } from './Dock.types';
 
 /**
- * The bottom dock — app chrome on every signed-in screen. Replaces
- * `WorkspaceNav`, whose "don't touch" deferral the owner lifted for this pass.
+ * The bottom dock — app chrome on every signed-in screen.
  *
- * What changed from the nav it replaces:
  *  - **Real links, not `router.push` on a `<button>`.** Middle-click and
  *    open-in-new-tab work, `next/link` prefetches, and a screen reader reads
  *    them as navigation. (A raw `<a>` would be worse than either — a full
  *    reload discards the in-memory access token.)
- *  - **Labels are always visible**, so the hover tooltip is gone with them.
- *  - **Monochrome.** The per-item brand hexes (`#D97757`, `#4B7AA3`, …) were
- *    outgoing-system decoration; the dock is one dim ink that brightens on
- *    hover, and the active route gets a tile instead of a 5px dot.
+ *  - **Labels are always visible**, so no hover tooltip.
+ *  - **Monochrome.** The dock is one dim ink that brightens on hover, and the
+ *    active route gets a tile — no per-item accent colours.
  *  - **`aria-current="page"`** carries the active state, not colour alone.
  *
- * **It is glass now, not a near-black slab.** The "Aogimi — Dock Bar" handoff
- * replaced the `--dock-*` group with a white-tinted frosted shell and a lit
- * lavender pill that *slides* between entries. Everything the look depends on
- * lives in `styles/glass.css` as the `--dock-glass-*` block and the three
+ * The material is glass: a white-tinted frosted shell and a lit lavender pill
+ * that *slides* between entries. Everything the look depends on lives in
+ * `styles/glass.css` as the `--dock-glass-*` block and the three
  * `.glass-dock*` classes — this file owns geometry and the measurement, not
- * colour. `aria-current="page"` is now load-bearing twice over: it is the
+ * colour. `aria-current="page"` is load-bearing three times over: it is the
  * accessible state, the CSS hook for the active ink, and what the measurement
  * queries for.
  *
- * Pages reserve `pb-[140px]` for it. The icons are inlined at the handoff's
- * geometry rather than taken from `shared/icons` (lucide) — that set is the
- * outgoing one and its shapes are not these.
+ * Pages reserve `pb-[140px]` for it. The icons are inlined geometry rather
+ * than a library's — those shapes are not these.
  */
 
 /* Hairline between the two groups. Not a token: it is one value used once, and

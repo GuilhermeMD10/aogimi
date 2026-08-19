@@ -9,8 +9,8 @@
 //
 // This is possible at all because `card_reviews` is a complete append-only log
 // of `(card_id, reviewed_at, outcome)` — the one thing that cannot be
-// reconstructed after the fact, and the reason the FSRS handoff insists on
-// keeping it. Cards with no review rows are already correct and are skipped.
+// reconstructed after the fact, and the reason it is kept. Cards with no
+// review rows are already correct and are skipped.
 //
 // GRADE MAPPING. The old UI had three buttons — Again / Hard / Easy — where
 // "Easy" was the *only* success grade a user could reach for, so it carries

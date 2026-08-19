@@ -5,8 +5,8 @@ import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
 
 /**
- * A small outline control on Profile's title line — the handoff's "Edit"
- * button, and the Settings button that sits beside it.
+ * A small outline control on Profile's title line — the "Edit" button, and
+ * the Settings button that sits beside it.
  *
  * Settings is icon-only because the pair has to fit next to the title on a
  * 390pt screen and a gear is unambiguous; it carries an `accessibilityLabel`

@@ -438,15 +438,16 @@ pending a design pass over the light palette. `/authenticate` is the one screen 
 light regardless.
 
 **Mobile parity is incomplete.** Mid-catch-up to the web in phases; the sky stage screen and the
-screen-by-screen visual pass are outstanding, and `mobile-frontend/aogimi-mobile/TODO.md` is the
-live list. Press feedback and motion were stripped in a deliberate reset and not yet replaced, so
+screen-by-screen visual pass are outstanding. Press feedback and motion were stripped in a
+deliberate reset and not yet replaced, so
 most controls give no visual response on press — a known regression. Mobile also carries three
 things the web does not: an offline SQLite dictionary, reader highlights and annotations, and
 i18n (en/ja/pt).
 
-**`.gitignore` excludes `docs/` and `helpers/`.** The documents this README links and the
-dictionary parsers the seed step needs exist locally but are not tracked, so they are missing
-from a fresh clone. Removing those two entries is the fix.
+**`.gitignore` excludes `helpers/` and the JLPT CSVs.** The four deep-dive documents this README
+links — `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/AUTH.md`, `docs/SECURITY.md` — are tracked, but
+the dictionary parsers the seed step needs are not, so two of the setup steps above cannot run from
+a fresh clone. Both are import-time tooling; nothing in the running application depends on them.
 
 **No password reset, no OAuth, no email verification.** Login is username + password only;
 `users.email` is collected but is not a login key and is nullable for older accounts.

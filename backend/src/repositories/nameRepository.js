@@ -4,11 +4,9 @@ const { LIMITS } = require("../config/limits");
 const NAME_SELECT = `SELECT id, kanji, kana, name_type, meaning`;
 
 // Every query here is capped. `names` is the JMnedict import — hundreds of
-// thousands of rows — and the two pattern queries below (`name_type LIKE
-// '%…%'`, `meaning ILIKE '%…%'`) had no LIMIT at all, so `?type=a` or
-// `?meaning=a` on an UNAUTHENTICATED endpoint streamed a large fraction of
-// the table into Node's heap. The equality lookups are naturally small but
-// share the cap so there's one number to reason about.
+// thousands of rows — and these are UNAUTHENTICATED endpoints; the equality
+// lookups are naturally small but share the cap so there's one number to
+// reason about.
 //
 // The cap is above what any caller uses: searchService hands name rows to
 // `assembleNameRow` and the web client renders `names.slice(0, 10)`.
@@ -29,8 +27,5 @@ async function findByKana(kana) {
   );
   return rows;
 }
-
-
-
 
 module.exports = { findByKanji, findByKana };

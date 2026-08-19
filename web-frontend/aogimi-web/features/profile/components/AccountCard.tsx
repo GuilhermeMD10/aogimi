@@ -8,16 +8,15 @@ import { GLASS_GHOST, GlassCard, HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 /**
- * Email + sign out. The handoff's sync-status row is dropped: the web app has
- * no sync engine — writes go straight to the backend — so there is no state
- * for the row to report. Sign-out goes straight (no confirm) per the handoff's
- * own rule: confirm only when there is unsynced work, and there never is.
+ * Email + sign out. No sync-status row: the web app has no sync engine —
+ * writes go straight to the backend — so there is no state for the row to
+ * report. Sign-out goes straight (no confirm): confirm only when there is
+ * unsynced work, and there never is.
  *
  * Sign out is the one button on this page that keeps a colour: it is glass like
  * the rest, but the `--danger` edge and ink stay, because destructive is
- * semantics rather than decoration. Its `hover:bg-(--danger-bg)` is gone — the
- * glass fill is the hover now, and two hover events on one button read as a
- * flicker.
+ * semantics rather than decoration. The glass fill is its only hover — two
+ * hover effects on one button read as a flicker.
  */
 export function AccountCard() {
   const router = useRouter();

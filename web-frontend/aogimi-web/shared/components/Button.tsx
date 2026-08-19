@@ -36,7 +36,7 @@ const BASE = cn(
   'inline-flex w-fit items-center gap-2 leading-none',
   'rounded-(--radius-button) px-5 py-[13px] text-[15px] font-bold',
   'font-[family-name:var(--face-ui)]',
-  // The handoff is explicit that this is the only motion on the page.
+  // Deliberately the only motion on the page.
   'transition-[transform,opacity,border-color] duration-120 ease-[ease]',
   'hover:-translate-y-px active:translate-y-0 active:opacity-[0.92]',
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',

@@ -6,9 +6,9 @@
 //
 // No context provider — each consumer gets its own state instance.
 // Cross-screen reactivity (toggling in Settings while StudyScreen is
-// mounted) isn't supported in Phase 3; users typically configure once
-// and study after. Promote to a provider if mid-session toggling
-// becomes a real use case.
+// mounted) is not supported; users typically configure once and study
+// after. Promote to a provider if mid-session toggling becomes a real
+// use case.
 
 import { useCallback, useEffect, useState } from 'react';
 import {

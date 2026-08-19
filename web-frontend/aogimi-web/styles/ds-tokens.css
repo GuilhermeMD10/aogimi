@@ -1,19 +1,11 @@
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    AOGIMI DESIGN TOKENS
-   The palette, from `design_handoff_aogimi_home`. Two themes — `light`
-   ("Ink on paper") and `dark` ("Midnight") — selected by `html[data-theme]`.
-
-   This is now the only palette. The outgoing `--lgc-*` system it used to run
-   alongside — `themes/default.css`, `shape-defaults.css`, `primitives.css` and
-   the three webfonts they carried — is deleted, along with the four screens
-   that were the last things reading it.
+   The one palette. Two themes — `light` ("Ink on paper") and `dark`
+   ("Midnight") — selected by `html[data-theme]`.
 
    Components read these directly: `text-(--ink)`, `bg-(--paper)`,
    `font-[family-name:var(--face-ui)]`. They are deliberately NOT mirrored into
-   globals.css's `@theme` block. The reason has changed but the rule hasn't:
-   it used to be that shadcn's `--color-card` / `--color-muted` / `--color-bd`
-   already claimed those names and re-registering would break un-migrated
-   screens. Now it's simply that an alias is a second name for one value and
+   globals.css's `@theme` block: an alias is a second name for one value and
    something that has to be kept in step. `@theme` holds only what Tailwind
    itself must know — the `rounded-*` scale, and the shadcn color namespace the
    two surviving shadcn components paint with.
@@ -21,8 +13,7 @@
    The type roles stay `--face-*` rather than `--font-*`: `--font-switzer` and
    `--font-noto-sans-jp` are what `next/font` emits in app/layout.tsx, so a
    `--font-ui` next to them reads as another next/font variable when it is a
-   role. (It was also a hard collision while the old `@theme` bound those
-   names to the outgoing faces.)
+   role.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 /* ── Theme-invariant ─────────────────────────────────────────────────────── */
@@ -34,12 +25,10 @@
   --accent-ink:        #f6ead0;
 
   /* ── Active / selected ───────────────────────────────────────────────────
-     ONE colour for "this is the selected one", app-wide. It arrived as the dock
-     pill's tint in the Dock Bar handoff and was promoted here because the app
-     had been answering the same question three different ways: `--btn` (which
-     is #141414 on paper and #f2f1ee at night, so "selected" was black on one
-     theme and white on the other), a `--gold` edge on the library's filter
-     hover, and shadcn's `bg-primary` on its fill.
+     ONE colour for "this is the selected one", app-wide — one answer instead
+     of three competing ones: `--btn` (which is #141414 on paper and #f2f1ee
+     at night, so "selected" would be black on one theme and white on the
+     other), a `--gold` edge, or shadcn's `bg-primary`.
 
      Theme-invariant, like --accent and for the same reason: a selection marker
      that changes hue with the theme stops being a marker and starts being
@@ -67,13 +56,12 @@
 
   /* Mastery ladder — the fallback ramp only.
      The live values come from the `html[data-sky-hue="…"]` blocks at the bottom
-     of this file: the ladder now follows the reader's sky hue preset, in both
+     of this file: the ladder follows the reader's sky hue preset, in both
      themes, so a star and its rank pill are the same colour. This copy is the
      `default` preset, and it is what SSR and the first paint use before the
      pre-paint script has stamped the attribute (`:root` is one specificity step
      below `html[…]`, so any preset block wins over it). Nothing else should
-     override these — `--stage-mastered` used to have a per-theme value and no
-     longer does, deliberately. */
+     override these — `--stage-mastered` deliberately has no per-theme value. */
   --stage-new:         #7E78E0;
   --stage-met:         #A98BFF;
   --stage-learned:     #FF7AC4;
@@ -92,8 +80,7 @@
      shared tokens would have given both screens what they need — and repainted
      every card, chip, pill and divider on the finished screens at the same
      time. This group exists so a filled object can be filled while the rest of
-     the app stays as designed. (Born as --deck-*, generalized when profile
-     became the second consumer.)
+     the app stays as designed.
 
      The sky pair below stays the deck card's own: the sky is the sky, and the
      panel plus its inset vignette are the card's frame rather than part of the
@@ -107,10 +94,9 @@
      would be ~4KB of near-identical CSS waiting to drift apart. */
   --star-blue:         132, 150, 180;
 
-  /* Radii. From the handoff scale, named by role rather than by number so a
-     call site reads as intent. The handoff gives 7px for the continue-reading
-     cover and 8px for the library covers; that 1px on a book cover isn't
-     perceptible, so both use --radius-cover. */
+  /* Radii. Named by role rather than by number so a call site reads as
+     intent. The continue-reading cover and the library covers share
+     --radius-cover — a 1px difference on a book cover isn't perceptible. */
   --radius-tile:       6px;   /* deck tile */
   --radius-cover:      8px;   /* book covers, brand mark */
   --radius-button:    10px;
@@ -121,9 +107,8 @@
   --radius-chip:      20px;
 
   /* Type. Three separate roles even though --face-ui and --face-mono resolve
-     to the same family today (the 2026-08 audition retired Space Mono — the
-     approved look wears Switzer everywhere) — re-splitting a role later is
-     then a one-line change here rather than a sweep through components.
+     to the same family today — re-splitting a role later is then a one-line
+     change here rather than a sweep through components.
      `--font-switzer` / `--font-noto-sans-jp` are what next/font emits in
      app/layout.tsx; the system stacks behind them cover the gap before the
      webfont lands. --face-mono falls back to sans, not monospace: its call
@@ -133,8 +118,8 @@
   --face-ui:          var(--font-switzer), system-ui, sans-serif;
   --face-mono:        var(--font-switzer), system-ui, sans-serif;
 
-  /* Motion. The handoff is explicit: this is the only transition on the page,
-     and nothing else animates. */
+  /* Motion. Deliberately the only transition on the page — nothing else
+     animates. */
   --transition:       120ms ease;
 }
 
@@ -177,13 +162,12 @@ html[data-theme="light"] {
   --danger-bg:         rgba(194, 69, 44, .08);
   --danger-bd:         rgba(194, 69, 44, .28);
 
-  /* Caution — a warning tint on a page surface. The study runner's three grade
-     buttons used to be its reason for existing (Again `--danger`, Hard this,
-     Easy `--btn`); they are tinted glass now and carry their own `--grade-*`
-     tints in glass.css, because a 30% fill behind neutral ink wants a brighter,
-     more saturated hue than ink-on-paper does. What still reads this is the
-     session's own annotation chips — the "hardest in session" list and the
-     state-change rows. Distinct from --gold, which it sits close to here and
+  /* Caution — a warning tint on a page surface. Read by the study session's
+     annotation chips — the "hardest in session" list and the state-change
+     rows. The study runner's grade buttons do NOT read it: they are tinted
+     glass and carry their own `--grade-*` tints in glass.css, because a 30%
+     fill behind neutral ink wants a brighter, more saturated hue than
+     ink-on-paper does. Distinct from --gold, which it sits close to here and
      nowhere near in Midnight (#ffe085): --gold means "reading progress on a
      book cover", so sharing one would tie a caution chip's colour to a change
      in the book palette. Shifts with the theme for the same reason --danger
@@ -252,13 +236,11 @@ html[data-theme="dark"] {
   --avatar:            #f2f1ee;
   --avatar-ink:        #141414;
 
-  /* The dock's --dock-* group is gone. It was a near-black slab reading its own
-     inks; the Dock Bar handoff made the dock frosted glass, and everything it
-     needs now lives in styles/glass.css as --dock-glass-* (which is also where
-     a dock that is white-on-dark in BOTH themes belongs — that was the group's
-     whole justification for existing out here, and glass is theme-invariant by
-     construction). --paper-* above is still the standing example of the
-     pattern. */
+  /* The dock has no tokens here: it is frosted glass, and everything it needs
+     lives in styles/glass.css as --dock-glass-*. Glass is theme-invariant by
+     construction, which suits a dock that is white-on-dark in BOTH themes.
+     --paper-* above is the standing example of a component-owned surface
+     group. */
 
   /* Danger lightens in Midnight so it stays readable on the dark surfaces. */
   --danger:            #e0715a;
@@ -289,22 +271,17 @@ html[data-theme="dark"] {
   --paper-shadow-hover: 0 20px 50px rgba(0, 0, 0, .6);
 
   --star-gold:         244, 220, 130;
-  /* The page's three stops (and no longer the star map's own values; the map is
+  /* The page's three stops (not the star map's own values — the map is
      transparent over this, see the Page background block). --sky-3 is also
      <html>'s background-color, so it must stay the darkest of the three.
 
-     They now read TOP → BASE of a vertical sky rather than centre → outwards of
-     a bloom: the background became a linear gradient with a separate glow laid
-     over it, so "1" is the lit top of the sky and "3" the deep bottom. The
-     `--page-base` block below is where that geometry lives.
-
-     Outgoing: the indigo core that burned out to true black.
-       --sky-1:           #49408c;
-       --sky-2:           #1b1e69;
-       --sky-3:           #000000;  */
+     They read TOP → BASE of a vertical sky: the background is a linear
+     gradient with a separate glow laid over it, so "1" is the lit top of the
+     sky and "3" the deep bottom. The `--page-base` block below is where that
+     geometry lives. */
   --sky-1:             #16223c;   /* skyTop  */
   --sky-2:             #0d1526;   /* skyMid  */
-  --sky-3:             #080514;   /* skyBase — was #05070f, a shade violet now */
+  --sky-3:             #080514;   /* skyBase — deliberately a shade violet, not pure black */
   --page-vignette:     inset 0 0 220px 60px rgba(4, 7, 14, .55);
 }
 
@@ -357,8 +334,8 @@ html[data-sky-hue="aurora"] {
 }
 
 /* ── Page background ─────────────────────────────────────────────────────── */
-/* Split across two elements on purpose. The handoff puts all 43 layers in one
-   `background`, which forces a 43-entry `background-size` list (42 star tiles
+/* Split across two elements on purpose. Putting all 43 layers in one
+   `background` forces a 43-entry `background-size` list (42 star tiles
    at 640×460 plus the base gradient at `cover`) — a shorter list gets cycled
    by the spec, so `640px 460px, cover` would apply `cover` to every other
    star layer. Painting the base on <html> and the stars on <body> lets each
@@ -366,8 +343,7 @@ html[data-sky-hue="aurora"] {
    pseudo-element and no z-index, and both are viewport-fixed so they don't
    drift while scrolling.
 
-   Star values lifted from the prototype's `bgSky` rather than regenerated, per
-   the handoff. Must stay *barely* perceptible.
+   The star field must stay *barely* perceptible.
 
    ── This canvas is what /decks sits on ────────────────────────────────────
    The star map paints no background of its own (see the `<svg>` note in
@@ -383,9 +359,9 @@ html[data-sky-hue="aurora"] {
    /decks and /profile alike.
 
    ── Per theme, not one formula ────────────────────────────────────────────
-   The two themes are genuinely different backgrounds now, not one geometry with
-   swapped stops: Midnight is a vertical night sky under a soft periwinkle glow,
-   paper is the pale sky dome from the handoff (still radial). So `--page-base`
+   The two themes are genuinely different backgrounds, not one geometry with
+   swapped stops: Midnight is a vertical night sky under a soft violet glow,
+   paper is a pale radial sky dome. So `--page-base`
    is declared twice rather than built from tokens that swap underneath. The
    three stops still come from `--sky-1/2/3` in the theme blocks above, so a
    palette change is still a palette-block edit.
@@ -421,46 +397,7 @@ html[data-theme="dark"] {
                very edge and the ramp is really mid → base, which is what gives
                the glow a near-flat field to bloom on.
 
-     The audition is over: the temporary `BackgroundTweaks` live editor that
-     printed these declarations is deleted, and this is the value it landed on.
-     Re-tune by hand here.
-
-     Outgoing, newest first.
-
-     · Periwinkle, same geometry: the light-source reading of this glow, before
-       it flipped to a dark bloom — rgba(167, 147, 240, .69).
-     · Violet, narrower and higher-contrast: 95% wide, centred at 44% so the
-       bloom sat above the middle of the viewport.
-     · Periwinkle again, a paler and far weaker glow over a sky that held its top
-       colour to 42%.
-     · A centred indigo bloom (radial sky, not linear) under a white wash. Both
-       layers were radial and shared a centre, which is why that one has no
-       `midStop` equivalent.*/
-
-     /*
-       --page-base:
-         radial-gradient(80% 100% at 50% 50%,
-           rgba(167, 147, 240, .69) 0%, rgba(167, 147, 240, 0) 100%),
-         linear-gradient(180deg,
-           var(--sky-1) 0%, var(--sky-2) 10%, var(--sky-3) 100%);
-
-       --page-base:
-         radial-gradient(95% 100% at 50% 44%,
-           rgba(147, 117, 255, .65) 0%, rgba(147, 117, 255, 0) 100%),
-         linear-gradient(180deg,
-           var(--sky-1) 0%, var(--sky-2) 10%, var(--sky-3) 100%);
-
-       --page-base:
-         radial-gradient(95% 90% at 51% 44%,
-           rgba(184, 197, 255, .30) 0%, rgba(184, 197, 255, 0) 100%),
-         linear-gradient(180deg,
-           var(--sky-1) 0%, var(--sky-2) 42%, var(--sky-3) 100%);
-
-       --page-base:
-         radial-gradient(115% 115% at 47% 46%,
-           rgba(255, 255, 255, .14) 0%, rgba(255, 255, 255, 0) 62%),
-         radial-gradient(120% 120% at 47% 48%,
-           var(--sky-1) 0%, var(--sky-2) 10%, var(--sky-3) 100%);  */
+     This is the settled value — re-tune by hand here. */
   --page-base:
     radial-gradient(80% 100% at 50% 50%,
       rgba(19, 10, 51, .69) 0%, rgba(19, 10, 51, 0) 100%),

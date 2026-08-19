@@ -36,8 +36,7 @@ router.get("/:id", requireUserMatch({ from: "params", key: "id" }), async (req, 
 // `password_hash` or `username`.
 //
 // The email unique index (`users_email_lower_idx`) makes a duplicate a
-// legitimate client error, so 23505 is mapped to 409 rather than surfacing
-// as the generic 500 it used to.
+// legitimate client error, so 23505 is mapped to 409.
 router.patch("/", async (req, res) => {
   const body = parseBody(patchUserSchema, req, res);
   if (!body) return;

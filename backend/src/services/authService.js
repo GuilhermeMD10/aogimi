@@ -4,8 +4,8 @@
 //   - Access token: HS256, 15 min, claims = { userId, username }.
 //     Sent on every API call as `Authorization: Bearer <jwt>`.
 //   - Refresh token: HS256, 30 days, claims = { userId, tokenId }.
-//     Stored in the client (mobile: expo-secure-store; web: TBD). The
-//     server stores the SHA-256 hash of every issued refresh token in
+//     Stored in the client (mobile: expo-secure-store; web: httpOnly
+//     cookie). The server stores the SHA-256 hash of every issued refresh token in
 //     `refresh_tokens` so it can revoke one (logout) or all (password
 //     change) without trusting the client to forget.
 //
@@ -74,12 +74,11 @@ async function register(username, email, password) {
   try {
     user = await userRepo.create({ username, email, passwordHash });
   } catch (err) {
-    // Two unique constraints can fire here now that sign-up collects an
-    // email: `users_username_key` and the partial `users_email_lower_idx`.
-    // Both are 23505, so the constraint name is what tells the user which
-    // field to fix — without it a taken address would read "Username already
-    // taken". Unknown constraint falls back to the username message, which is
-    // the pre-email behaviour.
+    // Two unique constraints can fire here: `users_username_key` and the
+    // partial `users_email_lower_idx`. Both are 23505, so the constraint
+    // name is what tells the user which field to fix — without it a taken
+    // address would read "Username already taken". Unknown constraint falls
+    // back to the username message.
     if (err.code === "23505") {
       const onEmail = typeof err.constraint === "string" && err.constraint.includes("email");
       const e = new Error(onEmail ? "That email is already in use" : "Username already taken");

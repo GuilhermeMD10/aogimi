@@ -4,9 +4,9 @@
 //
 //   "noun (common) (futsuumeishi), noun or participle which takes the aux. verb suru"
 //
-// The handoff draws that as one short chip — NOUN · SURU. This is the
-// compactor. It is display-only: nothing downstream parses the result, and the
-// raw string stays in the data.
+// The UI draws that as one short chip — NOUN · SURU. This is the compactor.
+// It is display-only: nothing downstream parses the result, and the raw
+// string stays in the data.
 
 /**
  * Longest-match-first, because "noun or participle which takes the aux. verb
@@ -41,7 +41,7 @@ const RULES: readonly (readonly [test: string, label: string])[] = [
   ['numeric', 'numeric'],
 ];
 
-/** How many parts a chip shows. Two is the handoff's widest ("NOUN · SURU"); a
+/** How many parts a chip shows. Two ("NOUN · SURU") is the widest that fits; a
  *  third pushes the chip past the gloss it shares a row with. */
 const MAX_PARTS = 2;
 

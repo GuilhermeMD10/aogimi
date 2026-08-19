@@ -5,9 +5,7 @@
 //
 // The dictionary phases are `/dictionary`'s own components at `scale="full"` —
 // the bubble is 880px wide, comfortably more than the docked column's 320–480,
-// and about what the page's own entry pane gets. What used to be here was a
-// hand-written entry (no example sentences, no JLPT, its own kanji panel) plus
-// four copies of a header.
+// and about what the page's own entry pane gets.
 
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -145,8 +143,8 @@ export function BubbleContent(props: BubbleContentProps) {
   //
   // The guard is a null check on the draft, not a falsy check on one of its
   // fields: `!props.draft` is true exactly when the request came from a
-  // selection. It used to be `!props.back`, which conflated "no entry data" with
-  // "an entry whose back happened to render empty".
+  // selection, where a check like `!props.back` would conflate "no entry data"
+  // with "an entry whose back happened to render empty".
   const prefilledDraft = useCardPrefill(
     props.mode === 'addCard' ? props.word : '',
     props.mode === 'addCard' && !props.draft,

@@ -1,7 +1,7 @@
 # Aogimi — Backend
 
-REST API serving users, books, decks, dictionary search, and per-device
-sync state. Node + Express + PostgreSQL. No ORM — every repository uses
+REST API serving users, books, decks, study sessions, and dictionary
+search. Node + Express + PostgreSQL. No ORM — every repository uses
 raw `pg` with parameterized queries.
 
 ## Specs you'll want open
@@ -67,43 +67,50 @@ npm start        # one-shot
 Route → service → repository, top to bottom:
 
 ```
+server.js                 # Entry — listens on $PORT (default 3000), daily token sweep
 src/
 ├── app.js                # Express assembly: helmet, cors, rate-limit, auth, routers
-├── server.js             # Entry — listens on $PORT (default 3000)
 ├── db.js                 # pg Pool, configured from DATABASE_URL
 │
-├── config/auth.js        # JWT secrets + lifetimes, bcrypt rounds
+├── config/
+│   ├── auth.js             # JWT secrets + lifetimes, bcrypt rounds, cookie config
+│   └── limits.js           # Resource quotas, text caps, array/numeric bounds
 │
 ├── middleware/
 │   ├── authenticateJWT.js   # Verifies Bearer token, attaches req.user
-│   └── authorize.js         # requireUserMatch — cross-checks path :userId
+│   ├── authorize.js         # requireUserMatch — cross-checks path :userId
+│   └── requestLogger.js     # Request-line-only logging (no bodies, no tokens)
 │
 ├── routes/                # Express handlers, request parsing, status codes
 │   ├── auth.js             # /api/auth/{register,login,refresh,logout}
 │   ├── user.js             # /api/user/* (PROTECTED)
 │   ├── books.js            # /api/books/* (PROTECTED + ownership checks)
 │   ├── decks.js            # /api/decks/* (PROTECTED + ownership checks)
-│   ├── devices.js          # /api/devices/* (PROTECTED + ownership checks)
-│   ├── search.js,
-│   ├── words.js, kanji.js, names.js, translate.js   # PUBLIC (dictionary)
+│   ├── study.js            # /api/study/* (PROTECTED)
+│   ├── stats.js            # /api/stats/* (PROTECTED)
+│   ├── search.js, words.js # PUBLIC (dictionary)
 │
 ├── services/              # Business logic, cross-table assembly
 │   ├── authService.js      # register/login/refresh/logout/revokeAll
 │   ├── userService.js      # Profile read/update; allow-list filter
-│   ├── ownership.js        # {book,deck,card,bookmark,device}OwnedBy helpers
+│   ├── ownership.js        # {book,deck,card,bookmark}OwnedBy helpers
+│   ├── quotas.js           # Per-user resource quota checks (409 on exceed)
+│   ├── fsrs.js             # FSRS-6 scheduler maths (pure)
+│   ├── cardSrsService.js   # Card rows in, next SRS state + review event out
 │   ├── bookService.js, bookmarkService.js,
 │   ├── deckService.js, cardService.js,
-│   ├── deviceService.js,
+│   ├── studyService.js, statsService.js,
 │   ├── assembler.js        # Turns flat row tuples into the WordResult API shape
-│   ├── searchService.js, kanjiService.js, ...
+│   └── searchService.js    # Query routing: kanji / kana / romaji / English
 │
 ├── repositories/          # Raw SQL only
 │   ├── userRepository.js   # PUBLIC_COLUMNS allow-list shields password_hash
 │   ├── refreshTokenRepository.js
 │   ├── bookRepository.js, deckRepository.js, ...
 │
-├── validation/
-│   └── auth.js             # zod schemas (username + password rules)
+├── validation/            # zod schemas per domain
+│   ├── _helpers.js         # parseBody + shared text-field builders
+│   ├── auth.js, user.js, decks.js, study.js, books.js
 │
 └── search/
     └── PgSearchIndex.js    # Unified ranking; boosts JLPT-tier words with +50 + jlpt_level*5
@@ -182,7 +189,7 @@ it intentionally leaves dictionary tables alone).
 ## Running scripts
 
 ```bash
-npm run dev          # node --watch src/app.js — auto-restart
+npm run dev          # node --watch server.js — auto-restart
 npm start            # one-shot
 ```
 
@@ -200,9 +207,8 @@ dev `.env` is gitignored.
 
 ## Gotchas
 
-- **CORS** is now via the `cors` package; the legacy handwritten
-  middleware in `app.js` is gone. Add new origins via the `CORS_ORIGIN`
-  env var, not by editing code.
+- **CORS** goes through the `cors` package. Add new origins via the
+  `CORS_ORIGIN` env var, not by editing code.
 - **Trust proxy 1** is set so `req.ip` resolves to the real client IP
   behind the platform's reverse proxy. Without it, the rate limiter
   would key on the proxy IP and apply globally.

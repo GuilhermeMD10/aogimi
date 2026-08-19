@@ -2,13 +2,13 @@
 // edit, and so the numbers are greppable when a 400/409 shows up in a log.
 //
 // WHY THESE EXIST: every user-supplied text column in this schema is
-// Postgres `text` (unbounded), and no route counted rows before inserting.
-// The only bound in the system was `express.json({ limit: "10kb" })`, which
-// let a client write a 10 KB deck name and insert rows until the disk filled.
+// Postgres `text` (unbounded), and the only other bound is
+// `express.json({ limit: "10kb" })` — on its own, that would let a client
+// write a 10 KB deck name and insert rows until the disk filled.
 //
 // The web client mirrors these numbers so the UI can disable a button
 // instead of letting the user submit into a 400. Those mirrors live in
-// `features/study/decks/lib/limits.ts` and `features/books/lib/limits.ts`
+// `features/sky/stage/lib/limits.ts` and `features/books/lib/limits.ts`
 // — change a number here, change it there. The client copy is UX only;
 // THIS file is the enforcement (a client limit is one `curl` away from
 // being bypassed).
@@ -95,10 +95,10 @@ module.exports = {
   },
 
   // ── Query `limit` clamps ───────────────────────────────────────────────
-  // The dictionary routes did `parseInt(req.query.limit, 10) || 20` and
-  // handed the result straight to `LIMIT $n`, so `?limit=999999999` on an
-  // UNAUTHENTICATED endpoint returned the whole table. The pg pool defaults
-  // to 10 connections; a handful of those requests exhausts it.
+  // Query `limit` values must be clamped before reaching `LIMIT $n`:
+  // an unclamped `?limit=999999999` on an UNAUTHENTICATED endpoint returns
+  // the whole table, and the pg pool defaults to 10 connections — a handful
+  // of those requests exhausts it.
   LIMITS: {
     /** Max rows any public dictionary lookup will return. */
     DICTIONARY_RESULTS: 100,
@@ -108,8 +108,8 @@ module.exports = {
   },
 
   /** `cards.state` — the SRS ladder. Enforced by zod on write AND by a DB
-   *  CHECK constraint (migrations 024, re-stated in 027). Before both existed,
-   *  a client could `PUT {state: "mastered"}` and skip the whole SRS
+   *  CHECK constraint (migration 024, re-stated in 027) — without both, a
+   *  client could `PUT {state: "mastered"}` and skip the whole SRS
    *  progression, or write garbage that broke the stats aggregation and the
    *  web client's rank rendering.
    *

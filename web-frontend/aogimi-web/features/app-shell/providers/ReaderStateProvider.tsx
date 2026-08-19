@@ -3,19 +3,17 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import type { CardDraft } from '@/features/sky/stage';
 
-// What's left in this provider is genuinely cross-cutting:
+// Everything in this provider is genuinely cross-cutting:
 //   - the reader bubble overlay
 //   - the dictionary sidekick toggle
 //   - the pending flashcard hand-off to /sky
 //
-// The open book is NOT here any more. It used to be a `readerSession` object
-// plus a `pendingBookOpen` filename that a mounted library view watched for —
-// both of which existed only because the reader was state inside the library
-// screen. The reader is `/reader/[bookId]` now, so the id in the URL *is* the
-// session: `ReaderView` resolves the file, the restore anchor and the progress
-// sync from it, and anything wanting to open a book links to the route.
+// The open book is deliberately NOT here. The reader is `/reader/[bookId]`,
+// so the id in the URL *is* the session: `ReaderView` resolves the file, the
+// restore anchor and the progress sync from it, and anything wanting to open
+// a book links to the route.
 //
-// Dict/card pending fields collapsed into `useReaderActions` — see that file.
+// Producers reach the dict/card state through `useReaderActions` — see that file.
 
 /**
  * Overlay state for the reader's right-edge bubble. Two mutually-exclusive
@@ -79,9 +77,7 @@ export type ReaderBubbleState =
  * The add-card hand-off to `/sky`.
  *
  * Declared once and referenced by the getter, the setter and the `useState`
- * below: it used to be spelled out at each of those three sites plus the
- * bubble variant above, and two of the four had already drifted apart on
- * whether the payload's second field was optional.
+ * below, so the sites can't drift apart on the payload's shape.
  */
 export type PendingCard = {
   word: string;

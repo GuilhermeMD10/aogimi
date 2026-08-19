@@ -1,9 +1,9 @@
 const pool = require("../db");
 
-// What "due" means, in one place. Five queries below need it (per-deck list,
-// all-decks list, random pick, per-deck count, per-deck counts) and they must
-// agree — a card is due when it has never been reviewed, or when its scheduled
-// review time has passed. Static SQL fragment, never user input.
+// What "due" means, in one place. Every due query below needs it and they
+// must agree — a card is due when it has never been reviewed, or when its
+// scheduled review time has passed. Static SQL fragment, never user input.
+// Mirrored in JS by `cardSrsService.isDue`.
 const DUE = "(next_due_at IS NULL OR next_due_at <= now())";
 
 module.exports = {

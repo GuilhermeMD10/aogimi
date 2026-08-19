@@ -26,11 +26,8 @@ function isDictSurfaceVisible(pathname: string, sidekickOpen: boolean): boolean 
  * One-shot user-intent helpers that wrap reader-state + dictionary-state +
  * route knowledge. Producers (reader word tap, dictionary "add card") call
  * these directly instead of pushing into a pending field and waiting for an
- * effect somewhere else to act on it.
- *
- * Replaces the old `pendingDictSearch` / `pendingCard` + `fired*Ref` plumbing
- * in `AppShell` — the consumer logic now lives at the call site, gated by
- * stable function identity.
+ * effect somewhere else to act on it — the consumer logic lives at the call
+ * site, gated by stable function identity.
  */
 export function useReaderActions() {
   const pathname = usePathname();
@@ -52,7 +49,7 @@ export function useReaderActions() {
   const openAddCard = useCallback(
     (word: string, draft: CardDraft | null, contextSentence?: string) => {
       // Always open the bubble — the decks page consumes pendingCard
-      // independently if mounted, mirroring the old dual-consumer behaviour.
+      // independently if mounted; both consumers are intentional.
       setReaderBubble({
         mode: 'addCard',
         word,

@@ -122,13 +122,12 @@ export function AuthForm({
             {error}
           </p>
 
-          {/* Glass, not the filled `--btn` `Button` it used to be — the same
-              call `/profile` made, and for the same reason: one material on a
-              screen wants one button. Written out rather than composed over
-              `GLASS_GHOST` because a 52px full-width CTA shares none of that
-              constant's geometry or type. The handoff's blue drop shadow goes
-              with it: glass ships at depth 0, so a drop shadow on one control
-              would be the only one in the app. */}
+          {/* Glass, not a filled `--btn` `Button` — same call as `/profile`,
+              for the same reason: one material on a screen wants one button.
+              Written out rather than composed over `GLASS_GHOST` because a
+              52px full-width CTA shares none of that constant's geometry or
+              type. No drop shadow: glass ships at depth 0, so a drop shadow
+              on one control would be the only one in the app. */}
           <button
             type="submit"
             disabled={submitting}

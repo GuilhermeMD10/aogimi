@@ -130,9 +130,9 @@ function useStyles(p: Palette) {
           borderRadius: radius.md,
           backgroundColor: p.btn,
         },
-        // Replaces the outgoing floating action button. A FAB had to be
-        // positioned above the dock by hand and covered the last line of the
-        // entry; the handoff's inline button sits in the flow and needs neither.
+        // An inline button rather than a floating action button: a FAB has to
+        // be positioned above the dock by hand and covers the last line of the
+        // entry; an inline button sits in the flow and needs neither.
         addButtonCompact: { height: 44 },
         addLabel: {
           fontFamily: fontFamily.ui,

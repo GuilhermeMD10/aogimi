@@ -12,21 +12,15 @@ import { fontFamily, type Palette } from '@/theme/tokens';
 /**
  * The bottom dock — app chrome on every tab screen.
  *
- * **It is glass now, not the near-black slab it was.** This is the web's dock material, from the
- * "Aogimi — Dock Bar" handoff via `web-frontend/aogimi-web/styles/glass.css` (the `--dock-glass-*`
- * block and the three `.glass-dock*` recipes): a white-tinted frosted shell with a lit lavender pill
- * that **slides** between entries. The old `--dock-*` group is gone on the web and its equivalents —
- * the mobile handoff's `dockbg` / `dockact` / `dockactink` — are not used here either.
+ * The material is the web's dock glass (`web-frontend/aogimi-web/styles/glass.css`, the
+ * `--dock-glass-*` block and the three `.glass-dock*` recipes): a frosted shell with a lit pill
+ * that **slides** between entries.
  *
- * Replaces `NotchedNavBar`, whose name had already outlived its notch and whose colours were two
- * hardcoded light-theme hexes (`#1A1918` / `#FFFEFB`) with an `isDark` branch bolted on.
- *
- * ── Geometry is the handoff's, material is the web's ─────────────────────────────────────────────
- * The mobile handoff draws four equal tabs — icon over label, `padding 7px 8px`, `radius 20` shell /
- * `13` tabs, `gap 2` — and that is what this is. The web's dock is a different *shape* (one row of
- * icon-beside-label entries at their natural widths, plus a divider and an avatar) because it is a
- * desktop bar; copying its shape onto a phone would be the wrong half to take. So: the handoff owns
- * the box, the web owns the colour, which is the standing rule for this whole redesign.
+ * ── Geometry is mobile's own, material is the web's ──────────────────────────────────────────────
+ * Four equal tabs — icon over label, `padding 7px 8px`, `radius 20` shell / `13` tabs, `gap 2`.
+ * The web's dock is a different *shape* (one row of icon-beside-label entries at their natural
+ * widths, plus a divider and an avatar) because it is a desktop bar; copying its shape onto a
+ * phone would be the wrong half to take.
  *
  * ── The one place equal tabs make this simpler than the web ──────────────────────────────────────
  * The web has to *measure* its active item (`offsetLeft`/`offsetWidth` via a ResizeObserver, keyed on
@@ -45,30 +39,16 @@ import { fontFamily, type Palette } from '@/theme/tokens';
  * the pill).
  */
 
-/* ── Dock material, reset for legibility (2026-08-10, re-tinted 2026-08-11) ───────────────────────
-   Was the web's `--dock-glass-*` block resolved verbatim: a 15%-white shell with 3.8–13.8% sheens
-   and a lavender pill. Every one of those alphas was tuned against the web's lit canvas, and on a
-   flat-black phone screen the shell edge and both sheens were invisible — the dock read as a
-   floating pill with nothing around it. The 08-10 pass made them all visible.
-
-   The 08-11 light flip then inverted the *tint*: a white wash over a white page is nothing at all,
-   so the shell is a **black** wash and its sheens are black too. That is the same material as
-   before, read the other way up — a translucent film that darkens what scrolls under it, so the
-   dock still reads as a distinct object without hiding the page.
-
-   ── One material, two directions (2026-08-12) ──────────────────────────────────────────────────
+/* ── Dock material — one material, two directions ─────────────────────────────────────────────────
    The wash **inverts with the theme**, because a translucent film only reads if it darkens or
-   lightens what scrolls under it. On Day's off-white canvas that means a black tint (the 08-11
-   values); on Night's near-black canvas a black tint over black is nothing at all, so Night takes
-   the web's original white one. The blur `tint` prop flips with it. Everything else — the alphas'
-   ratios, the geometry, the pill — is shared.
+   lightens what scrolls under it. On Day's off-white canvas that means a black tint; on Night's
+   near-black canvas a black tint over black is nothing at all, so Night takes a white one. The
+   blur `tint` prop flips with it. Everything else — the alphas' ratios, the geometry, the pill —
+   is shared.
 
-   Still local consts rather than theme tokens: the dock is one material and the redesign will want
-   to tune it as a unit. The three palette reads are the ones that genuinely belong to the app's
-   vocabulary: "the selected thing" and the two inks.
-
-   (Untouched by the strip-to-basics pass, on request: this is the one component that keeps its blur,
-   its sheens and its sliding pill.) */
+   Local consts rather than theme tokens: the dock is one material and wants to be tuned as a
+   unit. The three palette reads are the ones that genuinely belong to the app's vocabulary:
+   "the selected thing" and the two inks. */
 type Glass = {
   fill: string;
   bd: string;
@@ -133,7 +113,7 @@ const BLUR_INTENSITY = 24;
 const SLIDE_MS = 280;
 const SLIDE_EASING = Easing.bezier(0.4, 0, 0.2, 1);
 
-/* ── Geometry, from the handoff ─────────────────────────────────────────────────────────────────── */
+/* ── Geometry ───────────────────────────────────────────────────────────────────────────────────── */
 const SHELL_INSET_X = 12;
 const SHELL_BOTTOM = 14;
 const SHELL_RADIUS = 20;
@@ -144,7 +124,7 @@ const TAB_RADIUS = 13;
 const ICON = 19;
 
 /**
- * The handoff's four tabs, in its order: Home · Reader · Dictionary · Sky.
+ * Four tabs: Home · Reader · Dictionary · Sky.
  *
  * Declaration order is render order. Profile and Settings are not here — they left the dock in the
  * route restructure and are pushed screens now (Profile from Home's header avatar, Settings from
@@ -388,11 +368,11 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
  * horizontal gradient that is brightest in the middle — the web's `::before` with
  * `background-size: 100% 1px`.
  *
- * Since the 2026-08-11 light flip the two surfaces light *differently*: the shell's sheens are black
- * (a white sheen on a pale shell is nothing), the pill's are still white because the pill is a solid
- * dark blue. So `lineEdge` — the specular line's transparent end-stops — is a parameter rather than a
- * constant: it has to be the zero-alpha form of the *same* channel as `lineMid`, or the gradient
- * fades through a halo of the opposite colour on its way to transparent.
+ * The two surfaces light *differently*: on Day the shell's sheens are black (a white sheen on a pale
+ * shell is nothing), while the pill's are always white because the pill is a solid saturated fill. So
+ * `lineEdge` — the specular line's transparent end-stops — is a parameter rather than a constant: it
+ * has to be the zero-alpha form of the *same* channel as `lineMid`, or the gradient fades through a
+ * halo of the opposite colour on its way to transparent.
  */
 function Sheens({
   top,
@@ -439,7 +419,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SHELL_PAD_H,
     // clips the blur, the hairlines and the pill to the rounded corners
     overflow: 'hidden',
-    // the handoff's drop shadow: 0 14px 30px rgba(0,0,0,.35). RN's shadowRadius is the CSS blur
+    // Drop shadow, 0 14px 30px rgba(0,0,0,.35). RN's shadowRadius is the CSS blur
     // halved, as everywhere else in this app.
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 14 },

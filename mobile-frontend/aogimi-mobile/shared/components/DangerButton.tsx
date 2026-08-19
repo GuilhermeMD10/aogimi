@@ -4,7 +4,7 @@ import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
 
 /**
- * The handoff's destructive action: 48px tall, transparent, a 1.5px
+ * The destructive action: 48px tall, transparent, a 1.5px
  * danger-tinted border and `danger` ink.
  *
  * Outline rather than filled, deliberately — a solid vermillion block would

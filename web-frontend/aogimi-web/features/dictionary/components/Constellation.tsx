@@ -1,14 +1,14 @@
 /**
  * The motif that bleeds behind the detail pane's hero band — thin lines
- * joining points of light, the Design Language's "constellations" element.
+ * joining points of light.
  *
  * Purely decorative and `aria-hidden`, sized to slice from the top-right so it
  * never crosses the headword.
  *
- * The handoff has two of the stars twinkling. They don't here: the redesign's
- * standing rule is that one 120ms transition is the only motion on a page, and
- * a pulsing star would be the loudest thing on an otherwise still screen.
- * Restoring it is a `@keyframes` and one class if that reads as too quiet.
+ * Nothing twinkles: the standing rule is that one 120ms transition is the only
+ * motion on a page, and a pulsing star would be the loudest thing on an
+ * otherwise still screen. Adding a twinkle back is a `@keyframes` and one
+ * class if that reads as too quiet.
  */
 export function Constellation() {
   return (

@@ -1,10 +1,4 @@
-// Theme access — Day / Night, restored 2026-08-12 with the design handoff.
-//
-// The single-theme version of this file predicted its own replacement: it held
-// no state and existed "so that reintroducing a light/dark pair with the design
-// handoff is a change here rather than at every call site". That is what this
-// is. `useColors()` / `useFonts()` / `useShape()` keep their exact shapes, so
-// the ~61 screens on the legacy bridge became theme-aware without an edit.
+// Theme access — Day / Night.
 //
 // ── Three settings, two themes ──────────────────────────────────────────────
 // The stored *preference* is `'day' | 'night' | 'system'`; the *resolved* theme
@@ -45,8 +39,8 @@ import {
 /** What the user picked. `'system'` defers to the OS; the other two override it. */
 export type ThemePreference = ThemeName | 'system';
 
-/** The key the deleted four-palette picker used. Kept rather than renamed so an
- *  install that still has a value under it is not silently reset. */
+/** Kept under its historical name so an install that already has a value under
+ *  it is not silently reset. */
 const STORAGE_KEY = 'aogimi_theme_name';
 
 const PREFERENCES: readonly ThemePreference[] = ['system', 'day', 'night'];

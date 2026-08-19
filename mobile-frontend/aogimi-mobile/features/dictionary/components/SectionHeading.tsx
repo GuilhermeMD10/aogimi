@@ -9,8 +9,8 @@ import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
  *
  * Not `shared/components/RowGroup`'s `SectionLabel`, which is the same face and
  * tracking but carries the settings list's fixed margins and takes a single
- * string. This one pairs the label with its Japanese gloss (which the handoff
- * sets beside every heading in the dictionary) and lets the caller own spacing.
+ * string. This one pairs the label with its Japanese gloss (set beside every
+ * heading in the dictionary) and lets the caller own spacing.
  */
 export function SectionHeading({
   label,
@@ -21,7 +21,7 @@ export function SectionHeading({
   label: string;
   /** The Japanese counterpart set beside the label — 意味, 漢字, 例文. */
   gloss?: string;
-  /** `accent` is the handoff's vermillion RESULTS label; everything else is muted. */
+  /** `accent` is the vermillion RESULTS label; everything else is muted. */
   tone?: 'muted' | 'accent';
   /** Right-hand text on the same baseline — the results count. */
   trailing?: React.ReactNode;

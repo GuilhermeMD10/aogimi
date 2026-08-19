@@ -32,8 +32,8 @@ import type { Bounds } from '../lib/types';
  * **Type is screen px; the card is world space.** The card, its bands and its radius are world-sized
  * so a frame pans and zooms with the sky it frames, and the strokes are non-scaling. Everything
  * *typographic* goes through `u` instead — the same currency every star radius and label already
- * uses. It used to be world units, which meant a frame's text shrank with the sky and left the deck
- * name at 6.8px on a laptop at twenty decks. See FRAME_NAME_PX.
+ * uses. In world units a frame's text would shrink with the sky, leaving the deck name at 6.8px on
+ * a laptop at twenty decks. See FRAME_NAME_PX.
  *
  * That trade is what makes the second mode necessary. World-space text always fits its card because
  * it shrinks with it; screen-space text stays readable and eventually does not fit. So past

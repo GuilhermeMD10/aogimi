@@ -5,8 +5,7 @@
 // and one read here are the same row: `cfi_position = 'page-N'`,
 // `spine_index = N` (1-based page, where an EPUB puts a 0-based spine index),
 // `total_spine_items = page count`. Matching it is what makes cross-device
-// resume work, and it is why PDF position needs no new column — the deferral
-// note in DECISIONS.md that called for one is obsolete.
+// resume work, and it is why PDF position needs no new column.
 
 /** The stored form of a page number. */
 export function pdfPageCfi(page: number): string {

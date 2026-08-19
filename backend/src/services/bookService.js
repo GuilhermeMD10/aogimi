@@ -12,9 +12,9 @@ const VISUAL_PAGE_COUNT_TOLERANCE = 0.10;
 
 // Maximum average hamming distance for the visual match layer. The 64-bit
 // dHash + per-pair distance gives 0–64 per page; averaged across pages.
-// 8 is the threshold the spec calls for — below it the images are
-// definitely the same scene, above it they're either different content
-// or a rendering pipeline that's drifted enough to be unreliable.
+// Below 8 the images are definitely the same scene; above it they're
+// either different content or a rendering pipeline that's drifted enough
+// to be unreliable.
 const VISUAL_MAX_HAMMING_DIST = 8;
 
 /**

@@ -23,9 +23,9 @@ export type ImportedBook = {
   pdfIdOriginal: string | null;
   /** PDF only: /ID[1] from trailer — changes on save. Null for EPUBs. */
   pdfIdCurrent: string | null;
-  /** PDF only: total page count. Mobile leaves null until phase 3. */
+  /** PDF only: total page count. Null on mobile — no native PDF parser. */
   pageCount: number | null;
-  /** PDF only: extractable text layer present. Mobile leaves null until phase 3. */
+  /** PDF only: extractable text layer present. Null on mobile. */
   hasTextLayer: boolean | null;
   /** PDF only: /Producer from /Info. Diagnostic — not used in matching. */
   producer: string | null;

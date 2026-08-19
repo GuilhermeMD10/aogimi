@@ -48,8 +48,8 @@ export type BookProgressUpdate = Partial<{
 //   - fileHash: SHA-256 of the raw file bytes (both formats).
 //   - contentHash: EPUB only — SHA-256 of concatenated spine text.
 //   - pdfIdOriginal / pdfIdCurrent: PDF only — trailer /ID[0] and /ID[1].
-//   - pageCount / hasTextLayer: PDF only. Mobile may leave null until
-//     phase 3 brings native PDF parsing.
+//   - pageCount / hasTextLayer: PDF only. Null on mobile — no native PDF
+//     parser, so the tail-only scan cannot resolve them.
 //   - producer: PDF only — diagnostic, not used in matching.
 //   - xmpDocumentId / xmpOriginalId: PDF only — XMP metadata IDs.
 //     xmpOriginalId is the strong cross-device match key for derived PDFs.

@@ -191,10 +191,9 @@ export function buildPendingBookRecord(
     filename,
     title: p.title || filename,
     author: p.author,
-    // Left as-is by the 2026-08-11 colour reset **on purpose**: this value is
-    // pushed to the backend and the web app renders from it, so it is shared
-    // data, not mobile styling. `BookCover` no longer paints with the stored hex
-    // anyway — see the note there.
+    // **Shared data, not mobile styling**: this value is pushed to the backend
+    // and the web app renders from it, so the mobile palette does not own it.
+    // `BookCover` does not paint with the stored hex anyway — see the note there.
     cover_color: '#4A4038',
     cfi_position: snapshot?.lastCfi ?? null,
     spine_index: 0,

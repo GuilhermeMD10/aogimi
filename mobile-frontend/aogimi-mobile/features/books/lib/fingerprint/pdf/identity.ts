@@ -19,11 +19,11 @@ export type PdfProbe = {
   pdfIdOriginal: string | null;
   /** PDF /ID[1] — changes on each save. Stored for forensics. */
   pdfIdCurrent: string | null;
-  /** Total page count. Mobile leaves this null until phase 3 brings native
-   *  PDF parsing — the tail-only scan can't reliably resolve the page tree. */
+  /** Total page count. Null on mobile: with no native PDF parser the
+   *  tail-only scan can't reliably resolve the page tree. */
   pageCount: number | null;
-  /** True when the PDF has an extractable text layer. Mobile leaves this
-   *  null until phase 3 (no text-extraction capability without a PDF lib). */
+  /** True when the PDF has an extractable text layer. Null on mobile: no
+   *  text-extraction capability without a PDF library. */
   hasTextLayer: boolean | null;
   /** /Producer from /Info. Diagnostic only — not used in matching. */
   producer: string | null;
@@ -50,7 +50,7 @@ const TAIL_BYTES = 128 * 1024;
  * and the embedded XMP packet for the overwhelming majority of PDFs (the
  * metadata stream and trailer are conventionally placed near the end).
  * Linearized PDFs that put metadata near the start may slip through with
- * partial fingerprints — accept that and let phase 3 fix it if needed.
+ * partial fingerprints — an accepted limit of the tail-only scan.
  */
 export async function probePdfFile(filename: string): Promise<PdfProbe> {
   const empty: PdfProbe = {

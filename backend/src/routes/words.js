@@ -3,17 +3,9 @@
 // Public (no auth): dictionary data is shared across all users and carries no
 // PII. Reads only; nothing here writes.
 //
-// This router used to expose eleven direct-lookup endpoints (by meaning, by
-// part of speech, by priority marker, by kana, by kanji, by kana prefix, all
-// translations for a word, and the bare word row). They predated
-// `/api/search`, which now handles every one of those cases through the ranked
-// pipeline, and no client had called them in a long time. They were removed
-// rather than left as an unmaintained parallel API — `wordService.js` and
-// `wordRepository.js` went with them, since this was their only caller.
-//
-// `searchService.getDetails` is what remains, and it reaches the word row via
-// the search index's `hydrate`, so the detail page and the search list stay
-// consistent about priority ordering and canonical forms.
+// `searchService.getDetails` reaches the word row via the search index's
+// `hydrate`, so the detail page and the search list stay consistent about
+// priority ordering and canonical forms.
 
 const { Router } = require("express");
 const searchService = require("../services/searchService");

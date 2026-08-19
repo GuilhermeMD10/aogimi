@@ -14,11 +14,11 @@ import { cn } from '@/lib/util/cn';
  * they stay dark until there's something behind them.
  *
  * To enable: flip the flag, then wire `onStart` to the provider's authorize
- * URL. The buttons are deliberately identical in both modes — the handoff is
- * explicit that the copy does not become "Sign up with".
+ * URL. The buttons are deliberately identical in both modes — the copy does
+ * not become "Sign up with".
  *
- * Converted to glass with the rest of the screen even though nothing renders it:
- * a flag flip should reveal two buttons that match the panel, not two paper ones
+ * Glass like the rest of the screen even though nothing renders it: a flag
+ * flip should reveal two buttons that match the panel, not two paper ones
  * that have to be found and fixed afterwards.
  */
 

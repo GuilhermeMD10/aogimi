@@ -5,8 +5,8 @@
 // reader gets page layout only (typeface and page colour mean nothing over
 // fixed-layout images), and the PDF reader doesn't open this panel at all.
 //
-// Font size is a percentage, not the handoff's 16–40px. Foliate scales the
-// book's own type by a percentage, so a px readout would be a number we made up.
+// Font size is a percentage, not px. Foliate scales the book's own type by a
+// percentage, so a px readout would be a number we made up.
 
 import type { ReaderPrefs } from '../hooks/useReaderPrefs';
 import {

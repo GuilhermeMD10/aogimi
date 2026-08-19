@@ -72,8 +72,8 @@ const PHASH_RENDER_WIDTH = 200;
  *
  * Heavy: the text-extraction step costs ~15-50ms per page on modern
  * hardware. A 300-page book is in the 5-15 second range. Caller should
- * show a progress indicator. Phase 6 (perf pass) will move this into
- * a Web Worker.
+ * show a progress indicator; moving this into a Web Worker is the
+ * obvious next step.
  */
 export async function extractPdfData(buf: ArrayBuffer): Promise<PdfData> {
   const pdfjsLib = await import('pdfjs-dist');

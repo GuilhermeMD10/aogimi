@@ -10,11 +10,10 @@ import { Card } from './HomeCard';
 /**
  * "Continue reading" — the single most recently opened in-progress book.
  *
- * **Percentage only, no page numbers.** The handoff prints "PAGE 142 / 412",
- * which the app cannot honestly render: `page_count` is PDF-only and null for
- * every EPUB, so the pair would be present on some books and missing on others.
- * A percentage is defined for all of them and is what the progress bar shows
- * anyway.
+ * **Percentage only, no page numbers.** "PAGE 142 / 412" cannot be honestly
+ * rendered: `page_count` is PDF-only and null for every EPUB, so the pair
+ * would be present on some books and missing on others. A percentage is
+ * defined for all of them and is what the progress bar shows anyway.
  *
  * The caller renders nothing when there is no in-progress book — see
  * `HomeView`. That absence *is* the empty state; there is no placeholder card.

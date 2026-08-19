@@ -23,26 +23,23 @@ import { ResultsList } from '../components/ResultsList';
 import { EntryView } from '../components/EntryView';
 
 /**
- * The dictionary tab, rebuilt against the design handoff.
+ * The dictionary tab.
  *
  * **Composition and data only** — every visual piece is a component in
  * `../components`, each reading `usePalette()` with a memoised style factory.
- * The order is the handoff's: hero, field, suggestions, recents; then field,
- * count, results; then entry.
+ * Order: hero, field, suggestions, recents; then field, count, results; then
+ * entry.
  *
- * ── What the handoff does not show, and is kept anyway ──────────────────────
- * It draws three flat states (home → results → entry). The tab is a **frame
- * stack** (`useDictionaryNav`): tapping a kanji inside an entry pushes a fresh
- * *search* frame, so a user can drill 辞書 → 辞 → 辭典 → … and unwind one step
- * at a time. Android's hardware back and re-tapping the tab both pop it. That
- * loop is the reason the dictionary is a stack and not three screens, and no
- * mock of three states can express it.
+ * ── Why a stack, not three flat states ──────────────────────────────────────
+ * The tab is a **frame stack** (`useDictionaryNav`): tapping a kanji inside an
+ * entry pushes a fresh *search* frame, so a user can drill 辞書 → 辞 → 辭典 →
+ * … and unwind one step at a time. Android's hardware back and re-tapping the
+ * tab both pop it.
  *
- * ── Recents are lookups now ─────────────────────────────────────────────────
- * The tab used to keep its own list of typed *queries* while Home showed opened
- * *entries*. One store survives — see `lib/dictionaryStorage.ts`. So this list
- * and Home's card are the same data, a row here opens the exact word rather
- * than re-running a search, and a word looked up in the reader appears in both.
+ * ── Recents are lookups, not queries ─────────────────────────────────────────
+ * One store — see `lib/dictionaryStorage.ts`. This list and Home's card are
+ * the same data, a row here opens the exact word rather than re-running a
+ * search, and a word looked up in the reader appears in both.
  */
 export function DictionaryView() {
   const t = useT();
@@ -251,7 +248,7 @@ export function DictionaryView() {
   );
 }
 
-/** The mono "‹ BACK TO RESULTS" link the handoff puts above an entry. */
+/** The mono "‹ BACK TO RESULTS" link above an entry. */
 function BackLink({ label, onPress }: { label: string; onPress: () => void }) {
   const p = usePalette();
   const styles = useStyles(p);

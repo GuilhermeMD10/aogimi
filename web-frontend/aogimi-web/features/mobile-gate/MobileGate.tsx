@@ -38,8 +38,8 @@ function isTabletOrPhone(): boolean {
 // This is what makes the gate hydration-safe. `getServerSnapshot` is what both
 // the server render and the hydration pass see, so the tree they build always
 // agrees; React then re-reads `getSnapshot` on the client and swaps in the real
-// answer. The old shape did the same thing with a three-state `boolean | null`
-// and a mount effect, which tripped `react-hooks/set-state-in-effect`.
+// answer. (A mount effect calling `setState` would do the same job but trips
+// `react-hooks/set-state-in-effect`.)
 //
 // `subscribe` is a no-op: a device does not stop being a phone mid-session.
 // Rotating or resizing doesn't change any of the four signals, and re-gating a

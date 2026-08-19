@@ -4,12 +4,11 @@ import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
 
 /**
- * Avatar, name, and the "looking up since" line — the handoff's identity block.
+ * Avatar, name, and the "looking up since" line — the identity block.
  *
- * The avatar is the picker's trigger, as it was before: the handoff puts an
- * "Edit" button in the header instead, and both now work (the header button
- * opens the same sheet), because tapping your own face to change it is the
- * thing people try first.
+ * The avatar itself triggers the picker, in addition to the header's "Edit"
+ * button (both open the same sheet), because tapping your own face to change
+ * it is the thing people try first.
  */
 export function ProfileIdentity({
   glyph,

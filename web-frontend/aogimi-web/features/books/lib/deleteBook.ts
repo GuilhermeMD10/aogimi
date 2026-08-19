@@ -1,8 +1,7 @@
 // Single entry point for "remove a book everywhere it lives". Centralises
-// the cleanup that used to be inlined in ReaderView so the same
-// orchestration can be reused (delete from list, delete from reader, batch
-// cleanup, future "wipe account" tooling, etc.) and so no caller forgets a
-// step.
+// the cleanup so the same orchestration can be reused (delete from list,
+// delete from reader, batch cleanup, future "wipe account" tooling, etc.)
+// and so no caller forgets a step.
 
 import { deleteBook as deleteLocalBook } from './bookStore';
 import { deleteBookRecord } from './booksApi';

@@ -2,13 +2,12 @@
 
 // The Contents popover. Same shell as Display, taller and tighter.
 //
-// The handoff's row carries a chapter number, a Japanese title over an English
-// one, and a page number. We have one label per entry and no per-chapter page
-// count — foliate's TOC doesn't produce either — so a row is the number (its
-// flattened position, which is derived rather than invented) and the label.
+// Foliate's TOC gives one label per entry and no per-chapter page count, so a
+// row is the number (its flattened position, which is derived rather than
+// invented) and the label.
 //
 // The current chapter is marked from the label foliate already reports on every
-// relocate, which is the same string the toolbar used to show.
+// relocate.
 
 import { HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';

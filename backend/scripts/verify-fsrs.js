@@ -76,18 +76,18 @@ near(fsrs.FACTOR, 0.9803464944134797, 'FACTOR');
 // R(S, S) must be exactly 0.9 — this is what FACTOR is defined to make true.
 near(fsrs.retrievability(2.3065, 2.3065), 0.9, 'R(S, S)');
 near(fsrs.retrievability(0, 5), 1.0, 'R(0, S)');
-// D0(1..3) are quoted in the handoff and match exactly.
+// D0(1..3) match the reference values exactly.
 near(fsrs.initialDifficultyRaw(1), 6.4133, 'D0(1)');
 near(fsrs.initialDifficultyRaw(2), 5.1122, 'D0(2)');
 near(fsrs.initialDifficultyRaw(3), 2.1181, 'D0(3)');
 // The mean-reversion target must be the UNCLAMPED D0(4).
 //
-// The handoff quotes this as -4.7723. That constant is a transcription slip:
-// `w4 - exp(w5·3) + 1` = `7.4133 - 12.184931` = -4.771631, and the same
-// expression reproduces D0(1..3) above to the last quoted digit. The error is
-// in the doc's constant, not in the formula it states. It makes no practical
-// difference either way — `w7` is 0.001, so the two targets move every
-// subsequent difficulty by ~7e-7 — but the harness should assert the truth.
+// Some write-ups quote this as -4.7723; that constant is a transcription
+// slip: `w4 - exp(w5·3) + 1` = `7.4133 - 12.184931` = -4.771631, and the
+// same expression reproduces D0(1..3) above to the last quoted digit. It
+// makes no practical difference either way — `w7` is 0.001, so the two
+// targets move every subsequent difficulty by ~7e-7 — but the harness
+// should assert the truth.
 near(fsrs.initialDifficultyRaw(4), -4.771631, 'D0(4) unclamped');
 near(fsrs.initialDifficulty(4), 1.0, 'D0(4) clamped');
 

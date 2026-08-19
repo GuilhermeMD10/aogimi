@@ -45,8 +45,8 @@ function useStyles(p: Palette) {
         },
         title: {
           fontFamily: fontFamily.ui,
-          // 30px per the handoff — above the `fontSize` scale's `xxl` (24) and
-          // below `display` (32), and this is the one line it applies to.
+          // 30px sits above the `fontSize` scale's `xxl` (24) and below
+          // `display` (32), and this is the one line it applies to.
           fontSize: 30,
           lineHeight: 34,
           fontWeight: '700',

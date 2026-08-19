@@ -61,13 +61,12 @@ export type PdfReaderProps = {
 };
 
 /**
- * PDF reader built on pdf.js's own `PDFViewer`, which owns everything the old
- * hand-rolled canvas pipeline did badly or not at all: page layout, zoom with
- * scroll anchoring (CSS-scales the current canvases, then re-renders crisply),
- * rendering only the pages near the viewport instead of all of them, and a
- * real text layer. That text layer is what the selection menu below reads:
- * right-click a selection and you get the same Dictionary / Add-card menu the
- * EPUB reader has, so a PDF is no longer a dead end for lookups. The rest of
+ * PDF reader built on pdf.js's own `PDFViewer`, which owns page layout, zoom
+ * with scroll anchoring (CSS-scales the current canvases, then re-renders
+ * crisply), rendering only the pages near the viewport instead of all of them,
+ * and a real text layer. That text layer is what the selection menu below
+ * reads: right-click a selection and you get the same Dictionary / Add-card
+ * menu the EPUB reader has, so a PDF isn't a dead end for lookups. The rest of
  * this file is the chrome: the shell, a page counter fed from the viewer's
  * `pagechanging` event, and zoom buttons driving `increaseScale()` /
  * `decreaseScale()`.
@@ -306,10 +305,10 @@ export function PdfReaderClient({
       }
     >
       <div className="min-h-0 flex-1" style={{ background: THEMES.light.bg }}>
-        {/* The old reader capped pages at ~1100px for readability; the cap
-            survives as this centred column. PDFViewer requires its scroll
-            container to be absolutely positioned, so the cap lives on the
-            relative wrapper the container insets against. */}
+        {/* Pages are capped at ~1100px for readability, as this centred
+            column. PDFViewer requires its scroll container to be absolutely
+            positioned, so the cap lives on the relative wrapper the container
+            insets against. */}
         <div className="relative mx-auto h-full max-w-[1100px]">
           <div ref={containerRef} className="absolute inset-0 overflow-auto">
             <div ref={viewerElRef} className="pdfViewer" />

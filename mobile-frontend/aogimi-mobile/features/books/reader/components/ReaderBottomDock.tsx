@@ -24,13 +24,10 @@ import { SettingsPane } from './dock/SettingsPane';
 // Step-back semantics: swipe-down on the handle, tap on the backdrop, or tap
 // outside the dock collapses one level (pane → toolbar → pill).
 //
-// **Strip-to-basics 2026-08-10.** The container used to interpolate its four
-// box values over 200ms, fade the backdrop, cross-fade the content pane and
-// spring the drag back. All of it is gone — mode changes are instant, the
-// backdrop is a flat scrim that is either there or not. Every gesture still
-// works (swipe-down, backdrop tap, outside tap); only the motion went. The
-// second `renderMode` state went with the cross-fade — `CONTENT_FADE_MS` was
-// already 0, so the pane swap was instant even before this.
+// No motion: mode changes are instant and the backdrop is a flat scrim that is
+// either there or not. Every gesture still works — swipe-down, backdrop tap,
+// outside tap. With no cross-fade there is no second `renderMode` state, since
+// the rendered contents never lag the mode.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type DockMode = 'pill' | 'toolbar' | 'toc' | 'annotations' | 'settings';

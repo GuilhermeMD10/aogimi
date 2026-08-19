@@ -18,12 +18,11 @@
 // live in `styles/glass.css` — nothing here hardcodes a glass value.
 //
 // The library is **white glass at the dock's values** — one material across the
-// app's two glass screens. It used to paint every surface here with
-// `GLASS_SCRIM` (the sheet's dark fill) instead; that is now reserved for the
-// two things that genuinely sit on cover art, where a white fill disappears
-// against a pale cover: the slide-up sheet, and a live cover's ⋯ circle
-// (`overArt` on `BookMenu`). Everything else — the hero panel, its CTA, the
-// re-import tile's + and the shelf-side buttons in LibraryShelf — is plain
+// app's two glass screens. `GLASS_SCRIM` (the sheet's dark fill) is reserved
+// for the two things that genuinely sit on cover art, where a white fill
+// disappears against a pale cover: the slide-up sheet, and a live cover's ⋯
+// circle (`overArt` on `BookMenu`). Everything else — the hero panel, its CTA,
+// the re-import tile's + and the shelf-side buttons in LibraryShelf — is plain
 // `GLASS_BUTTON` / `GLASS_SURFACE`.
 
 import { useEffect, useRef } from 'react';
@@ -45,11 +44,11 @@ import { cn } from '@/lib/util/cn';
 import type { Book } from '@/features/books/types';
 import { useBookRowEditing } from '../hooks/useBookRowEditing';
 
-// The handoff's status row is two slots — "PAGE 198 / 280" beside "71%". There
-// is no page number to print on either side of the library: an EPUB position is
-// a CFI plus a spine index, and while a PDF's page *is* tracked it isn't carried
-// on the merged `Book` tile. So the left slot states what the book is rather
-// than where you are in it, and the right slot keeps the percentage.
+// The status row is two slots. There is no page number to print on either side
+// of the library: an EPUB position is a CFI plus a spine index, and while a
+// PDF's page *is* tracked it isn't carried on the merged `Book` tile. So the
+// left slot states what the book is rather than where you are in it, and the
+// right slot keeps the percentage.
 function statusLabel(progress: number): string {
   if (progress >= 100) return 'Finished';
   if (progress <= 0) return 'Not started';
@@ -64,24 +63,23 @@ function statusValue(progress: number): string {
 const MONO = 'font-[family-name:var(--face-mono)] uppercase';
 
 /**
- * The hero cover. The handoff says 196px inside the 470px column; this is 176.
+ * The hero cover: 176px inside the 470px column.
  *
- * Two reasons, both from the page no longer scrolling. At 196 the cover is
- * 286px tall and the whole column measures ~777px — nine pixels past a 768px
+ * Two reasons, both from the page not scrolling. At 196 the cover is 286px
+ * tall and the whole column measures ~777px — nine pixels past a 768px
  * laptop, which clips the "Resume reading" button with nowhere to scroll to.
- * And 196 leaves the meta column exactly 200px, which is fine for the mock's
- * "I Am a Cat" and cramped for a real OPF title at 25px. 176 buys back 29px of
- * height and 20px of text column. Change this one constant to go back.
+ * And 196 leaves the meta column exactly 200px, which is cramped for a real
+ * OPF title at 25px. 176 buys back 29px of height and 20px of text column.
  */
 const HERO_COVER = 'w-[176px]';
 
 // ── Overflow menu ───────────────────────────────────────────────────────────
 
-// Rename / mark finished / remove. The handoff's card has no room for these —
-// its only interactions are click-to-open and hover-for-info — so they live
-// behind a ⋯ that floats in the top-right corner of the hero and of every
-// cover, as a glass circle. It sits *outside* the cover's clipping context so
-// the dropdown isn't cut off by `overflow-hidden`.
+// Rename / mark finished / remove. The card has no room for these — its only
+// interactions are click-to-open and hover-for-info — so they live behind a ⋯
+// that floats in the top-right corner of the hero and of every cover, as a
+// glass circle. It sits *outside* the cover's clipping context so the dropdown
+// isn't cut off by `overflow-hidden`.
 function BookMenu({
   title,
   finished,
@@ -419,8 +417,8 @@ export function BookCard({
         )}
 
         {/* Slides up on hover or focus. `pointer-events-none` so a click over it
-            still reaches the open button underneath — the handoff wants a plain
-            tap to open the book — while the rename field opts back in. */}
+            still reaches the open button underneath — a plain tap opens the
+            book — while the rename field opts back in. */}
         <div
           className={cn(
             GLASS_SHEET,

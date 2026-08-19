@@ -90,9 +90,9 @@ function useStyles(p: Palette) {
   return useMemo(
     () =>
       StyleSheet.create({
-        // 1.5px and `ink`, per the handoff — this is the one control on Home
-        // drawn as an outline rather than a fill, which is what makes it read
-        // as "type here" next to two filled buttons.
+        // 1.5px and `ink` — this is the one control on Home drawn as an
+        // outline rather than a fill, which is what makes it read as "type
+        // here" next to two filled buttons.
         field: {
           flexDirection: 'row',
           alignItems: 'center',

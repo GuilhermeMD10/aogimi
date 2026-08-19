@@ -15,11 +15,11 @@ export type JlptChipProps = {
 // standing hex exceptions (with `ResultButtons`): the level *is* the colour's
 // meaning, so it doesn't come from `palette`.
 //
-// **Darkened 2026-08-11.** These were the web's mid-tones (#8FB08A, #D9A557, …),
-// chosen to sit on a dark chip. This component uses each value twice — as the
-// label ink *and*, at 18/32% alpha, as the chip's fill and border — so on the
-// light baseline the mid-tones became pale text on a pale wash. Same five hues,
-// same warm→cool ordering, taken down to where they read as text on white.
+// Darker than the web's mid-tones (#8FB08A, #D9A557, …), which are chosen to
+// sit on a dark chip. This component uses each value twice — as the label ink
+// *and*, at 18/32% alpha, as the chip's fill and border — so on a light
+// baseline a mid-tone becomes pale text on a pale wash. Same five hues, same
+// warm→cool ordering, taken down to where they read as text on white.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const JLPT_PALETTE: Record<number, string> = {

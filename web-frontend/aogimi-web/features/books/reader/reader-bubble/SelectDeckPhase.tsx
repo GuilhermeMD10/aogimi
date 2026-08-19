@@ -39,11 +39,10 @@ export function SelectDeckPhase({
     [user.id],
   );
 
-  // Read straight from the request. There used to be a local mirror here so a
-  // deck created in this phase would appear in the list — but creating one
-  // selects it and advances, so that list is never shown again. Coming back
-  // remounts this and refetches, which is the server's answer rather than a
-  // guess at it, and it drops a mirror-state effect that had nothing to sync.
+  // Read straight from the request, with no local mirror: a deck created in
+  // this phase is selected immediately and the flow advances, so the list is
+  // never shown again within the phase. Coming back remounts this and
+  // refetches, which is the server's answer rather than a guess at it.
   const decks = data ?? [];
 
   // `null` = the new-deck form is closed. Collapses three booleans into the one

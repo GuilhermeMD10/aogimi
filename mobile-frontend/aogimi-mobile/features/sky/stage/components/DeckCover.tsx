@@ -16,11 +16,8 @@ type Props = {
 /**
  * A deck's cover: one flat colour from `deckColorFor` plus its glyph.
  *
- * **Strip-to-basics 2026-08-10.** This used to paint a corner-to-corner
- * `LinearGradient` from the deck colour to a 45%-darkened copy of it; the local
- * `darken`/`parseHex` helpers existed only to compute that second stop and went
- * with it. Flat fill now — one colour per deck, which is also what makes the
- * eight reset deck hues actually distinguishable from each other.
+ * Flat fill rather than a gradient — one colour per deck, which is what makes
+ * the eight deck hues distinguishable from each other.
  */
 export function DeckCover({
   deckKey,

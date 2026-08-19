@@ -1,6 +1,5 @@
-// Shared validation plumbing. Lives here (rather than in validation/auth.js,
-// where `parseBody` started) so every domain's schemas can reuse it without
-// a cross-domain require.
+// Shared validation plumbing, so every domain's schemas can reuse it
+// without a cross-domain require.
 
 const { z } = require("zod");
 
@@ -16,34 +15,6 @@ function parseBody(schema, req, res) {
     return null;
   }
   return result.data;
-}
-
-/** Same, for `req.query`. Query values arrive as strings, so query schemas
- *  are built from `z.coerce.*`. */
-function parseQuery(schema, req, res) {
-  const result = schema.safeParse(req.query);
-  if (!result.success) {
-    res
-      .status(400)
-      .json({ error: result.error.issues.map((i) => i.message).join(", ") });
-    return null;
-  }
-  return result.data;
-}
-
-/**
- * Coerce a `?limit=` query value into a sane integer.
- *
- * Replaces the `parseInt(req.query.limit, 10) || fallback` idiom, which
- * accepted any magnitude and passed it into `LIMIT $n` — unbounded, on
- * unauthenticated routes. Clamping rather than 400-ing keeps the endpoints
- * backward-compatible: an over-large limit now returns `max` rows instead
- * of the whole table.
- */
-function clampLimit(raw, { fallback, max }) {
-  const n = typeof raw === "string" || typeof raw === "number" ? parseInt(raw, 10) : NaN;
-  if (!Number.isFinite(n) || n < 1) return fallback;
-  return Math.min(n, max);
 }
 
 /**
@@ -80,8 +51,6 @@ function nullableText(label, max) {
 
 module.exports = {
   parseBody,
-  parseQuery,
-  clampLimit,
   requiredText,
   optionalText,
   nullableText,

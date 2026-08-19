@@ -55,12 +55,11 @@ export function CardGridItem({ card, onPress }: Props) {
 /**
  * The rank chip's colours.
  *
- * **Reset 2026-08-10.** This used to mix its own greens and ambers at 10–20%
- * alpha, which had two problems: the fills were invisible on device, and the
- * four ranks were being approximated with two hues (`learned` and `mastered`
- * both took `success`) so two of them looked identical anyway.
+ * **Not its own hues.** Mixing local greens and ambers at 10–20% alpha made
+ * the fills invisible on device, and approximating four ranks with two hues
+ * (`learned` and `mastered` both taking `success`) left two of them identical.
  *
- * Now it reads `RANK_COLORS` — the sky's own ladder, indexed by `MIX_ORDER`
+ * It reads `RANK_COLORS` instead — the sky's own ladder, indexed by `MIX_ORDER`
  * exactly as `MixBar`, `StageLedger` and `CardDetailSheet` already do, so the
  * grid can never disagree with the star map or the bars. Four ranks, four
  * plainly different colours, on the one opaque sunken fill.

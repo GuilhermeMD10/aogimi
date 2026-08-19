@@ -1,7 +1,7 @@
 /**
  * Visible edges, for the places that genuinely need one.
  *
- * `--bd` and `--card-border` are transparent by design on the redesign — shadow
+ * `--bd` and `--card-border` are transparent by design — shadow
  * and layout do the separating, not a filled surface with an edge. But a few
  * things are *affordances* rather than decoration and read as nothing without a
  * line: a dropzone, a ghost tile waiting for a file, the top edge of a card's

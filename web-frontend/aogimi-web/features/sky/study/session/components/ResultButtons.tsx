@@ -31,10 +31,10 @@ type Props = {
  * and the logged grade would disagree, poisoning the review log for any future
  * parameter fit. So: four buttons, four grades, no lie.
  *
- * No interval label under the label. The handoff's static table promises days
- * from the first review, and the real next-due depends on the card — printing a
- * number as a promise means printing the true one, per card, which is a
- * different feature. The slot carries the keyboard shortcut instead.
+ * No interval label under the grade. A static table of "this many days" is a
+ * promise the scheduler does not make — the real next-due depends on the card's
+ * own stability, so printing a number honestly means computing it per card,
+ * which is a different feature. The slot carries the keyboard shortcut instead.
  */
 const OUTCOMES: { outcome: StudyOutcome; label: string; hint: string; tint: string }[] = [
   { outcome: 'again', label: 'Again', hint: '1', tint: GLASS_GRADE_AGAIN },
@@ -44,14 +44,13 @@ const OUTCOMES: { outcome: StudyOutcome; label: string; hint: string; tint: stri
 ];
 
 // Four equal-weight buttons: same glass, same neutral ink, same everything but
-// hue. Easy used to be the filled primary, which recommended itself before the
-// user had graded anything — the point is an honest self-assessment, so nothing
-// here says which one to pick. That matters more now than it did with three:
-// Good is the grade the model expects most often, and a UI that nudged toward
-// Easy would skew the very distribution FSRS is fitted against.
+// hue. None of them is a filled primary: a highlighted button recommends itself
+// before the user has graded anything, and the point is an honest
+// self-assessment. Good is the grade the model expects most often, so a UI that
+// nudged toward Easy would skew the very distribution FSRS is fitted against.
 //
 // Ink is stated on the button rather than on the label so `currentColor` (which
-// is what the hover edge resolves to) is the ink, per the handoff.
+// is what the hover edge resolves to) is the ink.
 export function ResultButtons({ onResult, disabled }: Props) {
   return (
     <div className="mt-5 flex w-full max-w-[860px] gap-3">

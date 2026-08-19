@@ -7,11 +7,10 @@ import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tok
  * Three example queries under the search field, so an empty dictionary is
  * something you can tap rather than a blank you have to fill.
  *
- * The words are the handoff's own and are hardcoded on purpose: they are
- * *seeds*, not data. Deriving them (frequency, JLPT tier, the user's books)
- * would be a feature with a ranking rule behind it; three fixed words that all
- * resolve in the bundled dictionary are the honest version of what the design
- * draws. 仰ぐ is the app's namesake.
+ * The words are hardcoded on purpose: they are *seeds*, not data. Deriving
+ * them (frequency, JLPT tier, the user's books) would be a feature with a
+ * ranking rule behind it; three fixed words that all resolve in the bundled
+ * dictionary do the job. 仰ぐ is the app's namesake.
  */
 const SUGGESTIONS = ['仰ぐ', 'しょ', '薄暗い'] as const;
 

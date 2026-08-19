@@ -32,7 +32,7 @@ enumeration.
 
 | Method | Path | Body | Response | Rate limit |
 |---|---|---|---|---|
-| POST | `/api/auth/register` | `{ username, email, password }` | **403 — closed**, see below | 3/hr/IP |
+| POST | `/api/auth/register` | `{ username, email, password }` | **403 — closed**, see below | 5/30min/IP |
 | POST | `/api/auth/login` | `{ username, password }` | `{ user, accessToken, refreshToken }` | 5/15min/(IP+username) |
 | POST | `/api/auth/refresh` | `{ refreshToken }` | `{ user, accessToken, refreshToken }` | global only |
 | POST | `/api/auth/logout` | `{ refreshToken }` | `{ ok: true }` (idempotent) | global only |
@@ -52,15 +52,14 @@ Errors:
   picks the message, so the client can point at the offending field.
 - 429: rate limited
 
-**`email` is required on register** as of the auth redesign, but `users.email`
-is still nullable: accounts created before the change have no address and
-nothing to backfill from. The requirement lives in `registerSchema`, not in the
-column. Login remains username-keyed — the address is stored for later, not
-used to authenticate.
+**`email` is required on register**, but `users.email` is nullable in the DB:
+pre-existing accounts have no address and nothing to backfill from. The
+requirement lives in `registerSchema`, not in the column. Login is
+username-keyed — the address is stored for later, not used to authenticate.
 
 **Register is closed**: the handler's first statement is
 `return res.status(403).json({ error: "Registration is currently disabled." })`,
-so no request gets past it — validation, `registerLimiter` (3/hr/IP) and the
+so no request gets past it — validation, `registerLimiter` (5/30min/IP) and the
 409 paths above are all still wired and simply unreachable. To open sign-ups
 again, delete that one `return` rather than rewriting the handler.
 
@@ -80,12 +79,9 @@ again, delete that one `return` rather than rewriting the handler.
 |---|---|---|---|---|
 | GET | `/api/words/:id/details` | `id` | Word + kanji breakdown + readings (with pitchAccents) + ≤ 5 example sentences | words, kanji, example_sentences |
 
-> Ten other direct-lookup endpoints lived here (`/:id`, `/:id/langs`, `/meaning`,
-> `/meaning/pos`, `/pos`, `/priority`, `/kana-only`, `/kanji/:kanji`, `/kana/:kana`,
-> `/kana-prefix/:prefix`), plus the `/api/kanji` and `/api/names` routers and the
-> `/api/translate` DeepL proxy. All predated `/api/search`, none had a caller, and
-> all were removed. Kanji and name data still reach clients — through the ranked
-> search pipeline, which returns them inline for single-kanji and kana queries.
+> Kanji and name data reach clients through the ranked search pipeline, which
+> returns them inline for single-kanji and kana queries — there are no separate
+> kanji/name lookup endpoints.
 
 ## Protected — User profile
 
@@ -167,8 +163,8 @@ All four deck responses share this shape: `POST` and `PUT` re-read through
 `findById` after mutating, so a client never has to know which endpoint produced
 a deck.
 
-`description` is still a column and the mobile app still reads and writes it.
-The web dropped the feature with the decks redesign and ignores the field.
+`description` is a column the mobile app reads and writes; the web client
+ignores the field.
 
 `GET /api/decks/user/:userId/cards` is the bulk read behind the /sky page: every
 deck the user owns (same rows and order as `GET /api/decks/user/:userId`), each
@@ -258,8 +254,8 @@ because they hand-pick their columns and neither renders a JLPT chip: the
 
 **Due cards.** A card is *due* when it has never been reviewed
 (`next_due_at IS NULL`) or its scheduled `next_due_at` has passed. Each
-review recomputes `next_due_at = last_reviewed_at + stability ·
-ln(1/0.9)` (≈ `stability/10` days).
+review recomputes `next_due_at` from the new stability; at the fixed desired
+retention of 0.9 the interval equals the stability, rounded to whole days.
 
 Three surfaces expose that predicate, all sharing one SQL fragment
 (`DUE` in [`src/repositories/cardRepository.js`](./src/repositories/cardRepository.js))
@@ -276,13 +272,6 @@ Reach for the right one:
   that ships every card row to produce one integer.
 - **The cards** → `dueOnly`. It reuses the mode ordering and the cap instead of
   making the client re-implement them.
-
-There used to be three raw-inventory endpoints beside these —
-`GET /api/decks/:id/cards/due`, `GET /api/study/due` and `GET /api/study/due/random`
-— returning unlimited card rows. No client called any of them: both frontends
-build a due session from `POST /api/study/session` with `dueOnly: true` and an
-explicit `limit` taken from the count endpoint. They were removed rather than
-maintained as a second way to ask the same question.
 
 ---
 
@@ -310,11 +299,10 @@ maintained as a second way to ask the same question.
 
 **Mode semantics**:
 - `hardest` — `(1−R)` fading + normalised difficulty + rank bias + random jitter, sorted desc.
-  Since 027 the fading term leads: under FSRS, retrievability already folds in
-  stability, elapsed time and every past grade, so it is a better answer to
-  "what needs reviewing" than the old head term (raw difficulty plus a boost
-  read off the last outcome). Never-reviewed cards count as half-faded so they
-  land mid-pack rather than last.
+  The fading term leads: under FSRS, retrievability already folds in stability,
+  elapsed time and every past grade, so it is the best answer to "what needs
+  reviewing". Never-reviewed cards count as half-faded so they land mid-pack
+  rather than last.
 - `random` — uniform shuffle, no weighting.
 - `oldest_first` — by `last_reviewed_at` ASC; never-reviewed cards float first.
 - `oldest_only` — filter to cards last reviewed > 7 days ago (or never), then shuffle.
@@ -409,24 +397,23 @@ session `deckIds` 50 · card `meanings` 3.
 
 `cards.state` and `cards.peak_rank` are constrained to
 `new | met | learned | mastered` by both the schema and DB CHECKs (migration
-024, restated and renamed in 027). `state` used to accept any string. Writing
-`state` through `PUT /api/decks/cards/:cardId` is still allowed but no longer
-meaningful: it is derived from `stability` and the next grade overwrites it.
+024, restated and renamed in 027). Writing `state` through
+`PUT /api/decks/cards/:cardId` is allowed but not meaningful: it is derived
+from `stability` and the next grade overwrites it.
 
 `cards.jlpt_level` is constrained to `1..5` (or `null`) and `cards.meanings` to
 at most 3 entries by both zod and a DB CHECK (migration 026). The **per-entry**
 200-char cap on `meanings` is zod-only — expressing it in a CHECK needs an
 `unnest`, so it lives in one place instead of two half-places.
 
-Two quota exemptions, both because the underlying write is an upsert rather
-than an insert:
-- `POST /api/books` with a `filename` the user already has returns the
-  existing row, so it is not refused at the book quota (re-syncing a library
-  from a second device still works at the cap).
+One quota exemption, because the underlying write is an upsert rather than an
+insert: `POST /api/books` with a `filename` the user already has returns the
+existing row, so it is not refused at the book quota (re-syncing a library
+from a second device still works at the cap).
 
-**`?limit=` is clamped, not rejected.** Public dictionary endpoints cap at 100
-results; `POST /api/study/session` caps at 200 cards. An over-large value
-returns the maximum rather than a 400, so existing callers keep working.
+Result-size ceilings: public dictionary lookups are internally capped at 100
+rows; `POST /api/study/session` accepts `limit` up to 200 (a larger value is a
+400).
 
 ## Error response shape
 

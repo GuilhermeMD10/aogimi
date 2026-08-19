@@ -1,5 +1,5 @@
 /**
- * General components — the redesign's primitive layer.
+ * General components — the app's primitive layer.
  *
  * One home for the pieces every screen shares, so they stay coherent with each
  * other. All of them read the tokens in `styles/ds-tokens.css` and none knows
@@ -8,17 +8,14 @@
  *
  * The rule for what earns a place here: it appears at least twice. A one-off
  * stays in the feature that uses it and moves here when something else wants
- * it. `shared/ui/` is the outgoing equivalent and is deleted once the last
- * screen has migrated.
+ * it. `shared/ui/` holds the remaining shadcn/radix primitives — don't add
+ * to it; new primitives go here.
  */
 
 export { Button } from './Button';
-export { Card } from './Card';
-export { Chip } from './Chip';
 export { CoverTile } from './CoverTile';
 export { Eyebrow } from './Eyebrow';
 export { JlptChip } from './JlptChip';
-export { MonoAction } from './MonoAction';
 export { PaperCard, PAPER_GHOST } from './PaperCard';
 export { GlassCard, GLASS_GHOST } from './GlassCard';
 export { ProgressTrack } from './ProgressTrack';

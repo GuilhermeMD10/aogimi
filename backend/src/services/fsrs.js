@@ -92,9 +92,8 @@ const clampS = (s) => Math.max(STABILITY_MIN, s);
  *
  *   R(t, S) = (1 + FACTOR·t/S) ^ DECAY
  *
- * A decaying *power* function, not the exponential the old implementation
- * used — power-law forgetting is the whole empirical basis of FSRS. R = 1 at
- * t = 0 and exactly 0.9 at t = S.
+ * A decaying *power* function, not an exponential — power-law forgetting is
+ * the whole empirical basis of FSRS. R = 1 at t = 0 and exactly 0.9 at t = S.
  *
  * `t` is fractional here. Scheduling floors it (see `elapsedDaysFor`); the
  * fractional form is for display — a brightness that steps once a day reads

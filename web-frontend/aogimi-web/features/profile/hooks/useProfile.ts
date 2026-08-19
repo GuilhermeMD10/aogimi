@@ -9,7 +9,7 @@ import type { UserProfile } from '../types';
 /**
  * The signed-in user's profile row. The auth context's username doubles as an
  * instant fallback so the identity card renders from the session immediately
- * and refines when the fetch lands — the handoff's "no full-page spinner".
+ * and refines when the fetch lands — no full-page spinner.
  */
 export function useProfile() {
   const user = useAuthedUser();

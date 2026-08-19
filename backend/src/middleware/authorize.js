@@ -6,7 +6,7 @@
 // Without this, a valid token holder could read or mutate any other
 // user's data by changing the `:userId` in the URL — the JWT identity
 // check would still pass. This is the difference between auth-N and
-// auth-Z, and it's the single biggest hole in the pre-JWT codebase.
+// auth-Z.
 
 function requireUserMatch({ from = "params", key = "userId" } = {}) {
   return (req, res, next) => {

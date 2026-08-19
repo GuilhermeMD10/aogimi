@@ -1,11 +1,10 @@
 // Zod schemas for /api/books/* (book metadata, progress, identity,
 // bookmarks, and the match endpoint).
 //
-// The identity payloads are wide (23 fields) and every one of them was
-// previously destructured out of `req.body` and handed to the repository
-// unchecked. Most are hashes and ids produced by the client's fingerprinting
-// pipeline, so they have a natural shape — capping them costs nothing and
-// stops the columns being used as free storage.
+// The identity payloads are wide (23 fields). Most are hashes and ids
+// produced by the client's fingerprinting pipeline, so they have a natural
+// shape — capping them costs nothing and stops the columns being used as
+// free storage.
 
 const { z } = require("zod");
 const { TEXT, ARRAYS, NUMBERS } = require("../config/limits");

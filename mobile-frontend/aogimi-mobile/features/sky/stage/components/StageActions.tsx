@@ -9,7 +9,7 @@ import { NIGHT } from '../lib/nightChrome';
  * The outer tier's one action cluster: study what's due, and add a deck.
  *
  * **The study button reports the due count rather than just offering to study**,
- * the rule `StudyAllHardestButton` already established: since FSRS-6 a review
+ * the established rule: since FSRS-6 a review
  * only counts if the card is due, so a session opened with nothing due hands
  * over cards that cannot earn anything — the work looks identical and vanishes.
  * With `dueCount === 0` the button says so and refuses.
@@ -18,14 +18,11 @@ import { NIGHT } from '../lib/nightChrome';
  * overlay backed by `useStudySession`'s `local` source — grades move the session
  * bar and touch nothing else. Mobile's `useStudySession` has no such source
  * (`StudySessionConfig` is scope/mode/limit/dueOnly), so the affordance would
- * have to be built, not wired. Deferred deliberately rather than faked; noted in
- * TODO.md.
+ * have to be built, not wired. Deferred deliberately rather than faked.
  *
- * **Sync-now is carried over from `DecksListScreen`**, the screen this replaces.
- * It is the only manual push in the app, so dropping it with that screen would
- * have quietly removed a feature rather than redesigned one. There is no
- * `canSync` prop guarding it: the old screen needed one because it rendered for
- * signed-out users too, and this cluster does not — `SkyStageView` returns the
+ * **Sync-now is the app's only manual push**, so it stays. There is no
+ * `canSync` prop guarding it: this cluster never renders for signed-out
+ * users — `SkyStageView` returns the
  * sign-in prompt before any of this mounts, so an account is already given.
  */
 

@@ -107,8 +107,8 @@ export function EntryDetail({
   detailsError: string | null;
   onKanjiSelect: (literal: string) => void;
   /** Takes the whole draft. The pane builds it and hands it over structured —
-   *  splatting it into positionals here is what used to throw away the reading,
-   *  the gloss list and the JLPT tier before they could reach a card. */
+   *  splatting it into positionals here would throw away the reading, the
+   *  gloss list and the JLPT tier before they could reach a card. */
   onAddCard: (draft: CardDraft) => void;
   /** `full` is the `/dictionary` pane; `compact` a 320–480px column. */
   scale?: EntryScale;
@@ -295,8 +295,8 @@ export function EntryDetail({
                     </div>
 
                     {/* Grade is one label in the DB ("6 (6th grade of primary
-                        school)"), not the handoff's separate grade + school
-                        year, so the chip carries the single string. */}
+                        school)"), not a separate grade + school year, so the
+                        chip carries the single string. */}
                     {s.gradeLabel && (
                       <span
                         className={cn(
@@ -324,7 +324,7 @@ export function EntryDetail({
   );
 }
 
-/** Keeps the section, softens the content — the rule the whole redesign uses
+/** Keeps the section, softens the content — the rule the whole app uses
  *  for a failed request. Silence here reads as "this word has none", which is
  *  a different and wrong statement. */
 function FailedSection({ what }: { what: string }) {

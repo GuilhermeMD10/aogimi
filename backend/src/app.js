@@ -88,9 +88,8 @@ app.use(
 );
 
 // Global API limiter — catches naive abuse. Per-endpoint limiters for
-// auth (login / register / forgot-password) are wired inside the
-// individual routers so they can use tighter windows and key by
-// IP + email/username combos.
+// auth (login / register) are wired inside the auth router so they can
+// use tighter windows and key by IP + username combos.
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 100,
@@ -106,12 +105,8 @@ app.use("/api", globalLimiter);
 // here ARE how you authenticate). Per-endpoint rate limiters live
 // inside the auth router so /login can be tighter than /search.
 //
-// The dictionary surface is two endpoints now: `/api/search` (the ranked
-// pipeline) and `/api/words/:id/details`. The former `/api/kanji` and
-// `/api/names` routers, and nine of the eleven `/api/words` lookups, were
-// direct-query endpoints that predated the search pipeline and had no callers;
-// they were removed rather than maintained in parallel. `/api/translate` (a
-// DeepL proxy) went with the translation feature the clients dropped.
+// The dictionary surface is two endpoints: `/api/search` (the ranked
+// pipeline) and `/api/words/:id/details`.
 app.use("/api/auth",   authRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/words",  wordsRouter);

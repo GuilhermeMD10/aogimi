@@ -30,17 +30,13 @@ const SWIPE_CLOSE_DISTANCE_RATIO = 0.3;  // fraction of sheet height
 /**
  * The app's bottom sheet.
  *
- * **Strip-to-basics 2026-08-10.** This used to slide up on an
- * `Animated.timing`, fade its backdrop in and out, track the drag with
- * `translateY` and spring back on a short release; it also carried a large drop
- * shadow. All of that is gone — the sheet simply appears and disappears, and the
+ * No entrance/exit motion: the sheet simply appears and disappears, and the
  * backdrop is a flat scrim.
  *
- * **Swipe-to-dismiss still works** and is unchanged in behaviour: a downward
- * drag on the handle past either threshold closes the sheet. What it no longer
- * does is follow your finger on the way, so there is no visual feedback until it
- * closes. Worth restoring as a single `Animated.Value` on `translateY` when the
- * redesign decides what motion this surface should have.
+ * **Swipe-to-dismiss works**: a downward drag on the handle past either
+ * threshold closes the sheet. It does not follow the finger on the way — a
+ * follow-drag would be a single `Animated.Value` on `translateY` if motion is
+ * added later.
  */
 export function BottomSheet({
   visible,

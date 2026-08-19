@@ -15,9 +15,7 @@ type Props = {
  * is how the reader clears the dock area as the user expands the bottom toolbar
  * or panes).
  *
- * **Strip-to-basics 2026-08-10:** this used to fade + slide on an
- * `Animated.Value` and carried a drop shadow. Both are gone — it appears and
- * disappears instantly. The behaviour is unchanged; only the transition went.
+ * No transition and no shadow: it appears and disappears instantly.
  */
 export function FloatingBackButton({ onPress, visible = true }: Props) {
   const c = useColors();

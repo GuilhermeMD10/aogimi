@@ -1,11 +1,9 @@
 // Zod schemas for /api/study/*.
 //
-// The session route already validated `scope`, `mode` and `dueOnly`; what it
-// didn't bound was `limit` (any magnitude) or `deckIds` (any length).
-//
-// `PUT /api/study/prefs` had no validation at all — both JSONB documents were
-// stringified and stored verbatim, so the column was writable as arbitrary
-// user storage up to the 10 KB body cap.
+// The session schema bounds `limit` (a ceiling) and `deckIds` (a length cap
+// plus per-entry uuid check). The prefs schema bounds both JSONB documents —
+// without it the column is writable as arbitrary user storage up to the
+// 10 KB body cap.
 
 const { z } = require("zod");
 const { ARRAYS, LIMITS, QUOTAS } = require("../config/limits");
@@ -31,9 +29,8 @@ const sessionSchema = z
         `deckIds must have at most ${ARRAYS.SESSION_DECK_IDS} entries`,
       )
       .optional(),
-    // Clamped rather than rejected so an over-large request still returns a
-    // usable session. The ceiling matters because fetchSessionCards loads
-    // every card in scope into memory before ordering.
+    // The ceiling matters because fetchSessionCards loads every card in
+    // scope into memory before ordering.
     limit: z
       .number()
       .int("limit must be an integer")

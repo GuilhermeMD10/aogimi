@@ -7,8 +7,8 @@ import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tok
 /**
  * The sky panel on Home — a shortcut to `/sky`, and **deliberately empty**.
  *
- * The handoff draws a starfield in here. This ships the *container* only: the
- * box, the night ground, the caption and the chevron. Star rendering is not
+ * This ships the *container* only: the box, the night ground, the caption and
+ * the chevron. Star rendering is not
  * faked with decorative SVG circles, because the real renderer already exists
  * (`features/sky/map/components/SkyMap.tsx`) and mounting it is a separate
  * piece of work — it needs a camera frame, a card set and an LOD decision at
@@ -42,7 +42,7 @@ export function SkyShortcut({
         <Text style={styles.caption}>{caption}</Text>
         {/* Hardcoded, not a token: this sits on the night ground, which does
             not flip with the theme, so every `palette` ink would be wrong in
-            one of the two columns. It is the handoff's own chevron colour. */}
+            one of the two columns. */}
         <Feather name="chevron-right" size={16} color="#cfd8ea" />
       </View>
     </Pressable>
@@ -60,8 +60,7 @@ function useStyles(p: Palette) {
           borderWidth: 1,
           borderColor: p.bdA,
           // The middle stop of the three-stop sky. A flat fill rather than a
-          // gradient — decorative gradients went in the strip-to-basics pass,
-          // and the real star field will supply its own ground anyway.
+          // gradient — the real star field will supply its own ground anyway.
           backgroundColor: p.sky2,
           justifyContent: 'flex-end',
         },
@@ -76,8 +75,7 @@ function useStyles(p: Palette) {
           fontFamily: fontFamily.mono,
           fontSize: fontSize.xs - 1,
           letterSpacing: 1.2,
-          // The handoff's warm caption ink, which reads on the night ground in
-          // both columns.
+          // A warm caption ink that reads on the night ground in both columns.
           color: '#d9c79a',
         },
       }),

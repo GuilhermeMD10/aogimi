@@ -30,7 +30,7 @@ shopt -s nullglob
 files=(migrations/*.sql migrations/*.psql)
 shopt -u nullglob
 
-# Sort by basename so 000_ runs first, then 001_, 002_, …, 022_.
+# Sort by basename so 000_ runs first, then 001_, 002_, … in order.
 IFS=$'\n' files=($(printf '%s\n' "${files[@]}" | sort))
 unset IFS
 
