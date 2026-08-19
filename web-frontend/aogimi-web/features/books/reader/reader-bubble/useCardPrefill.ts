@@ -47,15 +47,13 @@ import type { CardDraft } from '@/features/sky/stage';
  * when there is no entry, `shared` starts as `null`, `own` starts as `null`, and
  * the guard is an explicit `!== null`. Keep all four.
  *
- * **The whole draft, but its front is discarded.** This used to return only the
- * card back, and the reason it did is now a trap rather than a guarantee: the
- * consumer must keep using the reader's own `phase.word` as the card front, not
- * this draft's `front`. Merging the draft in wholesale changes every
- * reader-started card's front from the highlighted `食べました` to the dictionary
- * headword `食べる` — a worse flashcard and a much worse surprise, and the front
- * isn't editable in the form. The draft's `front` exists only because
- * `wordCardDraft` builds a complete draft; nothing here or downstream should
- * read it.
+ * **The whole draft, but its front is discarded.** The consumer must keep
+ * using the reader's own `phase.word` as the card front, not this draft's
+ * `front`. Merging the draft in wholesale changes every reader-started card's
+ * front from the highlighted `食べました` to the dictionary headword `食べる` — a
+ * worse flashcard and a much worse surprise, and the front isn't editable in
+ * the form. The draft's `front` exists only because `wordCardDraft` builds a
+ * complete draft; nothing here or downstream should read it.
  */
 export function useCardPrefill(word: string, active: boolean): CardDraft | null {
   const { query, result } = useDictionaryState();
@@ -90,10 +88,10 @@ export function useCardPrefill(word: string, active: boolean): CardDraft | null 
 /**
  * The draft for the entry that actually carries the selected string.
  *
- * `surfaceEntry` does the choosing, and the reason it has to is worth keeping in
- * view here: this used to take `contents.words[0]`, which meant highlighting 背
- * produced a card fronted 背 whose fields came from 背広 — the top *ranked* hit,
- * not the entry the front names.
+ * `surfaceEntry` does the choosing, and the choice matters: taking
+ * `contents.words[0]` instead would mean highlighting 背 produces a card
+ * fronted 背 whose fields come from 背広 — the top *ranked* hit, not the entry
+ * the front names.
  */
 function draftFor(contents: RailContents, word: string): CardDraft | null {
   const entry = surfaceEntry(contents, word);

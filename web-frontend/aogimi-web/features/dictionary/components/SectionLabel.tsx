@@ -15,13 +15,12 @@ import { Eyebrow } from '@/shared/components';
  * and the Japanese is the half that sets the register, so this is a change of
  * mind waiting to be reversed rather than a field to delete. It is left out of
  * the destructuring so it does not read as unused — putting it back is that one
- * word plus the span below.
+ * word plus a span beside the Eyebrow.
  */
 export function SectionLabel({ en }: { en: string; jp: string }) {
   return (
     <div className="mb-3.5 flex items-baseline gap-[9px]">
       <Eyebrow>{en}</Eyebrow>
-      {/* <span className="font-[family-name:var(--face-jp)] text-[20px] text-(--faint)">{jp}</span> */}
     </div>
   );
 }

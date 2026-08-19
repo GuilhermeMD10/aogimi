@@ -8,20 +8,19 @@ import { useProfile } from '../hooks/useProfile';
 /**
  * Who you are: letter avatar, display name, and the two account actions.
  *
- * The handoff's identity extras are all dropped by its own degradation rules —
- * the status chips (JLPT level, pace, currently-reading), the Japanese name
- * reading, and the milestone badge have no backing data, so the card collapses
- * to the parts that are real. "Edit profile" is display-name editing only; the
- * avatar stays the first letter of the name for now.
+ * Identity extras — status chips (JLPT level, pace, currently-reading), a
+ * Japanese name reading, a milestone badge — have no backing data, so the card
+ * collapses to the parts that are real. "Edit profile" is display-name editing
+ * only; the avatar stays the first letter of the name for now.
  *
  * Glass throughout, like every card on this page: `GlassCard` for the shell,
  * `GLASS_GHOST` for all four actions, and the rename field is a `GLASS_SURFACE`
  * (the dictionary's search field made the same call — a pane, not a control, so
- * no hover). The filled `--btn` `Button` that used to carry Save and Settings is
- * gone from this page: the library has one glass button treatment for its import,
- * resume and re-add alike, and a page with one material wants one button. The
- * ink is what still separates an action from a secondary one — `--ink` for Save,
- * Edit profile and Settings, `--soft` for Cancel.
+ * no hover). No filled `--btn` `Button` here: the library has one glass button
+ * treatment for its import, resume and re-add alike, and a page with one
+ * material wants one button. The ink is what separates an action from a
+ * secondary one — `--ink` for Save, Edit profile and Settings, `--soft` for
+ * Cancel.
  */
 export function IdentityCard() {
   const { displayName, saveDisplayName } = useProfile();
@@ -116,8 +115,8 @@ export function IdentityCard() {
           <button type="button" onClick={startEditing} className={cn(GLASS_GHOST, 'text-(--ink)')}>
             Edit profile
           </button>
-          {/* The Settings link that used to sit here is gone with the /settings
-              route — the settings list is a column of this same page now. */}
+          {/* No Settings link here — the settings list is a column of this
+              same page. */}
         </div>
       )}
     </GlassCard>

@@ -67,8 +67,7 @@ import { SkyWash } from './SkyWash';
  * is the `framed={false}` mode the layout already supports (`framedAt`) rather than a stub. The card
  * frames — cover tile, counts, due pill — are next, and belong in an RN overlay above the canvas
  * rather than in it: they are chrome with real text, and the app's fonts, i18n and press feedback are
- * all better served by views than by Skia text. `SkyFrames.tsx` is the SVG original, kept on disk as
- * the reference for that pass and imported by nothing.
+ * all better served by views than by Skia text.
  */
 
 /** The world rectangle → screen transform, as SVG's transform list read left to right. */

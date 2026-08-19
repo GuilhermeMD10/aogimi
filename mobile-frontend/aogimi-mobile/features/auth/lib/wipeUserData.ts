@@ -10,12 +10,7 @@
 // What we KEEP on purpose:
 //   - lgc_device_id / lgc_device_name (device identity, not user)
 //   - aogimi_local_schema_version     (a property of the build, not the user)
-//
-// Note this list used to name `aogimi_theme_name` and `aogimi_credentials`.
-// Neither exists any more: the theme key went with the collapse to a single
-// theme, and nothing has persisted credentials for some time — the refresh
-// token lives in SecureStore (`lib/tokenStore.ts`) and the password is
-// never written to disk at all.
+//   - aogimi_theme_name               (a device preference, not user data)
 //
 // What we WIPE:
 //   - AsyncStorage:

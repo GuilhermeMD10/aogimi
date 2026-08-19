@@ -1,10 +1,8 @@
 // Zod schemas for /api/decks/* (decks + nested cards).
 //
-// Before these existed the routes checked `if (!name)` and `if (!front ||
-// !back)` and passed everything else straight to the repository. That left
-// three holes: unbounded text length (a 10 KB deck name, capped only by the
-// JSON body limit), `state` accepting any string, and no way to tell a
-// client which field it got wrong.
+// These close three holes a bare presence check would leave: unbounded text
+// length (a 10 KB deck name, capped only by the JSON body limit), `state`
+// accepting any string, and no way to tell a client which field it got wrong.
 
 const { z } = require("zod");
 const { TEXT, ARRAYS, NUMBERS, CARD_STATES } = require("../config/limits");
@@ -79,9 +77,9 @@ const createCardSchema = z.object({
 
 // `state` is accepted here because the client legitimately writes it when a
 // card is edited, but it's constrained to the SRS ladder. Note that a client
-// CAN still hand-set state via this route — that's a deliberate product
-// decision (manual re-grading), not an oversight. What it can no longer do is
-// write a value the rest of the system doesn't understand.
+// CAN hand-set state via this route — that's a deliberate product decision
+// (manual re-grading), not an oversight. What it cannot do is write a value
+// the rest of the system doesn't understand.
 const updateCardSchema = z
   .object({
     front: requiredText("Card front", TEXT.CARD_FRONT).optional(),
@@ -100,8 +98,8 @@ const updateCardSchema = z
     jlptLevel: jlptLevelField,
     meanings: meaningsField,
   })
-  // Still correct with the two new keys: zod omits absent optional keys from
-  // the parsed object entirely, so `Object.values` only sees what was sent.
+  // Zod omits absent optional keys from the parsed object entirely, so
+  // `Object.values` only sees what was sent.
   // The one value that is present-but-undefined-looking is `jlptLevel: null`,
   // and `null !== undefined`, so a body of just that satisfies the refine
   // (it parses, then no-ops in SQL — a wasted write, not a broken one).

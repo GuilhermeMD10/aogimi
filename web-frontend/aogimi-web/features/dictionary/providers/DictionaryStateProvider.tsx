@@ -69,11 +69,11 @@ export function DictionaryStateProvider({ children }: { children: React.ReactNod
     setResult(null);
     setSelectedWordId(null);
     // A search that carries a sentence anchors it to the word it was mined for.
-    // One that doesn't drops the old anchor rather than letting it ride: typing a
-    // new word in the sidebar used to keep the *previous* tap's sentence alive,
-    // so a card for 犬 could quote the sentence 道 was tapped in. Re-running the
-    // same query (a retry after a failed search) keeps it, since that is still
-    // the same lookup.
+    // One that doesn't drops the old anchor rather than letting it ride —
+    // otherwise typing a new word in the sidebar would keep the *previous* tap's
+    // sentence alive, and a card for 犬 could quote the sentence 道 was tapped
+    // in. Re-running the same query (a retry after a failed search) keeps it,
+    // since that is still the same lookup.
     setReaderContext((prev) =>
       contextSentence !== undefined
         ? { word: q, sentence: contextSentence }

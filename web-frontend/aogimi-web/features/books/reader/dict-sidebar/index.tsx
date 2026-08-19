@@ -143,8 +143,8 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
       />
 
       {/* `pb-6` is breathing room at the end of the scroll, nothing more: the
-          `Dock` is hidden while a book is open, so this column no longer has to
-          reserve the 140px that used to clear it.
+          `Dock` is hidden while a book is open, so this column doesn't have to
+          reserve the 140px pages normally keep clear of it.
           No horizontal padding here: the entry panes carry their own, and their
           hero's lower edge has to span the full width of the column. The two
           branches that don't (the list and the prompt) wrap themselves. */}

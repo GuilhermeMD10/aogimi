@@ -23,11 +23,10 @@ export function HomeTopBar({
   /** Distinct days studied, all time. Zero hides the pill entirely. */
   daysStudied: number;
   /**
-   * The pill's micro-label. The handoff splits this as "STUDIED" over
-   * "64 days", but `t()` has no pluralisation, so "1 days" would be
-   * unavoidable. Moving the noun into the label — "DAYS STUDIED" over "64" —
-   * keeps the two-line shape and is correct at every count, without building
-   * plural machinery for one string.
+   * The pill's micro-label. `t()` has no pluralisation, so "STUDIED" over
+   * "1 days" would be unavoidable. Putting the noun into the label — "DAYS
+   * STUDIED" over "64" — keeps the two-line shape and is correct at every
+   * count, without building plural machinery for one string.
    */
   studiedLabel: string;
   profileLabel: string;

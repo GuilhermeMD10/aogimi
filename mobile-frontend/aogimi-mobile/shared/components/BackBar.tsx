@@ -28,7 +28,7 @@ export function BackBar({
   onBack,
 }: {
   title: string;
-  /** Optional Japanese gloss beside the title, as the handoff draws it. */
+  /** Optional Japanese gloss beside the title. */
   subtitle?: string;
   /** Trailing controls on the title line — Profile's Edit + Settings buttons. */
   right?: React.ReactNode;

@@ -35,9 +35,9 @@ const CARD_WIDTH = 'w-full max-w-[860px]';
  * Good, Easy — the FSRS grade order), `Z` undoes the last grade, `Esc` leaves.
  * All of them go quiet once the session is done.
  *
- * No flip: the card is one surface whose contents swap sides. The handoff's 3D
- * rotation, its fixed 560px stage, the segment progress bar, the interval labels
- * and the paper grain are all deliberately not built — see DECISIONS.md.
+ * No flip: the card is one surface whose contents swap sides. A 3D rotation, a
+ * fixed-height stage, a segment progress bar, per-grade interval labels and a
+ * paper grain were all considered and deliberately left out.
  */
 export function StudyScreen({ source, deck, scopeLabel, onExit }: Props) {
   const session = useStudySession(source);

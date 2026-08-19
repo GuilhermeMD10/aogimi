@@ -9,9 +9,9 @@ storage first, then syncs to Postgres opportunistically.
 
 - [`../../backend/API_ROUTES.md`](../../backend/API_ROUTES.md) — endpoint catalog
 - [`../../docs/AUTH.md`](../../docs/AUTH.md) — JWT model, token storage, refresh-retry
-- [`../../docs/SYNC_ARCHITECTURE.md`](../../docs/SYNC_ARCHITECTURE.md) — book sync state machine
+- [`../../docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) — FSRS, book identity, sync, search
 - [`./STORAGE.md`](./STORAGE.md) — local persistence inventory (AsyncStorage / file-system / in-memory)
-- [`./THEMES.md`](./THEMES.md) — theme token system
+- [`./theme/tokens.ts`](./theme/tokens.ts) — the theme token system (Day / Night palettes)
 
 ---
 
@@ -31,7 +31,7 @@ storage first, then syncs to Postgres opportunistically.
 
 The dictionary ships as a 260 MB bundled SQLite file ([assets/dictionary.sqlite](assets/)),
 copied into the app's documents directory on first launch by
-[`lib/dictionary/openDictionary.ts`](./lib/dictionary/openDictionary.ts).
+[`features/dictionary/lib/openDictionary.ts`](./features/dictionary/lib/openDictionary.ts).
 Search hits the local DB only — no backend round-trip — using a
 PgSearchIndex port + FTS5 materialised CTE for speed.
 
@@ -169,7 +169,7 @@ overwrite local state (newer-wins, but the user expects determinism).
 Reading progress is persisted per-book in `reader_book_<filename>`
 (filename-keyed, user-agnostic) so guest sessions and offline reading
 both survive app restart and migrate cleanly on sign-up. Full state
-machine: [`../../docs/SYNC_ARCHITECTURE.md`](../../docs/SYNC_ARCHITECTURE.md).
+machine: [`../../docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
 
 ---
 

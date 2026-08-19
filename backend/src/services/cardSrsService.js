@@ -25,14 +25,10 @@ const MAX_OUTCOME_HISTORY = 5;
 const OUTCOMES = fsrs.OUTCOMES;
 
 /**
- * `last_outcomes` is **display history only** now.
- *
- * Under the old algorithm this column was load-bearing: promotion needed "3
- * consecutive non-Again", so the ladder read it. FSRS derives rank from
- * stability alone, so nothing algorithmic touches it any more. It is still
- * written because a card's recent run is genuinely useful to show, and a
- * column that is written but never read beats one that is read but stale.
- * `card_reviews` remains the real, complete, append-only log.
+ * `last_outcomes` is **display history only**. FSRS derives rank from
+ * stability alone, so nothing algorithmic reads this column — it is written
+ * because a card's recent run is genuinely useful to show. `card_reviews`
+ * is the real, complete, append-only log.
  */
 function outcomeChar(outcome) {
   return { again: "A", hard: "H", good: "G", easy: "E" }[outcome];
@@ -191,15 +187,14 @@ const SORT_JITTER = 0.1;
  *       + state_bias                 — mastered pushed back, new nudged forward
  *       + jitter                     — ±0.10, so the order isn't identical twice
  *
- * `(1 - R)` replaced the old `difficulty + recent-failure-boost` head term.
  * Under FSRS, R *is* the principled answer to "how badly does this need
  * reviewing" — it already folds in stability, elapsed time and every past
  * grade — so reading the last outcome off `last_outcomes` would be a strictly
  * worse estimate of the same quantity.
  *
- * Difficulty is normalised off its own [1, 10] range rather than used raw: it
- * is on a different scale from R, and the old code's habit of adding the two
- * directly is what made the weights impossible to reason about.
+ * Difficulty is normalised off its own [1, 10] range rather than used raw:
+ * it is on a different scale from R, and adding the two directly would make
+ * the weights impossible to reason about.
  */
 function hardestSortKey(card, now = new Date()) {
   const faded =

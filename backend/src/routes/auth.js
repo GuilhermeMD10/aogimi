@@ -30,8 +30,8 @@ const router = Router();
 //     httpOnly cookie. JS can't read it, so an XSS payload can't steal it.
 //     The response body omits the refresh token entirely.
 //   - Native clients (React Native fetch, curl — no Origin header) get the
-//     refresh token in the JSON body, as before, and store it themselves
-//     (expo-secure-store). Unchanged from the pre-cookie contract.
+//     refresh token in the JSON body and store it themselves
+//     (expo-secure-store).
 //
 // A request is treated as a browser when it carries a non-empty Origin.
 
@@ -81,11 +81,11 @@ function sendAuthSuccess(req, res, { user, accessToken, refreshToken }, status =
 
 // ── Limiters ─────────────────────────────────────────────────────────────
 
-// 5 attempts / 15 min per (IP + username). Returns 429 with the
+// 10 attempts / 60 min per (IP + username). Returns 429 with the
 // standard `RateLimit-*` headers so the client can back off.
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 5,
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   // ipKeyGenerator normalises IPv6 properly (per express-rate-limit
@@ -95,11 +95,11 @@ const loginLimiter = rateLimit({
   message: { error: "Too many login attempts. Try again later." },
 });
 
-// 5 registrations / 30 min per IP. Aggressive on purpose — a real user
+// 10 registrations / 60 min per IP. Aggressive on purpose — a real user
 // signs up once.
 const registerLimiter = rateLimit({
-  windowMs: 30 * 60 * 1000,
-  limit: 5,
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { error: "Too many sign-up attempts. Try again later." },

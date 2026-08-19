@@ -22,12 +22,11 @@ import type { SessionDeck, StudySessionConfig } from '../session/types';
  *   /study?due=1           every due card, shuffled  (+ &deck={id} to scope it)
  *   /study?deck={id}       one deck, mode + size from its saved override
  *
- * **`/study` with no params redirects to `/sky`.** It used to be the
- * study-ahead session; practising is now an overlay on the stage
- * (`sky/components/PracticeOverlay`), because a practice session needs no
- * backend at all and the stage is already holding every card. Fetching a
- * session over the wire just to grade it into the void was the thing worth
- * removing. A bare `/study` is therefore a session with nothing to run.
+ * **`/study` with no params redirects to `/sky`.** Practising is an overlay on
+ * the stage (`sky/components/PracticeOverlay`) rather than a route, because a
+ * practice session needs no backend at all and the stage is already holding
+ * every card — fetching a session over the wire just to grade it into the void
+ * buys nothing. A bare `/study` is therefore a session with nothing to run.
  *
  * A due session studies *everything* due, so its size is the due count — which
  * has to be fetched before the spec exists. Hence the gate below: the runner

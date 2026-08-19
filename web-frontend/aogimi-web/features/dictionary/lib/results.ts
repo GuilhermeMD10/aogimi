@@ -164,8 +164,8 @@ function sameEntry(a: SurfaceEntry, b: SurfaceEntry): boolean {
  *     pedantry.
  *
  * Anything else falls back — normally to the entry's own first example sentence,
- * which is a true statement about the word and was previously being *overwritten*
- * by the reader's sentence.
+ * which is a true statement about the word — rather than letting the reader's
+ * sentence override it.
  */
 export function contextForEntry(
   entry: SurfaceEntry,

@@ -20,14 +20,14 @@ type Props = {
 
 /* The banner is this deep purple in both themes, so its three stops and its two
    inks are hardcoded rather than tokenised — the same call `shared/components/
-   SkyBar` makes and for the same reason: the handoff gives one value per slot,
-   and a token would only add a name that always resolves to the same colour.
+   SkyBar` makes and for the same reason: there is one value per slot, and a
+   token would only add a name that always resolves to the same colour.
    The inks are light-on-dark even in "Ink on paper", so `--soft` / `--muted`
    would be exactly backwards here.
 
-   Starless, unlike the handoff: fake stars would be the one sky in the app that
-   isn't the real map, and the empty-sky convention on home and the deck card
-   says we wait for it rather than draw a stand-in. */
+   Starless on purpose: fake stars would be the one sky in the app that isn't
+   the real map, and the empty-sky convention on home and the deck card is to
+   wait for it rather than draw a stand-in. */
 const BANNER = 'radial-gradient(130% 175% at 50% -12%, #06081E 15%, #1A1556 56%, #3A2A8C 108%)';
 const BANNER_INK = '#B9BCE8';
 const BANNER_INK_DIM = '#8A8FD0';
@@ -35,10 +35,9 @@ const BANNER_INK_DIM = '#8A8FD0';
 /**
  * The round is over: the night banner, what got studied, and the two ways out.
  *
- * Four sections under the count, in the order the handoff stacks them plus the
- * two it doesn't draw: TIER PROGRESS (promotions *and* demotions), the session
- * mix, and the hardest cards. The handoff's grade-breakdown chips are one of its
- * own admitted blanks, so the mix bar keeps that job.
+ * Four sections under the count: TIER PROGRESS (promotions *and* demotions),
+ * the session mix, and the hardest cards. The mix bar carries the grade
+ * breakdown.
  */
 export function FinishScreen({
   summary,

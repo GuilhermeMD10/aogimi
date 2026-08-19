@@ -1,17 +1,13 @@
-// Recent lookups — the entries the user actually opened.
+// Recent lookups — the entries the user actually opened, deliberately not the
+// *strings they typed*. Every surface that matters wants the entry, not the
+// query: Home's card and the tab's recents list both draw a headword, a
+// reading, a JLPT tier and a gloss, none of which a bare query carries. Dedupe
+// on `wordId` is also truer than dedupe on text — 「ひらく」 and 「開く」 are
+// one word looked up twice.
 //
-// **There used to be two stores here** and now there is one. The other kept the
-// *strings the user typed*, deduped on the string, and drove a carousel on the
-// dictionary tab where tapping a chip re-ran that search. It was dropped
-// because every surface that matters wants the entry, not the query: Home's
-// card, the tab's own recents list and the handoff's row design all draw a
-// headword, a reading, a JLPT tier and a gloss, none of which a bare query
-// carries. Dedupe on `wordId` is also truer than dedupe on text — 「ひらく」 and
-// 「開く」 are one word looked up twice.
-//
-// What that cost, recorded so it is a decision rather than a regression: there
-// is no longer any way back to a *result list*. A lookup jumps to one entry, so
-// an English or partial query that produced eight interesting rows can only be
+// The trade-off, recorded so it is a decision rather than an oversight: there
+// is no way back to a *result list*. A lookup jumps to one entry, so an
+// English or partial query that produced eight interesting rows can only be
 // retyped.
 //
 // **Device-local and staying that way.** There is no backend table and no web

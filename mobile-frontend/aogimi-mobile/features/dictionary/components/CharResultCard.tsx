@@ -9,14 +9,10 @@ import { AddButton } from './AddButton';
 
 /**
  * The results list's second card shape — one glyph on the left, its data on the
- * right. Kanji entries and name entries both use it; the handoff draws neither,
- * because it only ever shows a word search.
- *
- * **These results were being thrown away.** `searchLocal` returns
- * `{ kanji, words, names }` for a single-kanji query and
- * `{ words, names, kanjis }` for a kana one, and the old list rendered `words`
- * alone — so searching 辞 showed every word containing it and never the
- * character itself. This is the missing half.
+ * right. Kanji entries and name entries both use it: `searchLocal` returns
+ * `{ kanji, words, names }` for a single-kanji query and `{ words, names,
+ * kanjis }` for a kana one, and rendering `words` alone would mean searching 辞
+ * shows every word containing it and never the character itself.
  *
  * It is deliberately a *variation* of `ResultCard` rather than a second design:
  * same padding, radius, chip row and add affordance, with the headword moved

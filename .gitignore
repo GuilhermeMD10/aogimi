@@ -4,7 +4,6 @@ helpers
 .env
 .env.local
 .env.production
-.env.example
 
 android
 ios
@@ -13,21 +12,46 @@ dist
 coverage
 *.log
 *.lock
-.DS_Store
-.vscode
 n1.csv
 n2.csv
 n3.csv
 n4.csv
 n5.csv
 Podfile.lock
-.ds_store
 .expo
 
 .DS_Store
+.ds_store
 .serena
 .claude
 .vscode
-docs
 backend/.env
 EXPERT-AGENTS.md
+
+# ── Documentation ────────────────────────────────────────────────────────────
+# The deep-dive docs the root README links ARE tracked: docs/ARCHITECTURE.md,
+# docs/API.md, docs/AUTH.md, docs/SECURITY.md. Everything else under docs/ is an
+# internal audit or a superseded design note.
+/docs/INVENTORY.md
+/docs/SYNC_ARCHITECTURE.md
+/docs/SYNC_TEST_FLOWS.md
+/docs/MOBILE_SYNC_SIMPLIFICATIONS.md
+/docs/study-due-cards.md
+
+# Agent house-rule files, at any level. Internal working documents: they point at
+# the local-only notes below and are not part of the public account of this repo.
+# The tracked account is README.md plus docs/.
+CLAUDE.md
+AGENTS.md
+
+# Internal working docs: live open-item lists, superseded redesign handbooks, and
+# overviews that have drifted from the code. The root README is the current,
+# authoritative account.
+/mobile-frontend/aogimi-mobile/TODO.md
+/mobile-frontend/aogimi-mobile/REDESIGN.md
+/web-frontend/aogimi-web/info-documents/DECISIONS.md
+/web-frontend/aogimi-web/info-documents/REDESIGN.md
+/web-frontend/aogimi-web/info-documents/OVERVIEW.md
+/web-frontend/aogimi-web/info-documents/PROJECT_CONTEXT.md
+/web-frontend/aogimi-web/info-documents/README.md
+/web-frontend/aogimi-web/features/sky/map/aglomeration-guide.md

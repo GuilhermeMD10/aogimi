@@ -25,7 +25,7 @@ const ROMAJI_MAP = {
   // T-row
   ta: 'た', ti: 'ち', tu: 'つ', te: 'て', to: 'と',
   chi: 'ち', tsu: 'つ',
-  cha: 'ちゃ', chi: 'ち', chu: 'ちゅ', che: 'ちぇ', cho: 'ちょ',
+  cha: 'ちゃ', chu: 'ちゅ', che: 'ちぇ', cho: 'ちょ',
   tya: 'ちゃ', tyu: 'ちゅ', tyo: 'ちょ',
 
   // N-row

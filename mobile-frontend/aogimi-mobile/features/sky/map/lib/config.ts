@@ -72,8 +72,8 @@ export const ESCAPE_PUSH_DECAY_MS = 500;
 // Screen-space pick radius. Being screen-space, the world distance it covers grows as you zoom
 // out, so far enough out the targets do overlap — pickStar returns the nearest, which is why that
 // stays harmless rather than ambiguous.
-// 20 rather than the old 7: picking only ever runs inside the focused deck (SkyCanvas guards on
-// it), whose stars are drawn larger (FOCUSED_STAR_SCALE) — the target grows with the glyph. Sized
+// 20 because picking only ever runs inside the focused deck (SkyCanvas guards on it), whose
+// stars are drawn larger (FOCUSED_STAR_SCALE) — the target grows with the glyph. Sized
 // against the *resting* scale, not the peak: at the zoom ceiling a mastered star is drawn nearly this
 // wide itself, which is fine because that is also where its neighbours are furthest apart on screen.
 // Comfortably inside MIN_DISTANCE in world units at a focused deck's fit (20/4 = 5 units against a
@@ -95,7 +95,7 @@ export const CAMERA_TWEEN_MS = 400;
 export const STAR_POP_MS = 400;
 
 /* ---------- grouping ---------- */
-// There is no time constant here any more: cards group by the *bucket string* the host passes to
+// There is no time constant here: cards group by the *bucket string* the host passes to
 // addStar — Aogimi's rule is one constellation per UTC day, derived from the card's created_at.
 // The bucket seals on change; `sealStale(today)` closes the last one once its day has passed.
 
@@ -221,7 +221,7 @@ export const LOBE_TWIN_RY = 0.56;
 export const LOBE_TWIN_ALPHA = 0.6;
 export const LOBE_MIN_PX = 5; // a lobe never shrinks below this on screen, however few stars it holds
 /**
- * The squash is now a *ceiling*: a lobe's actual ry/rx comes from the shape of the stars under it
+ * The squash is a *ceiling*: a lobe's actual ry/rx comes from the shape of the stars under it
  * (the covariance of their positions, resolved at build time), clamped between these two. The
  * ceiling keeps an evenly-spread node from rendering as a perfect circle — a field of circles
  * reads as bubbles — and the floor keeps a nearly-collinear session from collapsing into a needle.
@@ -280,26 +280,25 @@ export const CULL_SLACK = 1.35;
 /**
  * When each star shows its card's front text beside it — **an absolute camera zoom**, deliberately.
  *
- * This used to be `LABEL_GAP_PX / STAR_GAP`: a screen-px gap between neighbouring stars, converted
- * through the *nominal* star spacing. That reasoning is sound for the cloud handover, which is asking
- * whether stars are separable at all, but it made the label gate depend on a constant that only
- * approximates real spacing, and it landed at zoom 1.1 — far below the zooms a focused deck actually
- * resolves to, so labels were up almost the whole time. Read off the stage instead — with a live
- * readout of `camera.zoom` in the corner, the wanted answer is plainly 3.
+ * A spacing-derived gate (a screen-px gap converted through the *nominal* star spacing, as the
+ * cloud handover uses) is the wrong tool here: that reasoning is sound for asking whether stars are
+ * separable at all, but it makes the label gate depend on a constant that only approximates real
+ * spacing, and it lands far below the zooms a focused deck actually resolves to, leaving labels up
+ * almost the whole time. Read off the stage instead — with a live readout of `camera.zoom` in the
+ * corner, the wanted answer is plainly 3.
  *
  * At or below LABEL_HIDE_ZOOM nothing is labelled; the fade completes a LABEL_BAND factor above it.
  */
 export const LABEL_HIDE_ZOOM = 3;
-/** Width of the fade-in, as a zoom factor above the hide threshold — one unhurried wheel notch,
- *  like the handover's. */
+/** Width of the fade-in, as a zoom factor above the hide threshold — one unhurried wheel notch. */
 export const LABEL_BAND = 1.4;
 /** The zoom the fade completes at, so labels are fully up at 4.2 and gone at 3. */
 export const LABEL_ZOOM = LABEL_HIDE_ZOOM * LABEL_BAND;
 /** A backstop for hosts whose fronts are sentences: the label is a glance, the panel is the card. */
 export const LABEL_MAX_CHARS = 18;
 // Sized against the focused view's larger stars (FOCUSED_STAR_SCALE and its peak) — labels only ever
-// draw inside a focused deck, so the outer view never sees either. 20 rather than the earlier 16
-// because the label now only appears above LABEL_HIDE_ZOOM, where the star beside it is at its
+// draw inside a focused deck, so the outer view never sees either. 20 because the label only
+// appears above LABEL_HIDE_ZOOM, where the star beside it is at its
 // largest: a label has to hold its own against a 13px glyph, not against a 6px one.
 // The weight must be a real cut: Switzer ships 400/500/700 and Noto Sans JP 500/700, neither has a
 // 600, so 500 is the heaviest step that stays honest in both faces.
@@ -308,9 +307,9 @@ export const LABEL_FONT_WEIGHT = 600;
 /**
  * Right and slightly below the star, **past its own radius** — `SkyStars` adds `r` before this, so
  * the gap is the clear space between the glyph's edge and the first glyph of the word rather than a
- * distance from the star's centre. That is why it can be small and still read as separated, and why
- * it did not have to grow when the stars did. 18 rather than 10 is the ask for more air; the vertical
- * offset stays a nudge, since it only centres the text on the star's own line.
+ * distance from the star's centre. That is why it can be small and still read as separated. 18
+ * gives the word clear air; the vertical offset stays a nudge, since it only centres the text on
+ * the star's own line.
  */
 export const LABEL_OFFSET_X_PX = 18;
 export const LABEL_OFFSET_Y_PX = 5;
@@ -319,7 +318,7 @@ export const LABEL_OFFSET_Y_PX = 5;
 /** Ring drawn around the selected star, beyond its radius. Wider than HOVER_HALO_PX on purpose:
  *  hover is a question and selection is an answer, and the two must read differently at a glance. */
 export const SELECT_HALO_PX = 8;
-/** The selected star's glow swells to this multiple of its radius — the reference's amplified glow. */
+/** The selected star's glow swells to this multiple of its radius. */
 export const SELECT_GLOW_SCALE = 5.6;
 
 /* ---------- the constellation links ---------- */
@@ -351,12 +350,11 @@ export const LINK_STRAND_HOLD = 0.15;
 /**
  * How far a rank colour is lifted toward white to become a strand colour, 0..1.
  *
- * Not decoration — the strand is unreadable without it. The links used to be drawn in one near-white
- * per preset precisely because a mid-tone line "sat below the stars it joins and read as a shadow
- * between them instead of as the drawing" (see palette.ts). Half the rank colours are *darker* than
- * the mid-tone that was rejected — ginga's New is #48545C on a near-black sky — so taking colour
- * from the endpoints without lifting it would reintroduce the exact bug the near-white fixed. The
- * lift buys back the luminance and keeps the hue, which is the part that carries meaning.
+ * Not decoration — the strand is unreadable without it. A mid-tone line sits below the stars it
+ * joins and reads as a shadow between them instead of as the drawing (see palette.ts). Half the
+ * rank colours are *darker* than mid-tone — ginga's New is #48545C on a near-black sky — so taking
+ * colour from the endpoints without lifting it would do exactly that. The lift buys back the
+ * luminance and keeps the hue, which is the part that carries meaning.
  */
 export const LINK_STRAND_LIFT = 0.42;
 
@@ -378,30 +376,28 @@ export const LINK_GLOW_ALPHA = 0.028;
 
 /* ---------- the deck wash: the focused interior's always-on atmosphere ---------- */
 /**
- * Three broad, overlapping tints under a focused deck's whole drawing — the handoff's "nebula veils",
- * rebuilt on the deck's **spread (`sd`) rather than its bounding box**.
+ * Three broad, overlapping tints under a focused deck's whole drawing — nebula veils, sized on the
+ * deck's **spread (`sd`) rather than its bounding box**.
  *
- * That distinction is the whole reason this exists at all: the bbox-sized version was assessed and
- * rejected (DECISIONS.md, "Nebula veils and the dust layer") because every other size in this engine
- * comes off the tight box or `sd`, and a bbox-sized decorative drifts away from the drawing it is
- * supposed to sit under. Sized off the deck tree's root — centroid, `sd`, principal axis and blended
- * tint, all already computed in `indexSky` — it is the same look with none of that objection, and it
- * costs three ellipses and two gradients for the whole scene.
+ * That distinction matters: every other size in this engine comes off the tight box or `sd`, and a
+ * bbox-sized decorative drifts away from the drawing it is supposed to sit under. Sized off the
+ * deck tree's root — centroid, `sd`, principal axis and blended tint, all already computed in
+ * `indexSky` — it has none of that problem, and it costs three ellipses and two gradients for the
+ * whole scene.
  *
  * **It is deliberately not part of the cloud layer.** The clouds are a stand-in for stars the budget
  * could not afford, so they fade to nothing exactly as the reader zooms in — which left the interior
  * at its most magnified with stars and lines on a flat page and nothing behind them. The wash answers
- * to no zoom threshold and no veil: it is simply always there, which is the only property the
- * reference layer had that ours did not.
+ * to no zoom threshold and no veil: it is simply always there.
  *
  * Three rather than one because a single radial fill reads as a bubble — it has one centre and one
  * findable edge. Overlapping tints at different sizes have neither, which is what reads as vapour.
- * The last takes the deck's *peak* rank colour (the reference's always-gold third), so a deck that
- * has mastered something is warm underneath.
+ * The last takes the deck's *peak* rank colour, so a deck that has mastered something is warm
+ * underneath.
  */
 export const WASH_ALPHA = 0.22;
 /** Offsets and radii as multiples of the root's `sd` (the y axis additionally scaled by its aspect),
- *  with the per-ellipse opacity the reference gives each. `peak` takes the peak colour, not the body. */
+ *  each with its own opacity. `peak` takes the peak colour, not the body. */
 export const WASH_LOBES = [
   { dx: -0.5, dy: -0.34, rx: 1.75, alpha: 1, peak: false },
   { dx: 0.74, dy: 0.68, rx: 1.4, alpha: 0.9, peak: false },
@@ -420,12 +416,12 @@ export const WASH_MIN_SPREAD = LINK_REACH;
 
 /* ---------- decks ---------- */
 /**
- * The gap between two deck cells on the grid, in **world units** (the handover's `gap`). World
- * rather than screen px on purpose: it survives every zoom, so decks hold their separation at the
- * outermost view exactly as they do inside one. A screen-px gap would close as you pulled back
- * and the decks would fuse into a smear.
+ * The gap between two deck cells on the grid, in **world units**. World rather than screen px on
+ * purpose: it survives every zoom, so decks hold their separation at the outermost view exactly as
+ * they do inside one. A screen-px gap would close as you pulled back and the decks would fuse into
+ * a smear.
  *
- * Narrow next to the old ring's 240 moat, deliberately: the frames now do the separating — each
+ * Narrow, deliberately: the frames do the separating — each
  * deck wears a drawn card, so the space between decks only has to read as a gutter between cards,
  * not as the void that keeps two anonymous forms from fusing.
  */
@@ -436,13 +432,13 @@ export const DECK_GRID_GAP = 76;
  * Sized so the gutters resolve and nothing else does. A point in the middle of a four-way gutter
  * junction sits `DECK_GRID_GAP/2` away on *both* axes, so the reach has to clear
  * `GAP/2 × √2 ≈ 53.7` or those junctions go dead; past that it starts claiming the empty sky the
- * fitted camera leaves around the grid, which is what made a press anywhere enter an extremity deck.
+ * fitted camera leaves around the grid, and a press anywhere would enter an extremity deck.
  */
 export const DECK_HIT_SKIRT = DECK_GRID_GAP * 0.75;
 /** Margin between a deck's outermost star and the edge of its focused box. */
 export const DECK_PAD = 40;
 /**
- * The deck card frame's bands, in world units (the handover's `FR = { pad, head, foot }`): the
+ * The deck card frame's bands, in world units: the
  * margin between the outermost star and the frame's edge, the header band above (cover tile,
  * name, subtitle), and the footer band below (counts, due pill). Layout geometry *and* renderer
  * geometry — `layoutDecks` sizes the grid cells from these and `SkyFrames` draws the bands from
@@ -451,7 +447,7 @@ export const DECK_PAD = 40;
 export const FRAME_PAD = 86;
 export const FRAME_HEAD = 134;
 export const FRAME_FOOT = 104;
-/** A frame is never narrower than its deck's name needs (the handover's `minFrameW`):
+/** A frame is never narrower than its deck's name needs:
  *  FRAME_MIN_W plus FRAME_MIN_W_PER_CHAR per character of the name. */
 export const FRAME_MIN_W = 250;
 export const FRAME_MIN_W_PER_CHAR = 30;
@@ -460,16 +456,15 @@ export const FRAME_MIN_W_PER_CHAR = 30;
 /**
  * The frame's text, in **screen px** — the sizes it actually renders at, at every zoom.
  *
- * These used to be world units stated literally in `SkyFrames` (name 42, glyph 30, counts 22,
- * subtitle 19), which meant a frame's type shrank with the sky. That reads fine at four decks and
- * fails completely at twenty: at the fits this app resolves to, the deck *name* lands at 6.8px on a
- * 1440 laptop and 9.1px at 1920, and the subtitle at 3–4px. The card was never short of pixels —
- * only its type was, and it was the one thing in the renderer not measured in screen px (every
- * star radius, stroke and label already is; see `starRadiusPx`).
+ * World-unit type would shrink with the sky, which reads fine at four decks and fails completely
+ * at twenty: at the fits this app resolves to, a world-unit deck *name* lands at 6.8px on a 1440
+ * laptop and 9.1px at 1920, and the subtitle at 3–4px. The card is never short of pixels — and
+ * everything else in the renderer is already measured in screen px (every star radius, stroke and
+ * label; see `starRadiusPx`), so the frame's type is too.
  *
- * Screen-px type has a cost the world-space kind did not: it no longer shrinks to fit its card, so
+ * Screen-px type has a cost the world-space kind does not: it never shrinks to fit its card, so
  * past some point the header stops fitting inside the frame. That point is what FRAME_LOD_* below
- * is for — the two changes are halves of one fix and neither works alone.
+ * is for — the two are halves of one design and neither works alone.
  */
 export const FRAME_NAME_PX = 15;
 export const FRAME_GLYPH_PX = 11;
@@ -492,9 +487,9 @@ export const FRAME_PILL_H_PX = 22;
  * The hover fog behind a frameless deck: how far past its content box the fog reaches, and its
  * strength at the centre.
  *
- * Frameless decks had only their name brightening to show hover, which is far too quiet a signal for
- * a target the size of a constellation — there is no card edge left to light up. The fog restores a
- * *shape* to the hover, and being a radial fade it needs no border to stop against.
+ * Without it a frameless deck has only its name brightening to show hover, which is far too quiet a
+ * signal for a target the size of a constellation — there is no card edge left to light up. The fog
+ * gives the hover a *shape*, and being a radial fade it needs no border to stop against.
  */
 export const DECK_FOG_PAD = 30;
 export const DECK_FOG_ALPHA = 0.15;
@@ -560,7 +555,7 @@ export const SOLO_FIELD_CELLS = 2;
  * (it runs before the camera exists, and a layout that answered to the window's width would
  * re-arrange the chooser on every resize), so the candidate grid shapes are scored against this
  * nominal window instead and the camera's fit absorbs the per-device remainder, exactly as
- * FIELD_ASPECT's does. 2.3 is the common laptop band (1280–2560px wide) with the handover's
+ * FIELD_ASPECT's does. 2.3 is the common laptop band (1280–2560px wide) with the
  * sky-level overlay insets (T105/B245/L54/R54) taken off: 2.2–2.6 across that band.
  */
 export const GRID_ASPECT = 2.3;
@@ -634,8 +629,8 @@ export const FULCRAL_SCALE = 1.55;
  * **A pair, not a constant**: the deck's stars carry `FOCUSED_STAR_SCALE` at its resting fit and
  * `FOCUSED_STAR_PEAK_SCALE` at its zoom ceiling, interpolated in log space between the two
  * (`focusedScale` in star.ts). The peak is twice the base, so fully zoomed in a star is exactly
- * double the size the old flat 1.35 drew it at, and at every zoom short of that it tapers back to
- * the sizing the deck always had — the extra ink is a reward for going in, not the resting state.
+ * double its resting size, and at every zoom short of that it tapers back toward the resting
+ * sizing — the extra ink is a reward for going in, not the resting state.
  *
  * The ramp is anchored to the deck's **own** ceiling rather than to a nominal zoom, because there is
  * no such thing as one max zoom here: `focusLimits` gives a sparse deck a relZoom ceiling of ~1.5 and
@@ -657,13 +652,13 @@ export const UNFOCUSED_STAR_SCALE = 0.86;
  * inversely with its count — `deckPresence` in star.ts resolves the pair.
  *
  * The budget in `cluster.ts` equalises decks from above: it stops a thousand-card deck being a smear.
- * Nothing equalised them from below, and two separate rules were quietly shrinking the smallest ones:
+ * Nothing else equalises them from below, and two separate rules quietly shrink the smallest ones:
  * a deck under budget collapses nothing, so it has no fulcral survivor and no cloud — which makes
  * every one of its stars `dim` (0.55 core, no specular, no bead, rings at RING_DIM) and leaves it at
- * UNFOCUSED_STAR_SCALE's 0.86. A one-card deck therefore drew as a single faint 2px dot on a grid
- * where a busy neighbour draws a whole lit form, and at twelve decks it was effectively invisible.
+ * UNFOCUSED_STAR_SCALE's 0.86. A one-card deck would therefore draw as a single faint 2px dot on a
+ * grid where a busy neighbour draws a whole lit form — at twelve decks, effectively invisible.
  *
- * So presence is restored on both axes the dimming took it from — **size** (the scale below) and
+ * So presence is restored on both axes the dimming takes it from — **size** (the scale below) and
  * **detail** (`vivid`, which spends the ink a fulcral star already gets: full-strength core,
  * specular, and the glass bead once the radius crosses BEAD_MIN_CORE_PX). That is why the boost is
  * this large: a lone star has to hold a grid cell against neighbours drawn as constellations.
@@ -674,7 +669,7 @@ export const UNFOCUSED_STAR_SCALE = 0.86;
 export const SMALL_DECK_MAX = 5;
 /** The one-card deck's multiplier; every count up to SMALL_DECK_MAX interpolates down toward 1. */
 export const SMALL_DECK_STAR_BOOST = 2.6;
-/** ...and how far the rest of an unfocused deck fades once one deck has focus (handover: .24). */
+/** ...and how far the rest of an unfocused deck fades once one deck has focus. */
 export const UNFOCUSED_DECK_OPACITY = 0.24;
 
 /* ---------- star form ---------- */
@@ -690,13 +685,13 @@ export const UNFOCUSED_DECK_OPACITY = 0.24;
  * the same sky rather than two differently-scaled ones.
  */
 export const STAR_ZOOM_EXPONENT = 0.42;
-// Mastery is no longer dealt here — it arrives on each card from the host's own SRS ladder
-// (`CardContent.mastery`). The demo-era MASTERY_SPLIT deal is gone with it.
+// Mastery is not derived here — it arrives on each card from the host's own SRS ladder
+// (`CardContent.mastery`).
 /**
- * Radius of the soft glow behind a star, as a multiple of its own. The reference draws it at 4.6
- * with the centre stop at .5 alpha; both were visibly too much here — a field of stars read as a
- * field of halos — so the area and the intensity (see the glow gradient stops in SkyCanvas, and
- * the opacity maths in SkyStars) are pulled down together.
+ * Radius of the soft glow behind a star, as a multiple of its own. Deliberately tight and faint —
+ * much wider or stronger and a field of stars reads as a field of halos — so the area and the
+ * intensity (see the glow gradient stops in SkyCanvas, and the opacity maths in SkyStars) are held
+ * down together.
  */
 export const STAR_GLOW_SCALE = 3.2;
 
@@ -711,16 +706,15 @@ export const STAR_GLOW_SCALE = 3.2;
  *   so survivors sit on roughly a 22px pitch. A mastered star in a focused deck measures
  *   `4.2 × 1.35 ≈ 5.7px`, so an ornament radius of 1.9r ≈ 10.8px puts its full width at ~21.5px —
  *   just inside the pitch. Rings are the one glyph that cannot tolerate overlap: two overlapping
- *   ring systems do not read as two stars, they read as moiré. The handover's own radii (rings to
- *   2.4r, orbit to 2.55r) overrun the pitch by a third and were pulled in to this.
+ *   ring systems do not read as two stars, they read as moiré.
  * - **The repaint rect.** The halo already reaches `STAR_GLOW_SCALE` (3.2r) and bounds each star's
  *   dirty rect, so anything under that ceiling costs nothing extra on a pan. Reach past 3.2r and
  *   every pan frame's dirty rects grow with it.
  */
 export const ORNAMENT_MAX = 1.9;
 /**
- * The core, as a multiple of the star's own radius — the handover's glass bead at `.78r`, and the
- * same law for every rank now that no rank hides its core behind a solid body.
+ * The core, as a multiple of the star's own radius — one law for every rank, since no rank hides
+ * its core behind a solid body.
  *
  * The 0.78 is load-bearing for ring legibility rather than cosmetic: it opens a `0.52r` gap between
  * the rim and the first ring at 1.3r. At a full-radius core that gap is 0.3r and the inner ring
@@ -732,10 +726,8 @@ export const CORE_SCALE = 0.78;
  *
  * Capped at two on purpose. Ring stroke bottoms out at the `RING_WIDTH_MIN` floor at every real
  * radius, so three rings on a ~1.7px pitch is three hairlines that cannot be counted at field size;
- * the mastered rank takes the orbit as its fourth state instead of a third ring. What the ladder
- * buys over the outgoing `dot · dot · cross · sparkle` vocabulary is that **rank 0 and rank 1 are
- * finally different shapes** — that pair was identical before, so the silhouette ladder only ever
- * delivered three of its four states.
+ * the mastered rank takes the orbit as its fourth state instead of a third ring — so every rank,
+ * including 0 and 1, is a different shape and the silhouette ladder delivers all four states.
  */
 export const RING_MAX = 2;
 /** First ring's radius and the step out to the next, as multiples of the star's own radius. The
@@ -745,9 +737,9 @@ export const RING_STEP = 0.45;
 /** Ring stroke in screen px: this share of the radius, never thinner than the floor. */
 export const RING_WIDTH = 0.07;
 export const RING_WIDTH_MIN = 0.75;
-/** Per-ring alpha, innermost first (the handover's `.6 − .14n`). Exactly RING_MAX long. */
+/** Per-ring alpha, innermost first (`.6 − .14n`). Exactly RING_MAX long. */
 export const RING_ALPHA = [0.6, 0.46];
-/** What a dimmed deck's rings keep, matching the ratio the outgoing cross carried (.34/.72). */
+/** What a dimmed deck's rings keep of their alpha. */
 export const RING_DIM = 0.47;
 
 /* ---------- brightness, from retrievability ---------- */
@@ -773,10 +765,9 @@ export const STAR_MIN_LIT = 0.35;
 /* ---------- the mastered rank's orbit ---------- */
 /**
  * MASTERED earns an orbit and a satellite — its fourth state, and a *shape* signal rather than a
- * motion one. The handover twinkled the outermost ring and the orbit; that was dropped, because an
- * infinite animation on two elements per gold star repaints its region every frame with the camera
- * parked, and the star layer is otherwise completely static once it has landed. Nothing here
- * animates.
+ * motion one, deliberately: an infinite twinkle on two elements per gold star would repaint its
+ * region every frame with the camera parked, and the star layer is otherwise completely static
+ * once it has landed. Nothing here animates.
  *
  * `rx` is the ornament ceiling itself — the orbit is the widest thing a star draws.
  */
@@ -799,7 +790,7 @@ export const SATELLITE_R_MIN = 1.4;
  * Core radius in screen px below which the bead's six layers are not drawn — the star falls back to
  * the flat core and specular the sky has always drawn.
  *
- * The handover's bead is specified against a sample strip at `r = 13…25` (`c = 10…19.5px`). At the
+ * The bead's six layers are designed for cores of about 10–19.5px. At the
  * radii this app actually draws, `c` lands at **1.5–4.4px**, where the bead's secondary dot
  * (`.09c`) is a *third of a pixel* and its specular ellipse under 1.5px — six layers of detail
  * resolving to a slightly muddier dot, at three gradient fills per star instead of one.
@@ -807,6 +798,6 @@ export const SATELLITE_R_MIN = 1.4;
  * Gating it also bounds the cost by construction: `c ≥ 6` needs `r ≥ 7.7px`, which is `relZoom ≥ 2.2`
  * for MASTERED and `≥ 7.6` for NEW — and at relZoom 2.2 the world has scaled 2.2×, so the viewport
  * holds about a fifth as many stars. Beaded stars can never be numerous. Precedent is the specular's
- * own long-standing 1.2px skip in SkyStars.
+ * own 1.2px skip in SkyStars.
  */
 export const BEAD_MIN_CORE_PX = 6;

@@ -30,12 +30,9 @@ export { buildSky, dayBucketOf, todayBucket } from './lib/buildSky';
 export type { SkyCard, SkyDeckSource } from './lib/buildSky';
 
 // The demo composition root — the reference wiring for the /sky stage, not routed.
-export { default as Sky } from './components/Sky';
 
 // The generator, for a caller building a sky outside React.
 export { SkyGenerator } from './lib/generator';
-export { useSkyGenerator } from './hooks/useSkyGenerator';
-export type { SkyController } from './hooks/useSkyGenerator';
 
 /**
  * The hue presets. The sky owns the palette; `SkyHueProvider` owns which one is chosen and the

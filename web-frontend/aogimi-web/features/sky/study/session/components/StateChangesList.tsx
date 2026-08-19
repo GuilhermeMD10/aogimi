@@ -14,8 +14,8 @@ const LADDER: CardState[] = ['new', 'met', 'learned', 'mastered'];
 /**
  * TIER PROGRESS — which words changed tier this round, one row each.
  *
- * Both directions. The handoff only draws promotions, but the real ladder
- * demotes when stability falls (`mastered → learned`, `learned → met`), so a
+ * Both directions. The ladder demotes when stability falls
+ * (`mastered → learned`, `learned → met`), so a
  * promotions-only list would quietly hide half of what just happened. A
  * demotion is the same row with `↓` instead of `→`: the from-tier stays on the
  * left, so a reversed arrow would fight the reading order.

@@ -77,9 +77,9 @@ export function kanjiCardDraft(kanji: KanjiInfo): CardDraft {
  * derived here at the API boundary instead, so the two can't drift. Retiring the
  * column later is a change to this helper's call sites and nothing else.
  *
- * The format reproduces what the builders used to emit directly — reading on its
- * own line when non-empty, then `1.`/`2.`/`3.` numbered glosses — so cards added
- * before and after the split read identically.
+ * The format is fixed — reading on its own line when non-empty, then
+ * `1.`/`2.`/`3.` numbered glosses — so every card's back reads identically,
+ * including cards that already exist in the database.
  */
 export function cardBack(draft: CardDraft): string {
   const parts: string[] = [];

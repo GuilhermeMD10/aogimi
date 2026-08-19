@@ -8,17 +8,16 @@ import type { KanjiInfo } from '../types';
 /**
  * One character of KANJI IN THIS WORD.
  *
- * **Full-width and stacked**, per the handoff — the outgoing version was a
- * 240px card in a horizontal scroller, which hid the second kanji of a
- * two-kanji word behind a swipe nobody knew was there.
+ * **Full-width and stacked**, not a horizontal scroller — a swipeable card
+ * strip hides the second kanji of a two-kanji word behind a swipe nobody
+ * knows is there.
  *
- * The handoff draws MEANING / ON / KUN and stops. Strokes, grade and radical
- * stay: KANJIDIC gives them for free, they are the three facts a learner looks
- * up next, and they cost one muted line at the bottom.
+ * Beyond MEANING / ON / KUN, strokes, grade and radical are shown: KANJIDIC
+ * gives them for free, they are the three facts a learner looks up next, and
+ * they cost one muted line at the bottom.
  *
  * Pressable when `onPress` is given — the tap starts a fresh search for that
- * character, which is the drill-down the tab's frame stack exists for. The
- * handoff has no notion of it; it is an existing feature and stays.
+ * character, which is the drill-down the tab's frame stack exists for.
  */
 export function KanjiBreakdownCard({
   kanji,
@@ -71,7 +70,7 @@ export function KanjiBreakdownCard({
   );
 }
 
-/** A fixed-width mono label with its value — the handoff's 50px label column. */
+/** A fixed-width mono label with its value — a 50px label column. */
 function InfoRow({ label, value, jp = false }: { label: string; value: string; jp?: boolean }) {
   const p = usePalette();
   const styles = useStyles(p);

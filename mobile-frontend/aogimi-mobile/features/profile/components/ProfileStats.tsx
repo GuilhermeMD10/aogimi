@@ -7,22 +7,21 @@ import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
 export type ProfileStat = {
   value: number;
   label: string;
-  /** Draws the value in `gold` — the handoff highlights the star count. */
+  /** Draws the value in `gold` — used to highlight the star count. */
   highlight?: boolean;
 };
 
 /**
  * The three-cell stat strip: value over mono micro-label, hairline dividers.
  *
- * **The handoff's middle cell is "SESSIONS" and this app cannot count them.**
- * Nothing server-side records a study session as an entity — `study_days`
- * rolls reviews up per calendar day and `card_reviews` logs individual grades,
- * so any "sessions" number would be invented. The cell is DAYS STUDIED ·
+ * **Deliberately no "SESSIONS" cell — this app cannot count them.** Nothing
+ * server-side records a study session as an entity — `study_days` rolls
+ * reviews up per calendar day and `card_reviews` logs individual grades, so
+ * any "sessions" number would be invented. The strip is DAYS STUDIED ·
  * MASTERED · STARS instead: three figures the API actually returns.
  *
- * DAYS STUDIED is a count of distinct days, **not** a consecutive streak, which
- * is also what the handoff's "DAY STREAK" label really shows given the data
- * behind it. The label says what the number is.
+ * DAYS STUDIED is a count of distinct days, **not** a consecutive streak. The
+ * label says what the number is.
  */
 export function ProfileStats({ stats }: { stats: ProfileStat[] }) {
   const p = usePalette();

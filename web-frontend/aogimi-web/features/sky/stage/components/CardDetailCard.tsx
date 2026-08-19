@@ -21,10 +21,10 @@ import type { CardRecord } from '../types';
  * The selected card's detail — a floating glass card on the **opposite side of
  * the sky** from the card list.
  *
- * It used to be a second state of the list panel, replacing it. That was the
- * expensive part: opening a card cost you the list, so comparing two cards, or
- * even knowing where in the deck you were, meant closing the thing you were
- * reading. Here the list stays up and keeps its row highlight, and the camera
+ * Not a second state of the list panel: replacing the list would mean opening a
+ * card costs you the list, so comparing two cards — or even knowing where in the
+ * deck you were — would mean closing the thing you were reading. Here the list
+ * stays up and keeps its row highlight, and the camera
  * simply takes a second inset on the right (`DECK_INSETS_DETAIL` in `SkyView`)
  * so the ringed star is never underneath either panel.
  *
@@ -160,8 +160,8 @@ export function CardDetailCard({ card, onClose, onRequestDelete }: Props) {
           )}
         </div>
 
-        {/* The handoff pairs the sentence with an italic translation. Nothing
-            stores one, so the box is the sentence alone and disappears with it. */}
+        {/* No translation line beside the sentence: nothing stores one, so the
+            box is the sentence alone and disappears with it. */}
         {card.context_sentence && (
           <div className={cn(GLASS_SURFACE, 'mt-3.25 rounded-[12px] px-3.25 py-2.75')}>
             <div className={`mb-[7px] ${MONO} text-[8.5px] tracking-[0.16em]`} style={{ color: NIGHT.faint }}>

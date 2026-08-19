@@ -15,9 +15,8 @@ const SENTENCE_LIMIT = 5;
  *   3. Route to the ranked search path for that shape.
  *   4. Hydrate the scored word IDs through the search index.
  *
- * The response shape is unchanged from the previous implementation so no
- * frontend change is required. A new optional `inflection` field is added to
- * word entries that matched only after deinflection.
+ * Word entries that matched only after deinflection carry an optional
+ * `inflection` field describing the path back to the dictionary form.
  */
 
 const IS_KANJI  = /\p{Script=Han}/u;

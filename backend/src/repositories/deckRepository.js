@@ -3,11 +3,11 @@ const pool = require("../db");
 // Both deck reads return the same two derived fields, so the SQL is written
 // once here rather than twice inline.
 //
-// `card_count` is a scalar subquery instead of the `LEFT JOIN cards` +
-// `GROUP BY d.id` it used to be: aggregating over a join can't coexist with
-// the lateral below without dragging every one of its output columns into the
-// GROUP BY. Two independent subqueries are also easier to read than one
-// grouped join doing two jobs, and both hit `idx_cards_deck_id`.
+// `card_count` is a scalar subquery rather than a `LEFT JOIN cards` +
+// `GROUP BY d.id`: aggregating over a join can't coexist with the lateral
+// below without dragging every one of its output columns into the GROUP BY.
+// Two independent subqueries are also easier to read than one grouped join
+// doing two jobs, and both hit `idx_cards_deck_id`.
 const CARD_COUNT = `(SELECT COUNT(*)::int FROM cards c WHERE c.deck_id = d.id) AS card_count`;
 
 // The most recently added card, as one JSON object (null for an empty deck) —
@@ -16,9 +16,7 @@ const CARD_COUNT = `(SELECT COUNT(*)::int FROM cards c WHERE c.deck_id = d.id) A
 // fetching every deck's full card inventory to read one row off the end.
 //
 // Only the columns that surface are selected: `state` drives the mastery chip
-// and `created_at` lets a caller tell how stale the row is. Part of speech
-// isn't in the schema, so the design's `READING · POS` line renders the
-// reading alone.
+// and `created_at` lets a caller tell how stale the row is.
 //
 // `id DESC` breaks ties on `created_at`, which is only ever equal when several
 // cards are inserted inside the same transaction — without it the "last" card

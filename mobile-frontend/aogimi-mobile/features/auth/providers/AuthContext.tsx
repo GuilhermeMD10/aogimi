@@ -12,6 +12,7 @@ import { loadJSON, saveJSON } from '@/lib/storage';
 import { fetchUserById } from '@/features/profile/lib/profileApi';
 import { loginUser, registerUser, logoutUser } from '../lib/authApi';
 import { loadTokens, setTokens, clearTokens, getRefreshToken } from '@/lib/tokenStore';
+import { refreshSession } from '@/lib/api';
 import type { UserProfile } from '@/features/profile/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { reconcileBooks, syncPending } from '@/features/books/lib/reconcileBooks';
@@ -58,14 +59,22 @@ const AUTH_STORAGE_KEYS = {
 } as const;
 
 /**
- * Treat any `TypeError` from a fetch chain as "network unreachable" —
- * RN throws `TypeError: Network request failed` when the request never
- * reaches the server. HTTP errors (4xx/5xx) are surfaced by the
- * `request` helper as plain `Error`, so this discriminates server-
- * rejected from server-unreachable without parsing message strings.
+ * Does this error mean the server ended our session, or only that we
+ * failed to reach it? Nothing may sign the user out unless this returns
+ * true — a refresh token can have 30 days left, and discarding it over a
+ * failed request forces a re-login the user has no way to avoid.
+ *
+ * Only 401/403 is terminal, and the constructor can't tell us that.
+ * `lib/api.ts` aborts every request at 8s, and an aborted fetch rejects
+ * with an `AbortError`, not the `TypeError: Network request failed` RN
+ * throws for an outright connection failure — so a dev backend on a
+ * sleeping laptop used to look exactly like a rejected token. A 5xx from
+ * a restarting backend isn't terminal either. `request` attaches `status`
+ * to every HTTP error it raises; its absence means no answer arrived.
  */
-function isNetworkError(err: unknown): boolean {
-  return err instanceof TypeError;
+function isTerminalAuthError(err: unknown): boolean {
+  const status = (err as { status?: number } | null | undefined)?.status;
+  return status === 401 || status === 403;
 }
 
 /**
@@ -91,19 +100,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Auto-sign-in on launch.
   //
-  // The refresh token in SecureStore is the source of truth across
-  // boots. If we have one:
-  //   - Try to refresh it via /api/auth/refresh. On success we get a
-  //     fresh access token + a rotated refresh, AND a fresh user
-  //     profile back from the server.
-  //   - If refresh fails with 401 (token revoked / expired) → fall
-  //     through to signed-out.
-  //   - If refresh fails with a network error → fall back to the
-  //     cached UserProfile. The 401-refresh-retry in `lib/api.ts` will
-  //     pick up where we left off when connectivity returns.
+  // The refresh token in SecureStore is the ONLY thing that decides
+  // whether a session survives a boot. The cached profile is a display
+  // convenience, never a precondition: /api/auth/refresh returns the
+  // user alongside the rotated token pair for native clients, so there
+  // is nothing to look up a `/api/user/:id` URL for. An earlier version
+  // keyed the boot on the cache and cleared the Keychain when it was
+  // missing, which turned one wiped cache into a permanent sign-out.
   //
-  // If we don't have a refresh token at all → straight to signed-out.
-  // The app is still usable; sync just doesn't happen.
+  //   - refresh succeeds        → signed-in with a server-fresh profile
+  //   - refresh 401s            → signed-out (the token really is dead)
+  //   - refresh can't be sent   → signed-in on the cached profile, tokens
+  //                               untouched; the online-transition effect
+  //                               below re-validates when the net returns
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -113,51 +122,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus('signed-out');
         return;
       }
-      // The first request through `lib/api.ts` will auto-refresh on
-      // 401 anyway, but we issue one fetch up-front so the resumed
-      // session has a fresh user profile (and we discover invalid
-      // tokens immediately rather than at the next user action).
-      // The trick: read userId from the cached profile to call
-      // /api/user/:id. If no cache, we have to wait for any other
-      // call to populate state — that's fine, just less eager.
+      // Install the cached identity first so a slow or offline launch
+      // shows the app instead of flashing the auth screen.
       const cached = await loadJSON<UserProfile | null>(AUTH_STORAGE_KEYS.USER_CACHE, null);
+      if (cancelled) return;
       if (cached) {
         setUserState(cached);
         setStatus('signed-in');
       }
-      // Re-fetch from server (uses Authorization header from tokens
-      // we just loaded). On 401, the api layer will refresh once;
-      // if THAT fails, tokens get cleared and we fall back below.
       try {
-        const userId = cached?.id;
-        if (userId == null) {
-          // No cache — we can't construct the user URL. Best we can
-          // do is signal signed-out; once the user logs in we'll
-          // populate cache and this branch goes away on next boot.
+        // Shares the single-flight promise in `lib/api.ts`, so a request
+        // that 401s while this is in flight joins it rather than starting
+        // a second rotation of the same token.
+        const outcome = await refreshSession();
+        if (cancelled) return;
+        if (outcome.ok) {
+          const fresh = outcome.user as UserProfile;
+          await saveJSON(AUTH_STORAGE_KEYS.USER_CACHE, fresh);
+          if (cancelled) return;
+          setUserState(fresh);
+          setStatus('signed-in');
+          return;
+        }
+        if (outcome.terminal) {
+          // The server rejected the refresh token, or there wasn't one.
+          // `refreshSession` has already cleared it; drop local identity.
+          await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.USER_CACHE);
+          if (cancelled) return;
+          setUserState(null);
           setStatus('signed-out');
-          await clearTokens();
           return;
         }
-        const fresh = await fetchUserById(userId);
+        // Never reached the server. Tokens stay put — this is the case
+        // that used to end the session.
+        if (!cached) setStatus('signed-out');
+      } catch {
+        // `refreshSession` doesn't throw, so this is a storage failure.
+        // Treat it as transient for the same reason: keep the tokens.
         if (cancelled) return;
-        await saveJSON(AUTH_STORAGE_KEYS.USER_CACHE, fresh);
-        setUserState(fresh);
-        setStatus('signed-in');
-      } catch (err) {
-        if (cancelled) return;
-        if (isNetworkError(err)) {
-          // Offline launch — stay signed-in with cached identity.
-          // Re-validation happens via the online-transition effect
-          // below. (`cached` was already installed above.)
-          if (!cached) setStatus('signed-out');
-          return;
-        }
-        // 401 already triggered the api layer's refresh-retry; if we
-        // got here, the refresh ALSO failed. Tokens are cleared by
-        // that path. Sign out cleanly.
-        await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.USER_CACHE);
-        setUserState(null);
-        setStatus('signed-out');
+        if (!cached) setStatus('signed-out');
       }
     })();
     return () => {
@@ -179,8 +182,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUserState(fresh);
         } catch (err) {
           if (cancelled) return;
-          if (isNetworkError(err)) return; // transient — wait for next transition
-          // HTTP rejection means our refresh chain is dead. Sign out.
+          // Offline, 8s timeout, backend 5xx — all transient. Leave the
+          // tokens alone and try again on the next transition.
+          if (!isTerminalAuthError(err)) return;
+          // The server rejected the session. `lib/api.ts` clears tokens
+          // when the refresh itself 401s, but a 401 that survives a
+          // *successful* refresh leaves them in place — and a lingering
+          // token would sign us straight back in on the next boot, so
+          // clear here too. Guarded by the terminal check: this line is
+          // only ever reached because the server said no.
           await clearTokens();
           await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.USER_CACHE);
           setUserState(null);

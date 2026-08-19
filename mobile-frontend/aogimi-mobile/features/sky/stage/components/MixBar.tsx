@@ -10,9 +10,9 @@ import { MIX_ORDER, type MasteryMix } from '../lib/masteryMix';
  *
  * **Tier colours come from `RANK_COLORS`, the sky's own ramp** — the same array
  * the stars are drawn from — so the bar and the map can never disagree. This is
- * the fix the TODO's token-bridge note asks for: the legacy `success`/`warning`
- * bridge collapses a four-rank ladder onto two colours, which is wrong wherever
- * the ladder is the actual subject. `MIX_ORDER`'s index is the sky's 0..3 rank,
+ * deliberate: the legacy `success`/`warning` bridge collapses a four-rank ladder
+ * onto two colours, which is wrong wherever the ladder is the actual subject.
+ * `MIX_ORDER`'s index is the sky's 0..3 rank,
  * so the two arrays line up by construction.
  */
 export function MixBar({ mix, barHeight = 8 }: { mix: MasteryMix | null; barHeight?: number }) {

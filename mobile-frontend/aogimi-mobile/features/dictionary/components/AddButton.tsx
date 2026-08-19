@@ -8,9 +8,9 @@ import { radius, type Palette } from '@/theme/tokens';
  * The square vermillion "add to deck" affordance that sits at the end of a
  * result row.
  *
- * The handoff draws a stacked-card-with-a-plus glyph; Feather has no such icon
- * and the nearest ones (`copy`, `layers`) read as duplicate/stack rather than
- * add. A bare `plus` inside the bordered square says the same thing at 14px
+ * A bare `plus` inside the bordered square: Feather has no
+ * stacked-card-with-a-plus glyph, and the nearest ones (`copy`, `layers`) read
+ * as duplicate/stack rather than add. The plus says the same thing at 14px
  * without the ambiguity.
  *
  * **Not on every row.** Names have no card builder — `cardDraft.ts` produces
@@ -24,7 +24,7 @@ export function AddButton({
 }: {
   onPress: () => void;
   accessibilityLabel: string;
-  /** 32 on a result card, 30 on the tighter recent row — the handoff's two. */
+  /** 32 on a result card, 30 on the tighter recent row. */
   size?: number;
 }) {
   const p = usePalette();

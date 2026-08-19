@@ -71,14 +71,8 @@ eas-build-*
 ios-build/
 android-build/
 
-# Dictionary build artifacts. The .gz variant is kept out — we ship
-# uncompressed. The .sqlite IS intentionally tracked (or untracked but
-# present at build time) because EAS Build needs it to bundle into the
-# APK; .easignore alone wasn't reliably overriding .gitignore in the
-# upload step. To keep it out of git but still have it on disk, use:
-#   git update-index --skip-worktree mobile-frontend/aogimi-mobile/assets/dictionary.sqlite
-# after committing it once — that holds the committed version while
-# letting you regenerate the file locally without pollution noise.
-assets/dictionary.sqlite.gz
-
+# Dictionary build artifact (~260MB): generated from Postgres by
+# helpers/files/build_sqlite_dict.js and bundled into the app at build time.
+# Too large for git; must be present on disk before a native build.
 assets/dictionary.sqlite
+assets/dictionary.sqlite.gz

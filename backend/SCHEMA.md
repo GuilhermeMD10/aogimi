@@ -44,7 +44,7 @@ Authentication + profile.
 | id | serial | PK | |
 | username | text | NOT NULL, UNIQUE | Login key. 3-32 chars, `[a-zA-Z0-9_.-]`. |
 | password_hash | text | NOT NULL | bcrypt (cost 12). Never returned by any API. |
-| email | text | nullable | **Collected at signup** (required by `registerSchema`, max 254, format-checked). Stays nullable in the DB: pre-redesign accounts have none. Not a login key — login is username-only. See unique index below. |
+| email | text | nullable | **Collected at signup** (required by `registerSchema`, max 254, format-checked). Stays nullable in the DB: accounts predating the email requirement have none. Not a login key — login is username-only. See unique index below. |
 | display_name | text | nullable | Profile chrome (falls back to username) |
 | language | text | NOT NULL DEFAULT 'en' | UI language preference |
 | avatar_index | smallint | NOT NULL DEFAULT 0 | Index into the kamon glyph set |
@@ -56,10 +56,10 @@ Authentication + profile.
 **Indexes**
 - `users_email_lower_idx UNIQUE ON (LOWER(email)) WHERE email IS NOT NULL`
   — partial unique index. Enforces case-insensitive uniqueness for the
-  addresses signup now collects (values are stored as typed, minus whitespace —
-  the index does the case folding), and still future-proofs the column for an
+  addresses signup collects (values are stored as typed, minus whitespace —
+  the index does the case folding), and future-proofs the column for an
   eventual email-as-login switch without another migration. `WHERE email IS
-  NOT NULL` is what lets the pre-redesign accounts coexist: any number of them
+  NOT NULL` is what lets the email-less accounts coexist: any number of them
   can hold NULL.
 
 ---
@@ -175,12 +175,12 @@ identity fingerprints used to match the same book across devices.
 | deck_id | uuid | NOT NULL, FK → decks(id) ON DELETE CASCADE | |
 | front | text | NOT NULL | |
 | reading | text | NOT NULL DEFAULT '' | Kana for the front. Optional and long-standing, but the clients only started populating it alongside 026's snapshot fields — so treat it as "usually present on recently added cards, frequently `''` on older ones" rather than as reliably filled. |
-| back | text | NOT NULL | Meaning / translation, as one flattened string. **Kept as-is** — still required on write and still what existing clients read; `meanings` sits alongside it rather than replacing it. Retirement is deferred to a later change. |
+| back | text | NOT NULL | Meaning / translation, as one flattened string. **Kept as-is** — still required on write and still what existing clients read; `meanings` sits alongside it rather than replacing it. |
 | notes | text | NOT NULL DEFAULT '' | |
 | context_sentence | text | NOT NULL DEFAULT '' | Optional in-context excerpt |
 | jlpt_level | smallint | nullable, CHECK (`jlpt_level IS NULL OR jlpt_level BETWEEN 1 AND 5`) | Snapshot of the source dictionary entry's JLPT tier (5 = N5 easiest … 1 = N1), captured at add time — added in 026. NULL = unknown, covering both "on no JLPT list" and "card predates the column"; the two are not distinguished. **Not** a live join to `words.jlpt_level`: `front` is user-editable, so a join would stop resolving after a typo fix. Editing a card does not recompute it — staleness is accepted, and a PUT can't clear it back to NULL (COALESCE write path). |
 | meanings | text[] | NOT NULL DEFAULT `'{}'::text[]`, CHECK (`coalesce(array_length(meanings, 1), 0) <= 3`) | The first few glosses off the source entry, as separate items, so a client can render them as a list instead of splitting `back` on punctuation — added in 026. `text[]`, not jsonb (flat strings, no keys). The NOT NULL DEFAULT is load-bearing: the web client types this as a non-nullable `string[]` and reads it without a `?? []` guard at ~6 sites. `coalesce` in the CHECK is required — `array_length()` returns NULL, not 0, for `'{}'`. Per-item length (`TEXT.CARD_MEANING`, 200) is zod-only; only the item count is in the DB. Clearable via `PUT` with `[]`. |
-| state | text | NOT NULL DEFAULT 'new', CHECK IN ('new','met','learned','mastered') | The card's **current** rank, derived from `stability` alone by `fsrs.rankOf()` on every review — never from difficulty or answer streaks. Thresholds: `new` = never reviewed, `met` = S < 21, `learned` = 21 ≤ S < 365, `mastered` = S ≥ 365. Renamed `seen` → `met` in 027. CHECK added in 024 — the update route accepted any string before, so a client could write `mastered` and skip the ladder. Also enforced in `src/validation/decks.js`; a manual write is overwritten by the next grade. |
+| state | text | NOT NULL DEFAULT 'new', CHECK IN ('new','met','learned','mastered') | The card's **current** rank, derived from `stability` alone by `fsrs.rankOf()` on every review — never from difficulty or answer streaks. Thresholds: `new` = never reviewed, `met` = S < 21, `learned` = 21 ≤ S < 365, `mastered` = S ≥ 365. Renamed `seen` → `met` in 027; CHECK added in 024 so a client can't write an arbitrary string and skip the ladder. Also enforced in `src/validation/decks.js`; a manual write is overwritten by the next grade. |
 | peak_rank | text | NOT NULL DEFAULT 'new', CHECK IN ('new','met','learned','mastered') | The highest rank this card has ever held (027). Only ever climbs. Once it reaches `learned`, clients draw the card at `peak_rank` rather than `state`, so a lapse never takes a star's shape away — the lost stability shows as brightness (retrievability) instead. |
 | reviewed_times | int | NOT NULL DEFAULT 0 | Review counter |
 | difficulty | real | **nullable** | FSRS-6 difficulty, [1, 10] — how hard it is to *raise* stability for this card. **NULL until the first review**; FSRS seeds it from the first grade, so a default would make an unreviewed card look reviewed. Was [0.05, 0.95] with a 0.30 default before 027; the two scales are not convertible. |

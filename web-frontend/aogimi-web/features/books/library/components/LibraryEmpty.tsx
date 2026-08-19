@@ -1,8 +1,8 @@
 'use client';
 
 // The empty library — what a new account sees before its first import. This is
-// the *only* empty state on the shelf: the handoff is explicit that first-login
-// is the empty state and there shouldn't be a second one.
+// the *only* empty state on the shelf: first-login is the empty state, and
+// there shouldn't be a second one.
 //
 // Three lines explaining the model, and a dropzone to act on it.
 
@@ -75,12 +75,12 @@ export function LibraryEmpty({
 
 // Click-only for now: opens the same file picker the Import button does.
 //
-// The handoff specs a real dropzone — window-wide drop target, drag-over fill,
-// a determinate ring with the filename and percentage, `n of m` for a queue.
-// That's deferred, so the copy doesn't promise dragging and the component takes
-// no drop handlers. The shape is here for the behaviour to land into: the whole
-// panel is already the hit target, so wiring `onDrop` later touches this file
-// and nothing else.
+// A real dropzone — window-wide drop target, drag-over fill, a determinate
+// ring with the filename and percentage, `n of m` for a queue — is deferred,
+// so the copy doesn't promise dragging and the component takes no drop
+// handlers. The shape is here for the behaviour to land into: the whole panel
+// is already the hit target, so wiring `onDrop` later touches this file and
+// nothing else.
 function Dropzone({ onImport, importing }: { onImport: () => void; importing: boolean }) {
   return (
     <button

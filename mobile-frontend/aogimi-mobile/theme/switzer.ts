@@ -13,12 +13,8 @@
 // Metro resolves `require()` statically, at bundle time, from the literal
 // string — a require pointing at a missing file fails the *build*, uncatchably
 // (`try { require(...) } catch {}` does not help, and neither does any
-// conditional around it). Keeping the requires in one file meant the app could
-// ship and run for the weeks before the binaries arrived, with
-// `SWITZER_AVAILABLE` false and the Latin roles on a system fallback.
-//
-// That window is closed — the files are here — but the seam is worth keeping:
-// it is the one place a font is registered, and it keeps `tokens.ts` free of
+// conditional around it). Keeping the requires in one file confines that risk:
+// this is the one place a font is registered, and it keeps `tokens.ts` free of
 // asset paths.
 
 /**
@@ -40,9 +36,9 @@ export const switzerFonts: Record<string, number> = {
 };
 
 /**
- * Whether the faces above are actually loadable. **True now that the files are
- * committed** — kept as a derived flag rather than deleted so removing a cut
- * degrades to the system stack instead of dangling a font reference.
+ * Whether the faces above are actually loadable. Kept as a derived flag rather
+ * than a constant so removing a cut degrades to the system stack instead of
+ * dangling a font reference.
  *
  * `tokens.ts` branches the `ui` / `display` / `mono` roles on this rather than
  * naming Switzer unconditionally. Naming a font RN has not registered is not a

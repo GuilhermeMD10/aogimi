@@ -2,9 +2,9 @@
 
 // `/reader/[bookId]` — one open book.
 //
-// This used to be state inside the library view, which meant a book couldn't be
-// linked to and a refresh dropped you back on the shelf. It's a route now, so
-// the id in the URL is the whole session: everything below is resolved from it.
+// A route, not view state, so a book can be linked to and a refresh keeps it
+// open: the id in the URL is the whole session — everything below is resolved
+// from it.
 //
 // `bookId` is the IndexedDB key, which is the book's filename — the only id
 // every *readable* book has, since a book with no local file can't be opened

@@ -5,21 +5,22 @@ Last reviewed: 2026-08-01
 Base URL: NEXT_PUBLIC_API_URL (default: http://localhost:3000)
 HTTP helpers live in lib/api.ts (apiUrl, apiGet, apiSend, apiSendVoid).
 Both apiSend and apiSendVoid accept an optional AbortSignal.
-Domain types live in each feature's types.ts (e.g. features/study/decks/types.ts,
-features/dictionary/types.ts) -- lib/types/ was dissolved in the feature
-refactor. Fetch helpers live in the feature's lib/ (e.g. fooApi.ts).
+Domain types live in each feature's types.ts (e.g. features/sky/stage/types.ts,
+features/dictionary/types.ts). Fetch helpers live in the feature's lib/
+(e.g. fooApi.ts).
 
 
 ==============================================================================
 1. AUTHENTICATION
-   File: components/providers/AuthProvider.tsx, lib/auth/authApi.ts, lib/api.ts
+   File: features/auth/providers/AuthProvider.tsx, features/auth/lib/authApi.ts,
+         lib/api.ts
 ==============================================================================
 
 Token model: "memory + httpOnly cookie" (web). The backend returns the
 access token in the JSON body and sets the refresh token as an httpOnly +
 Secure + SameSite=Lax cookie scoped to /api/auth. All auth calls use
 credentials:'include'. Native clients (no Origin header) get the refresh
-token in the body instead. See ../../docs/AUTH.md.
+token in the body instead. See ../../../docs/AUTH.md.
 
 POST /api/auth/login
   Trigger:   User login (manual)
@@ -31,8 +32,8 @@ POST /api/auth/register
              server-side (403 before validation; one `return` to re-enable)
   Request:   { username, email, password }
   Response:  { user: UserProfile, accessToken }   (+ Set-Cookie: refresh)
-  Notes:     `email` is required here as of the auth redesign; the column stays
-             nullable for pre-redesign accounts. Login is still username-keyed.
+  Notes:     `email` is required here; the column stays nullable for older
+             accounts. Login is username-keyed.
              409 carries `code: USERNAME_TAKEN | EMAIL_TAKEN`, which lib/api.ts
              discards -- it throws Error(message) only -- so the web client
              shows the message form-level rather than per-field.
@@ -52,7 +53,7 @@ POST /api/auth/logout
 
 ==============================================================================
 2. USER PROFILE & ONBOARDING
-   File: lib/userApi.ts
+   File: features/profile/lib/userApi.ts
 ==============================================================================
 
 GET /api/user/{userId}
@@ -83,8 +84,7 @@ DELETE /api/user
   Notes:     Revokes every refresh token and cascade-deletes the account and
              everything under it. The client then wipes local session state
              (logout) and lands on /authenticate. There is no data-only wipe
-             endpoint — the handoff's "empty the sky" became this by owner
-             decision.
+             endpoint.
 
 UserProfile shape:
   { id, username, display_name, email, language, avatar_index,
@@ -97,7 +97,7 @@ UserProfile shape:
 
 ==============================================================================
 3. BOOKS / EPUB
-   File: lib/booksApi.ts
+   File: features/books/lib/booksApi.ts
 ==============================================================================
 
 POST /api/books
@@ -176,10 +176,10 @@ BookProgressRecord shape:
 
 ==============================================================================
 4. DECKS, FLASHCARDS, STUDY SESSIONS & STATS
-   Files: features/study/decks/lib/decksApi.ts
-          features/study/session/lib/studyApi.ts, .../lib/deckOverrides.ts,
+   Files: features/sky/stage/lib/decksApi.ts
+          features/sky/study/session/lib/studyApi.ts, .../lib/deckOverrides.ts,
           .../lib/displayPrefs.ts
-          features/study/stats/lib/statsApi.ts
+          features/sky/study/stats/lib/statsApi.ts
 ==============================================================================
 
 DeckRecord (all four deck responses share this shape)
@@ -191,9 +191,8 @@ DeckRecord (all four deck responses share this shape)
      feeds the decks screen's "Last Added Word" row. Do NOT fetch a deck's
      card inventory to derive it.
   -- description is still returned and is still written by the MOBILE app.
-     The web dropped the feature with the decks redesign and ignores it;
-     DeckSummary / Deck / DeckPatch in features/study/decks/types.ts no
-     longer carry it.
+     The web ignores it; DeckSummary / Deck / DeckPatch in
+     features/sky/stage/types.ts do not carry it.
 
 POST /api/decks
   Trigger:   Deck creation (manual)
@@ -280,12 +279,11 @@ GET /api/decks/{deckId}/cards/due       [NO CLIENT HELPER YET]
   Trigger:   (planned) single-deck due inventory
   Response:  CardRecord[]  -- due in this deck, most-overdue first
   Note:      For a badge use the /count variant below, not this + .length.
-  See:       ../../../docs/study-due-cards.md
 
 GET /api/decks/{deckId}/cards/due/count
   Trigger:   Deck-scoped due session start (/study?deck={id}&due=1) sizing it
   Response:  { count }
-  Helper:    getDueDeckCardCount() in features/study/decks/lib/decksApi.ts
+  Helper:    getDueDeckCardCount() in features/sky/stage/lib/decksApi.ts
 
 GET /api/study/due                       [NO CLIENT HELPER YET]
   Trigger:   (planned) all-decks due inventory
@@ -293,7 +291,6 @@ GET /api/study/due                       [NO CLIENT HELPER YET]
   Note:      To *run* a due session, don't fetch this and hand-build a queue --
              use POST /api/study/session with dueOnly: true (below). For a
              count, use /due/counts.
-  See:       ../../../docs/study-due-cards.md
 
 GET /api/study/due/counts
   Trigger:   Home study card (total + per-deck chips); all-decks due session
@@ -301,13 +298,12 @@ GET /api/study/due/counts
   Response:  { total, byDeck: { [deckId]: count } }
              -- decks with nothing due are OMITTED from byDeck; read a
              -- missing key as 0.
-  Helper:    fetchDueCounts() in features/study/session/lib/studyApi.ts
+  Helper:    fetchDueCounts() in features/sky/study/session/lib/studyApi.ts
 
 GET /api/study/due/random
   Trigger:   Single-card "study one word now" entry point
   Response:  { card: CardRecord | null }  -- null (with 200) when nothing is due
-  Helper:    fetchRandomDueCard() in features/study/session/lib/studyApi.ts
-  See:       ../../../docs/study-due-cards.md
+  Helper:    fetchRandomDueCard() in features/sky/study/session/lib/studyApi.ts
 
 POST /api/study/session
   Trigger:   Study session start / restart (useStudySession)
@@ -342,8 +338,8 @@ GET /api/stats/recent-upgrades[?deckId={uuid}]
   Trigger:   Home "recent upgrades" row (no deckId);
              deck detail's "RECENT UPGRADES - THIS DECK" panel (with deckId)
   Helpers:   fetchRecentUpgrades(deckId?, signal) in
-             features/study/stats/lib/statsApi.ts
-             useDeckUpgrades(deckId) in features/study/decks/hooks/
+             features/sky/study/stats/lib/statsApi.ts
+             useDeckUpgrades(deckId) in features/sky/stage/hooks/
   Response:  RecentUpgrade[] -- <=5, newest first, promotions only
   -- deckId filters BEFORE the limit. Do not fetch the global five and filter
      client-side: a deck's own promotions often aren't in the newest five
@@ -373,7 +369,7 @@ CardRecord shape:
     difficulty, stability, last_outcomes, last_reviewed_at,
     next_due_at, created_at }
   -- A card is "due" when next_due_at IS NULL (never reviewed) or
-  --  next_due_at <= now. See docs/study-due-cards.md.
+  --  next_due_at <= now.
   -- FSRS-6 since migration 027. stability and difficulty are NUMBER|NULL:
   --  null until the card's first review. difficulty is [1,10] (it was
   --  [0.05,0.95] before -- the scales are not convertible). stability is
@@ -415,16 +411,12 @@ CardRecord shape:
   --  features/dictionary/lib/cardDraft.ts -- the one place that knows the
   --  format. Retiring the column is a DEFERRED follow-up; it would break
   --  mobile's offline card queue, which still posts the flattened shape.
-  --  See mobile-frontend/aogimi-mobile/TODO.md.
 
-CardDraft shape (client-only; features/study/decks/types.ts):
+CardDraft shape (client-only; features/sky/stage/types.ts):
   { front, reading, meanings, jlptLevel, contextSentence? }
   -- The add-card authoring shape every producer builds and every add-card
   --  surface carries: the dictionary rail's row buttons, both entry panes,
-  --  and the reader's prefill. Replaced a positional
-  --  (front, back, context?) triple that had been re-declared inline in
-  --  five places, two of which had already drifted on whether `back` was
-  --  optional.
+  --  and the reader's prefill.
   -- Field names match the POST body (jlptLevel, contextSentence), NOT the
   --  cards row -- so sending one is `{ ...draft, back: cardBack(draft) }`.
   -- Deliberately carries NO `back`: `back` is a rendering of reading +
@@ -435,7 +427,7 @@ CardDraft shape (client-only; features/study/decks/types.ts):
 
 ==============================================================================
 5. DICTIONARY & WORD SEARCH
-   File: lib/dictApi.ts
+   File: features/dictionary/lib/dictApi.ts
 ==============================================================================
 
 GET /api/search?q={query}
@@ -520,7 +512,7 @@ Client-side storage:
     Auth tokens (NOT in localStorage anymore):
       The refresh token is an httpOnly + Secure + SameSite=Lax cookie
       (set by the backend, scoped to /api/auth) — unreadable by JS. The
-      access token lives in memory only (lib/auth/tokenStore.ts) and is
+      access token lives in memory only (lib/tokenStore.ts) and is
       re-minted on boot by a silent POST /api/auth/refresh. The legacy
       keys aogimi_access_token / aogimi_refresh_token are purged + revoked
       on first load by the migration in AuthProvider.
@@ -529,45 +521,30 @@ Client-side storage:
       auth_user                  { id, username } cached for first-paint
                                  (replaced by the new user on sign-in,
                                  cleared on logout)
-      dictionary_recent_searches recent search history ({ query, at })
-                                 The former dictionary_state key (query +
-                                 result + selected word) was removed: the
-                                 /dictionary URL holds the query and the
-                                 selected row now, and a second copy in
-                                 localStorage drifted out of sync. Still
-                                 wiped on account switch so old ones go.
+      dictionary_recent_searches recent search history ({ query, at }).
+                                 Navigation state (query + selected row)
+                                 lives in the /dictionary URL only — a
+                                 localStorage copy would drift out of sync.
+                                 Wiped on account switch.
 
     Device-scoped (NOT wiped on account switch):
       aogimi-theme               'light' | 'dark'. Written by ThemeProvider,
                                  read by the pre-paint <script> in
                                  app/layout.tsx before first paint. Falls back
                                  to prefers-color-scheme when absent.
-                                 Supersedes the removed `app-theme` key; moves
-                                 to a users.theme column later.
-
-    REMOVED localStorage keys (no longer written/read):
-      app-theme                  superseded by `aogimi-theme` above (the
-                                 redesign reintroduced a real theme switch, so
-                                 the choice has to survive a reload)
-      lgc_avatar_index           avatar now read from backend (avatar_index
-                                 on UserProfile) — single source of truth
-      lgc_needs_onboarding       gate now reads users.onboarding_completed
-                                 (GET /api/user/{id})
-      study_display_prefs_v1     study display prefs now backend-backed
-      study_deck_overrides_v1    deck overrides now backend-backed
-      reader_book_<filename>     highlights + bookmarks + per-book reader
-                                 prefs removed; reader typography prefs are
-                                 in-memory only (reset each book open)
-      reader_progress_<filename> EPUB reading-position buffer (cfi, spine
-                                 index, percent, updatedAt); flushed to the
-                                 backend periodically + on exit
+      reader_progress_<filename> reading-position buffer (cfi, spine index,
+                                 percent, updatedAt); the per-device source
+                                 of truth between backend flushes
+                                 (features/books/lib/readerSession.ts).
+                                 Cleared per book on book delete, not on
+                                 account switch.
 
   IndexedDB — single database `aogimi`
-  (sole connection factory: components/books/utils/booksDb.ts):
+  (sole connection factory: features/books/lib/booksDb.ts):
 
-    The old `aogimi-books` and `aogimi-fs` databases were MERGED into one
-    `aogimi` DB. A one-time, idempotent copy-then-delete migration runs on
-    first open and preserves imported book blobs + the directory handle.
+    A one-time, idempotent copy-then-delete migration folds the legacy
+    `aogimi-books` and `aogimi-fs` databases into the single `aogimi` DB on
+    first open, preserving imported book blobs + the directory handle.
 
     metadata store (keyPath 'id') — user-scoped, wiped on account switch
       Full local BookRecord per imported book: title, author, filename,
@@ -577,7 +554,7 @@ Client-side storage:
     files store (blobs, out-of-line key) — user-scoped, wiped on account switch
       Raw .epub / .pdf ArrayBuffer. This is the only place the actual
       book content lives — backend stores metadata only.
-    handles store (out-of-line key, see lib/fsAccess.ts)
+    handles store (out-of-line key, see features/books/lib/fsAccess.ts)
       FileSystemDirectoryHandle the user picked as their "library
       folder". Survives sessions because IndexedDB persists
       structured-clone handles. Optional UX nicety; kept across
@@ -592,17 +569,17 @@ Account-switch wipe:
   Trigger:  AuthProvider.handleAuthenticated() compares incoming user.id
             against lgc_last_user_id (NOT auth_user — that key is cleared
             on logout and would miss the typical sign-out → sign-in flow).
-            On mismatch, lib/auth/wipeUserData.ts runs before persist().
+            On mismatch, features/auth/lib/wipeUserData.ts runs before
+            persist().
   Wipes:    dictionary_state (legacy, no longer written) +
             dictionary_recent_searches, plus the `aogimi`
             IDB `metadata` + `files` stores (the `handles` directory handle
             is kept — it's a folder, not user data). See
-            lib/auth/wipeUserData.ts.
+            features/auth/lib/wipeUserData.ts.
   Single book delete:
-            components/books/utils/deleteBook.ts owns the per-book cleanup
-            (backend book_progress row + IDB metadata + IDB file blob). No
-            longer touches localStorage (the per-book reader_book /
-            reader_progress entries were removed). Used by the library
+            features/books/lib/deleteBook.ts owns the per-book cleanup
+            (backend book_progress row + IDB metadata + IDB file blob +
+            the reader_progress_<filename> snapshot). Used by the library
             trash button.
 
 

@@ -22,18 +22,17 @@ const READING =
 /**
  * What's printed on the card, per side.
  *
- * The layout is the handoff's; **which fields appear is still the user's display
- * preference**, which is why this isn't the design's "the word, alone" front.
+ * **Which fields appear is the user's display preference**, which is why this
+ * isn't a fixed "the word, alone" front.
  * `production` inverts the card — the meaning prompts and the word answers —
  * and `front.reading` / `front.context` / `front.jlpt` / `front.deckName` keep
  * their render sites: the JLPT chip sits beside the rank pill, the deck name is
  * the mono label in the front's top-right corner.
  *
- * Type sizes are viewport clamps rather than the handoff's fixed 120px / 46px /
- * 27px: a real `back` is often three lines (a reading plus numbered glosses) and
- * a real `front` can be six characters, so a fixed size only works for the
- * sample data. No measuring and no shrink-to-fit machinery — just a ceiling at
- * the handoff's value.
+ * Type sizes are viewport clamps rather than fixed pixel sizes: a real `back` is
+ * often three lines (a reading plus numbered glosses) and a real `front` can be
+ * six characters, so a fixed size only works for sample data. No measuring and
+ * no shrink-to-fit machinery — just a ceiling.
  */
 export function CardBody({ card, prefs, deckName, side }: Props) {
   // `production` is the inverted direction: the meaning is the prompt and the
@@ -100,9 +99,9 @@ export function CardBody({ card, prefs, deckName, side }: Props) {
       {/* MEANING is either/or, never both: on a card that has `meanings`, `back`
           is a *rendering* of the same reading + glosses (see `cardBack`), so
           printing both would print every fact twice.
-            - `meanings` non-empty → the handoff's primary / secondary pair, which
-              a structured list finally makes possible: sense one at full size,
-              the alternates stepped down.
+            - `meanings` non-empty → a primary / secondary pair, which a
+              structured list makes possible: sense one at full size, the
+              alternates stepped down.
             - `meanings` empty (a card added before migration 026, by hand or on
               mobile) → `back` verbatim, line breaks and all, exactly as this
               block has always drawn it. Those blobs follow no convention worth
@@ -149,10 +148,10 @@ export function CardBody({ card, prefs, deckName, side }: Props) {
                 {card.context_sentence}
               </div>
             ) : (
-              /* The handoff has no empty state here, and a card added by hand
-                 carries no sentence — most don't. The block keeps its shell and
-                 softens instead of vanishing, so the card doesn't change height
-                 depending on where the card came from. */
+              /* A card added by hand carries no example sentence, and most
+                 don't. The block keeps its shell and softens instead of
+                 vanishing, so the card doesn't change height depending on
+                 where it came from. */
               <div className="text-[13.5px] leading-[1.5] text-(--faint)">
                 No example sentence on this card.
               </div>

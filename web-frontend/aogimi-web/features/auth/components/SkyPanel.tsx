@@ -2,13 +2,12 @@
  * The night panel beside the auth form. Decorative — nothing here is
  * interactive, and it's dropped entirely below `lg`.
  *
- * Three of the handoff's layers are here; the first one isn't. The handoff
- * fills this panel with a generated 34-star constellation (seeded PRNG,
- * rejection sampling, a Prim minimum spanning tree over the points). That's
- * deferred by the owner — for now the panel is its background plus the scrim,
- * and the constellation mounts as an absolutely-positioned child of the same
- * wrapper when it lands. `features/dictionary/components/Constellation.tsx` is
- * a hand-drawn decorative SVG, not a generator, so it isn't the thing to reuse.
+ * Layer 1 — a generated 34-star constellation (seeded PRNG, rejection
+ * sampling, a Prim minimum spanning tree over the points) — is deferred. For
+ * now the panel is its background plus the scrim, and the constellation
+ * mounts as an absolutely-positioned child of the same wrapper when it lands.
+ * `features/dictionary/components/Constellation.tsx` is a hand-drawn
+ * decorative SVG, not a generator, so it isn't the thing to reuse.
  *
  * The colours are hardcoded, not tokenised. This panel is night in BOTH
  * themes — same reasoning as `shared/components/SkyBar.tsx` ("the sky is the
@@ -17,8 +16,8 @@
  * palette every screen reads is the more expensive mistake.
  */
 
-// Panel base and the gold/paper inks that sit on it. From the handoff's
-// non-themed sky palette.
+// Panel base and the gold/paper inks that sit on it. Non-themed sky palette
+// (see above).
 const PANEL = '#0d1526';
 const SCRIM = 'linear-gradient(180deg, rgba(8,12,24,.35) 0%, rgba(8,12,24,0) 45%, rgba(8,12,24,.75) 100%)';
 const WORDMARK = '#f2f1ee';

@@ -10,10 +10,6 @@ import { cn } from '@/lib/util/cn';
  * The tiers are thresholds on FSRS stability, not on answer streaks — `met` is
  * "under three weeks of stability", `learned` is three weeks to a year,
  * `mastered` is a year or more. `features/sky/lib/fsrs.ts` owns the numbers.
- *
- * Migration 027 renamed this tier `seen` → `met` in the database, so the label
- * and the column agree again; the display name used to be "Recent" over a
- * column called `seen`, which meant three vocabularies for one tier.
  */
 export type Stage = 'new' | 'met' | 'learned' | 'mastered';
 

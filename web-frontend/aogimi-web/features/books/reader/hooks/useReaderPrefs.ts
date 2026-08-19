@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 // In-memory reader typography/layout preferences. These are NOT persisted:
 // they reset to defaults each time a book is opened. Backend-backed reader
 // prefs are a planned follow-up; until then the reader is stateless across
-// sessions by design (see DECISIONS.md — client-storage simplification).
+// sessions by design.
 
 export interface ReaderPrefs {
   fontSize: number;       // percent, 70–200
@@ -30,9 +30,8 @@ export const FONT_STACKS: Record<ReaderPrefs['fontFamily'], string> = {
 
 // ── Scales ───────────────────────────────────────────────────────────────────
 
-/** The five line-spacing stops, from the handoff. Japanese text needs the air,
- *  which is why the default sits at the middle stop rather than near the
- *  bottom. */
+/** The five line-spacing stops. Japanese text needs the air, which is why the
+ *  default sits at the middle stop rather than near the bottom. */
 export const LINE_SPACING_STOPS = [1.6, 1.8, 2.05, 2.3, 2.6] as const;
 
 export const FONT_SIZE_MIN = 70;

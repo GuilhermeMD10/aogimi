@@ -5,13 +5,11 @@
 
 import { coverGlyphFor } from '@/lib/coverGlyph';
 
-// Reset 2026-08-10, lightened 2026-08-11. The eight muted earth/slate tones
-// this held originally were within a few points of each other and of the app's
-// surfaces, so two adjacent decks looked like the same deck. These eight are
-// simply eight obviously-different hues — now as pale tints, because the colour
-// reset says **cover glyphs are black like all other text**, and black needs a
-// light fill under it. Mirrors `palette.cover1..4`. A baseline to recolour, not
-// a scheme.
+// Eight obviously-different hues, as pale tints. Muted earth/slate tones sat
+// within a few points of each other and of the app's surfaces, so two adjacent
+// decks read as the same deck. Pale rather than saturated because **cover
+// glyphs are black like all other text**, and black needs a light fill under
+// it. Mirrors `palette.cover1..4`. A baseline to recolour, not a scheme.
 const PALETTE = [
   '#cfe0ff', // blue
   '#cff0e0', // green

@@ -18,13 +18,10 @@ import { fontFamily } from '@/theme/tokens';
 // pill carries the file title and N/total counter; the toolbar adds prev/next
 // chevrons. PDF has no notes / marks / settings panes.
 //
-// **Strip-to-basics 2026-08-10.** The pill↔toolbar morph used to interpolate
-// width/height/bottom/radius over 280ms and cross-fade the contents; the drag
-// followed your finger and sprang back. All of it is gone: the box is now read
-// straight out of `MODES[mode]` and the switch is instant. Swipe-down-to-close
-// and tap-outside still work — the gestures are behaviour, only their motion
-// went. The second `renderMode` state went with the cross-fade, since there is
-// no longer a moment where the rendered contents lag the mode.
+// No pill↔toolbar morph: the box is read straight out of `MODES[mode]` and the
+// switch is instant. Swipe-down-to-close and tap-outside still work — the
+// gestures are behaviour, independent of motion. With no cross-fade there is no
+// second `renderMode` state, since the rendered contents never lag the mode.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Mode = 'pill' | 'toolbar';

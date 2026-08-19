@@ -1,21 +1,16 @@
 /**
  * The dock's routes, in render order.
  *
- * Two changes from the `WorkspaceNav` set this replaces:
- *  - **Settings is out.** Pre-decided when settings was redesigned: the panel
- *    is reached from `/profile`'s Settings button, and DECISIONS.md recorded
- *    that the nav's settings button would leave "when that refactor lands".
- *    This is that refactor.
- *  - **Sky and Decks are one entry.** They were briefly two routes; the deck
- *    grid and the star map merged, and the surviving route is `/sky` — the
- *    decks *are* the constellations, so a second entry would be the same
- *    destination twice. The key and label still say "decks" because that is
- *    what the page is for; only the path moved.
- *  - **Home went too**, with the dashboard it pointed at. The library is the
- *    landing page now, so Home's `/` would have been Reader's destination
- *    under a second name. Reader inherited the route.
+ *  - **No Settings entry**, deliberately: settings is reached from
+ *    `/profile`'s Settings button, not from the dock.
+ *  - **Sky and Decks are one entry.** The deck grid and the star map are one
+ *    page at `/sky` — the decks *are* the constellations, so a second entry
+ *    would be the same destination twice. The key and label say "decks"
+ *    because that is what the page is for.
+ *  - **No Home entry.** The library is the landing page, so a Home `/` would
+ *    be Reader's destination under a second name.
  *
- * Only the primary group is left, so the divider in the component now separates
+ * Only the primary group lives here, so the divider in the component separates
  * these from Profile — which is deliberately not in this list, because it
  * renders an avatar rather than an icon and is spelled out there.
  */

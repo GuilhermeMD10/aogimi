@@ -1,7 +1,8 @@
 # Aogimi — the idea
 
 No code, no file paths, no architecture. Just what the app is, why it exists, and
-what you can do with it. (The technical companion is [OVERVIEW.md](OVERVIEW.md).)
+what you can do with it. (The technical companion is the repo-root
+[`README.md`](../../../README.md).)
 
 ---
 
@@ -121,12 +122,12 @@ well you know them, edit and delete freely.
 Spaced repetition, but honest about the fact that people are lazy: instead of
 configuring a study plan, you press one button.
 
-Answer each card **Again**, **Hard**, or **Easy**. The app tracks two things
+Answer each card **Again**, **Hard**, **Good**, or **Easy**. The app tracks two things
 about every card — how hard it is for *you*, and how long the memory is lasting —
 and schedules the next showing from both. You can undo a mistaken answer.
 
 Cards climb a four-step ladder: **New → Seen → Learned → Mastered.** A promotion
-takes both a streak of good answers *and* the card genuinely getting easier, so
+comes from the memory genuinely lasting longer — not from counting answers — so
 the level means something. Each card shows how far along it is toward the next
 step.
 

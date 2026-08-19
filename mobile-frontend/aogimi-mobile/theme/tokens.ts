@@ -1,36 +1,25 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // THE PALETTE — Day ("Ink on paper") + Night ("Midnight")
-// (design handoff, 2026-08-12 · supersedes the 08-10/08-11 reset baseline)
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// Two columns, one set of keys. Values come from the mobile design handoff's
-// token table; `PALETTES.day` / `PALETTES.night` are the whole of it, and
-// `ThemeContext` picks one per render. A key present in one column and missing
-// from the other is a **compile error**, which is the point of the `Palette`
-// type — the previous two-palette system drifted precisely because nothing
-// forced the columns to agree.
+// Two columns, one set of keys. `PALETTES.day` / `PALETTES.night` are the
+// whole of it, and `ThemeContext` picks one per render. A key present in one
+// column and missing from the other is a **compile error**, which is the point
+// of the `Palette` type — nothing else forces the columns to agree. Role names
+// match the web's tokens, so a role stays greppable across web and mobile.
 //
-// This replaces the reset baseline. That baseline was deliberately plain
-// scaffolding, so its "text is black, surfaces are light" rule and its
-// single-column shape are both gone; what survives is the *naming*, so a role
-// stays greppable across web and mobile.
-//
-// ── The surface contract (rewritten — read this before recolouring) ────────
-// The reset's rule was a lightness ladder, `paperTile` < `paper` ≤ `bg`. That
-// cannot be the invariant any more, because the two columns order themselves
-// differently: Day is `paper` > `bg` > `paperTile`, Night is `paper` >
-// `paperTile` > `bg`. The rule is about **role**, not lightness:
+// ── The surface contract (read this before recolouring) ────────────────────
+// The rule is about **role**, not lightness — the two columns order themselves
+// differently (Day is `paper` > `bg` > `paperTile`, Night is `paper` >
+// `paperTile` > `bg`):
 //
 //   · `paper` is the RAISED CARD. It must separate from `bg`, and in both
-//     columns it is the lightest of the three — a card now sits *above* the
-//     canvas, where the reset had it a hair below.
+//     columns it is the lightest of the three — a card sits *above* the
+//     canvas.
 //   · `paperTile` is an INSET WITHIN A CARD — a chip, a well, a badge. It must
 //     contrast against `paper`, **not** against `bg`. Checking it against the
 //     canvas is the mistake this paragraph exists to prevent.
 //   · `bg` is the canvas and nothing sits directly on it but cards and ink.
-//
-// The rest of the reset's contract still holds, and still matters:
-//
 //   · `ink` → `soft` → `muted` → `faint` is a monotonic ramp, most-contrast
 //     first; `faint` must stay readable on `paper`.
 //   · Anything named `*Ink` is the ink that sits ON the same-named fill, so the
@@ -38,26 +27,22 @@
 //   · Semantic hues (`accent` `danger` `warn` `gold`) double as *text*, so each
 //     column's value has to read against that column's `paper`.
 //
-// ── One reversal from the reset, on purpose: alpha is allowed again ────────
-// `tintA`/`tintB`, `bdA`/`bdB` and the `*Bg`/`*Bd` washes are alpha here. The
-// reset banned alpha because a single set of values tuned against a lit canvas
-// disappeared against a dark one — with one column that ban was the only
-// defence. With two columns each carries its own alphas, so the failure mode is
+// ── Alpha values ────────────────────────────────────────────────────────────
+// `tintA`/`tintB`, `bdA`/`bdB` and the `*Bg`/`*Bd` washes are alpha. A single
+// shared set of alphas tuned against a lit canvas would disappear against a
+// dark one; with two columns each carries its own, so that failure mode is
 // gone. `paperBd` stays **opaque** in both: a hairline on a filled card is the
 // one edge that has to survive whatever is behind it.
 //
 // ── What is deliberately NOT here ──────────────────────────────────────────
 //   · **The mastery ladder.** Rank colours live in `features/sky/map/lib/
 //     palette.ts` (`RANK_COLORS` / `SKY_PALETTES`) and are the single copy —
-//     `verify:sky` asserts that module is bit-identical to the web's. The
-//     handoff prints them as `r1..r4`; do not re-declare the four hexes here.
-//   · **The dock's material.** The handoff draws a flat `dockbg` slab; mobile
-//     uses the web's glass instead, and `features/app-shell/Dock.tsx` records
-//     why (the handoff owns dock geometry, the web owns its colour). So there
-//     is no `dock*` group.
-//   · **Per-book spine colours.** The handoff names three (I Am a Cat, Kokoro,
-//     Rashōmon) because its mock draws those books. `cover1..4` below is the
-//     real thing: four tints keyed off the stored `cover_color`.
+//     `verify:sky` asserts that module is bit-identical to the web's. Do not
+//     re-declare the four hexes here.
+//   · **The dock's material.** Mobile uses the web's glass, and
+//     `features/app-shell/Dock.tsx` records why. So there is no `dock*` group.
+//   · **Per-book spine colours.** `cover1..4` below is the whole of it: four
+//     tints keyed off the stored `cover_color`.
 //
 // ── The sky stays night in both columns ────────────────────────────────────
 // `sky1..3` and `deckSky` are dark in Day too, because stars are drawn on them.
@@ -100,16 +85,16 @@ const DAY = {
   btnInk: '#ffffff',
 
   /* ── Accent — the brand vermillion ─────────────────────────────────────────
-     Replaces the reset's placeholder blue. Used for the 仰 tile, the search
-     glyph, emphasis ink. `accentInk` is the handoff's cream, the ink drawn on
-     the brand tile — not white, which would be flat against the vermillion. */
+     Used for the 仰 tile, the search glyph, emphasis ink. `accentInk` is a
+     cream, the ink drawn on the brand tile — not white, which would be flat
+     against the vermillion. */
   accent: '#c2452c',
   accentInk: '#f6ead0',
 
   /* ── Selection ─────────────────────────────────────────────────────────────
      "This is the selected one" — a separate role from `accent`, which is
-     emphasis. The handoff gives no distinct hue, so it tracks the accent for
-     now; kept as its own token because the two will diverge. */
+     emphasis. It currently tracks the accent; kept as its own token so the
+     two can diverge. */
   active: '#c2452c',
   activeInk: '#f6ead0',
 
@@ -178,9 +163,9 @@ const DAY = {
   covtrack: 'rgba(255, 255, 255, 0.16)',
 
   /* ── Night sky, top → base ─────────────────────────────────────────────────
-     **Dark in Day as well.** The handoff's `skybg` gradient, unrolled into the
-     three stops mobile already had; `sky3` is the outermost so it stays the
-     darkest — it is the fill behind overscroll. */
+     **Dark in Day as well** — stars need night. Three gradient stops; `sky3`
+     is the outermost so it stays the darkest — it is the fill behind
+     overscroll. */
   sky1: '#1c2c47',
   sky2: '#16233c',
   sky3: '#0d1526',
@@ -286,10 +271,9 @@ export type ThemeName = keyof typeof PALETTES;
  * Colour is per-theme now, so the correct way to read it is `usePalette()`.
  * This alias exists only because ~21 modules read `palette.*` inside a
  * module-scope `StyleSheet.create`, which cannot call a hook; rewriting all of
- * them at once would be churn on screens the redesign is about to replace
- * anyway. Those screens are therefore **Day-locked**: they will look wrong in
- * Night until each is migrated, which is the same phased deal `useColors()`
- * already runs on.
+ * them at once would be churn on screens slated for redesign. Those screens
+ * are therefore **Day-locked**: they will look wrong in Night until each is
+ * migrated, as with `useColors()` below.
  *
  * Do not add call sites. A screen being redesigned drops this for `usePalette()`
  * and builds its styles inside the component.
@@ -325,25 +309,25 @@ export type ThemeColors = {
 /**
  * The legacy key → `Palette` mapping, in one place.
  *
- * **Why a bridge instead of a rename.** 61 components do `const c = useColors()`
- * and read these keys ~600 times. Phase 6 rewrites those screens against the
- * handoff one at a time, so renaming all 600 call sites now would be churn on
- * code that is about to be replaced — and a half-finished rename is two
- * vocabularies with no rule for which to use. Each screen drops `useColors()`
- * for `usePalette()` as it is redesigned; when the last one has, this function
- * and `ThemeColors` go with it.
+ * **Why a bridge instead of a rename.** ~61 components do `const c = useColors()`
+ * and read these keys ~600 times. Those screens are being rewritten one at a
+ * time, so renaming all 600 call sites now would be churn on code that is about
+ * to be replaced — and a half-finished rename is two vocabularies with no rule
+ * for which to use. Each screen drops `useColors()` for `usePalette()` as it is
+ * redesigned; when the last one has, this function and `ThemeColors` go with it.
  *
  * It is **derived, never a second set of literals**, so the two cannot drift.
  *
- * **It takes the palette as an argument now** rather than closing over a module
- * constant, which is what makes every one of those 61 screens theme-aware for
+ * **It takes the palette as an argument** rather than closing over a module
+ * constant, which is what makes every one of those screens theme-aware for
  * free: `useColors()` calls this with whichever column is live. (What it cannot
- * fix is a screen with a *hardcoded* `#FFFFFF` — those are still out there and
- * will read wrong in Night until the redesign reaches them.)
+ * fix is a screen with a *hardcoded* `#FFFFFF` — those will read wrong in Night
+ * until the redesign reaches them.)
  *
  * ── Three mappings that are not 1:1 ─────────────────────────────────────────
- * The old palette had three ink steps against the web's four, and folded two
- * distinct web roles into `accentFg`. Recorded here rather than discovered later:
+ * The legacy vocabulary has three ink steps against the palette's four, and
+ * folds two distinct roles into `accentFg`. Recorded here rather than
+ * discovered later:
  *
  *  · `fgMuted` → `soft` and `fgSubtle` → `muted`. Three steps onto the top
  *    three of four; `faint` has no legacy name and is only reachable via
@@ -367,10 +351,9 @@ export function legacyColors(p: Palette): ThemeColors {
     bg: p.bg,
     /** Card, row and sheet fills. */
     bgElev: p.paper,
-    /** Badges, tracks and bars. `paperTile` and `track` used to be the same hex,
-     *  so this one key covered both roles; they are separate now (a track has to
-     *  be visible while empty, a badge does not), so a call site that means
-     *  "progress track" should move to `track`. */
+    /** Badges, tracks and bars. `paperTile` and `track` are separate roles (a
+     *  track has to be visible while empty, a badge does not), so a call site
+     *  that means "progress track" should move to `track`. */
     bgSunken: p.paperTile,
 
     fg: p.ink,
@@ -486,23 +469,19 @@ export type Theme = {
 // Font stacks
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// **We use our faces, never the handoff's.** Design handoffs arrive with their
-// own typefaces named — the Home board asks for M PLUS 1 + Space Mono — and the
-// answer is always no: the app's faces are **Switzer** (Latin UI, and the mono
-// role) + **Noto Sans JP** (Japanese), matching the web's `--face-ui` /
-// `--face-mono` / `--face-jp`. Substitute here, at the token layer, so no call
-// site ever names a family. See CLAUDE.md for the standing rule.
+// The app's faces are **Switzer** (Latin UI, and the mono role) + **Noto Sans
+// JP** (Japanese), matching the web's `--face-ui` / `--face-mono` /
+// `--face-jp`. Families are substituted here, at the token layer, so no call
+// site ever names a family.
 //
 // **Neither family ships a 600 cut** — the same trap the web documents. Use
 // '500' or '700'; a `fontWeight: '600'` gets synthesised and looks wrong.
 //
-// ── Switzer is not shipped yet, and these roles cope ────────────────────────
-// The web only has Switzer as `.woff2`, which React Native cannot load, so the
-// `.otf` set has to be added by hand — `theme/switzer.ts` is the one place to
-// do it and explains how. Until then `SWITZER_AVAILABLE` is false and the two
-// Latin roles fall back to the platform sans, which is a deliberate, quiet
-// fallback rather than a dangling font reference. **Noto Sans JP is already
-// loaded**, so Japanese text is correct today.
+// Switzer is registered in `theme/switzer.ts` (the web's `.woff2` set cannot
+// be reused — React Native has no woff2 support, hence the parallel `.otf`
+// set). If a cut is ever removed, `SWITZER_AVAILABLE` flips false and the two
+// Latin roles fall back to the platform sans rather than dangling a font
+// reference.
 
 /** Latin UI face. Three cuts, matching the web's 400/500/700. */
 const SWITZER = {
@@ -553,14 +532,11 @@ export const FONT_FAMILIES = { switzer: SWITZER, notoJp: NOTO_JP } as const;
 /**
  * The filled card surface.
  *
- * **No shadow.** Every drop shadow in the app was stripped in the 2026-08-10
- * strip-to-basics pass, this one included: card separation now comes from the
- * opaque `paper` fill and the solid border, which is all a flat baseline needs.
- * The fields stay on `SurfaceShape` (zeroed) rather than being deleted, so a
- * redesign that wants elevation back sets four numbers here instead of
- * re-threading the type through every consumer.
- *
- * Radius 16 is unchanged — radii are structure, not decoration.
+ * **No shadow.** Card separation comes from the opaque `paper` fill and the
+ * solid border, which is all a flat baseline needs. The shadow fields stay on
+ * `SurfaceShape` (zeroed) rather than being deleted, so a design that wants
+ * elevation sets four numbers here instead of re-threading the type through
+ * every consumer.
  */
 function softSurface(colors: ThemeColors): SurfaceShape {
   return {
@@ -658,17 +634,9 @@ export const THEMES: Record<ThemeName, Theme> = {
 export const theme: Theme = THEMES.day;
 
 /**
- * Corner radii, re-valued to the design handoff's steps (2026-08-12).
- *
- * The handoff specifies book spines at 6–8, buttons at 11–13, cards at 16 and
- * chips fully round at 20 — so `md` moved 10 → 12 and `lg` moved 14 → 16. The
- * *names* are unchanged, which is why this is a one-line change rather than a
- * sweep: every existing `radius.lg` call site was already trying to be "the
- * card radius" and now actually is one.
- *
- * Radii are structure, not decoration — the strip-to-basics pass left them
- * alone for that reason, and this is a correction to the handoff's numbers
- * rather than a restyling.
+ * Corner radii. Named by role rather than value: every `radius.lg` call site
+ * means "the card radius", so re-valuing a step retunes the whole app in one
+ * line.
  */
 export const radius = {
   /** Book and deck spines. */
@@ -703,8 +671,7 @@ export const fontSize = {
 } as const;
 
 /**
- * Static font lookup. Identical to `useFonts()` now that there is one theme —
- * both are kept because the hook is the shape the rest of the app already
- * calls, and `StyleSheet.create` blocks can't call hooks.
+ * Static font lookup. Fonts do not vary per theme, so this equals what the
+ * hook returns — kept because `StyleSheet.create` blocks can't call hooks.
  */
 export const fontFamily = DEFAULT_FONTS;

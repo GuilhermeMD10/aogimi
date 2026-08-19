@@ -1,7 +1,7 @@
 import { openDB, type IDBPDatabase } from 'idb';
 
-// The single IndexedDB database for the web client. It merges what used to be
-// two separate databases:
+// The single IndexedDB database for the web client. It merges two legacy
+// databases:
 //   - `aogimi-books` — book metadata (+ syncState) and the imported file blobs
 //   - `aogimi-fs`    — the File System Access directory handle
 // Both are folded in here on first open (see migrateLegacy). bookStore.ts,

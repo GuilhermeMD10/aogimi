@@ -7,11 +7,9 @@ import { fontFamily, palette, radius } from '@/theme/tokens';
 /**
  * The four cover fills and the ink that goes on each, in `palette` order.
  *
- * **Fill and ink are one unit.** They were separate until the 2026-08-12
- * handoff, when the fills went from pale to the handoff's saturated spine
- * colours — and the glyph, which was hardcoded to `palette.ink`, became black
- * on navy. Pairing them here means picking a fill picks its ink and the two
- * cannot drift apart again.
+ * **Fill and ink are one unit.** Kept separate, a saturated spine colour and a
+ * glyph hardcoded to `palette.ink` drift into black-on-navy. Pairing them here
+ * means picking a fill picks its ink.
  *
  * **Why the stored `coverColor` is not painted directly.** A book's
  * `cover_color` comes from the backend and is shared with the web app, so the

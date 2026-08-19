@@ -3,9 +3,8 @@
 // The selection menu, at the pointer. Two actions: look the selection up, or
 // turn it into a card.
 //
-// The handoff puts three highlight swatches between them. Highlights don't
-// exist in the app — no store, no anchoring — so the row is left out rather
-// than stubbed.
+// No highlight swatches: highlights don't exist in the app — no store, no
+// anchoring — so the row is left out rather than stubbed.
 
 import { forwardRef, useLayoutEffect, useRef } from 'react';
 import { Search, BookPlus } from 'lucide-react';

@@ -8,10 +8,8 @@ import { cn } from '@/lib/util/cn';
  * (a learner reads "green = easy" the same way at night). Pill ink is always
  * the same warm near-black, which stays legible on all five.
  *
- * Values are the Dictionary handoff's ramp. The reader prototype shipped a
- * brighter variant of the same scale in `shared/ui/JlptChip`; the handoff said to
- * standardise on this calmer one, and that file is now deleted — the reader's
- * surfaces render this component.
+ * This is the one definition of the ramp — the reader's surfaces render this
+ * same component, so the scale is identical everywhere it appears.
  *
  * Lives here rather than in `features/dictionary` because study is the second
  * consumer domain: cards carry `jlpt_level` (migration 026), so the decks stage

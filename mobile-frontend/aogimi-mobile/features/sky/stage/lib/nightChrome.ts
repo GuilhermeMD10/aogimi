@@ -10,19 +10,17 @@ import { PALETTES } from '@/theme/tokens';
  * two different surfaces, kept apart, because the dock is app chrome and this is
  * one feature's.
  *
- * ── Why they are light now (2026-08-11) ────────────────────────────────────
- * They were a translucent blue-black, which was right while the app was dark.
- * The colour reset flipped the palette to a light baseline — **text is black** —
- * and `sky1..3` are the one group that stayed dark, because stars need night.
- * That left black ink on a near-black panel: the least readable combination in
- * the app.
+ * ── Why the panels are light ───────────────────────────────────────────────
+ * The palette's baseline is light — **text is black** — and `sky1..3` are the
+ * one group that stays dark, because stars need night. A dark panel would put
+ * black ink on a near-black ground: the least readable combination in the app.
  *
- * So the panels inverted and the sky did not. A light frosted panel over a dark
+ * So the panels are light and the sky is not. A light frosted panel over a dark
  * sky keeps `palette.ink` / `soft` / `muted` readable on it with no second ink
- * ramp to maintain — which is the whole reason this file is a few lines and the
- * web's equivalent is fifty. Over there the stage is night in *both* themes, so
- * every scrap of chrome has to restate its own ink; here, inverting two fills
- * buys the same result and keeps one source of truth for ink.
+ * ramp to maintain — which is why this file is a few lines and the web's
+ * equivalent is fifty. Over there the stage is night in *both* themes, so every
+ * scrap of chrome has to restate its own ink; here, two inverted fills buy the
+ * same result and keep one source of truth for ink.
  *
  * `glass` stays translucent so a floating bar still shows the sky moving behind
  * it. `panel` is near-opaque, because anything you actually *read* should not

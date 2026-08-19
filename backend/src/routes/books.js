@@ -1,9 +1,8 @@
 // /api/books/* — book metadata + reading progress + bookmarks.
 //
 // Mounted under `authenticateJWT`; `req.user.userId` is the only source
-// of truth for who's calling. The `userId` field in request bodies is
-// IGNORED — present-but-ignored is the safe default during the client
-// rollout. Every route that takes a `:id` (or path under it) verifies
+// of truth for who's calling. Any `userId` field in request bodies is
+// IGNORED. Every route that takes a `:id` (or path under it) verifies
 // `bookOwnedBy(req.user.userId, id)` before doing anything; mismatch
 // returns 404 to avoid leaking which book ids exist.
 

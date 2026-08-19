@@ -31,12 +31,12 @@ const EMPTY_FOR_FILTER: Record<Filter, string> = {
   finished: 'No finished books yet.',
 };
 
-// Three columns, per the handoff. Fixed rather than responsive now that the
-// hero eats a fixed 470px: the shelf's own width no longer tracks the viewport
-// closely enough for a column count to be worth deriving from it.
+// Three columns, fixed rather than responsive: the hero eats a fixed 470px,
+// so the shelf's own width doesn't track the viewport closely enough for a
+// column count to be worth deriving from it.
 const GRID = 'grid grid-cols-3 content-start gap-[22px]';
 
-/** The hero's column. `470px` is the handoff's; it holds a 196px cover. */
+/** The hero's column. */
 const HERO_COL = '470px';
 
 function matchesFilter(book: Book, filter: Filter): boolean {
@@ -286,7 +286,7 @@ export function LibraryShelf({
 
 // ── Banner ──────────────────────────────────────────────────────────────────
 
-// The handoff's notice-bar shape — hairline box with a 3px coloured left edge —
+// The notice-bar shape — hairline box with a 3px coloured left edge —
 // reused for both tones. Vermilion is the design's `--danger` as well as its
 // `--accent`, so an error reads as urgent without a second red entering the
 // palette; a confirmation takes the neutral `--btn` edge instead.
@@ -366,12 +366,9 @@ function SearchField({
 // Not the shared `Chip`: that one is a link or a static label, and these are
 // single-select controls with a pressed state and their own mono type scale.
 //
-// Plain white glass when unselected (it used to carry GLASS_SCRIM, the on-cover
-// treatment, which nothing on this row sits on), the app's active glass when
-// selected. Selection used to be
-// shadcn's `bg-primary` (= `--btn`, so a black chip on paper and a white one at
-// night) with a `--gold` edge on hover, which asked the eye to tell selected
-// from hovered by hue. `GLASS_ACTIVE` brings the fill AND the ink, so there is
+// Plain white glass when unselected (GLASS_SCRIM is the on-cover treatment,
+// and nothing on this row sits on cover art), the app's active glass when
+// selected. `GLASS_ACTIVE` brings the fill AND the ink, so there is
 // no `text-*` on the selected branch — a utility would beat the recipe.
 function FilterChip({
   label,

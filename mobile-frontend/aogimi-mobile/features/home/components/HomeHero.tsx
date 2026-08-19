@@ -4,8 +4,7 @@ import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
 
 /**
- * The greeting block — the handoff's 30px salutation and its one-line
- * subcaption.
+ * The greeting block — a 30px salutation and its one-line subcaption.
  *
  * The greeting is omitted entirely when there is no name to use, rather than
  * falling back to a nameless "おかえり": a signed-out user has not come back
@@ -32,9 +31,9 @@ function useStyles(p: Palette) {
     () =>
       StyleSheet.create({
         greeting: {
-          // 30px is the handoff's, and sits between `fontSize.xxl` (24) and
-          // `display` (32) — a one-off rather than a new scale step, since
-          // nothing else in the app is this size.
+          // 30px sits between `fontSize.xxl` (24) and `display` (32) — a
+          // one-off rather than a new scale step, since nothing else in the
+          // app is this size.
           fontFamily: fontFamily.jp,
           fontSize: 30,
           fontWeight: '700',

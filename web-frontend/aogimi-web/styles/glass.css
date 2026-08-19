@@ -1,17 +1,17 @@
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    GLASS
-   The frosted-surface recipe, from the "Aogimi — Reader Glass" handoff. One
+   The frosted-surface recipe. One
    file on purpose: **this is the tweak surface.** Every number the look depends
    on is in the `:root` block below, and every rule under it is composed from
    those variables — so re-balancing the glass is editing one block, not hunting
    through components.
 
    ── Values ────────────────────────────────────────────────────────────────
-   The handoff derives everything from three params: `blur` px, `r` =
-   reflection/100, `k` = depth/25. These are the resolved Midnight values it
-   ships as final — **blur 13, reflection 25%, depth 0**. The formulas are kept
-   in the comments beside each value so a re-derive doesn't need the handoff
-   open. `depth = 0` means there is deliberately no drop shadow: `--glass-inset-sm`
+   Everything derives from three params: `blur` px, `r` =
+   reflection/100, `k` = depth/25 — resolved here as the Midnight values
+   **blur 13, reflection 25%, depth 0**. The formulas are kept
+   in the comments beside each value so a re-derive needs nothing but this
+   file. `depth = 0` means there is deliberately no drop shadow: `--glass-inset-sm`
    is an inset-only list. When depth comes back, its
    `0 (8k)px (32k)px rgba(0,0,0, min(.1k,.5))` entry goes at the FRONT of the
    list — a `box-shadow` can't mix a separate `none` in.
@@ -22,7 +22,7 @@
    here**: every consumer reads `var(--glass-*)` and nothing reads a literal, so
    making glass follow the theme is moving this `:root` block into
    `html[data-theme="light"]` / `html[data-theme="dark"]` pairs — here or in
-   ds-tokens.css — and touching no component. The handoff's light-side values
+   ds-tokens.css — and touching no component. The light-side values
    are on record for when that happens: fill `.55` / hover `.8`, inner-glow
    alpha `r * 0.85`.
 
@@ -46,8 +46,8 @@
    And the dock's own set:
 
      .glass-dock      the bottom nav shell — fill + blur, small inner glow,
-                      top specular line. No hover state at all (the handoff
-                      gives hover the same fill as idle).
+                      top specular line. No hover state at all (hover keeps
+                      the same fill as idle, deliberately).
      .glass-dock-item one nav entry. Idle ink, hover fill + brighter ink for
                       idle entries only, dark ink when `aria-current="page"`
                       (the pill behind it supplies the light), press nudge.
@@ -59,7 +59,7 @@
    The dock's numbers are a **separate `--dock-glass-*` block** even where they
    land on the same value as a `--glass-*` one (the shell's inner glow is
    `--glass-inset-sm` to the decimal). That is deliberate: the dock is one
-   always-on-screen element with its own handoff and its own tweak pass, so it
+   always-on-screen element with its own tweak pass, so it
    has to be re-balanceable without touching the four surfaces that share the
    reader/library recipe.
 
@@ -80,8 +80,7 @@
      .glass-scrim     added to a `.glass-button` or a `.glass-surface` that
                       wants the dark treatment: swaps the white fill + glow for
                       the same scrim the sheet uses. **Only over cover art**
-                      (white-on-unknown-cover is unreadable) — the library used
-                      to take it wholesale and no longer does; see the scrim
+                      (white-on-unknown-cover is unreadable) — see the scrim
                       block in `:root`.
      .glass-active    the selected state — swaps in the lit `--active` tint, the
                       dark ink it carries, a brighter edge and a brighter glow,
@@ -106,12 +105,8 @@
   --glass-blur: 13px;
 
   /* fill: .15 night / .55 light · hover: .27 / .8
-     `.15` is the handoff's number, and it is also the dock shell's `--dock-glass-fill`
-     — deliberately the same value now. It had been tweaked down to `.01` (an
-     invisible fill) for as long as the library was painting every surface with
-     the scrim instead, which made the white fill dead code that nothing saw. The
-     library is back on white glass, so this is a real value again and the two
-     read as one material. */
+     `.15` matches the dock shell's `--dock-glass-fill` — deliberately the same
+     value, so the two read as one material. */
   --glass-fill: rgba(255, 255, 255, 0.15);
   --glass-fill-hover: rgba(255, 255, 255, 0.27);
 
@@ -119,11 +114,10 @@
   --glass-bd: rgba(255, 255, 255, 0.075);
 
   /* Small inner glow — top 0.55r, bottom 0.15r, glow 0.3r. Every surface takes
-     this one now, which is why the handoff's LARGE variant (`--glass-inset`, a
-     20px/10px glow at top .5r / bottom .1r / glow .45r) is gone: it existed for
-     the continue-reading hero alone, and the hero now wears the dock's glass
-     like everything else. One material, one glow. Re-deriving it if a big
-     surface ever wants its own again is three lines from the formulas above. */
+     this one: one material, one glow. There is deliberately no LARGE variant;
+     if a big surface ever wants its own (a 20px/10px glow at top .5r /
+     bottom .1r / glow .45r), re-deriving it is three lines from the formulas
+     above. */
   --glass-inset-sm:
     inset 0 1px 0 rgba(255, 255, 255, 0.138),
     inset 0 -1px 0 rgba(255, 255, 255, 0.038),
@@ -175,7 +169,7 @@
   );
 
   /* The one transition glass owns. The rest of the app is on --transition
-     (120ms); the handoff's glass hover is slower and softer than that. */
+     (120ms); the glass hover is deliberately slower and softer than that. */
   --glass-transition: 180ms ease;
 
   /* ── Active / selected glass ──────────────────────────────────────────────
@@ -208,8 +202,7 @@
   --glass-press: 120ms ease;
 
   /* ── The grade buttons ────────────────────────────────────────────────────
-     From the "Aogimi — Glass Buttons" handoff: the study runner's Again / Hard
-     / Easy row. Same params as everything above (blur 13, reflection 25%, depth
+     The study runner's grade row. Same params as everything above (blur 13, reflection 25%, depth
      0) with one extra, `grade opacity` 30% — so the fill is `o` = .30, hover
      `o + .15` = .45, and the reflection layers derive from r = .25 exactly as
      the shell's do: border .3r, inset top .55r, inset bottom .15r, inner glow
@@ -221,14 +214,12 @@
      colour. Here all five layers take the tint: three tiles sit side by side
      and have to be told apart at a glance while carrying neutral ink, so the
      colour is the whole signal and a white edge would dilute it. Deliberate,
-     handoff-sanctioned, and scoped to these three classes.
+     and scoped to these classes.
 
-     Own group rather than `--danger` / `--warn` (whose comment in ds-tokens.css
-     still describes the outgoing scheme) because those two are *ink on a
-     surface* — delete rows, the deck stage's destructive buttons — and pulling
-     them brighter to feed a 30% fill would repaint all of it. Easy's green is
-     new to the palette and stays local for the same reason: one component has
-     ever wanted it.
+     Own group rather than `--danger` / `--warn` because those two are *ink on
+     a surface* — delete rows, the deck stage's destructive buttons — and
+     pulling them brighter to feed a 30% fill would repaint all of it. The
+     grade tints stay local for the same reason: only this row wants them.
 
      Four tints, and then every layer derived from whichever one is in play.
      `--grade-tint` is undefined here on purpose: the four classes at the bottom
@@ -243,12 +234,12 @@
      0% collapses to `rgba(0,0,0,0)` — reintroducing exactly the grey cast the
      note above `--glass-hl` warns about.
 
-     WHY THE GREEN MOVED. The row gained a Good button when the scheduler moved
-     to FSRS-6 (which is fitted on four grades). Red · amber · green · blue is
+     WHY THIS ORDERING. The row is four grades because FSRS-6 is fitted on
+     four. Red · amber · green · blue is
      the ordering every other SRS uses, Anki included, so a learner arriving
      from one reads this row without being taught it — and it puts green on
      "correct", which is where green belongs. Good is the grade the model
-     expects most often; Easy is the exception, so it takes the new cool tint
+     expects most often; Easy is the exception, so it takes the cool tint
      rather than the familiar one. */
   --grade-again: #ff5757;
   --grade-hard: #ffd582;
@@ -289,7 +280,7 @@
   );
 
   /* ── The dock ─────────────────────────────────────────────────────────────
-     From the "Aogimi — Dock Bar" handoff. Same derivation as above — `r` =
+     Same derivation as above — `r` =
      reflection/100, and the shell and the pill each get their own `r` — but
      kept as its own block so the dock can be re-tweaked in isolation:
 
@@ -315,8 +306,8 @@
     rgba(255, 255, 255, 0)
   );
 
-  /* The pill IS the shared active glass — the handoff's pill is where that
-     group came from. Kept as four aliases rather than reading --glass-active-*
+  /* The pill IS the shared active glass.
+     Kept as four aliases rather than reading --glass-active-*
      straight from `.glass-dock-pill`: re-tweaking the dock's indicator on its
      own then stays an edit to these four lines, and nothing else in the app
      moves with it. */
@@ -379,14 +370,9 @@
      specular edges.
 
      It is the fix for buttons sitting ON cover art (the ⋯ circles), where a
-     white fill vanishes against a pale cover. That is now its ONLY job. The
-     library did spend a while wearing it wholesale — chips, import and resume
-     buttons, the continue-reading panel, none of which have a cover to hide —
-     on the argument that the scrim read as the better glass on a dark page and
-     one screen wants one glass. The one-glass half of that still holds; the
-     glass it picked changed. The library is white glass at the dock's values
-     now, so the scrim is back to being a compensation rather than a look, and
-     the two surfaces that genuinely need it are the two that take it.
+     white fill vanishes against a pale cover. That is its ONLY job — the
+     scrim is a compensation, not a look, and the two surfaces that genuinely
+     need it are the two that take it.
 
      Compound selectors so it beats the plain `.glass-*` rules regardless of
      which is written first. Listed per host rather than as a bare `.glass-scrim`
@@ -446,10 +432,9 @@
      Additive modifier, same shape as `.glass-scrim`: it swaps the fill, the
      ink, the edge and the glow for the lit set and leaves the blur, the cursor
      and the geometry to the host. This is the ONE way a glass control says "I
-     am the selected one" — the library's filter chips were doing it with
-     shadcn's `bg-primary` (`--btn`, so black on paper and white at night) and
-     announcing hover with a `--gold` edge, which made selected-vs-hover a
-     hue comparison rather than a brightness one.
+     am the selected one" — a second scheme (a `bg-primary` fill here, a
+     `--gold` hover edge there) would make selected-vs-hover a hue comparison
+     rather than a brightness one.
 
      `:hover` is neutralised rather than left to the host: an already-lit
      control has nothing to brighten to, and the white hover fill landing on
@@ -522,7 +507,7 @@
      `transition: transform` at equal specificity and earlier source order, so on
      an element wearing both, the shorthand there REPLACES `.glass-button`'s list
      and the fills stop easing. Naming all four here — after that rule — is what
-     gets the handoff's `background .18s, color .18s, transform .12s` back. */
+     keeps `background .18s, color .18s, transform .12s` all easing. */
   .glass-button.glass-grade {
     background: var(--grade-fill);
     border-color: var(--grade-bd);
@@ -540,7 +525,7 @@
     background-image: var(--grade-hl);
   }
 
-  /* The handoff's hover does two things at once: the fill steps `o` → `o + .15`,
+  /* The hover does two things at once: the fill steps `o` → `o + .15`,
      and the edge goes to `currentColor` — the button's own ink, so a hovered
      tile is outlined in the same near-white its label is set in. Louder than the
      fill-only brighten every other glass control uses, and intended: these three

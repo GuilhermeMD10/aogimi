@@ -10,8 +10,8 @@ const eslintConfig = defineConfig([
   //   - lib/ and shared/ are the bottom layer and must never import a feature.
   //   - features/ may import lib, shared, and other features (via their barrel),
   //     but never app/ (app composes features, not the reverse).
-  // Cross-feature "import only via the feature's index barrel" is a convention
-  // (see CLAUDE.md); enforce with eslint-plugin-boundaries later if desired.
+  // Cross-feature "import only via the feature's index barrel" is a convention;
+  // enforce with eslint-plugin-boundaries later if desired.
   {
     rules: {
       "import/no-restricted-paths": [

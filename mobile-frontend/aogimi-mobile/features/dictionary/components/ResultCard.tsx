@@ -12,14 +12,14 @@ import { AddButton } from './AddButton';
 /**
  * A word in the results list.
  *
- * **Only the first card is a card.** The handoff fills and outlines the top
- * result and leaves the rest as bare rows on the canvas — the list reads as one
- * answer with alternates under it, which is what a ranked dictionary result set
- * is. `elevated` carries that, and also tints the headword `accent`.
+ * **Only the first card is a card.** The top result is filled and outlined,
+ * the rest are bare rows on the canvas — the list reads as one answer with
+ * alternates under it, which is what a ranked dictionary result set is.
+ * `elevated` carries that, and also tints the headword `accent`.
  *
- * Glosses join with "; " rather than stacking as a numbered list (which is what
- * the old row did). A result row answers "is this the word?", and the numbered
- * breakdown belongs on the entry, one tap away.
+ * Glosses join with "; " rather than stacking as a numbered list. A result row
+ * answers "is this the word?", and the numbered breakdown belongs on the
+ * entry, one tap away.
  */
 export function ResultCard({
   word,
@@ -134,9 +134,9 @@ function useStyles(p: Palette) {
         },
         headwordCompact: { fontSize: fontSize.lg + 1 },
         headwordElevated: { color: p.accent },
-        // The handoff sets kana in its mono face. Ours is Switzer, which has no
-        // Japanese glyphs and would fall back mid-string, so readings take `jp`
-        // at the size the mono label would have occupied.
+        // The mono face is Switzer, which has no Japanese glyphs and would
+        // fall back mid-string, so readings take `jp` at the size the mono
+        // label would have occupied.
         reading: {
           fontFamily: fontFamily.jp,
           fontSize: fontSize.xs,

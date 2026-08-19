@@ -5,15 +5,9 @@ const KANJI_SELECT = `
   SELECT literal, grade, jlpt_level, stroke_count, radical,
          meaning, on_readings, kun_readings, pinyin`;
 
-// The three pattern queries (meaning / on / kun) are capped: they're
-// leading-wildcard ILIKEs on an UNAUTHENTICATED route, so `?meaning=a`
-// matched most of the table with a full scan and returned all of it.
-//
-// The enumeration queries (grade / strokes / radical) are deliberately NOT
-// capped. They're bounded by the table — KANJIDIC2 is ~13k rows and the
-// largest single group is one grade — and capping them would silently
-// truncate the thing they exist to return ("every grade 1-6 kanji"). Their
-// inputs come from `searchService`, which only ever passes literals.
+// The pattern queries (on / kun) are capped: they're leading-wildcard
+// ILIKEs on an UNAUTHENTICATED route, so a one-character query would
+// otherwise match most of the table with a full scan and return all of it.
 const CAP = LIMITS.DICTIONARY_RESULTS;
 
 async function findByLiteral(literal) {
@@ -23,12 +17,6 @@ async function findByLiteral(literal) {
   );
   return rows[0] ?? null;
 }
-
-
-
-
-
-
 
 async function findByOnReading(reading) {
   const { rows } = await pool.query(

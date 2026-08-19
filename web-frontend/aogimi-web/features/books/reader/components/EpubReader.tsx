@@ -43,10 +43,10 @@ type ReaderType = 'text' | 'manga';
 // hands the blob to the chosen sub-component. Each sub-component creates its
 // own <foliate-view> and calls view.open(blob) inside its engine hook.
 //
-// Only two types now. Vertical Japanese text used to be a third ("novel"), but
-// writing mode is a Display setting — the file's `dir` decides what it opens
-// as, not what it can be. Layout is the real fork: fixed-layout pages are
-// images and can't do any of what the flowing reader offers.
+// Only two types. Vertical Japanese text is not a third: writing mode is a
+// Display setting — the file's `dir` decides what it opens as, not what it can
+// be. Layout is the real fork: fixed-layout pages are images and can't do any
+// of what the flowing reader offers.
 // ═════════════════════════════════════════════════════════════════════════════
 
 export function EpubReader({

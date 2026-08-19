@@ -17,8 +17,8 @@ module.exports = defineConfig([
     //
     // Cross-feature imports are NOT restricted here — on the web that's
     // convention rather than enforcement, and the same applies. What this
-    // catches is the drift that made the 2026-08 restructure necessary in the
-    // first place: a helper in lib/ quietly reaching up into a feature.
+    // catches is layering drift: a helper in lib/ quietly reaching up into
+    // a feature.
     rules: {
       "import/no-restricted-paths": [
         "error",

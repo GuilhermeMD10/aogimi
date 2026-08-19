@@ -5,9 +5,9 @@
 // (cards owned via deck FK), 404 on mismatch.
 //
 // Bodies are validated by zod (validation/decks.js) — length caps on every
-// text field and an enum on `state`, which used to accept any string and let
-// a client skip the SRS ladder. Inserts are gated by the per-user deck and
-// per-deck card quotas (services/quotas.js), which answer 409.
+// text field and an enum on `state`, so a client can't skip the SRS ladder.
+// Inserts are gated by the per-user deck and per-deck card quotas
+// (services/quotas.js), which answer 409.
 
 const { Router } = require("express");
 const deckService = require("../services/deckService");
@@ -137,12 +137,8 @@ router.get("/:id/cards", async (req, res) => {
 });
 
 // Just the due count for this deck — for a badge that would otherwise pull
-// every due card row to call `.length` on it.
-//
-// There was a `GET /:id/cards/due` beside this returning the rows themselves.
-// Nothing called it: clients build a session from `POST /api/study/session`
-// (which applies mode, ordering and a size cap) and only ever want the bare
-// integer here. Removed along with `cardService.getDueDeckCards`.
+// every due card row to call `.length` on it. Clients build full study
+// sessions from `POST /api/study/session` instead.
 router.get("/:id/cards/due/count", async (req, res) => {
   if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });

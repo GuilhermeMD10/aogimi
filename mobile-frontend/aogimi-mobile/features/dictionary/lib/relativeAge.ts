@@ -1,11 +1,11 @@
 /**
  * "2m" / "14m" / "1h" / "3d" — the age label on a recent-lookup row.
  *
- * Deliberately **not** localized. The handoff draws these as compact metadata
- * beside the row, and the three forms are a digit plus one latin letter; a
- * translated "3日前" would be wider than the gloss it sits next to and would
- * need per-locale width rules in the row. If ages ever need words, they belong
- * in i18n as full phrases, not as these stubs.
+ * Deliberately **not** localized. These are compact metadata beside the row,
+ * and the three forms are a digit plus one latin letter; a translated "3日前"
+ * would be wider than the gloss it sits next to and would need per-locale
+ * width rules in the row. If ages ever need words, they belong in i18n as
+ * full phrases, not as these stubs.
  */
 export function relativeAge(iso: string, now: number = Date.now()): string {
   const then = new Date(iso).getTime();

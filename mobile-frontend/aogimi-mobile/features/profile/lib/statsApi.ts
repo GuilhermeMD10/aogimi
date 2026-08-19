@@ -2,16 +2,7 @@ import { request } from '@/lib/api';
 import type { CardRecord } from '@/features/sky/stage/types';
 
 // Mirrors backend src/routes/stats.js, scoped to the token user — no userId
-// to pass.
-//
-// **This is what survived the /stats screen.** That screen (heatmap, reviews
-// -per-day chart, cards/activity tabs) was deleted in the 2026-08 catch-up:
-// the web folded the same numbers into the sky stage instead of giving them a
-// page. `GET /api/stats/activity` went with it — the profile only ever read
-// the cards half, for its mastered count. The endpoint still exists server-side
-// and comes back when the sky's ledger lands.
-//
-// It lives under `profile/` because the profile is now its only caller.
+// to pass. Lives under `profile/` because the profile is its main caller.
 
 export type ByStateCounts = {
   new: number;

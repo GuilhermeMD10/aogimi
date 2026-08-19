@@ -35,7 +35,7 @@ export type ImportResult =
  *   - Rejects when the picked filename collides with an existing record
  *     but identity *doesn't* match. This is the case the user hits when
  *     they tap "+", pick a different PDF whose filename happens to equal
- *     a "not on this device" register — the old code would silently
+ *     a "not on this device" register — accepting it would silently
  *     mark that register as available with the wrong file underneath.
  *
  *   - Falls through to a normal new-book import in every other case.

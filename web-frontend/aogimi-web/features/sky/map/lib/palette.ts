@@ -12,7 +12,7 @@ import { HALO_ALPHA, LINK_STRAND_LIFT } from './config';
  *   2 · Learned   dot + 4-arm cross
  *   3 · Mastered  single four-point sparkle
  *
- * The reference's own colours (guide §2/§9) are the `default` preset below.
+ * The guide's own colours (§2/§9) are the `default` preset below.
  */
 export const RANKS = 4;
 
@@ -24,9 +24,9 @@ export type RankRamp = readonly [string, string, string, string];
 /**
  * Which sky the reader picked. Four flat palettes, **not** theme-derived: one hex per rank per
  * preset, used in both light and dark theme everywhere the mastery ladder is drawn — the star map,
- * the ledger dots, the progress gradients. Unifying in the sky's favour was the decision (see
- * DECISIONS.md): the chrome follows the sky rather than the sky following the chrome, which is why
- * `--stage-mastered` no longer has a per-theme value.
+ * the ledger dots, the progress gradients. The unification runs in the sky's favour: the chrome
+ * follows the sky rather than the sky following the chrome, which is why `--stage-mastered` has no
+ * per-theme value.
  *
  * The web mirror of these values is the `html[data-sky-hue="…"]` blocks in `styles/ds-tokens.css` —
  * change one, change both, exactly like `rankProgress.ts` ↔ `cardSrsService.js`.
@@ -51,9 +51,9 @@ export type SkyPalette = {
   /**
    * What the canvas's background gradient is tinted with, over the near-black base.
    *
-   * There is deliberately **no `line`** beside this. A preset used to carry one near-white for its
-   * constellation lines; the lines now take their colour from the two stars each one joins (see
-   * `strandRamps`), so the only colour a preset states is its ladder.
+   * There is deliberately **no `line`** beside this. The constellation lines take their colour
+   * from the two stars each one joins (see `strandRamps`), so the only colour a preset states is
+   * its ladder.
    */
   tint: string;
 };
@@ -103,13 +103,12 @@ export const RANK_GLOW = [0.1, 0.14, 0.2, 0.26];
 /** What the panel calls each rank. Index by `rankOf`; shown to readers as "rank n+1 of 4". */
 export const RANK_LABELS = ['New', 'Recent', 'Learned', 'Mastered'];
 
-/** Star labels, per the night palette (`T.starlabel`) — legible over the sky, dimmer than a star.
+/** Star labels, per the night palette — legible over the sky, dimmer than a star.
  *  Preset-independent: text is chrome, and the sky is night under every hue. */
 export const STAR_LABEL_COLOR = '#cfd8ea';
 
 /**
- * The deck card frames' chrome — the handover's night-theme `frameFill`/`frameBd`, `decklabel`
- * and `gold`. Preset-independent for the same reason STAR_LABEL_COLOR is: the frame is chrome,
+ * The deck card frames' chrome. Preset-independent for the same reason STAR_LABEL_COLOR is: the frame is chrome,
  * and the sky is night under every hue and in both themes, so its glass is always faint white on
  * near-black. Same standing hex exception the rest of this file carries. The gold pair (the due
  * pill's fill and edge) is precomputed here rather than derived, so the renderer never parses a
@@ -120,7 +119,7 @@ export const FRAME_CHROME = {
   fillHover: 'rgba(255, 255, 255, 0.075)',
   bd: 'rgba(255, 255, 255, 0.16)',
   bdHover: 'rgba(255, 255, 255, 0.40)',
-  /** The deck name (`T.decklabel`); the subtitle and counts take STAR_LABEL_COLOR. */
+  /** The deck name; the subtitle and counts take STAR_LABEL_COLOR. */
   deckLabel: '#e8edf8',
   gold: '#ffe085',
   goldFill: 'rgba(255, 224, 133, 0.16)',
@@ -146,9 +145,9 @@ export const FRAME_CHROME = {
 /**
  * The selection ring — white, and preset-independent.
  *
- * It used to be the reference's button gold (#ffe085), which was already a hair off `default`'s
- * mastered rank (#F4DC82) and lands on top of ginga's mastered amber (#E0A448): a gold ring around
- * a gold star stops reading as chrome and starts reading as "this star is more mastered". White is
+ * Not gold (#ffe085): it sits a hair off `default`'s mastered rank (#F4DC82) and lands on top of
+ * ginga's mastered amber (#E0A448), and a gold ring around a gold star stops reading as chrome and
+ * starts reading as "this star is more mastered". White is
  * the one value no preset's ramp contains, it is maximum contrast on a near-black sky under every
  * hue, and it joins the chrome family the canvas already draws in white (the bounds rect, the reach
  * ring, the hover readout, the specular highlight) — so selection reads as chrome by company as

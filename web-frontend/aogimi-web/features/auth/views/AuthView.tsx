@@ -16,8 +16,7 @@ import type { AuthMode } from '../types';
  *
  * There is no loading branch and no redirect effect here. `AppShell` already
  * returns `null` while auth is resolving and already replaces to `/` once a
- * user exists, so both would be a second implementation of the same rule —
- * and the old one raced with it.
+ * user exists, so both would be a second implementation of the same rule.
  */
 export default function AuthView() {
   const { login, signup } = useAuth();
@@ -29,8 +28,8 @@ export default function AuthView() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Switching modes keeps what's typed, per the handoff. Only the error goes —
-  // it described the other mode's attempt.
+  // Switching modes keeps what's typed. Only the error goes — it described
+  // the other mode's attempt.
   const changeMode = (next: AuthMode) => {
     setMode(next);
     setError(null);

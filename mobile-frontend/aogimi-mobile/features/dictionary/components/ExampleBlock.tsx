@@ -7,12 +7,12 @@ import type { ExampleSentence } from '../types';
 
 /**
  * One example sentence and its translation, separated from the next by a
- * hairline — the handoff's EXAMPLE block, which draws a single sentence.
+ * hairline — the EXAMPLE block.
  *
- * We render up to five (`SENTENCE_LIMIT` in `localDict.ts`) because they are
- * already fetched with the entry and a second example is often the one that
- * lands. Furigana comes from `RubyText`: the handoff bolds the headword inside
- * the sentence, which we do not — the ruby annotations already sit above the
+ * Up to five are rendered (`SENTENCE_LIMIT` in `localDict.ts`) because they
+ * are already fetched with the entry and a second example is often the one
+ * that lands. Furigana comes from `RubyText`; the headword is deliberately not
+ * bolded inside the sentence — the ruby annotations already sit above the
  * kanji and a bold run underneath them makes a busy line.
  */
 export function ExampleBlock({

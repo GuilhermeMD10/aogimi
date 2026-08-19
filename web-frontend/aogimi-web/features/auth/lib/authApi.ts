@@ -15,9 +15,9 @@ export type AuthSuccess = {
   refreshToken?: string;
 };
 
-/** Sign-up collects an email as of the auth redesign; the backend requires it
- *  for new accounts (`registerSchema`). Login stays username-keyed — the
- *  address is stored for future use, not used to authenticate. */
+/** Sign-up collects an email; the backend requires it for new accounts
+ *  (`registerSchema`). Login is username-keyed — the address is stored for
+ *  future use, not used to authenticate. */
 export function registerUser(username: string, email: string, password: string): Promise<AuthSuccess> {
   return apiSendPublic<AuthSuccess>('/api/auth/register', 'POST', { username, email, password });
 }

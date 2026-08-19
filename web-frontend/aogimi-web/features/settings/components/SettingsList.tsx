@@ -22,11 +22,10 @@ const ABOUT_ROWS = [
 ] as const;
 
 /**
- * Every setting the app has, as one running list — this replaced the `/settings`
- * route, which was four paper cards under four eyebrows on a page of its own.
- * It sits beside the account card on /profile, and the two together are the
- * whole account surface: there is no settings page to navigate to any more, and
- * Help and Credits (still their own routes) are entered from here.
+ * Every setting the app has, as one running list. It sits beside the account
+ * card on /profile, and the two together are the whole account surface: there
+ * is no standalone settings page, and Help and Credits (their own routes) are
+ * entered from here.
  *
  * A single `GlassCard` rather than a card per group, deliberately: five rows
  * across four unrelated concerns did not need four surfaces to separate them,

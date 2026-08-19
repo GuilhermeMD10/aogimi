@@ -39,7 +39,7 @@ import { masteryMixOf } from '../lib/masteryMix';
 /**
  * The Sky tab — every deck a constellation, on the app's own night. The mobile
  * counterpart of the web's `SkyView`, and the screen that finally mounts the
- * ported renderer. Replaces `DecksListScreen`: the decks page **is** the sky.
+ * ported renderer. The decks page **is** the sky.
  *
  * Two tiers, both in place — no route change between them:
  *
@@ -83,8 +83,8 @@ const GUTTER = 16;
 
 /**
  * The stage's night, behind everything — `sky1` at the top down to `sky3` at the
- * base, which is the gradient `theme/tokens.ts` unrolled the handoff's `skybg`
- * into. **Theme-invariant**: see `NIGHT.bgStops`. Rendered by both returns below
+ * base, which is the gradient `theme/tokens.ts` unrolls `skybg` into.
+ * **Theme-invariant**: see `NIGHT.bgStops`. Rendered by both returns below
  * so the signed-out prompt sits on the same sky the map does rather than on a
  * flat slab.
  */
@@ -193,7 +193,7 @@ export function SkyStageView() {
 
   /* ---------- sync: push what's queued, then re-hydrate ---------- */
 
-  // Carried over from `DecksListScreen`. Push first, *then* refresh: hydrating
+  // Push first, *then* refresh: hydrating
   // before the pending rows have gone up would overwrite them with the server's
   // older copy, which is the one ordering this must not get wrong.
   const handleSync = useCallback(async () => {

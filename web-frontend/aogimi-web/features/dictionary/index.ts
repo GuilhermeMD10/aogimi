@@ -12,11 +12,6 @@
  * the list and the entry panes are all fully controlled — a `selected` boolean
  * and callbacks — so a surface that keeps its selection in local state and one
  * that keeps it in the URL use them identically.
- *
- * Nothing here reads the retired `--lgc-*` palette any more. `DictionarySidekick`
- * and `WordDetailView` — the reader's old lookup column and its detail pane, the
- * last two files that did — are gone, replaced by the reader's own
- * `dict-sidebar/` built out of these pieces.
  */
 
 // ── The route ───────────────────────────────────────────────────────────────

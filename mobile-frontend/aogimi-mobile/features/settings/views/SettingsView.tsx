@@ -10,20 +10,14 @@ import { spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 
 /**
- * Settings — the handoff's grouped-card layout, carrying **exactly** the rows
- * this app already had.
+ * Settings — a grouped-card layout carrying **exactly** the rows the app has
+ * a working feature behind.
  *
- * The handoff draws rows this app has no feature behind: a Japanese-font
- * picker, three study toggles wired to nothing here, sync status, CSV export,
- * delete-all-data, and a version footer. **None of them are built.** Drawing a
- * row implies a working setting, and a settings screen that lies is worse than
- * a short one. What changed is only the *arrangement*: a flat list of five
- * undifferentiated rows became three labelled groups, which is the part of the
- * handoff that is a design and not a feature request.
- *
- * The groups are named for what our rows actually are, so APPEARANCE and STUDY
- * match the handoff and its DATA group is replaced by ABOUT — we have no data
- * controls to put in one.
+ * Drawing a row implies a working setting, and a settings screen that lies is
+ * worse than a short one — so there is no Japanese-font picker, no study
+ * toggles wired to nothing, no sync status, CSV export, delete-all-data or
+ * version footer. The groups are named for what the rows actually are:
+ * APPEARANCE, STUDY, ABOUT.
  */
 export function SettingsView() {
   const t = useT();

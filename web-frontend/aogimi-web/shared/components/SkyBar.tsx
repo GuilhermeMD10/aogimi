@@ -14,13 +14,12 @@ type Props = {
 // Reading progress as a night sky being uncovered, not a bar being filled: the
 // unread remainder is a pale veil over the stars, and reading pulls it back.
 //
-// The four colours are hardcoded rather than tokenised. The handoff gives them
-// the same values in both themes and says so explicitly — "the sky is the sky" —
-// so there is nothing here for a theme to swap, and a token would only add a
-// name that always resolves to one value.
+// The four colours are hardcoded rather than tokenised. They keep the same
+// values in both themes on purpose — "the sky is the sky" — so there is
+// nothing here for a theme to swap, and a token would only add a name that
+// always resolves to one value.
 //
-// The width isn't animated. The handoff asks for 400ms ease-out on change with
-// nothing on first paint; progress changes as pages turn, so on the library
+// The width isn't animated. Progress changes as pages turn, so on the library
 // shelf the new value *is* the first paint, and in the reader an animation
 // chasing every page turn would be the loudest thing on a deliberately quiet
 // screen.

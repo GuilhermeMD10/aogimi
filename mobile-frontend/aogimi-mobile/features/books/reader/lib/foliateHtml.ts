@@ -563,10 +563,10 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
           }
           attachViewListeners();
           if (style) applyStyle(style);
-          // Strip-to-basics 2026-08-10: the 'animated' attribute is no longer
-          // set (note: no backticks in this file -- it is one big template
-          // literal, so a backtick here ends the string and breaks the parse).
-          // It enabled foliate's built-in ~300ms easeOutQuad smooth scroll for
+          // The 'animated' attribute is deliberately not set (note: no
+          // backticks in this file -- it is one big template literal, so a
+          // backtick here ends the string and breaks the parse).
+          // It enables foliate's built-in ~300ms easeOutQuad smooth scroll for
           // programmatic navigation (view.next/prev, goTo); without it those
           // snap straight to the new offset, which in scrolled mode reads as
           // teleporting. That is the intended baseline for now — restore the one

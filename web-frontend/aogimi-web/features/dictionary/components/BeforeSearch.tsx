@@ -7,9 +7,8 @@ import { SearchField } from './SearchField';
 import { useRecentSearches } from '../hooks/useRecentSearches';
 
 const CHIP_COUNT = 4;
-/** How much history to ask for. Only the first CHIP_COUNT of it is rendered now
- *  that the ruled "Recently looked up" column is gone, but the hook is the same
- *  history the chips come from — see the note on the chips below. */
+/** How much history to ask for. Only the first CHIP_COUNT of it is rendered,
+ *  as the chips under the field. */
 const RECENT_ROWS = 5;
 
 /**
@@ -21,17 +20,11 @@ const RECENT_ROWS = 5;
  * the field is cleared. Two states of one route rather than two routes, so the
  * back button walks *queries* rather than layouts.
  *
- * The ruled "Recently looked up" column that used to sit below (paired with a
- * dashed reserved panel) is gone: the chips are the same history one click away,
- * and the page reads as one centred object without a second list restating it.
- *
  * ── Glass ──────────────────────────────────────────────────────────────────
  * Everything you can touch here is the library's glass, at the same values as
  * the dock: the field is a `GLASS_SURFACE` (see SearchField) and the chips are
- * `GLASS_BUTTON` + `GLASS_PRESS`. The chips used to hover by swapping border
- * *and* text to `--accent` — a second hover language on a screen that already
- * had two others. Now hover means one thing here and everywhere: the fill
- * brightens.
+ * `GLASS_BUTTON` + `GLASS_PRESS`. Hover means one thing here and everywhere:
+ * the fill brightens.
  */
 export function BeforeSearch({
   draft,

@@ -98,13 +98,11 @@ export interface CardRecord {
 /**
  * A card being composed, before it exists.
  *
- * **One type for the whole add-card flow**, which is the point. This used to be
- * a positional `(front, back, context?)` triple, re-declared inline in five
- * places — `ReaderBubbleState`, `pendingCard`'s getter, its setter, its
- * `useState` argument and `PendingCardFlow` — two of which had already drifted
- * apart on whether `back` was optional. Every producer (dictionary rail, both
- * entry panes, the reader's prefill) now builds this, and it travels unchanged
- * to `decksApi.createCard`.
+ * **One type for the whole add-card flow**, which is the point. A positional
+ * `(front, back, context?)` triple re-declared inline at each site drifts — on
+ * whether `back` is optional first. Every producer (dictionary rail, both entry
+ * panes, the reader's prefill) builds this, and it travels unchanged to
+ * `decksApi.createCard`.
  *
  * It lives here rather than in `features/dictionary`, where the builders are,
  * because it describes a *card* and its consumer chain terminates at

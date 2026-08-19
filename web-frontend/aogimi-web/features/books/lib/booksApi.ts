@@ -8,10 +8,9 @@ import type {
 } from '@/features/books/types';
 
 // All helpers route through `lib/api` so a 401 with `USER_NOT_FOUND` from
-// any books call automatically participates in session invalidation —
-// previously these helpers used `fetch` directly and bypassed that
-// pipeline. The feature-local file shape stays: callers still import
-// `* as api from './booksApi'`, and only books-domain calls live here.
+// any books call automatically participates in session invalidation.
+// Callers import `* as api from './booksApi'`, and only books-domain calls
+// live here.
 
 export async function registerBook(params: {
   userId: number;

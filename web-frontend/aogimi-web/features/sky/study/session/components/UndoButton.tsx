@@ -12,8 +12,8 @@ type Props = {
  * the next review of the same card overwrites the card state anyway.
  *
  * It sits in the session header beside the close control rather than under the
- * grade row: the handoff draws no undo at all, and the header is where this
- * screen's other session-level control already is. Disabled (not hidden) with
+ * grade row, because the header is where this screen's other session-level
+ * control already is. Disabled (not hidden) with
  * nothing to undo, so the header's width doesn't shift after the first grade.
  */
 export function UndoButton({ onPress, disabled }: Props) {

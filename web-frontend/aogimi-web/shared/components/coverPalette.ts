@@ -1,15 +1,14 @@
 /**
  * Which of the four cover colours an object gets.
  *
- * The handoff assumes a book or deck stores a colour index assigned at
- * creation. Nothing stores one — `book_progress.cover_color` holds a hex from
- * the outgoing palette and `decks` has no colour column at all. Hashing a
- * stable seed (title, filename, deck name) gives the same guarantee that
- * matters — the same object is always the same colour — with no migration and
- * no backfill for rows that already exist.
+ * Nothing stores a colour index — `book_progress.cover_color` holds a legacy
+ * hex and `decks` has no colour column at all. Hashing a stable seed (title,
+ * filename, deck name) gives the guarantee that matters — the same object is
+ * always the same colour — with no migration and no backfill for rows that
+ * already exist.
  *
  * Same hash as `features/sky/stage/lib/deckVisuals`, so a deck keeps its
- * relative identity across the two systems while both are alive.
+ * relative identity across both consumers.
  */
 
 const COVERS = [

@@ -2,10 +2,10 @@
 // answers one question about the caller's data, routes call it before doing
 // work, and the answer decides the status code.
 //
-// WHY: no route counted rows before inserting. A signed-in client — or
-// anything holding a valid token — could create decks, cards, books and
-// bookmarks without bound. The global limiter (100 req/min) caps
-// the RATE, not the total: that's ~144k rows/day per IP.
+// WHY: without these, a signed-in client — or anything holding a valid
+// token — could create decks, cards, books and bookmarks without bound.
+// The global limiter (100 req/min) caps the RATE, not the total: that's
+// ~144k rows/day per IP.
 //
 // These checks are the real enforcement. The web client mirrors the same
 // numbers to disable buttons and show "49/50", but that's presentation — a

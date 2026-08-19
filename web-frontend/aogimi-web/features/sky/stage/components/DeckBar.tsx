@@ -25,10 +25,10 @@ import { MixBar } from './MixBar';
  * stats every time they were open. Up here they cost the list nothing and the
  * sky only a top inset it was already giving the old panel header.
  *
- * **Deck name only, no meta line.** The handoff put `{n} cards · {n} due ·
- * started {date}` under the name — which is CARDS, DUE TODAY and STARTED, the
- * same three figures standing 200px to its right in the same bar. One rendering
- * of a fact per surface.
+ * **Deck name only, no meta line.** A `{n} cards · {n} due · started {date}`
+ * line under the name would be CARDS, DUE TODAY and STARTED — the same three
+ * figures standing 200px to its right in the same bar. One rendering of a fact
+ * per surface.
  *
  * **One fixed-height line, and that matters beyond looks.** The bar is 80px to
  * its bottom edge (20 offset + 22 padding + the 38px delete button, its tallest

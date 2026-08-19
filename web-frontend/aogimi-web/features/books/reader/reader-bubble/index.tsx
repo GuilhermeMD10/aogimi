@@ -61,8 +61,7 @@ export default function ReaderBubble(props: ReaderBubbleProps) {
 
       <div
         // Opaque, like `ReaderPanel`: it covers page text, and `--card` is
-        // transparent by design on the redesign, so it can't be the fill for a
-        // floating panel.
+        // transparent by design, so it can't be the fill for a floating panel.
         className={cn(
           'fixed z-50 flex flex-col overflow-hidden border bg-(--bg)',
           'rounded-(--radius-panel) shadow-(--card-shadow-float)',

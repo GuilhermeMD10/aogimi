@@ -114,9 +114,8 @@ export function ClassPill({ children, selected = false }: { children: string; se
 }
 
 /** The add-to-deck affordance every row carries. Glass on glass, like the
- *  library hero's CTA — the `scale-105` + `--btn` fill it used to grow on hover
- *  was the only place a row filled, and the row itself is filled now. Vermilion
- *  survives the swap: it is legible on the idle glass and on the lit tint.
+ *  library hero's CTA. Vermilion ink works here because it is legible on both
+ *  the idle glass and the lit tint.
  *
  *  **It is never a child of the row's button** — nesting one `<button>` inside
  *  another is invalid HTML and React fails hydration on it. It sits absolutely

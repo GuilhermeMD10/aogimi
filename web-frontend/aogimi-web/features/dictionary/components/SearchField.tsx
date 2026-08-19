@@ -56,11 +56,10 @@ const GLYPH: Record<Variant, number> = { hero: 22, sidebar: 17, rail: 19 };
  * than a look. Only the scale is per-variant — all three are the same glass.
  *
  * The shell is `GLASS_SURFACE`: fill, blur, the inner glow and a lit top edge,
- * the same material the library's panels and the dock are made of. It used to
- * be `bg-(--card)` inside a 1.5px `--ink` border, on the reasoning that `--bd`
- * is transparent and a field with no visible edge isn't a field. The frosted
- * fill and its specular edge answer that better than a drawn line did — the
- * field now reads as an object rather than as an outline. Both buttons inside it
+ * the same material the library's panels and the dock are made of. `--bd` is
+ * transparent and a field with no visible edge isn't a field — the frosted
+ * fill and its specular edge answer that without a drawn border, so the field
+ * reads as an object rather than as an outline. Both buttons inside it
  * are `GLASS_BUTTON`s, so the field's hover and press are the app's.
  *
  * Submitting from the prompt swaps one instance for the other — different
