@@ -1,45 +1,59 @@
-import { useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { BottomSheet } from '@/shared/components/BottomSheet';
-import { Button } from '@/shared/components/Button';
-import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, spacing } from '@/theme/tokens';
+import { usePalette } from '@/theme/ThemeContext';
+import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
 import { fetchWordDetails } from '../lib/dictApi';
 import { pushRecentLookup } from '../lib/dictionaryStorage';
+import { resultRows } from '../lib/resultSections';
 import { useDictionarySearch } from '../hooks/useDictionarySearch';
-import type { SearchResponse, WordDetails, WordResult } from '../types';
-import { DictEntry } from './DictEntry';
-import { DictResultRow } from './DictResultRow';
+import type { KanjiInfo, WordDetails, WordResult } from '../types';
+import { SearchField } from './SearchField';
+import { ResultsList } from './ResultsList';
+import { EntryView } from './EntryView';
 
-type Props = {
+/**
+ * The reader's lookup sheet — the dictionary at `compact` scale.
+ *
+ * **Built from the tab's components, not a copy of them**, the way the web's
+ * `dict-sidebar` and `reader-bubble` are built from `features/dictionary`'s
+ * exports. `SearchField`, `ResultsList` and `EntryView` each take a `compact`
+ * flag carrying the type and spacing step-down; this file supplies the box —
+ * the sheet, its padding and its scroll — and the components supply none of it.
+ *
+ * Two states, not the tab's three: search and entry. There is no hero (the
+ * sheet opens with the tapped word already queried) and no drill-down stack
+ * (a 65% sheet is the wrong place to lose your way back to the book), so
+ * `onOpenKanji` is deliberately not passed.
+ */
+export function DictDrawer({
+  visible,
+  term,
+  onDismiss,
+  onAddFlashcard,
+  onAddKanji,
+}: {
   visible: boolean;
   term: string;
   onDismiss: () => void;
   onAddFlashcard: (details: WordDetails) => void;
-};
-
-// Two-page drawer. Opens on the search view (input prefilled with the term
-// the reader selected, results list already populated). Tapping a result
-// pushes the entry detail view; a back affordance returns to the list. The
-// input stays editable on the search view so the user can refine the query.
-export function DictDrawer({ visible, term, onDismiss, onAddFlashcard }: Props) {
+  /** A kanji result's add button. The reader owns the draft builders it uses,
+   *  so the sheet reports the character rather than building the card. */
+  onAddKanji: (kanji: KanjiInfo) => void;
+}) {
   return (
     <BottomSheet visible={visible} onDismiss={onDismiss} heightRatio={0.65}>
-      {/* Keyed on `term` so re-opening with a different selection remounts
-          the inner stack — query, stage, and search results all reseed
-          cleanly without per-prop reset effects. */}
-      <DictDrawerInner key={term || '__empty__'} term={term} onAddFlashcard={onAddFlashcard} />
+      {/* Keyed on `term` so re-opening with a different selection remounts the
+          inner stack — query, stage and search results all reseed cleanly
+          without per-prop reset effects. */}
+      <DictDrawerInner
+        key={term || '__empty__'}
+        term={term}
+        onAddFlashcard={onAddFlashcard}
+        onAddKanji={onAddKanji}
+      />
     </BottomSheet>
   );
 }
@@ -52,188 +66,157 @@ type Stage =
 function DictDrawerInner({
   term,
   onAddFlashcard,
+  onAddKanji,
 }: {
   term: string;
   onAddFlashcard: (details: WordDetails) => void;
+  onAddKanji: (kanji: KanjiInfo) => void;
 }) {
-  const c = useColors();
   const t = useT();
+  const p = usePalette();
+  const styles = useStyles(p);
 
   const [query, setQuery] = useState(term);
   const [stage, setStage] = useState<Stage>({ kind: 'search' });
-  const [detailErr, setDetailErr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const searchState = useDictionarySearch(query);
-  const words = searchState.kind === 'results' ? collectWords(searchState.response) : [];
+  const rows = useMemo(
+    () => (searchState.kind === 'results' ? resultRows(searchState.response) : []),
+    [searchState],
+  );
 
-  const openDetail = (id: number) => {
-    setDetailErr(null);
-    setStage({ kind: 'detailLoading' });
-    const controller = new AbortController();
-    fetchWordDetails(id, controller.signal)
-      .then((details) => {
-        setStage({ kind: 'detail', details });
-        // A lookup from inside the reader counts the same as one from the
-        // dictionary tab — one store, every surface. `query` rather than
-        // `term`: the user may have edited the tapped selection before
-        // picking, and the edited text is what should pick the headword.
-        void pushRecentLookup(details.word, query);
-      })
-      .catch((err) => {
-        if (controller.signal.aborted) return;
-        setDetailErr(err instanceof Error ? err.message : t('common.error'));
-        setStage({ kind: 'search' });
-      });
-  };
-
-  const backToSearch = () => {
-    setDetailErr(null);
-    setStage({ kind: 'search' });
-  };
+  const openWord = useCallback(
+    (word: WordResult) => {
+      setError(null);
+      setStage({ kind: 'detailLoading' });
+      fetchWordDetails(word.id)
+        .then((details) => {
+          setStage({ kind: 'detail', details });
+          // A lookup from inside the reader counts the same as one from the
+          // dictionary tab — one store, every surface. `query` rather than the
+          // tapped term: the user may have edited the selection before
+          // picking, and the edited text is what should pick the headword.
+          void pushRecentLookup(details.word, query);
+        })
+        .catch((err: unknown) => {
+          setError(err instanceof Error ? err.message : t('common.error'));
+          setStage({ kind: 'search' });
+        });
+    },
+    [query, t],
+  );
 
   if (stage.kind === 'detail') {
     return (
       <View style={styles.flex}>
-        <View style={styles.detailHeader}>
-          <Pressable onPress={backToSearch} hitSlop={12} style={styles.backRow}>
-            <Feather name="chevron-left" size={20} color={c.fg} />
-            <Text style={[styles.backLabel, { color: c.fgMuted, fontFamily: fontFamily.ui }]}>
-              Results
-            </Text>
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => setStage({ kind: 'search' })}
+            hitSlop={12}
+            accessibilityRole="button"
+            style={styles.backLink}
+          >
+            <Feather name="chevron-left" size={13} color={p.muted} />
+            <Text style={styles.backLabel}>{t('dict.backToResults')}</Text>
           </Pressable>
         </View>
-
-        <ScrollView
-          contentContainerStyle={styles.detailScroll}
-          showsVerticalScrollIndicator={false}
-        >
-          <DictEntry
-            word={stage.details.word}
-            kanjis={stage.details.kanjis}
-            sentences={stage.details.sentences}
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <EntryView
+            details={stage.details}
+            query={query}
+            compact
+            onAddToDeck={() => onAddFlashcard(stage.details)}
           />
         </ScrollView>
-
-        <View style={[styles.footer, { borderTopColor: c.border }]}>
-          <Button
-            label={t('dict.addFlashcard')}
-            onPress={() => onAddFlashcard(stage.details)}
-            full
-          />
-        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.flex}>
-      <View style={styles.searchHeader}>
-        <View
-          style={[
-            styles.searchField,
-            // Tokens, not a hardcoded `#FFFFFF` — see the twin in `DictEmpty`.
-            { backgroundColor: c.bgElev, borderColor: c.border },
-          ]}
-        >
-          <Feather name="search" size={16} color={c.fgSubtle} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="辞書を引く…"
-            placeholderTextColor={c.fgSubtle}
-            style={[styles.searchInput, { color: c.fg, fontFamily: fontFamily.jp }]}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-          {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} hitSlop={10}>
-              <Feather name="x" size={16} color={c.fgMuted} />
-            </Pressable>
-          )}
-        </View>
-      </View>
-
-      {detailErr && (
-        <Text style={[styles.inlineError, { color: c.error }]}>{detailErr}</Text>
-      )}
-
       {stage.kind === 'detailLoading' ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={c.fg} />
+          <ActivityIndicator color={p.muted} />
         </View>
-      ) : searchState.kind === 'loading' ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={c.fg} />
-        </View>
-      ) : searchState.kind === 'error' ? (
-        <Text style={[styles.bodyError, { color: c.error }]}>{searchState.message}</Text>
-      ) : query.trim() === '' ? (
-        <Text style={[styles.bodyHint, { color: c.fgMuted }]}>
-          Type to search the dictionary.
-        </Text>
-      ) : words.length === 0 && searchState.kind === 'results' ? (
-        <Text style={[styles.bodyHint, { color: c.fgMuted }]}>
-          No entry for &ldquo;{query}&rdquo;.
-        </Text>
       ) : (
-        <FlatList
-          data={words}
-          keyExtractor={(w) => String(w.id)}
-          contentContainerStyle={styles.list}
-          renderItem={({ item, index }) => (
-            <DictResultRow
-              word={item}
-              index={index}
-              active={index === 0}
-              query={query}
-              onPress={() => openDetail(item.id)}
-            />
-          )}
-          keyboardShouldPersistTaps="handled"
+        <ResultsList
+          rows={rows}
+          query={query}
+          compact
+          contentStyle={styles.scroll}
+          onOpenWord={openWord}
+          onAddWord={(word) => onAddFlashcard({ word, kanjis: [], sentences: [] })}
+          onAddKanji={onAddKanji}
+          header={
+            <View style={styles.header}>
+              <SearchField
+                value={query}
+                onChangeText={setQuery}
+                placeholder={t('dict.fieldPlaceholder')}
+                active={query.trim() !== ''}
+                compact
+                clearLabel={t('dict.clearSearch')}
+              />
+              {error !== null && <Text style={styles.error}>{error}</Text>}
+            </View>
+          }
+          empty={
+            query.trim() === '' ? (
+              <Text style={styles.hint}>{t('dict.empty')}</Text>
+            ) : searchState.kind === 'loading' ? (
+              <ActivityIndicator color={p.muted} style={styles.spinner} />
+            ) : searchState.kind === 'error' ? (
+              <Text style={styles.error}>{searchState.message}</Text>
+            ) : (
+              <Text style={styles.hint}>{t('dict.noResults', { query: query.trim() })}</Text>
+            )
+          }
         />
       )}
     </View>
   );
 }
 
-function collectWords(res: SearchResponse): WordResult[] {
-  if ('words' in res) return res.words;
-  return [];
+function useStyles(p: Palette) {
+  return useMemo(
+    () =>
+      StyleSheet.create({
+        flex: { flex: 1 },
+        // The sheet supplies the horizontal inset for everything inside it,
+        // including the list — the components carry none.
+        header: { paddingHorizontal: spacing.xl - 2, paddingBottom: spacing.md },
+        scroll: { paddingHorizontal: spacing.xl - 2, paddingBottom: spacing.xl },
+        centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+        spinner: { marginTop: spacing.lg },
+        backLink: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 5,
+          paddingVertical: spacing.xs,
+        },
+        backLabel: {
+          fontFamily: fontFamily.mono,
+          fontSize: fontSize.xs - 1,
+          letterSpacing: 1.2,
+          textTransform: 'uppercase',
+          color: p.muted,
+        },
+        error: {
+          fontFamily: fontFamily.ui,
+          fontSize: fontSize.sm,
+          color: p.danger,
+          marginTop: spacing.sm,
+        },
+        hint: {
+          fontFamily: fontFamily.ui,
+          fontSize: fontSize.sm,
+          color: p.muted,
+          textAlign: 'center',
+          marginTop: spacing.xl,
+          paddingHorizontal: spacing.xl,
+        },
+      }),
+    [p],
+  );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  searchHeader: {
-    paddingHorizontal: 22,
-    paddingTop: 6,
-    paddingBottom: 12,
-  },
-  searchField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    padding: 0,
-  },
-  list: { paddingHorizontal: 22, paddingBottom: 24 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  bodyHint: { textAlign: 'center', padding: spacing.lg, fontSize: fontSize.sm },
-  bodyError: { textAlign: 'center', padding: spacing.lg, fontSize: fontSize.sm },
-  inlineError: { paddingHorizontal: 22, paddingBottom: 6, fontSize: fontSize.sm },
-  detailHeader: { paddingHorizontal: 22, paddingTop: 6, paddingBottom: 6 },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  backLabel: { fontSize: fontSize.sm },
-  detailScroll: { paddingHorizontal: 22, paddingBottom: 24 },
-  footer: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    padding: spacing.md,
-  },
-});

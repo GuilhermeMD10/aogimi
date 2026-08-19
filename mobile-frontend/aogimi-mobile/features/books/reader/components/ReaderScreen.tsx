@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/ThemeContext';
 import { sendProgressBeacon } from '@/features/books/lib/booksApi';
 import { useBookRecord } from '@/features/books/hooks/useBookRecord';
-import type { WordDetails } from '@/features/dictionary/types';
+import type { KanjiInfo, WordDetails } from '@/features/dictionary/types';
 import { locateBookFile } from '@/features/books/lib/locateBookFile';
 import { useBookFile } from '@/features/books/hooks/useBookFile';
 import { useAuth } from '@/features/auth/providers/AuthContext';
@@ -21,7 +21,7 @@ import {
 } from '../lib/readerStorage';
 import { useReaderPrefs } from '../lib/readerPrefs';
 import { DictDrawer } from '@/features/dictionary/components/DictDrawer';
-import { plainCardDraft, wordCardDraft } from '@/features/dictionary/lib/cardDraft';
+import { kanjiCardDraft, plainCardDraft, wordCardDraft } from '@/features/dictionary/lib/cardDraft';
 import { FlashcardDrawer } from '@/features/sky/stage/components/FlashcardDrawer';
 import { Button } from '@/shared/components/Button';
 import { ReaderTopBar } from './ReaderTopBar';
@@ -317,6 +317,17 @@ export function ReaderScreen({ bookId }: Props) {
   const existingHighlightAtPicker = highlightPicker
     ? (highlights.find((h) => h.cfi === highlightPicker.cfi)?.color ?? null)
     : null;
+
+  // A kanji result in the lookup sheet. The sheet reports the character and
+  // this builds the draft, so the reader stays the one owner of what a card
+  // made from a book looks like — same as the word path above it.
+  const handleAddFlashcardFromKanji = useCallback(
+    (kanji: KanjiInfo) => {
+      setFlashcardPrefill(kanjiCardDraft(kanji));
+      setDictTerm(null);
+    },
+    [setDictTerm, setFlashcardPrefill],
+  );
 
   const handleAddFlashcardFromDict = useCallback(
     (details: WordDetails) => {
@@ -717,6 +728,7 @@ export function ReaderScreen({ bookId }: Props) {
         term={dictTerm ?? ''}
         onDismiss={() => setDictTerm(null)}
         onAddFlashcard={handleAddFlashcardFromDict}
+        onAddKanji={handleAddFlashcardFromKanji}
       />
 
       <FlashcardDrawer

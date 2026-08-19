@@ -1,66 +1,41 @@
-// Two stores, because they answer two different questions.
+// Recent lookups — the entries the user actually opened.
 //
-//  · **Recent searches** — the strings the user typed. Drives the dictionary
-//    tab's own suggestion list: tapping one re-runs that *search*.
-//  · **Recent lookups** — the entries the user actually opened. Drives Home's
-//    dictionary card: tapping one re-opens that *word*.
+// **There used to be two stores here** and now there is one. The other kept the
+// *strings the user typed*, deduped on the string, and drove a carousel on the
+// dictionary tab where tapping a chip re-ran that search. It was dropped
+// because every surface that matters wants the entry, not the query: Home's
+// card, the tab's own recents list and the handoff's row design all draw a
+// headword, a reading, a JLPT tier and a gloss, none of which a bare query
+// carries. Dedupe on `wordId` is also truer than dedupe on text — 「ひらく」 and
+// 「開く」 are one word looked up twice.
 //
-// A search that was typed and abandoned belongs in the first and not the
-// second; an entry reached by tapping a word in the reader belongs in the
-// second and not the first. Collapsing them into one list was considered and
-// rejected on exactly those two cases.
+// What that cost, recorded so it is a decision rather than a regression: there
+// is no longer any way back to a *result list*. A lookup jumps to one entry, so
+// an English or partial query that produced eight interesting rows can only be
+// retyped.
 //
-// **Both are device-local and stay that way.** There is no backend table and no
-// web counterpart — the web tracks neither. Do not "fix" the divergence by
-// syncing: a reading history is the most personal thing the app holds and it
-// has never left the phone.
+// **Device-local and staying that way.** There is no backend table and no web
+// counterpart — the web tracks neither. Do not "fix" the divergence by syncing:
+// a reading history is the most personal thing the app holds and it has never
+// left the phone. It *is* user-scoped, though, so `wipeUserData` clears it when
+// a different account signs in on the same install.
 
 import { loadJSON, saveJSON } from '@/lib/storage';
 import type { WordResult } from '../types';
 import { isEnglish, preferredHeadword } from './headword';
 
-const RECENT_KEY = 'dictionary_recent_searches';
 const LOOKUP_KEY = 'dictionary_recent_lookups';
 const RECENT_CAP = 10;
-
-export type RecentSearchItem = {
-  query: string;
-  /** ISO timestamp of the lookup. */
-  at: string;
-};
-
-export async function getRecentSearches(): Promise<RecentSearchItem[]> {
-  return loadJSON<RecentSearchItem[]>(RECENT_KEY, []);
-}
-
-/** Push a new lookup to the front, dedupe on `query`, cap to RECENT_CAP. */
-export async function pushRecentSearch(query: string): Promise<RecentSearchItem[]> {
-  const trimmed = query.trim();
-  if (!trimmed) return getRecentSearches();
-  const now = new Date().toISOString();
-  const prev = await getRecentSearches();
-  const next: RecentSearchItem[] = [
-    { query: trimmed, at: now },
-    ...prev.filter((it) => it.query !== trimmed),
-  ].slice(0, RECENT_CAP);
-  await saveJSON(RECENT_KEY, next);
-  return next;
-}
-
-export async function clearRecentSearches(): Promise<void> {
-  await saveJSON<RecentSearchItem[]>(RECENT_KEY, []);
-}
-
-// ── Recent lookups ───────────────────────────────────────────────────────────
 
 /**
  * An entry the user opened, **snapshotted at write time**.
  *
- * The word/reading/gloss are copied in rather than resolved on read. Storing
- * only `wordId` would mean N SQLite lookups every time Home mounts, for a card
- * that is glanceable metadata — and Home would then have to handle the
- * dictionary not being open yet. The cost is that a snapshot cannot follow a
- * dictionary update; for a ten-item recents list that is the right trade.
+ * The word/reading/gloss/tier are copied in rather than resolved on read.
+ * Storing only `wordId` would mean N SQLite lookups every time Home or the
+ * dictionary tab mounts, for a list that is glanceable metadata — and Home
+ * would then have to handle the dictionary not being open yet. The cost is that
+ * a snapshot cannot follow a dictionary update; for a ten-item list that is the
+ * right trade.
  */
 export type RecentLookup = {
   wordId: number;
@@ -70,6 +45,15 @@ export type RecentLookup = {
   reading: string;
   /** First gloss only. Empty when the entry has no English sense. */
   gloss: string;
+  /**
+   * JLPT tier 1–5, or null when the word is in no list.
+   *
+   * **Added after the store shipped**, so rows written before it have no such
+   * field and arrive as `undefined`. Read it as `?? null` and draw no chip —
+   * ten stale rows aging out on their own beats bumping
+   * `LOCAL_SCHEMA_VERSION`, which would wipe decks and cards to gain a chip.
+   */
+  jlptLevel?: number | null;
   /** ISO timestamp of the lookup. */
   at: string;
 };
@@ -101,6 +85,7 @@ export async function pushRecentLookup(
     // guarded at each call site.
     reading: readingForm === headword ? '' : readingForm,
     gloss: word.meanings.find((m) => isEnglish(m.lang))?.meaning ?? '',
+    jlptLevel: word.jlpt_level,
     at: new Date().toISOString(),
   };
   const prev = await getRecentLookups();

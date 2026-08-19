@@ -95,10 +95,61 @@ they follow the theme but were not redesigned.
 **Recent lookups** are a new device-local feature with no web counterpart —
 `dictionaryStorage.ts` now has two stores, and the reader's drawer writes to the
 lookup one as well as the dictionary tab. Deliberate divergence, not a sync gap.
+*(Superseded 2026-08-18: there is one store now — see the Dictionary entry.)*
 
 **Still owed on Home:** the star field inside `SkyShortcut`, and press feedback
 (this screen has none, same as the rest of the app — see the motion note below;
 it should be decided once and applied through shared primitives, not here).
+
+## 2026-08-18 — Dictionary (tab + reader drawer)
+
+Third handoff-driven screen, and the first that also rebuilt a *second* surface
+from the same parts. `DictionaryScreen` / `DictEmpty` / `DictResultRow` /
+`DictEntry` are gone; `views/DictionaryView.tsx` is composition + data and
+fifteen files sit under `components/`, each on `usePalette()` + a memoised
+style factory. `DictDrawer` is the same components at `compact` — the drawer
+supplies the box (sheet, padding, scroll) and the components supply none of it,
+which is the web's `scale="compact"` rule.
+
+**One recents store.** Recent *searches* was deleted; recent *lookups* survives
+and now carries `jlptLevel`, so the tab's RECENTLY LOOKED UP list and Home's card
+read the same rows and a lookup from the reader shows up in both. Old rows
+predate the field and draw no chip — deliberately not a `LOCAL_SCHEMA_VERSION`
+bump, which would wipe decks and cards to gain a chip. **A leak went with it:**
+`wipeUserData` had been clearing the *searches* key and never the lookups one, so
+account A's opened words survived an account switch.
+
+**Kanji and name results render for the first time.** `searchLocal` always
+returned `{ kanji, words, names }` / `{ words, names, kanjis }`; the old list
+called a `collectWords()` that kept `words` alone, so searching 辞 never showed
+the character. `lib/resultSections.ts` flattens the union into rows and decides
+grouping; `CharResultCard` draws both new kinds — one shape, per the design call,
+with names getting no add button (there is no `nameCardDraft`, and writing one is
+a feature).
+
+Also in: per-row add-to-deck (`wordCardDraft` needs only the `WordResult` the
+list already holds); the entry's FAB replaced by the handoff's inline button,
+which deletes the `dockClearance + 52 + …` padding maths; the kanji breakdown
+moved from a 240px horizontal scroller to stacked full-width cards; glosses moved
+off Lora onto `fontFamily.ui` (Lora is the *reader's* body face); `posLabel.ts`
+compacts JMdict's prose POS strings to the handoff's `NOUN · SURU`.
+
+Cut from the handoff: the audio button (no audio data anywhere) and its decorative
+pitch drawing — we render the real `PitchAccentDiagram` instead. Kept against the
+handoff: strokes/grade/radical on the kanji card, the kanji drill-down (the frame
+stack the mock's three flat states cannot express), and up to five examples.
+
+**Still open here:**
+
+- **Pagination.** Coded against `RESULT_LIMIT = 20`, as before. Raising it is not
+  a number change: the deinflection and English branches in `localDict.ts` merge
+  then slice, so there is no stable cursor — real paging needs an offset threaded
+  into the queries *and* a deterministic merge order. The handoff's "4 MORE ↓"
+  footer was therefore not built.
+- **Press feedback**, same as every other screen — decided once, through the
+  shared primitives, not here.
+- Never seen on a device. `tsc` clean, eslint 0 errors / 7 warnings (down from 14,
+  none in this feature), Metro bundles at 15.3MB.
 
 > **Colour was reset on 2026-08-10 and flipped light on 2026-08-11.** The ported
 > Midnight values are gone: too many of them sat within a few points of each other
