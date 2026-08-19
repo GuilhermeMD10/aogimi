@@ -25,7 +25,7 @@ export function isEnglish(lang: string): boolean {
  * detail pane and the card-draft builders can all call it with whatever shape
  * they happen to hold.
  *
- * **Moved here from `components/DictResultRow.tsx`** when `cardDraft.ts` needed
+ * **Moved here from the old result row component** when `cardDraft.ts` needed
  * it: a `lib/` module must not import from `components/`, and this was always a
  * pure helper that happened to live next to its first caller.
  */

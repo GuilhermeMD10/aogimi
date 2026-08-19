@@ -1,6 +1,6 @@
 // Wipe every locally-stored register that belongs to the *user* (as opposed
 // to the device). Called by AuthContext when a different account signs in
-// on the same install so account A's books, highlights, search history,
+// on the same install so account A's books, highlights, lookup history,
 // reader prefs, etc. don't leak into account B.
 //
 // Kept here as the single owner of "what is user-scoped on mobile" so the
@@ -24,7 +24,7 @@
 //         reader_manga_page_dir
 //       reader_book_<filename>           (prefix sweep)
 //       book_fingerprints_v1             (file-hash side-table)
-//       dictionary_recent_searches
+//       dictionary_recent_lookups
 //   - File system:
 //       documents/books/   (raw EPUB/PDF blobs)
 //       documents/covers/  (extracted EPUB covers)
@@ -50,7 +50,7 @@ const USER_KEYS = [
   'reader_direction',
   'reader_manga_mode',
   'reader_manga_page_dir',
-  'dictionary_recent_searches',
+  'dictionary_recent_lookups',
 ];
 
 /**

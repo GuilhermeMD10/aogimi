@@ -1,5 +1,5 @@
-import { DictionaryScreen } from '@/features/dictionary/components/DictionaryScreen';
+import { DictionaryView } from '@/features/dictionary/views/DictionaryView';
 
 export default function DictionaryTab() {
-  return <DictionaryScreen />;
+  return <DictionaryView />;
 }

@@ -110,7 +110,7 @@ export function HomeView() {
   const openLookup = useCallback(
     (lookup: RecentLookup) => {
       // `n` is a nonce — the dictionary tab stays mounted, so re-opening the
-      // same word needs the params to differ. See DictionaryScreen's deep link.
+      // same word needs the params to differ. See DictionaryView's deep link.
       router.push(
         `/(tabs)/dictionary?word=${lookup.wordId}&n=${Date.now()}` as never,
       );

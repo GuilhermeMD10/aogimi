@@ -350,12 +350,12 @@ mobile work; don't re-derive it here. What changed, because none of it matches o
   page, so `/sky/[deckId]` and the study routes keep Sky lit. The dock is
   `features/app-shell/Dock.tsx` — the web's glass material, and it exports **`useDockClearance()`**,
   which screens must use for bottom padding because the dock floats.
-- **Home (2026-08-12), then Profile + Settings (2026-08-13), are rebuilt against handoffs** and set
-  the pattern: the view is composition + data only, every card is its own file in the feature's
-  `components/`, and each reads `usePalette()` + a `useMemo`'d style factory. The handoff's Library
-  and Word-of-the-Day cards were **cut, not deferred** — Library duplicates the Reader tab, and
-  there is no word-of-the-day data. Continue-reading shows **% only**: `page_count` is PDF-only, so
-  "page N / M" would be present on some books and absent on others.
+- **Home (2026-08-12), Profile + Settings (2026-08-13), then Dictionary (2026-08-18), are rebuilt
+  against handoffs** and set the pattern: the view is composition + data only, every card is its
+  own file in the feature's `components/`, and each reads `usePalette()` + a `useMemo`'d style
+  factory. The handoff's Library and Word-of-the-Day cards were **cut, not deferred** — Library
+  duplicates the Reader tab, and there is no word-of-the-day data. Continue-reading shows **% only**:
+  `page_count` is PDF-only, so "page N / M" would be present on some books and absent on others.
 - **A handoff never adds a feature.** Drawing a row implies a working setting, so a row with nothing
   behind it does not get built: Settings kept exactly its five existing entries and only changed
   *arrangement* (flat list → the handoff's labelled groups), skipping the font picker, study
@@ -370,19 +370,26 @@ mobile work; don't re-derive it here. What changed, because none of it matches o
   suppresses the last row's divider itself, including when that row is conditional), `DangerButton`
   (48px outline, the only destructive affordance). All theme-aware; `shared/components/Button` is
   **not** — it still reads the Day-locked static palette.
-- **Recent dictionary lookups are device-local and have no web counterpart.** Two stores in
-  `features/dictionary/lib/dictionaryStorage.ts`: recent *searches* (strings typed, drives the
-  dictionary tab's suggestions) and recent *lookups* (entries opened, drives Home's card, written
-  by **every** surface that opens a word — the tab and the reader's drawer). Lookups snapshot
-  headword/reading/gloss at write time rather than storing an id, so Home never does N SQLite
-  reads on mount. Not a sync gap — reading history stays on the phone.
+- **Recent dictionary lookups are device-local and have no web counterpart.** **One** store,
+  `features/dictionary/lib/dictionaryStorage.ts` — entries opened, written by *every* surface that
+  opens a word (the tab, the reader's drawer) and read by both Home's card and the tab's own
+  RECENTLY LOOKED UP list. The parallel recent-*searches* store was deleted 2026-08-18: a row shows
+  headword/reading/JLPT/gloss, none of which a typed string carries, and `wordId` dedupes truer than
+  text. Rows snapshot those fields at write time rather than storing an id, so neither screen does N
+  SQLite reads on mount; the cost is that there is no way back to a *result list*. It is user-scoped
+  — `wipeUserData` clears it. Not a sync gap: reading history stays on the phone.
+- **The dictionary is one feature at two scales**, as on the web: the tab (`views/DictionaryView`)
+  and the reader's `DictDrawer` are built from the same `components/`, each taking `compact`. The
+  drawer owns the box (sheet, padding, scroll) and the components own none of it.
+  `lib/resultSections.ts` is what finally renders **kanji and name results** — `searchLocal` always
+  returned them and the old list dropped everything but `words`.
 - **`ios/` is generated and untracked.** It is `Aogimi.xcodeproj` / `com.aogimi.mobile` / scheme
   `aogimi`. Never hand-edit it: change `app.json`, then `npx expo prebuild --clean -p ios`. A
   stale native project (the old Shirube one) once linked a misplaced native-module registry and
   produced a **silent blank screen** — RN views rendered, Fabric components did not.
 
-Still outstanding: the sky **stage screen**, and the screen-by-screen redesign, of which Home is
-done. Fonts are **in** (Switzer + Noto Sans JP, both loading). Mobile keeps three things the web
+Still outstanding: the screen-by-screen redesign, of which **Home, Profile + Settings and
+Dictionary** are done — the library shelf, the reader and the sky stage are not. Fonts are **in** (Switzer + Noto Sans JP, both loading). Mobile keeps three things the web
 doesn't — an offline SQLite dictionary, reader highlights/bookmarks/annotations, and i18n
 (en/ja/pt) — none of which the redesign should remove.
 

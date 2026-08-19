@@ -88,8 +88,26 @@
   "dict": {
     "title": "辞書",
     "search": "日本語・ローマ字・英語で検索",
-    "empty": "検索を始めるには入力してください",
-    "addFlashcard": "フラッシュカードに追加"
+    "empty": "入力して検索",
+    "addFlashcard": "カードを追加",
+    "addToDeck": "デッキに追加",
+    "fieldPlaceholder": "言葉を引く…",
+    "clearSearch": "検索をクリア",
+    "heroKicker": "引いてみる",
+    "heroTitle": "言葉を引く。",
+    "heroCaption": "一語ずつ、あなたの空を満たそう。",
+    "recentlyLookedUp": "最近引いた言葉",
+    "results": "検索結果",
+    "resultsFor": "{count}件",
+    "noResults": "「{query}」は見つかりません",
+    "sectionWords": "単語",
+    "sectionKanji": "漢字",
+    "sectionNames": "固有名詞",
+    "meanings": "意味",
+    "kanjiInWord": "この語の漢字",
+    "examples": "例文",
+    "back": "戻る",
+    "backToResults": "結果に戻る"
   },
   "decks": {
     "title": "デッキ",
