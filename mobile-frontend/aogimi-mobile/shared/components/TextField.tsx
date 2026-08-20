@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Touchable } from './Touchable';
 import { useColors } from '@/theme/ThemeContext';
 import { fontSize, radius, spacing } from '@/theme/tokens';
 
@@ -57,11 +58,11 @@ export function TextField({
           style={[styles.input, { color: c.fg }]}
         />
         {secure && (
-          <Pressable onPress={() => setHidden((h) => !h)} hitSlop={8}>
+          <Touchable onPress={() => setHidden((h) => !h)} minTarget={false} hitSlop={8}>
             <Text style={[styles.toggle, { color: c.fgMuted }]}>
               {hidden ? 'Show' : 'Hide'}
             </Text>
-          </Pressable>
+          </Touchable>
         )}
       </View>
     </View>

@@ -1,10 +1,10 @@
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button } from '@/shared/components/Button';
@@ -58,9 +58,11 @@ export function StudyScreen({ sessionSpec, title }: Props) {
       <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
         <View style={styles.centered}>
           <Text style={[styles.message, { color: c.fg }]}>{session.error}</Text>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={{ marginTop: spacing.md }}>
+          <Touchable
+          minTarget={false}
+          hitSlop={10} onPress={() => router.back()} style={{ marginTop: spacing.md }}>
             <Text style={[styles.backLink, { color: c.fgMuted }]}>‹ {t('common.back')}</Text>
-          </Pressable>
+          </Touchable>
         </View>
       </SafeAreaView>
     );
@@ -73,9 +75,11 @@ export function StudyScreen({ sessionSpec, title }: Props) {
           <Text style={[styles.message, { color: c.fg, fontSize: fontSize.lg }]}>
             {t('home.empty')}
           </Text>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={{ marginTop: spacing.md }}>
+          <Touchable
+          minTarget={false}
+          hitSlop={10} onPress={() => router.back()} style={{ marginTop: spacing.md }}>
             <Text style={[styles.backLink, { color: c.fgMuted }]}>{t('study.backToDeck')}</Text>
-          </Pressable>
+          </Touchable>
         </View>
       </SafeAreaView>
     );
@@ -101,9 +105,11 @@ export function StudyScreen({ sessionSpec, title }: Props) {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Touchable
+        minTarget={false}
+        hitSlop={12} onPress={() => router.back()}>
           <Text style={[styles.close, { color: c.fg }]}>✕</Text>
-        </Pressable>
+        </Touchable>
         <View style={[styles.track, { backgroundColor: c.bgSunken }]}>
           <View style={[styles.fill, { backgroundColor: c.fg, width: `${progressPct}%` }]} />
         </View>
@@ -112,11 +118,12 @@ export function StudyScreen({ sessionSpec, title }: Props) {
         </Text>
       </View>
 
-      <Pressable onPress={session.flip} style={styles.cardWrap}>
+      <Touchable
+        minTarget={false} onPress={session.flip} style={styles.cardWrap}>
         <View style={[styles.card, { backgroundColor: c.bgElev, borderColor: c.border }]}>
           <CardBody card={card} prefs={prefs} deckName={deckName} side={session.side} />
         </View>
-      </Pressable>
+      </Touchable>
 
       <View style={styles.footer}>
         {isFront ? (

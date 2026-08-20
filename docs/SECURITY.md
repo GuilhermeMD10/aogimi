@@ -67,7 +67,7 @@ Out of scope:
 - **Routes ignore body/path `userId`** — `req.user.userId` is the only
   identity source.
 - **Per-resource ownership checks** (`bookOwnedBy`, `deckOwnedBy`,
-  `cardOwnedBy`, `bookmarkOwnedBy`, `deviceOwnedBy`) gate every `:id`
+  `cardOwnedBy`) gate every `:id`
   endpoint. **404 on mismatch** (not 403) — no enumeration oracle.
 
 ### Input
@@ -81,8 +81,8 @@ Out of scope:
 
 ### Rate limiting
 - Global: 100 req / min / IP across `/api`.
-- Login: 5 / 15 min per (IP + username).
-- Register: 3 / hour per IP.
+- Login: 10 / hour per (IP + username).
+- Register: 10 / hour per IP.
 - IPv6 keys normalised via `ipKeyGenerator` so a v6 client can't bypass
   by switching addresses inside its /64.
 

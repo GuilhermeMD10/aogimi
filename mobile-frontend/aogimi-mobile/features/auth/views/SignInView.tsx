@@ -2,11 +2,11 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/shared/components/Screen';
 import { Button } from '@/shared/components/Button';
@@ -49,9 +49,11 @@ export function SignInView() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Touchable
+          minTarget={false}
+          hitSlop={12} onPress={() => router.back()}>
             <Text style={[styles.back, { color: c.fgMuted }]}>{t('common.back')}</Text>
-          </Pressable>
+          </Touchable>
         </View>
 
         <Text style={[styles.title, { color: c.fg }]}>{t('auth.signIn.title')}</Text>
@@ -86,16 +88,17 @@ export function SignInView() {
           />
         </View>
 
-        <Pressable
-          onPress={() => router.replace('/(auth)/signup')}
+        <Touchable
+          minTarget={false}
           hitSlop={8}
+          onPress={() => router.replace('/(auth)/signup')}
           style={styles.altLink}
         >
           <Text style={[styles.altText, { color: c.fgMuted }]}>
             {t('auth.signIn.noAccount')}{' '}
             <Text style={{ color: c.fg, fontWeight: '600' }}>{t('auth.signIn.signUp')}</Text>
           </Text>
-        </Pressable>
+        </Touchable>
       </KeyboardAvoidingView>
     </Screen>
   );

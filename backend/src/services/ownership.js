@@ -50,18 +50,8 @@ async function cardOwnedBy(userId, cardId) {
   );
 }
 
-async function bookmarkOwnedBy(userId, bookmarkId) {
-  return ownsBy(
-    `SELECT 1 FROM bookmarks bm
-     JOIN book_progress bp ON bp.id = bm.book_id
-     WHERE bm.id = $1 AND bp.user_id = $2`,
-    [bookmarkId, userId],
-  );
-}
-
 module.exports = {
   bookOwnedBy,
   deckOwnedBy,
   cardOwnedBy,
-  bookmarkOwnedBy,
 };

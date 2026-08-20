@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius } from '@/theme/tokens';
@@ -19,7 +20,8 @@ export function ContinueReadingCard({
   const t = useT();
 
   return (
-    <Pressable
+    <Touchable
+      minTarget={false}
       onPress={onPress}
       style={[styles.card, { backgroundColor: c.bgElev, borderColor: c.border }]}
     >
@@ -58,7 +60,7 @@ export function ContinueReadingCard({
           </Text>
         </View>
       </View>
-    </Pressable>
+    </Touchable>
   );
 }
 

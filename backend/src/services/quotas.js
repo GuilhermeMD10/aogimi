@@ -3,7 +3,7 @@
 // work, and the answer decides the status code.
 //
 // WHY: without these, a signed-in client — or anything holding a valid
-// token — could create decks, cards, books and bookmarks without bound.
+// token — could create decks, cards and books without bound.
 // The global limiter (100 req/min) caps the RATE, not the total: that's
 // ~144k rows/day per IP.
 //
@@ -22,7 +22,6 @@ const { QUOTAS } = require("../config/limits");
 const deckRepo = require("../repositories/deckRepository");
 const cardRepo = require("../repositories/cardRepository");
 const bookRepo = require("../repositories/bookRepository");
-const bookmarkRepo = require("../repositories/bookmarkRepository");
 
 /** Build the error a route turns into a 409. */
 function quotaError(code, message, limit, current) {
@@ -97,22 +96,9 @@ async function bookQuota(userId) {
   }
 }
 
-async function bookmarkQuota(bookId) {
-  const current = await bookmarkRepo.countByBook(bookId);
-  if (current >= QUOTAS.BOOKMARKS_PER_BOOK) {
-    throw quotaError(
-      "BOOKMARK_QUOTA_EXCEEDED",
-      `Bookmark limit reached for this book (${QUOTAS.BOOKMARKS_PER_BOOK}).`,
-      QUOTAS.BOOKMARKS_PER_BOOK,
-      current,
-    );
-  }
-}
-
 module.exports = {
   enforce,
   deckQuota,
   cardQuota,
   bookQuota,
-  bookmarkQuota,
 };

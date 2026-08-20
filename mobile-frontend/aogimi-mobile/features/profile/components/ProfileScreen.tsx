@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/shared/components/Screen';
 import { BackBar } from '@/shared/components/BackBar';
@@ -169,16 +170,17 @@ export function ProfileScreen() {
               {JLPT_LEVELS.map((l) => {
                 const active = currentLevel === l;
                 return (
-                  <Pressable
+                  <Touchable
+                    minTarget={false}
+                    hitSlop={6}
                     key={l}
                     onPress={() => handleLevelSelect(l)}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: active }}
-                    hitSlop={2}
                     style={[styles.levelChip, active && styles.levelChipActive]}
                   >
                     <Text style={[styles.levelText, active && styles.levelTextActive]}>{l}</Text>
-                  </Pressable>
+                  </Touchable>
                 );
               })}
             </View>

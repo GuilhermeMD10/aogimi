@@ -19,7 +19,7 @@ type ProgressSnapshot = {
 /**
  * Native PDF reader. Renders the file with react-native-pdf, reuses the
  * standard ReaderTopBar for the back chevron, and pins a PdfDock at the
- * bottom for title + page count + prev/next. No selection, highlights, or
+ * bottom for title + page count + prev/next. No selection or
  * dictionary integration — by design.
  *
  * Progress is reported as `page-N` in the cfi slot so it lands in the same

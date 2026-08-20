@@ -6,9 +6,9 @@ import { removeEntry } from '@/features/books/lib/bookLocalState';
  * Wipe every per-book local register tied to a single filename. Called
  * from the import flow when re-importing a file whose new bytes differ
  * from the existing local file's bytes — we can't guarantee it's the
- * same book under that filename slot, so stale highlights / bookmarks /
- * lastCfi / cached cover / stored fingerprint for this filename get
- * dropped before the new file takes the slot.
+ * same book under that filename slot, so a stale lastCfi / cached cover /
+ * stored fingerprint for this filename gets dropped before the new file
+ * takes the slot.
  *
  * Scoped narrower than `wipeUserData` (which wipes everything for an
  * account switch). This is "wipe everything *tied to this one filename*".

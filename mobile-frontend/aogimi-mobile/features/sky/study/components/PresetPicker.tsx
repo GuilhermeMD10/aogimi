@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontSize, radius } from '@/theme/tokens';
@@ -23,7 +24,9 @@ export function PresetPicker({ value, onChange }: Props) {
       {PRESETS.map((p) => {
         const selected = p === value;
         return (
-          <Pressable
+          <Touchable
+            minTarget={false}
+            hitSlop={6}
             key={p}
             onPress={() => onChange(p)}
             style={[
@@ -31,7 +34,6 @@ export function PresetPicker({ value, onChange }: Props) {
               selected && { backgroundColor: c.bgElev, borderColor: c.borderStrong },
               !selected && { borderColor: 'transparent' },
             ]}
-            hitSlop={4}
           >
             <Text
               style={[
@@ -41,7 +43,7 @@ export function PresetPicker({ value, onChange }: Props) {
             >
               {t(`studyDisplay.preset.${p}`)}
             </Text>
-          </Pressable>
+          </Touchable>
         );
       })}
     </View>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
@@ -11,13 +12,11 @@ import { locateBookFile } from '@/features/books/lib/locateBookFile';
 import { useBookFile } from '@/features/books/hooks/useBookFile';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import {
-  HIGHLIGHT_COLORS,
   MANGA_SHELL_BG,
   READER_FONT_STACKS,
   READER_THEMES,
   saveProgressSnapshot,
   useReaderStorage,
-  type HighlightColor,
 } from '../lib/readerStorage';
 import { useReaderPrefs } from '../lib/readerPrefs';
 import { DictDrawer } from '@/features/dictionary/components/DictDrawer';
@@ -31,8 +30,6 @@ import { MangaScrollView, type MangaScrollViewHandle } from './manga/MangaScroll
 import { MangaPagedView, type MangaPagedViewHandle } from './manga/MangaPagedView';
 import { useMangaSpine } from './manga/useMangaSpine';
 import { useReaderModals } from '../hooks/useReaderModals';
-import { useBookmarkSync } from '../hooks/useBookmarkSync';
-import { useAnnotationManager } from '../hooks/useAnnotationManager';
 import { PdfReaderShell } from './pdf/PdfReaderShell';
 import {
   FoliateReader,
@@ -45,9 +42,8 @@ import {
 import { TextReader } from './novel/TextReader';
 import { NovelReader } from './novel/NovelReader';
 import { MangaReader } from './manga/MangaReader';
-import { HighlightPicker } from './HighlightPicker';
 import { NativeSelectionMenu, type NativeMenuKey } from '../lib/native-selection';
-import type { BookType, EpubTocItem, HighlightStyle, ReaderThemeStyle } from '../lib/foliateHtml';
+import type { BookType, EpubTocItem, ReaderThemeStyle } from '../lib/foliateHtml';
 import { useReaderLayoutPrefs, flowForCombo } from '../lib/readerLayout';
 import { setLocalProgress } from '@/features/books/lib/booksLocalCache';
 import { persistLocalProgress } from '@/features/books/lib/syncedBookCache';
@@ -71,22 +67,13 @@ export function ReaderScreen({ bookId }: Props) {
   const error = fetchError ?? epubError;
   const { hasFile, markAvailable: setHasFile } = useBookFile(book ?? null);
 
-  // ── Reader storage: per-book bits (highlights / bookmarks / last CFI) ──
+  // ── Reader storage: per-book bits (last CFI) ──
   const storage = useReaderStorage(book?.filename ?? null);
   const {
     hydrated: storageHydrated,
     lastCfiPushed,
-    highlights,
-    bookmarks,
     saveLastCfi,
     markCfiPushed,
-    addHighlight,
-    removeHighlight,
-    setHighlightColor,
-    addBookmark,
-    removeBookmark,
-    setBookmarkBackendId,
-    purgeBookmark,
   } = storage;
 
   // ── Reader prefs: app-level (font / theme / line height / fontFamily) ──
@@ -139,8 +126,6 @@ export function ReaderScreen({ bookId }: Props) {
     setDictTerm,
     flashcardPrefill,
     setFlashcardPrefill,
-    highlightPicker,
-    setHighlightPicker,
   } = useReaderModals();
 
   const epubRef = useRef<FoliateReaderHandle | null>(null);
@@ -254,7 +239,7 @@ export function ReaderScreen({ bookId }: Props) {
     setEpubError(message);
   }, []);
 
-  // ── Custom menu (dict / card / highlight / copy) ────────────────────
+  // ── Custom menu (dict / card / copy) ────────────────────
   const handleCustomMenu = useCallback(
     ({ key, selectedText }: CustomMenuEvent) => {
       const term = (selectedText || selection?.text || '').trim();
@@ -272,51 +257,13 @@ export function ReaderScreen({ bookId }: Props) {
         // selection to "Card". Everything but the front is legitimately empty
         // and the drawer opens for them to fill in.
         setFlashcardPrefill(plainCardDraft(term));
-        return;
-      }
-      if (key === 'highlight' && selection) {
-        setHighlightPicker({
-          cfi: selection.cfi,
-          text: term,
-          x: selection.pageX,
-          y: selection.pageY,
-        });
       }
     },
-    // The three setters come from `useReaderModals`, which returns raw
+    // The two setters come from `useReaderModals`, which returns raw
     // `useState` setters — stable across renders, so listing them satisfies
     // the rule without adding a re-render path.
-    [selection, setDictTerm, setFlashcardPrefill, setHighlightPicker],
+    [selection, setDictTerm, setFlashcardPrefill],
   );
-
-  // ── Highlight create / replace / remove ─────────────────────────────
-  // Annotation CRUD owned by useAnnotationManager — ReaderScreen just
-  // wires the picker UI to it. The previous three-callback shape
-  // duplicated the find→ref→storage triad and was hard to keep aligned
-  // when the foliate ref or storage contract changed.
-  const annotations = useAnnotationManager({
-    epubRef,
-    storage: { highlights, addHighlight, removeHighlight, setHighlightColor },
-  });
-
-  const applyHighlightColor = useCallback(
-    (color: HighlightColor) => {
-      if (!highlightPicker) return;
-      annotations.applyColor(highlightPicker.cfi, highlightPicker.text, color);
-      setHighlightPicker(null);
-    },
-    [highlightPicker, annotations, setHighlightPicker],
-  );
-
-  const clearHighlightAtPicker = useCallback(() => {
-    if (!highlightPicker) return;
-    annotations.clearAt(highlightPicker.cfi);
-    setHighlightPicker(null);
-  }, [highlightPicker, annotations, setHighlightPicker]);
-
-  const existingHighlightAtPicker = highlightPicker
-    ? (highlights.find((h) => h.cfi === highlightPicker.cfi)?.color ?? null)
-    : null;
 
   // A kanji result in the lookup sheet. The sheet reports the character and
   // this builds the draft, so the reader stays the one owner of what a card
@@ -345,45 +292,7 @@ export function ReaderScreen({ bookId }: Props) {
     [dictTerm, setDictTerm, setFlashcardPrefill],
   );
 
-  // ── Bookmark add/toggle (+ backend sync) ────────────────────────────
-  // Bookmarks live in local AsyncStorage as the source of truth for the
-  // UI; the backend is mirrored so the bookmark set stays consistent
-  // across devices. localId → backendId tracked in a ref so toggling
-  // off can DELETE the matching server row even though the local store
-  // uses its own generated ids. The backendId now lives inline on each
-  // persisted bookmark (see `StoredBookmark` in lib/readerStorage.ts),
-  // so we no longer keep an in-memory ref Map.
   const { user } = useAuth();
-
-  const isBookmarked = useMemo(() => bookmarks.some((b) => b.cfi === currentCfi), [bookmarks, currentCfi]);
-
-  // Bookmark state machine — pull-on-open + retry-pending-deletes +
-  // toggle/remove dispatch. Owned by useBookmarkSync; ReaderScreen
-  // only forwards the result handlers to its child surfaces.
-  const bookmarkLabel = chapterLabel ? `${chapterLabel} · ${progress}%` : `${progress}%`;
-  const { toggle: toggleBookmark, removeAt: removeBookmarkSynced } = useBookmarkSync({
-    book,
-    hydrated,
-    offlineMode,
-    currentCfi,
-    bookmarkLabel,
-    storage: { bookmarks, addBookmark, removeBookmark, setBookmarkBackendId, purgeBookmark },
-  });
-
-  // ── Initial highlights for the WebView ──────────────────────────────
-  const initialHighlights = useMemo<HighlightStyle[]>(
-    () =>
-      highlights.map((h) => ({
-        id: h.id,
-        cfi: h.cfi,
-        color: HIGHLIGHT_COLORS[h.color],
-      })),
-    // captured at mount via hydrated transition
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [hydrated],
-  );
-
-  const handleDeleteHighlight = annotations.removeById;
 
   // ── Manga lifecycle wiring ──────────────────────────────────────────
   // useMangaSpine owns detection + spine prep. Once it reports a manga
@@ -514,9 +423,11 @@ export function ReaderScreen({ bookId }: Props) {
       <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
         <View style={styles.errorWrap}>
           <Text style={[styles.errorTitle, { color: c.fg }]}>{error ?? 'Book not found'}</Text>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Touchable
+            minTarget={false}
+            hitSlop={10} onPress={() => router.back()}>
             <Text style={[styles.back, { color: c.fgMuted }]}>‹ Back</Text>
-          </Pressable>
+          </Touchable>
         </View>
       </SafeAreaView>
     );
@@ -524,7 +435,7 @@ export function ReaderScreen({ bookId }: Props) {
 
   // ── PDF short-circuit ──────────────────────────────────────────────
   // PDFs are read with the native renderer (react-native-pdf). No foliate,
-  // no selection, no highlights — just open + page progress.
+  // no selection — just open + page progress.
   if (book.filename.toLowerCase().endsWith('.pdf')) {
     if (!hasFile) {
       return (
@@ -567,9 +478,6 @@ export function ReaderScreen({ bookId }: Props) {
     toc,
     prefs,
     onChangePrefs: savePrefs,
-    highlights,
-    bookmarks,
-    isBookmarked,
     layout,
     direction,
     onToggleLayout: toggleLayout,
@@ -580,9 +488,6 @@ export function ReaderScreen({ bookId }: Props) {
     onNext: () => epubRef.current?.next(),
     onJumpHref: (href: string) => epubRef.current?.goTo(href),
     onJumpCfi: (cfi: string) => epubRef.current?.goTo(cfi),
-    onToggleBookmark: toggleBookmark,
-    onDeleteBookmark: removeBookmarkSynced,
-    onDeleteHighlight: handleDeleteHighlight,
     onModeChange: setDockMode,
   };
 
@@ -634,7 +539,6 @@ export function ReaderScreen({ bookId }: Props) {
             filename={book.filename}
             startCfi={book.cfi_position}
             initialStyle={style}
-            initialHighlights={initialHighlights}
             bgColor={style.bg}
             onReady={handleReady}
             onRelocated={handleRelocated}
@@ -661,16 +565,14 @@ export function ReaderScreen({ bookId }: Props) {
             same coordinate system as the WebView so it lines up with the
             text. Adjustment handles live INSIDE the WebView (DOM divs in
             webviewInjections) attached to the selection band itself. */}
-        {selection && readerViewport && !highlightPicker && !isManga && (
+        {selection && readerViewport && !isManga && (
           <NativeSelectionMenu
             selectionRect={selection.rect}
             viewport={readerViewport}
             onAction={(key: NativeMenuKey) => {
               handleCustomMenu({ key, selectedText: selection.text });
-              if (key !== 'highlight') {
-                epubRef.current?.clearSelection();
-                setSelection(null);
-              }
+              epubRef.current?.clearSelection();
+              setSelection(null);
             }}
             onDismiss={() => {
               epubRef.current?.clearSelection();
@@ -688,10 +590,7 @@ export function ReaderScreen({ bookId }: Props) {
           page={page}
           totalPages={totalPages}
           toc={toc}
-          bookmarks={bookmarks}
-          highlights={highlights}
           prefs={prefs}
-          isBookmarked={isBookmarked}
           mode={mangaMode}
           onToggleMode={toggleMangaMode}
           pageDir={mangaPageDir}
@@ -705,21 +604,7 @@ export function ReaderScreen({ bookId }: Props) {
               mangaScrollViewRef.current?.scrollToSpine(idx, true);
             }
           }}
-          onToggleBookmark={toggleBookmark}
-          onDeleteBookmark={removeBookmarkSynced}
           onModeChange={setDockMode}
-        />
-      )}
-
-      {/* Highlight color picker (shown after "Highlight" custom-menu tap) */}
-      {highlightPicker && (
-        <HighlightPicker
-          pageX={highlightPicker.x}
-          pageY={highlightPicker.y}
-          existingColor={existingHighlightAtPicker}
-          onPick={applyHighlightColor}
-          onClear={clearHighlightAtPicker}
-          onDismiss={() => setHighlightPicker(null)}
         />
       )}
 

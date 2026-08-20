@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
 import { palette } from '@/theme/tokens';
 import { computeMenuPosition, type SelectionRect, type Viewport } from './menuPosition';
 
-export type NativeMenuKey = 'dict' | 'card' | 'highlight' | 'copy';
+export type NativeMenuKey = 'dict' | 'card' | 'copy';
 
 type Props = {
   selectionRect: SelectionRect;
@@ -12,17 +13,11 @@ type Props = {
   onDismiss: () => void;
 };
 
-// Highlight is rendered as a small colored swatch instead of a text label
-// to save horizontal space — the menu is rendered over text and needs to
-// stay narrow. Underlying picker behavior is intentionally untouched.
-type Item =
-  | { key: NativeMenuKey; kind: 'text'; label: string }
-  | { key: NativeMenuKey; kind: 'swatch'; color: string };
+type Item = { key: NativeMenuKey; label: string };
 const ITEMS: Item[] = [
-  { key: 'dict', kind: 'text', label: 'Dict' },
-  { key: 'card', kind: 'text', label: 'Card' },
-  { key: 'highlight', kind: 'swatch', color: '#5B9BD5' },
-  { key: 'copy', kind: 'text', label: 'Copy' },
+  { key: 'dict', label: 'Dict' },
+  { key: 'card', label: 'Card' },
+  { key: 'copy', label: 'Copy' },
 ];
 
 // Replaces the OS selection bubble. Positioned above the selection by
@@ -43,7 +38,7 @@ export function NativeSelectionMenu({ selectionRect, viewport, onAction, onDismi
 
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      <Pressable onPress={onDismiss} style={StyleSheet.absoluteFill} />
+      <PressableBackdrop onPress={onDismiss} style={StyleSheet.absoluteFill} />
       <View
         onLayout={onLayout}
         style={[
@@ -56,17 +51,14 @@ export function NativeSelectionMenu({ selectionRect, viewport, onAction, onDismi
         {ITEMS.map((item, idx) => (
           <View key={item.key} style={styles.itemWrap}>
             {idx > 0 && <View style={styles.divider} />}
-            <Pressable
+            <Touchable
+              minTarget={false}
+              hitSlop={6}
               onPress={() => onAction(item.key)}
               style={styles.item}
-              hitSlop={4}
             >
-              {item.kind === 'text' ? (
-                <Text style={styles.label}>{item.label}</Text>
-              ) : (
-                <View style={[styles.swatch, { backgroundColor: item.color }]} />
-              )}
-            </Pressable>
+              <Text style={styles.label}>{item.label}</Text>
+            </Touchable>
           </View>
         ))}
       </View>
@@ -102,13 +94,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     letterSpacing: 0.2,
-  },
-  swatch: {
-    width: 14,
-    height: 14,
-    borderRadius: 3,
-    // Outline so the swatch reads against the light menu background.
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.bdA,
   },
 });

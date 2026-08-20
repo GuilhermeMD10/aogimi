@@ -3,13 +3,13 @@ import { useFlashcardForm } from '../hooks/useFlashcardForm';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { BottomSheet } from '@/shared/components/BottomSheet';
 import { Button } from '@/shared/components/Button';
 import { useColors } from '@/theme/ThemeContext';
@@ -208,7 +208,9 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
                 {decks.map((d) => {
                   const selected = d.id === deckId;
                   return (
-                    <Pressable
+                    <Touchable
+                      minTarget={false}
+                      hitSlop={6}
                       key={d.id}
                       onPress={() => setDeckId(d.id)}
                       style={[
@@ -222,15 +224,17 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
                       <Text style={{ color: selected ? c.accentFg : c.fg, fontSize: fontSize.sm, fontWeight: '500' }}>
                         {d.name}
                       </Text>
-                    </Pressable>
+                    </Touchable>
                   );
                 })}
-                <Pressable
+                <Touchable
+                  minTarget={false}
+                  hitSlop={6}
                   onPress={() => setCreatingNewDeck(true)}
                   style={[styles.deckChip, { borderColor: c.border }]}
                 >
                   <Text style={{ color: c.fgMuted, fontSize: fontSize.sm, fontWeight: '500' }}>+ New</Text>
-                </Pressable>
+                </Touchable>
               </ScrollView>
             )}
 
@@ -245,11 +249,13 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
                   placeholderTextColor={c.fgSubtle}
                 />
                 {decks.length > 0 && (
-                  <Pressable onPress={() => setCreatingNewDeck(false)}>
+                  <Touchable
+                  minTarget={false}
+                  hitSlop={8} onPress={() => setCreatingNewDeck(false)}>
                     <Text style={{ color: c.fgMuted, fontSize: fontSize.sm }}>
                       Pick an existing deck
                     </Text>
-                  </Pressable>
+                  </Touchable>
                 )}
               </View>
             )}

@@ -223,8 +223,8 @@ export async function importBook(
 
   // Defensive re-import guard: if an existing record under this filename
   // has a different file_hash, the new bytes are NOT the same book — drop
-  // the per-filename local state (highlights, bookmarks, lastCfi,
-  // reader_progress) so it doesn't silently attach to the new content.
+  // the per-filename local state (lastCfi, reader_progress) so it doesn't
+  // silently attach to the new content.
   // The only "same file" guarantee we accept is matching file_hash;
   // anything weaker (content/metadata strong-match the matcher uses for
   // backend attachment) is still treated as "different file" here

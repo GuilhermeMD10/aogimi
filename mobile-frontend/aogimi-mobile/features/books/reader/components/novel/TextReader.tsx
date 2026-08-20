@@ -1,6 +1,6 @@
 import { ReaderBottomDock, type DockMode } from '../ReaderBottomDock';
 import type { EpubTocItem } from '../../lib/foliateHtml';
-import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../../lib/readerStorage';
+import type { ReaderPrefs } from '../../lib/readerStorage';
 import type { ReaderDirection, ReaderLayout } from '../../lib/readerLayout';
 
 export type TextReaderProps = {
@@ -8,18 +8,12 @@ export type TextReaderProps = {
   toc: EpubTocItem[];
   prefs: ReaderPrefs;
   onChangePrefs: (patch: Partial<ReaderPrefs>) => void;
-  highlights: EpubHighlight[];
-  bookmarks: EpubBookmark[];
-  isBookmarked: boolean;
   layout: ReaderLayout;
   direction: ReaderDirection;
   onPrev: () => void;
   onNext: () => void;
   onJumpHref: (href: string) => void;
   onJumpCfi: (cfi: string) => void;
-  onToggleBookmark: () => void;
-  onDeleteBookmark: (id: string) => void;
-  onDeleteHighlight: (id: string) => void;
   onToggleLayout: () => void;
   onToggleDirection: () => void;
   onSetLayout?: (layout: ReaderLayout) => void;
@@ -39,18 +33,12 @@ export function TextReader({
   toc,
   prefs,
   onChangePrefs,
-  highlights,
-  bookmarks,
-  isBookmarked,
   layout,
   direction,
   onPrev,
   onNext,
   onJumpHref,
   onJumpCfi,
-  onToggleBookmark,
-  onDeleteBookmark,
-  onDeleteHighlight,
   onToggleLayout,
   onToggleDirection,
   onSetLayout,
@@ -70,21 +58,13 @@ export function TextReader({
 
   return (
     <ReaderBottomDock
-      bookmarked={isBookmarked}
       layout={layout}
       direction={direction}
       toc={toc}
-      bookmarks={bookmarks}
-      highlights={highlights}
       prefs={prefs}
       onPrev={rtl ? onNext : onPrev}
       onNext={rtl ? onPrev : onNext}
-      onToggleBookmark={onToggleBookmark}
       onNavigate={onJumpHref}
-      onJumpBookmark={(b) => onJumpCfi(b.cfi)}
-      onJumpHighlight={(h) => onJumpCfi(h.cfi)}
-      onDeleteBookmark={onDeleteBookmark}
-      onDeleteHighlight={onDeleteHighlight}
       onChangePrefs={onChangePrefs}
       onChangeLayout={handleChangeLayout}
       onModeChange={onModeChange}

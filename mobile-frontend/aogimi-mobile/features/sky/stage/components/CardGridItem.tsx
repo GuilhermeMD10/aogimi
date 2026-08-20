@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, palette, radius } from '@/theme/tokens';
 import { RANK_COLORS } from '@/features/sky/map/lib/palette';
@@ -26,7 +27,8 @@ export function CardGridItem({ card, onPress }: Props) {
   const chip = chipColors(rank);
 
   return (
-    <Pressable
+    <Touchable
+      minTarget={false}
       onPress={onPress}
       style={[styles.root, { backgroundColor: c.bgElev, borderColor: c.border }]}
     >
@@ -48,7 +50,7 @@ export function CardGridItem({ card, onPress }: Props) {
           {card.reading}
         </Text>
       )}
-    </Pressable>
+    </Touchable>
   );
 }
 

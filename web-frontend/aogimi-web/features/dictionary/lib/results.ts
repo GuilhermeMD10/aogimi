@@ -95,7 +95,7 @@ export type SurfaceEntry =
  * The entry that *is* this string.
  *
  * For flows that start from a surface form instead of a click on a row — the
- * reader's "add card" straight from a highlight, which never opens the rail.
+ * reader's "add card" straight from a selection, which never opens the rail.
  *
  * **Word order is a ranking, not an identity test.** A search for 背 legitimately
  * ranks 背広 first: it's a better *results list*, because the bare 背 is a rarer

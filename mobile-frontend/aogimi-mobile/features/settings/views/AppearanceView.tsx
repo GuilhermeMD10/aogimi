@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { Screen } from '@/shared/components/Screen';
@@ -36,7 +37,8 @@ export function AppearanceView() {
         {OPTIONS.map((opt, i) => {
           const active = opt.value === preference;
           return (
-            <Pressable
+            <Touchable
+              minTarget={false}
               key={opt.value}
               onPress={() => setPreference(opt.value)}
               accessibilityRole="radio"
@@ -55,7 +57,7 @@ export function AppearanceView() {
                 <Text style={[styles.rowSub, { color: c.fgMuted }]}>{t(opt.subKey)}</Text>
               </View>
               {active && <Feather name="check" size={18} color={c.fg} />}
-            </Pressable>
+            </Touchable>
           );
         })}
       </ScrollView>

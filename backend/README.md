@@ -93,11 +93,11 @@ src/
 ├── services/              # Business logic, cross-table assembly
 │   ├── authService.js      # register/login/refresh/logout/revokeAll
 │   ├── userService.js      # Profile read/update; allow-list filter
-│   ├── ownership.js        # {book,deck,card,bookmark}OwnedBy helpers
+│   ├── ownership.js        # {book,deck,card}OwnedBy helpers
 │   ├── quotas.js           # Per-user resource quota checks (409 on exceed)
 │   ├── fsrs.js             # FSRS-6 scheduler maths (pure)
 │   ├── cardSrsService.js   # Card rows in, next SRS state + review event out
-│   ├── bookService.js, bookmarkService.js,
+│   ├── bookService.js,
 │   ├── deckService.js, cardService.js,
 │   ├── studyService.js, statsService.js,
 │   ├── assembler.js        # Turns flat row tuples into the WordResult API shape

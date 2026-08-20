@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
+import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
 import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Screen } from '@/shared/components/Screen';
 import { useDockClearance } from '@/features/app-shell/Dock';
@@ -11,6 +12,7 @@ import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
 import type { KanjiInfo, WordDetails, WordResult } from '../types';
 import { useDictionaryNav } from '../hooks/useDictionaryNav';
 import { useDictionarySearch } from '../hooks/useDictionarySearch';
+import { useSearchKeyboard } from '../hooks/useSearchKeyboard';
 import { kanjiCardDraft, wordCardDraft } from '../lib/cardDraft';
 import { getRecentLookups, pushRecentLookup, type RecentLookup } from '../lib/dictionaryStorage';
 import { resultRows, totalResults } from '../lib/resultSections';
@@ -51,6 +53,7 @@ export function DictionaryView() {
     useDictionaryNav();
 
   const searchState = useDictionarySearch(query);
+  const { inputRef, dismiss } = useSearchKeyboard();
   const [prefill, setPrefill] = useState<FlashcardPrefill | null>(null);
   const [recents, setRecents] = useState<RecentLookup[]>([]);
 
@@ -105,27 +108,51 @@ export function DictionaryView() {
 
   const openWord = useCallback(
     async (id: number, lookupQuery: string) => {
+      dismiss();
       const details = await openDetail(id);
       // Written after the detail resolves, so a lookup that failed to load
       // never lands in the list. `lookupQuery` is what picks the headword —
       // see `preferredHeadword`.
       if (details) setRecents(await pushRecentLookup(details.word, lookupQuery.trim() || undefined));
     },
-    [openDetail],
+    [openDetail, dismiss],
   );
 
   // Adding from a result row needs no round trip: `wordCardDraft` takes the
   // `WordResult` the list already holds. Only the entry's own button has
   // example sentences to pass, which is the one thing a row cannot supply.
   const addWord = useCallback(
-    (word: WordResult) => setPrefill(wordCardDraft(word, query)),
-    [query],
+    (word: WordResult) => {
+      dismiss();
+      setPrefill(wordCardDraft(word, query));
+    },
+    [query, dismiss],
   );
-  const addKanji = useCallback((kanji: KanjiInfo) => setPrefill(kanjiCardDraft(kanji)), []);
+  const addKanji = useCallback(
+    (kanji: KanjiInfo) => {
+      dismiss();
+      setPrefill(kanjiCardDraft(kanji));
+    },
+    [dismiss],
+  );
   const addFromEntry = useCallback(
     (details: WordDetails) => setPrefill(wordCardDraft(details.word, query, details.sentences)),
     [query],
   );
+
+  // Both cross a frame boundary, and a frame boundary unmounts the field — the
+  // exact transition that used to leave RN holding a stale focused node.
+  const openKanji = useCallback(
+    (literal: string) => {
+      dismiss();
+      openKanjiSearch(literal);
+    },
+    [dismiss, openKanjiSearch],
+  );
+  const goBack = useCallback(() => {
+    dismiss();
+    back();
+  }, [dismiss, back]);
 
   const isSearching = query.trim() !== '';
   const rows = useMemo(
@@ -139,9 +166,11 @@ export function DictionaryView() {
   const field = (
     <SearchField
       value={query}
+      ref={inputRef}
       onChangeText={setQuery}
       placeholder={t('dict.fieldPlaceholder')}
       active={isSearching}
+      onSubmit={dismiss}
       clearLabel={t('dict.clearSearch')}
     />
   );
@@ -149,30 +178,37 @@ export function DictionaryView() {
   return (
     <Screen padded>
       {current.kind === 'search' && (
-        <ResultsList
-          rows={rows}
-          query={query}
-          contentStyle={{ paddingBottom: dockClearance }}
-          onOpenWord={(w) => void openWord(w.id, query)}
-          onAddWord={addWord}
-          onAddKanji={addKanji}
-          onOpenKanji={openKanjiSearch}
-          header={
-            <View>
-              {/* A search frame reached by drilling into a kanji sits on top of
-                  another frame, so it needs its own way back — the dock's tab
-                  is not one. */}
-              {canGoBack && <BackLink label={t('dict.back')} onPress={back} />}
+        <>
+          {/* Pinned: outside the list, so no state change can move it. */}
+          <View style={styles.pinned}>
+            {/* A search frame reached by drilling into a kanji sits on top of
+                another frame, so it needs its own way back — the dock's tab
+                is not one. */}
+            {canGoBack && <BackLink label={t('dict.back')} onPress={goBack} />}
+            {field}
+          </View>
 
-              {!isSearching && (
-                <DictHero
-                  kicker={t('dict.heroKicker')}
-                  title={t('dict.heroTitle')}
-                  caption={t('dict.heroCaption')}
-                />
+          <ResultsList
+            rows={rows}
+            query={query}
+            contentStyle={{ paddingBottom: dockClearance }}
+            onOpenWord={(w) => void openWord(w.id, query)}
+            onAddWord={addWord}
+            onAddKanji={addKanji}
+            onOpenKanji={openKanji}
+            onScrollStart={dismiss}
+            header={
+              // Tapping the header's empty space is one of the "outside" gestures
+              // that closes the keyboard; the chips and rows inside it still win
+              // their own taps.
+              <PressableBackdrop onPress={dismiss}>
+                {!isSearching && (
+                  <DictHero
+                    kicker={t('dict.heroKicker')}
+                    title={t('dict.heroTitle')}
+                    caption={t('dict.heroCaption')}
+          />
               )}
-
-              <View style={styles.fieldWrap}>{field}</View>
 
               {!isSearching && <SuggestionChips onPick={setQuery} />}
 
@@ -198,8 +234,11 @@ export function DictionaryView() {
                   />
                 </View>
               )}
-            </View>
+            </PressableBackdrop>
           }
+          // Fills whatever the content does not, so the blank area under a short
+          // list is a dismiss target rather than dead page.
+          footer={<PressableBackdrop onPress={dismiss} style={styles.dismissTail} />}
           empty={
             isSearching ? (
               searchState.kind === 'results' ? (
@@ -213,7 +252,8 @@ export function DictionaryView() {
               />
             )
           }
-        />
+          />
+        </>
       )}
 
       {current.kind === 'detailLoading' && (
@@ -224,7 +264,7 @@ export function DictionaryView() {
 
       {current.kind === 'detail' && (
         <View style={styles.flex}>
-          <BackLink label={t('dict.backToResults')} onPress={back} />
+          <BackLink label={t('dict.backToResults')} onPress={goBack} />
           <ScrollView
             contentContainerStyle={{ paddingBottom: dockClearance + spacing.lg }}
             showsVerticalScrollIndicator={false}
@@ -233,7 +273,7 @@ export function DictionaryView() {
               details={current.details}
               query={query}
               onAddToDeck={() => addFromEntry(current.details)}
-              onKanjiPress={openKanjiSearch}
+              onKanjiPress={openKanji}
             />
           </ScrollView>
         </View>
@@ -253,10 +293,10 @@ function BackLink({ label, onPress }: { label: string; onPress: () => void }) {
   const p = usePalette();
   const styles = useStyles(p);
   return (
-    <Pressable onPress={onPress} hitSlop={12} accessibilityRole="button" style={styles.backLink}>
+    <Touchable onPress={onPress} accessibilityRole="button" minTarget={false} style={styles.backLink}>
       <Feather name="chevron-left" size={13} color={p.muted} />
       <Text style={styles.backLabel}>{label}</Text>
-    </Pressable>
+    </Touchable>
   );
 }
 
@@ -299,7 +339,11 @@ function useStyles(p: Palette) {
     () =>
       StyleSheet.create({
         flex: { flex: 1 },
-        fieldWrap: { marginTop: spacing.lg + 2 },
+        // The bar's own block. `paddingBottom` is the gap to the list; the list
+        // supplies none of its own, so the bar's position is set here alone.
+        pinned: { paddingBottom: spacing.md },
+        // Grows into the leftover space below short content — see `footer`.
+        dismissTail: { flexGrow: 1, minHeight: 96 },
         spinner: { marginTop: spacing.xl },
 
         resultsHeading: { marginTop: spacing.lg, marginBottom: spacing.sm },

@@ -5,7 +5,6 @@ import type {
   BookMatchResult,
   BookProgressUpdate,
   BookRecord,
-  BookmarkRecord,
 } from '../types';
 
 // ── Books (book_progress) ───────────────────────────────────────────────────
@@ -104,25 +103,5 @@ export function matchBooks(
 
 export function deleteBook(id: string): Promise<{ message: string }> {
   return request<{ message: string }>(`/api/books/${id}`, { method: 'DELETE' });
-}
-
-// ── Bookmarks (per-book, server-side) ──────────────────────────────────────
-
-export function fetchBookmarks(bookId: string, signal?: AbortSignal): Promise<BookmarkRecord[]> {
-  return request<BookmarkRecord[]>(`/api/books/${bookId}/bookmarks`, { signal });
-}
-
-export function createBookmark(
-  bookId: string,
-  data: { cfi: string; label?: string },
-): Promise<BookmarkRecord> {
-  return request<BookmarkRecord>(`/api/books/${bookId}/bookmarks`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export function deleteBookmark(bookmarkId: string): Promise<{ message: string }> {
-  return request<{ message: string }>(`/api/books/bookmarks/${bookmarkId}`, { method: 'DELETE' });
 }
 

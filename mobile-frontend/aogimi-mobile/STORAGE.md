@@ -27,7 +27,7 @@ outlive a screen.
 | `aogimi_user_cache` | Cached `UserProfile` so a launch without network keeps the user signed-in instead of bouncing to auth | `lib/auth/AuthContext.tsx` |
 | `reader_prefs` | Reader prefs (font / theme / lineHeight / fontFamily), global per user | `lib/readerPrefs.ts` |
 | `reader_layout`, `reader_direction`, `reader_manga_mode`, `reader_manga_page_dir` | Layout prefs (pages vs scroll, horizontal vs vertical, manga mode + page direction) | `lib/readerLayout.ts` |
-| `reader_book_<urlEncodedFilename>` | Per-book `lastCfi`, `lastProgress`, `lastReadAt`, `highlights[]`, `bookmarks[]`. Filename-keyed (user-agnostic) so progress survives sign-up. **Highlights live only here** — no backend table yet | `lib/readerStorage.ts` |
+| `reader_book_<urlEncodedFilename>` | Per-book `lastCfi`, `lastCfiPushed`, `lastProgress`, `lastProgressPushed`, `lastReadAt`. Filename-keyed (user-agnostic) so progress survives sign-up | `lib/readerStorage.ts` |
 | `books_filter_available_only_v1` | Library "available-only" filter toggle | `components/books/ui/BooksScreen.tsx` |
 | `dictionary_recent_searches` | Dictionary search history | `lib/storage/dictionary.ts` |
 
@@ -93,15 +93,14 @@ delete path).
 `components/home/BookActionsSheet.tsx → onDelete` mirrors the wipe at a
 single-book granularity:
 
-1. `deleteBook(book.id)` — backend row (cascades to bookmarks +
-   device_books).
+1. `deleteBook(book.id)` — backend row.
 2. `deleteBookFile(book.filename)` — the `documents/books/<filename>` blob.
 3. `deleteCoverFor(book.filename)` — `documents/covers/<safeName>.<ext>`
    + the in-memory URI cache entry.
 4. `evictBookCache(book.id)` — `cache/manga-pages/<bookId>/`, the LRU
    index entry, and the session handle if it matched.
 5. `clearBookStorage(book.filename)` — the AsyncStorage
-   `reader_book_<filename>` row (highlights / bookmarks / lastCfi).
+   `reader_book_<filename>` row (lastCfi / reading progress).
 6. `clearLocalProgress(book.id)` — the optimistic progress patch.
 
 ## Open questions / TODO
@@ -111,9 +110,4 @@ single-book granularity:
   initialise; current behaviour is glyph/gradient fallback. Proper fix
   needs a thumbnail extractor (e.g. `react-native-pdf-thumbnail`) that
   writes a PNG once per book and stores it under `documents/covers/`.
-- **Highlights backend table**: currently client-only in
-  `reader_book_<filename>.highlights`. Promoting these to a backend
-  table would let highlights survive an account-switch wipe and sync
-  across devices. Until then, the wipe destroys highlights on the
-  switching device — call it out in any UI that lets users switch
-  accounts.
+

@@ -5,11 +5,11 @@ import {
   BackHandler,
   LayoutChangeEvent,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -324,13 +324,14 @@ export function SkyStageView() {
             Every card you save becomes a star, placed by a seed the server issues once and never
             changes — so the same sky follows you to every device. Sign in to see yours.
           </Text>
-          <Pressable
+          <Touchable
+            minTarget={false}
             onPress={() => router.push('/profile')}
             accessibilityRole="button"
             style={styles.cta}
           >
             <Text style={styles.ctaLabel}>Go to Profile</Text>
-          </Pressable>
+          </Touchable>
           {decks.length > 0 && (
             <Text style={styles.emptyNote}>
               {decks.length.toLocaleString()} {decks.length === 1 ? 'deck is' : 'decks are'} saved

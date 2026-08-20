@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
 
@@ -31,7 +32,8 @@ export function ProfileIdentity({
 
   return (
     <View style={styles.row}>
-      <Pressable
+      <Touchable
+        minTarget={false}
         onPress={onPressAvatar}
         disabled={saving}
         accessibilityRole="button"
@@ -39,7 +41,7 @@ export function ProfileIdentity({
         style={[styles.avatar, saving && styles.avatarSaving]}
       >
         <Text style={styles.avatarGlyph}>{glyph}</Text>
-      </Pressable>
+      </Touchable>
 
       <View style={styles.text}>
         <Text style={styles.name} numberOfLines={1}>

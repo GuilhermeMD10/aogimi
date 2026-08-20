@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/shared/components/Screen';
 import { Button } from '@/shared/components/Button';
@@ -191,15 +192,18 @@ function ReconcileView({
               {done ? (
                 <Text style={[styles.done, { color: c.success }]}>✓ {t('auth.onboarding.found')}</Text>
               ) : (
-                <Pressable
+                <Touchable
+                  surface="glass"
+                  radius={radius.pill}
+                  minTarget={false}
+                  hitSlop={8}
                   onPress={() => onFind(b)}
-                  style={[styles.findBtn, { borderColor: c.borderStrong, backgroundColor: c.bgSunken }]}
-                  hitSlop={4}
+                  style={styles.findBtn}
                 >
                   <Text style={{ color: c.fg, fontSize: fontSize.sm, fontWeight: '500' }}>
                     {t('auth.onboarding.find')}
                   </Text>
-                </Pressable>
+                </Touchable>
               )}
             </View>
           );
@@ -251,11 +255,10 @@ const styles = StyleSheet.create({
   },
   rowTitle: { fontFamily: fontFamily.jp, fontSize: fontSize.md, fontWeight: '500' },
   rowSub: { fontSize: fontSize.xs + 1, marginTop: 2 },
+  // Fill and hairline come from `surface="glass"`.
   findBtn: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 9,
   },
   done: { fontSize: fontSize.sm, fontWeight: '600' },
   bottom: { marginTop: spacing.md },

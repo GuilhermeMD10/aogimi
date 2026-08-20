@@ -21,7 +21,6 @@ module.exports = {
     BOOKS_PER_USER: 50,
     DECKS_PER_USER: 50,
     CARDS_PER_DECK: 5000,
-    BOOKMARKS_PER_BOOK: 500,
   },
 
   // ── Text field lengths (characters, post-trim) ─────────────────────────
@@ -50,8 +49,6 @@ module.exports = {
     BOOK_IDENTITY_FIELD: 500,
     /** Free-text PDF /Producer — diagnostic only, but still user-supplied. */
     BOOK_PRODUCER: 500,
-
-    BOOKMARK_LABEL: 100,
 
     DISPLAY_NAME: 64,
     EMAIL: 254,

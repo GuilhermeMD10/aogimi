@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useColors } from '@/theme/ThemeContext';
 import { fontSize, spacing } from '@/theme/tokens';
 import type { EpubTocItem } from '../../lib/foliateHtml';
@@ -22,7 +23,8 @@ export function TocPane({ toc, onNavigate }: Props) {
           <Text style={[styles.empty, { color: c.fgMuted }]}>No table of contents</Text>
         ) : (
           toc.map((item, i) => (
-            <Pressable
+            <Touchable
+              minTarget={false}
               key={`${item.href}-${i}`}
               onPress={() => onNavigate(item.href)}
               style={[styles.row, { borderBottomColor: c.border }]}
@@ -30,7 +32,7 @@ export function TocPane({ toc, onNavigate }: Props) {
               <Text numberOfLines={2} style={[styles.label, { color: c.fg }]}>
                 {item.label || item.href}
               </Text>
-            </Pressable>
+            </Touchable>
           ))
         )}
       </ScrollView>

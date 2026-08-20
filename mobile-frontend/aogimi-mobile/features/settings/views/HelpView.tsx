@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { Screen } from '@/shared/components/Screen';
@@ -40,10 +41,10 @@ export function HelpView() {
           </P>
           <P fgMuted={c.fgMuted}>
             To look up a word: press and hold on it, then drag to extend the selection if you need to. When you lift
-            your finger a small action bar appears with shortcuts for Dictionary, Card, Highlight, and Copy.
+            your finger a small action bar appears with shortcuts for Dictionary, Card, and Copy.
           </P>
           <P fgMuted={c.fgMuted}>
-            The bottom dock has chapter navigation, bookmarks, and typography settings. The floating chevron at the
+            The bottom dock has chapter navigation and typography settings. The floating chevron at the
             bottom-left takes you back to the library.
           </P>
         </Section>
@@ -65,7 +66,7 @@ export function HelpView() {
 
         <Section heading="How sync works" fg={c.fg} fgMuted={c.fgMuted}>
           <P fgMuted={c.fgMuted}>
-            Your books, highlights, bookmarks, and reading positions are saved to your account. Each device keeps a
+            Your books and reading positions are saved to your account. Each device keeps a
             local copy and pushes changes to the backend opportunistically when it&apos;s online. If you import a book while
             offline, it stays on this device — marked as unsynced — until the next sync round.
           </P>
@@ -134,9 +135,10 @@ function Section({
       {pinned ? (
         headingRow
       ) : (
-        <Pressable onPress={() => setOpen((v) => !v)} hitSlop={6}>
+        <Touchable
+        minTarget={false} onPress={() => setOpen((v) => !v)}>
           {headingRow}
-        </Pressable>
+        </Touchable>
       )}
       {expanded && children}
     </View>

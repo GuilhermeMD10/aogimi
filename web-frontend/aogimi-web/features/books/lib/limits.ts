@@ -14,12 +14,8 @@
 /** Max books one user can register. Backend: `QUOTAS.BOOKS_PER_USER`. */
 export const MAX_BOOKS = 50;
 
-/** Max bookmarks on one book. Backend: `QUOTAS.BOOKMARKS_PER_BOOK`. */
-export const MAX_BOOKMARKS_PER_BOOK = 500;
-
 /** Text caps, in characters. Backend: `TEXT.*`. */
 export const MAX_BOOK_TITLE = 500;
-export const MAX_BOOKMARK_LABEL = 100;
 
 /** Max candidates per `POST /api/books/match` request. Backend:
  *  `ARRAYS.MATCH_CANDIDATES`. The library reconcile batches every local file

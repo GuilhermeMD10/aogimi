@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { Screen } from '@/shared/components/Screen';
@@ -71,9 +72,10 @@ function Section({
       {section.pinned ? (
         headerInner
       ) : (
-        <Pressable onPress={() => setOpen((v) => !v)} hitSlop={6}>
+        <Touchable
+        minTarget={false} onPress={() => setOpen((v) => !v)}>
           {headerInner}
-        </Pressable>
+        </Touchable>
       )}
 
       {expanded && (
@@ -114,7 +116,8 @@ function Entry({
 }) {
   const onPress = entry.url ? () => void Linking.openURL(entry.url!) : undefined;
   return (
-    <Pressable
+    <Touchable
+      minTarget={false}
       onPress={onPress}
       disabled={!onPress}
       style={[
@@ -135,7 +138,7 @@ function Entry({
         )}
       </View>
       <Text style={[styles.entryLicense, { color: fgMuted }]}>{entry.license}</Text>
-    </Pressable>
+    </Touchable>
   );
 }
 

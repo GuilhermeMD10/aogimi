@@ -5,7 +5,7 @@
 // reconfigure everything when opening a new book. Now they live under a
 // single 'reader_prefs' key and apply to every book.
 //
-// Highlights, bookmarks, and last-CFI remain per-book in readerStorage.ts --
+// Last-CFI and reading progress remain per-book in readerStorage.ts --
 // those are intrinsically tied to specific files.
 
 import { useCallback, useEffect, useState } from 'react';

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 import { useT } from '@/lib/i18n/I18nContext';
 import { usePalette } from '@/theme/ThemeContext';
@@ -55,14 +56,17 @@ export function EntryView({
     <View style={styles.root}>
       <EntryHeader word={word} query={query} compact={compact} />
 
-      <Pressable
+      {/* Solid `btn` fill rather than glass: this is the page's one primary
+          action and glass is for the secondary controls around it. */}
+      <Touchable
         onPress={onAddToDeck}
         accessibilityRole="button"
+        minTarget={false}
         style={[styles.addButton, compact && styles.addButtonCompact]}
       >
         <Feather name="plus" size={16} color={p.btnInk} />
         <Text style={styles.addLabel}>{t('dict.addToDeck')}</Text>
-      </Pressable>
+      </Touchable>
 
       {meanings.length > 0 && (
         <View style={styles.block}>

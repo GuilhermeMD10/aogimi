@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 import type { RecentLookup } from '@/features/dictionary/lib/dictionaryStorage';
 import { usePalette } from '@/theme/ThemeContext';
@@ -46,7 +47,8 @@ export function DictionaryCard({
     <Card>
       <SectionHead title={title} action={viewAllLabel} onPress={onOpenDictionary} />
 
-      <Pressable
+      <Touchable
+        minTarget={false}
         onPress={onOpenDictionary}
         accessibilityRole="search"
         style={styles.field}
@@ -55,10 +57,11 @@ export function DictionaryCard({
         <Text style={styles.placeholder} numberOfLines={1}>
           {placeholder}
         </Text>
-      </Pressable>
+      </Touchable>
 
       {shown.map((item, i) => (
-        <Pressable
+        <Touchable
+          minTarget={false}
           key={item.wordId}
           onPress={() => onOpenLookup(item)}
           accessibilityRole="button"
@@ -80,7 +83,7 @@ export function DictionaryCard({
               </Text>
             )}
           </View>
-        </Pressable>
+        </Touchable>
       ))}
     </Card>
   );

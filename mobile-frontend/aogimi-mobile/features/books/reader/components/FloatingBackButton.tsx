@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/theme/ThemeContext';
 import { palette } from '@/theme/tokens';
@@ -28,15 +29,16 @@ export function FloatingBackButton({ onPress, visible = true }: Props) {
       pointerEvents="box-none"
       style={[styles.host, { bottom: insets.bottom + 22, borderColor: c.borderStrong }]}
     >
-      <Pressable
+      <Touchable
+        minTarget={false}
+        hitSlop={12}
         accessibilityRole="button"
         accessibilityLabel="Back to library"
         onPress={onPress}
-        hitSlop={12}
         style={styles.pressable}
       >
         <Text style={styles.chevron}>‹</Text>
-      </Pressable>
+      </Touchable>
     </View>
   );
 }

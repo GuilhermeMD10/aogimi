@@ -5,7 +5,7 @@ import { getJSON, remove, setJSON } from '@/lib/storage/_helpers';
 // `useProgressSync`. Acts as the per-device source of truth between flushes
 // and as a recovery hint when a backend flush is delayed or fails — on the
 // next open we restore from whichever of (this snapshot, the backend row) is
-// newer by timestamp. Position only: highlights/bookmarks are not tracked.
+// newer by timestamp.
 
 function progressKey(filename: string): string {
   return `reader_progress_${filename}`;

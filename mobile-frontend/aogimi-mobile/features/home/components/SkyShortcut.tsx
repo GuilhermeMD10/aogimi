@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
@@ -32,7 +33,8 @@ export function SkyShortcut({
   const styles = useStyles(p);
 
   return (
-    <Pressable
+    <Touchable
+      minTarget={false}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
@@ -45,7 +47,7 @@ export function SkyShortcut({
             one of the two columns. */}
         <Feather name="chevron-right" size={16} color="#cfd8ea" />
       </View>
-    </Pressable>
+    </Touchable>
   );
 }
 

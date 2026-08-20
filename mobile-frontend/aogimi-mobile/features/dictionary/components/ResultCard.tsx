@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { JlptChip } from '@/shared/components/JlptChip';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
@@ -54,9 +55,12 @@ export function ResultCard({
   const pos = posLabel(word.meanings[0]?.pos);
 
   return (
-    <Pressable
+    <Touchable
       onPress={onPress}
       accessibilityRole="button"
+      // Already far taller than the 44pt floor, and a card is a paper surface —
+      // the glass wash belongs to controls, not to the list they sit in.
+      minTarget={false}
       style={[styles.card, compact && styles.cardCompact, elevated && styles.elevated]}
     >
       <View style={styles.body}>
@@ -94,7 +98,7 @@ export function ResultCard({
       </View>
 
       <AddButton onPress={onAdd} accessibilityLabel={addLabel} size={compact ? 30 : 32} />
-    </Pressable>
+    </Touchable>
   );
 }
 

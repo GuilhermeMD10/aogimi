@@ -1,5 +1,5 @@
 // Zod schemas for /api/books/* (book metadata, progress, identity,
-// bookmarks, and the match endpoint).
+// and the match endpoint).
 //
 // The identity payloads are wide (23 fields). Most are hashes and ids
 // produced by the client's fingerprinting pipeline, so they have a natural
@@ -82,11 +82,6 @@ const progressSchema = z
     message: "Provide at least one progress field",
   });
 
-const createBookmarkSchema = z.object({
-  cfi: requiredText("cfi", TEXT.BOOK_CFI),
-  label: optionalText("label", TEXT.BOOKMARK_LABEL),
-});
-
 // The match endpoint takes client-side fingerprints of files the user is
 // importing. Candidate shape is snake_case (it mirrors the DB row the client
 // compares against) and is deliberately permissive on unknown keys — the
@@ -131,6 +126,5 @@ module.exports = {
   updateIdentitySchema,
   updateTitleSchema,
   progressSchema,
-  createBookmarkSchema,
   matchSchema,
 };

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
+import { Touchable } from './Touchable';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
 
@@ -26,9 +27,17 @@ export function DangerButton({
   const p = usePalette();
   const styles = useStyles(p);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={styles.button}>
+    // No haptic: a destructive control should not feel the same as tapping a
+    // tab. The confirm dialog is where this action gets its feedback.
+    <Touchable
+      onPress={onPress}
+      accessibilityRole="button"
+      haptic={false}
+      minTarget={false}
+      style={styles.button}
+    >
       <Text style={styles.label}>{label}</Text>
-    </Pressable>
+    </Touchable>
   );
 }
 

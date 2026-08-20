@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { BottomSheet } from '@/shared/components/BottomSheet';
+import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
 import { useT } from '@/lib/i18n/I18nContext';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
@@ -9,6 +10,7 @@ import { fetchWordDetails } from '../lib/dictApi';
 import { pushRecentLookup } from '../lib/dictionaryStorage';
 import { resultRows } from '../lib/resultSections';
 import { useDictionarySearch } from '../hooks/useDictionarySearch';
+import { useSearchKeyboard } from '../hooks/useSearchKeyboard';
 import type { KanjiInfo, WordDetails, WordResult } from '../types';
 import { SearchField } from './SearchField';
 import { ResultsList } from './ResultsList';
@@ -76,6 +78,7 @@ function DictDrawerInner({
   const p = usePalette();
   const styles = useStyles(p);
 
+  const { inputRef, dismiss } = useSearchKeyboard();
   const [query, setQuery] = useState(term);
   const [stage, setStage] = useState<Stage>({ kind: 'search' });
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +91,10 @@ function DictDrawerInner({
 
   const openWord = useCallback(
     (word: WordResult) => {
+      // Same rule as the tab: anything that navigates closes the keyboard, and
+      // the sheet is only 65% of the screen, so a keyboard left up over it hides
+      // the entry the tap just opened.
+      dismiss();
       setError(null);
       setStage({ kind: 'detailLoading' });
       fetchWordDetails(word.id)
@@ -104,22 +111,25 @@ function DictDrawerInner({
           setStage({ kind: 'search' });
         });
     },
-    [query, t],
+    [query, t, dismiss],
   );
 
   if (stage.kind === 'detail') {
     return (
       <View style={styles.flex}>
         <View style={styles.header}>
-          <Pressable
-            onPress={() => setStage({ kind: 'search' })}
-            hitSlop={12}
+          <Touchable
+            onPress={() => {
+              dismiss();
+              setStage({ kind: 'search' });
+            }}
             accessibilityRole="button"
+            minTarget={false}
             style={styles.backLink}
           >
             <Feather name="chevron-left" size={13} color={p.muted} />
             <Text style={styles.backLabel}>{t('dict.backToResults')}</Text>
-          </Pressable>
+          </Touchable>
         </View>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <EntryView
@@ -146,20 +156,29 @@ function DictDrawerInner({
           compact
           contentStyle={styles.scroll}
           onOpenWord={openWord}
-          onAddWord={(word) => onAddFlashcard({ word, kanjis: [], sentences: [] })}
-          onAddKanji={onAddKanji}
+          onAddWord={(word) => {
+            dismiss();
+            onAddFlashcard({ word, kanjis: [], sentences: [] });
+          }}
+          onAddKanji={(kanji) => {
+            dismiss();
+            onAddKanji(kanji);
+          }}
+          onScrollStart={dismiss}
           header={
-            <View style={styles.header}>
+            <PressableBackdrop onPress={dismiss} style={styles.header}>
               <SearchField
+                ref={inputRef}
                 value={query}
                 onChangeText={setQuery}
                 placeholder={t('dict.fieldPlaceholder')}
                 active={query.trim() !== ''}
                 compact
+                onSubmit={dismiss}
                 clearLabel={t('dict.clearSearch')}
               />
               {error !== null && <Text style={styles.error}>{error}</Text>}
-            </View>
+            </PressableBackdrop>
           }
           empty={
             query.trim() === '' ? (

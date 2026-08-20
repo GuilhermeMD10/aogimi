@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 
 import { CloudSyncIcon } from '@/shared/icons/sync-icons';
@@ -51,7 +52,8 @@ export function StageActions({
 
   return (
     <View style={styles.root}>
-      <Pressable
+      <Touchable
+        minTarget={false}
         onPress={onStudyDue}
         disabled={nothingDue}
         accessibilityRole="button"
@@ -69,9 +71,10 @@ export function StageActions({
         <Text style={styles.studyLabel}>
           {dueCount === null ? 'Study' : nothingDue ? 'Nothing due' : `Study ${dueCount} due`}
         </Text>
-      </Pressable>
+      </Touchable>
 
-      <Pressable
+      <Touchable
+        minTarget={false}
         onPress={onSync}
         disabled={syncing}
         accessibilityRole="button"
@@ -92,9 +95,10 @@ export function StageActions({
           // colour, and it is the same hex the library's SyncPill uses.
           <CloudSyncIcon size={18} color="#2E9F58" />
         )}
-      </Pressable>
+      </Touchable>
 
-      <Pressable
+      <Touchable
+        minTarget={false}
         onPress={onCreateDeck}
         disabled={atDeckQuota}
         accessibilityRole="button"
@@ -103,7 +107,7 @@ export function StageActions({
         style={[styles.iconBtn, { opacity: atDeckQuota ? 0.45 : 1 }]}
       >
         <Feather name="plus" size={18} color={palette.ink} />
-      </Pressable>
+      </Touchable>
     </View>
   );
 }

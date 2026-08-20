@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { Card } from '@/shared/components/Card';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, type Palette } from '@/theme/tokens';
@@ -35,9 +36,11 @@ export function SectionHead({
   return (
     <View style={styles.sectionHead}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button">
+      <Touchable
+        minTarget={false}
+        hitSlop={10} onPress={onPress} accessibilityRole="button">
         <Text style={styles.sectionAction}>{action} →</Text>
-      </Pressable>
+      </Touchable>
     </View>
   );
 }

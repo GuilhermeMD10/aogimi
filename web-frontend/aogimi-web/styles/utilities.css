@@ -1,15 +1,7 @@
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    UTILITIES — token-driven decorative bits that aren't full primitives.
-   Reader highlights, word hover, vertical Japanese text, selection.
+   Word hover, vertical Japanese text, selection.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
-/* Highlight colors for reader text. Hardcoded rather than tokenised: a
-   highlight lands on the *book's* page, which carries its own light / dark /
-   sepia background from `readerConstants.THEMES` and doesn't follow the app
-   theme, so there is nothing here for a token to swap. */
-.hl-1 { background: linear-gradient(transparent 55%, rgba(255, 213, 79, 0.55) 55%); }
-.hl-2 { background: linear-gradient(transparent 55%, rgba(129, 199, 132, 0.45) 55%); }
-.hl-3 { background: linear-gradient(transparent 55%, rgba(244, 143, 177, 0.45) 55%); }
 
 /* Per-word hover in the reader. Mixed out of `--ink` rather than given a token
    of its own — same reasoning as `HAIRLINE`: deriving it keeps it correct in

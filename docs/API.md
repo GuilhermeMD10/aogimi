@@ -20,8 +20,8 @@ so a bad ID cannot be distinguished from an unknown one.
 Validation failures are 400. Rate limits are 429 with `RateLimit-*` headers (draft-7). Nothing
 returns a stack trace.
 
-**Rate limits.** 100 req/min globally on `/api`. Login is 5 per 15 min keyed by IP+username;
-register is 5 per 30 min keyed by IP.
+**Rate limits.** 100 req/min globally on `/api`. Login is 10 per hour keyed by IP+username;
+register is 10 per hour keyed by IP.
 
 ---
 
@@ -85,9 +85,6 @@ All require `Authorization: Bearer <accessToken>`.
 | PATCH | `/api/books/:id` | Update editable metadata (title). |
 | PUT | `/api/books/:id/identity` | Backfill hash and metadata identity fields after a successful match. |
 | DELETE | `/api/books/:id` | Delete the metadata row. Local bytes are the client's business. |
-| POST | `/api/books/:id/bookmarks` | Create a bookmark. Quota: 500 per book. |
-| GET | `/api/books/:id/bookmarks` | List a book's bookmarks. |
-| DELETE | `/api/books/bookmarks/:bookmarkId` | Delete one, ownership resolved through the book. |
 
 ### Decks and cards — `/api/decks`
 
@@ -141,7 +138,6 @@ disable buttons; that is presentation only.
 | Books per user | 50 |
 | Decks per user | 50 |
 | Cards per deck | 5000 |
-| Bookmarks per book | 500 |
 
 Text field caps live in `backend/src/config/limits.js` — every user-supplied column is Postgres
 `text`, so these are the only bound.

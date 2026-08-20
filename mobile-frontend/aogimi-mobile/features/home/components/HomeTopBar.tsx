@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { BrandGlyph } from '@/shared/components/BrandGlyph';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
@@ -53,15 +54,16 @@ export function HomeTopBar({
           </View>
         )}
 
-        <Pressable
+        <Touchable
+          minTarget={false}
+          hitSlop={8}
           onPress={onProfilePress}
           accessibilityRole="button"
           accessibilityLabel={profileLabel}
-          hitSlop={8}
           style={styles.avatar}
         >
           <Text style={styles.avatarGlyph}>{avatarGlyph}</Text>
-        </Pressable>
+        </Touchable>
       </View>
     </View>
   );

@@ -2,29 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadJSON, saveJSON } from '@/lib/storage';
 
-export type HighlightColor = 'yellow' | 'green' | 'blue';
-
-export const HIGHLIGHT_COLORS: Record<HighlightColor, string> = {
-  yellow: '#F5C542',
-  green: '#5CB85C',
-  blue: '#5B9BD5',
-};
-
-export type EpubHighlight = {
-  id: string;
-  cfi: string;
-  text: string;
-  color: HighlightColor;
-  createdAt: number;
-};
-
-export type EpubBookmark = {
-  id: string;
-  cfi: string;
-  label: string;
-  createdAt: number;
-};
-
 export type ReaderTheme = 'light' | 'dark' | 'sepia';
 export type ReaderFont = 'serif-jp' | 'sans-jp' | 'system';
 
@@ -67,17 +44,7 @@ export const DEFAULT_PREFS: ReaderPrefs = {
 
 // Prefs (font, theme, line height, font family) used to live here per-book;
 // they're now global in readerPrefs.ts. This module only persists the
-// intrinsically per-book bits: last-read position, highlights, bookmarks.
-//
-// Bookmarks carry sync metadata (`backendId`, `pendingDelete`) so the
-// sync-now flow can push offline-session changes without needing a
-// sidecar map. The reader's public `bookmarks` array filters out
-// pendingDelete entries before returning.
-export type StoredBookmark = EpubBookmark & {
-  backendId?: string;
-  pendingDelete?: boolean;
-};
-
+// intrinsically per-book bits: last-read position and reading progress.
 type StoredBook = {
   lastCfi?: string;
   /** Last CFI that was successfully pushed via the progress beacon.
@@ -99,8 +66,6 @@ type StoredBook = {
   /** `lastProgress` that the backend has confirmed receiving. When this
    *  diverges from `lastProgress` we need to push again. */
   lastProgressPushed?: number;
-  highlights: EpubHighlight[];
-  bookmarks: StoredBookmark[];
 };
 
 const KEY_PREFIX = 'reader_book_';
@@ -113,20 +78,11 @@ const keyOf = (filename: string) => KEY_PREFIX + encodeURIComponent(filename);
 // owned in one place.
 
 /**
- * Read the persisted reader state for one book (last cfi, bookmarks
- * with sync metadata, highlights). Returns null if no row exists.
- * Used by the sync-push module so it doesn't have to re-implement the
- * key encoding owned by this file.
+ * Read the persisted reader state for one book (last cfi and progress).
+ * Returns null if no row exists. Used by the sync-push module so it
+ * doesn't have to re-implement the key encoding owned by this file.
  */
-export async function loadStoredBook(filename: string): Promise<{
-  lastCfi?: string;
-  lastCfiPushed?: string;
-  lastProgress?: number;
-  lastReadAt?: string;
-  lastProgressPushed?: number;
-  bookmarks: StoredBookmark[];
-  highlights: EpubHighlight[];
-} | null> {
+export async function loadStoredBook(filename: string): Promise<StoredBook | null> {
   try {
     const data = await loadJSON<Partial<StoredBook> | null>(keyOf(filename), null);
     if (!data) return null;
@@ -136,8 +92,6 @@ export async function loadStoredBook(filename: string): Promise<{
       lastProgress: data.lastProgress,
       lastReadAt: data.lastReadAt,
       lastProgressPushed: data.lastProgressPushed,
-      bookmarks: data.bookmarks ?? [],
-      highlights: data.highlights ?? [],
     };
   } catch {
     return null;
@@ -145,30 +99,16 @@ export async function loadStoredBook(filename: string): Promise<{
 }
 
 /**
- * Write a patch into the persisted reader state. Used by the sync
- * push to record `backendId` after a successful create POST, or to
- * purge a bookmark after a successful DELETE. The patch function
+ * Write a patch into the persisted reader state. Used by the sync push to
+ * record what the backend has confirmed receiving. The patch function
  * receives the current shape and returns the new one.
  */
-type StoredBookPatchShape = {
-  lastCfi?: string;
-  lastCfiPushed?: string;
-  lastProgress?: number;
-  lastReadAt?: string;
-  lastProgressPushed?: number;
-  bookmarks: StoredBookmark[];
-  highlights: EpubHighlight[];
-};
-
 export async function patchStoredBook(
   filename: string,
-  patch: (current: StoredBookPatchShape) => StoredBookPatchShape,
+  patch: (current: StoredBook) => StoredBook,
 ): Promise<void> {
   try {
-    const current = (await loadStoredBook(filename)) ?? {
-      bookmarks: [],
-      highlights: [],
-    };
+    const current = (await loadStoredBook(filename)) ?? {};
     const next = patch(current);
     await saveJSON(keyOf(filename), next);
   } catch {
@@ -232,14 +172,7 @@ export async function listStoredBookFilenames(): Promise<string[]> {
   }
 }
 
-function rid(): string {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-}
-
-const EMPTY: StoredBook = {
-  highlights: [],
-  bookmarks: [],
-};
+const EMPTY: StoredBook = {};
 
 export type ReaderStorage = {
   hydrated: boolean;
@@ -248,27 +181,10 @@ export type ReaderStorage = {
    *  (either an in-session flush or a sync-now). Persists across reader
    *  sessions so a cold open can seed its session-dedup state. */
   lastCfiPushed?: string;
-  highlights: EpubHighlight[];
-  /** Visible bookmarks — excludes any `pendingDelete: true` entries.
-   *  Items carry optional `backendId` so callers can decide whether to
-   *  fire an `apiDeleteBookmark` on remove. */
-  bookmarks: StoredBookmark[];
   saveLastCfi: (cfi: string) => void;
   /** Called after a successful progress beacon so we can stop re-pushing
    *  the same cfi. */
   markCfiPushed: (cfi: string) => void;
-  addHighlight: (h: Omit<EpubHighlight, 'id' | 'createdAt'>) => EpubHighlight;
-  removeHighlight: (id: string) => void;
-  setHighlightColor: (id: string, color: HighlightColor) => void;
-  addBookmark: (b: Omit<EpubBookmark, 'id' | 'createdAt'>) => EpubBookmark;
-  /** Soft-delete: marks the bookmark `pendingDelete` if it has a
-   *  backendId (so sync can DELETE it later), or hard-removes it if
-   *  it was never pushed. */
-  removeBookmark: (id: string) => void;
-  /** Record the backend id returned by a successful create POST. */
-  setBookmarkBackendId: (localId: string, backendId: string) => void;
-  /** Hard-remove from storage. Called after a successful DELETE. */
-  purgeBookmark: (localId: string) => void;
 };
 
 export function useReaderStorage(filename: string | null): ReaderStorage {
@@ -285,11 +201,7 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
     setHydrated(false);
     loadJSON<Partial<StoredBook> | null>(keyOf(filename), null).then((data) => {
       if (cancelled) return;
-      setState({
-        lastCfi: data?.lastCfi,
-        highlights: data?.highlights ?? [],
-        bookmarks: data?.bookmarks ?? [],
-      });
+      setState({ lastCfi: data?.lastCfi });
       setHydrated(true);
     });
     return () => {
@@ -318,102 +230,11 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
     [update],
   );
 
-  const addHighlight = useCallback(
-    (h: Omit<EpubHighlight, 'id' | 'createdAt'>): EpubHighlight => {
-      const created: EpubHighlight = { ...h, id: rid(), createdAt: Date.now() };
-      update((p) => ({ ...p, highlights: [...p.highlights, created] }));
-      return created;
-    },
-    [update],
-  );
-
-  const removeHighlight = useCallback(
-    (id: string) =>
-      update((p) => ({
-        ...p,
-        highlights: p.highlights.filter((h) => h.id !== id),
-      })),
-    [update],
-  );
-
-  const setHighlightColor = useCallback(
-    (id: string, color: HighlightColor) =>
-      update((p) => ({
-        ...p,
-        highlights: p.highlights.map((h) => (h.id === id ? { ...h, color } : h)),
-      })),
-    [update],
-  );
-
-  const addBookmark = useCallback(
-    (b: Omit<EpubBookmark, 'id' | 'createdAt'>): EpubBookmark => {
-      const created: EpubBookmark = { ...b, id: rid(), createdAt: Date.now() };
-      update((p) => ({ ...p, bookmarks: [...p.bookmarks, created] }));
-      return created;
-    },
-    [update],
-  );
-
-  // Soft-delete when there's a backendId we still need to push a
-  // DELETE for. Hard-remove otherwise (the bookmark never reached the
-  // backend so there's nothing to clean up server-side).
-  const removeBookmark = useCallback(
-    (id: string) =>
-      update((p) => {
-        const target = p.bookmarks.find((b) => b.id === id);
-        if (!target) return p;
-        if (target.backendId) {
-          return {
-            ...p,
-            bookmarks: p.bookmarks.map((b) =>
-              b.id === id ? { ...b, pendingDelete: true } : b,
-            ),
-          };
-        }
-        return { ...p, bookmarks: p.bookmarks.filter((b) => b.id !== id) };
-      }),
-    [update],
-  );
-
-  const setBookmarkBackendId = useCallback(
-    (localId: string, backendId: string) =>
-      update((p) => ({
-        ...p,
-        bookmarks: p.bookmarks.map((b) =>
-          b.id === localId ? { ...b, backendId } : b,
-        ),
-      })),
-    [update],
-  );
-
-  const purgeBookmark = useCallback(
-    (localId: string) =>
-      update((p) => ({
-        ...p,
-        bookmarks: p.bookmarks.filter((b) => b.id !== localId),
-      })),
-    [update],
-  );
-
-  // Visible bookmarks exclude `pendingDelete: true` so the UI hides
-  // soft-deleted entries immediately, even though they linger in
-  // storage until the sync push successfully DELETEs them server-side.
-  const visibleBookmarks = state.bookmarks.filter((b) => !b.pendingDelete);
-
   return {
     hydrated,
     lastCfi: state.lastCfi,
     lastCfiPushed: state.lastCfiPushed,
-    highlights: state.highlights,
-    bookmarks: visibleBookmarks,
     saveLastCfi,
     markCfiPushed,
-    addHighlight,
-    removeHighlight,
-    setHighlightColor,
-    addBookmark,
-    removeBookmark,
-    setBookmarkBackendId,
-    purgeBookmark,
   };
 }
