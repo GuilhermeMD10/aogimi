@@ -1,5 +1,6 @@
 import { Children, cloneElement, isValidElement, useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from './Touchable';
 import Feather from '@expo/vector-icons/Feather';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
@@ -103,9 +104,11 @@ export function Row({
   // announce it as a button to a screen reader.
   if (!onPress) return body;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button">
+    // The row's own padding already clears the floor, and `minTarget` would
+    // fight a full-width child.
+    <Touchable onPress={onPress} accessibilityRole="button" minTarget={false}>
       {body}
-    </Pressable>
+    </Touchable>
   );
 }
 

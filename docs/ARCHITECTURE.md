@@ -50,10 +50,9 @@ Every cross-entity operation therefore lands in a service, where it is visible:
 - **`services/cardService.reviewCard`** coordinates `cardRepository`, `cardReviewRepository` and
   `studyDayRepository`. Applying a review means three writes to three tables; none of those
   repositories knows the others exist.
-- **`services/quotas.js`** reads counts from `deckRepository`, `cardRepository`,
-  `bookRepository`, `bookmarkRepository` and `deviceRepository` to answer "is this user at
-  their limit". A repository-level quota check would need each repository to know about the
-  others.
+- **`services/quotas.js`** reads counts from `deckRepository`, `cardRepository` and
+  `bookRepository` to answer "is this user at their limit". A repository-level quota check
+  would need each repository to know about the others.
 - **`services/searchService.js`** composes `kanjiRepository`, `nameRepository`, the search index
   and the deinflector, and is the only place that knows a single-kanji query should also fetch
   names and kanji-containing words.
@@ -275,7 +274,7 @@ returning the first hit with a `match_type`:
 
 **Only layer 1 is trusted for silent auto-attach on import.** Layers 2–5 can collide legitimately
 — batch-generated PDFs of a manga series routinely share a trailer `/ID` and XMP `DocumentID` —
-and a false attach silently destroys the original's reading position, highlights and bookmarks.
+and a false attach silently destroys the original's reading position.
 Weaker matches are surfaced, not applied.
 
 The route caps the candidate array length in its zod schema, because matching is a

@@ -123,16 +123,6 @@ export type BookMatchResult = {
     | 'none';
 };
 
-// ── Bookmarks (per-book, persisted on backend) ──────────────────────────────
-
-export type BookmarkRecord = {
-  id: string;
-  book_id: string;
-  cfi: string;
-  label: string;
-  created_at: string;
-};
-
 // ── Local-first sync state ──────────────────────────────────────────────────
 //
 // See `docs/SYNC_ARCHITECTURE.md` for the conceptual model and state

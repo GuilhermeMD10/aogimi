@@ -3,12 +3,12 @@ import {
   Dimensions,
   Modal,
   PanResponder,
-  Pressable,
   StyleSheet,
   View,
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PressableBackdrop } from './Touchable';
 import { useColors } from '@/theme/ThemeContext';
 import { palette } from '@/theme/tokens';
 
@@ -73,7 +73,10 @@ export function BottomSheet({
     >
       <View style={styles.root}>
         <View style={styles.backdrop}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
+          {/* The scrim: no nudge, no haptic — dismissing by tapping away is not
+              contact with a control, and a tick here would fire on every stray
+              tap outside a sheet. */}
+          <PressableBackdrop style={StyleSheet.absoluteFill} onPress={onDismiss} />
         </View>
 
         <View

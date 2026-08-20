@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius } from '@/theme/tokens';
 import type { BookRecord } from '../../types';
@@ -40,7 +41,8 @@ export function BookGridItem({
   const isPdf = book.filename.toLowerCase().endsWith('.pdf');
   const syncState = deriveSyncState(book, hasFile, sessionPending);
   return (
-    <Pressable
+    <Touchable
+      minTarget={false}
       onPress={onPress}
       style={styles.root}
     >
@@ -78,15 +80,18 @@ export function BookGridItem({
           {book.author ? `${book.author} · ` : ''}{book.progress}%
         </Text>
         {onMore && (
-          <Pressable
-            onPress={onMore}
+          <Touchable
+            surface="glass"
+            radius={11}
+            minTarget={false}
             hitSlop={10}
+            onPress={onMore}
             accessibilityRole="button"
             accessibilityLabel={`More actions for ${book.title}`}
-            style={[styles.moreBtn, { borderColor: c.border }]}
+            style={styles.moreBtn}
           >
             <Text style={[styles.moreGlyph, { color: c.fgMuted }]}>⋯</Text>
-          </Pressable>
+          </Touchable>
         )}
       </View>
       {!hasFile && (
@@ -94,7 +99,7 @@ export function BookGridItem({
           Not on this device
         </Text>
       )}
-    </Pressable>
+    </Touchable>
   );
 }
 
@@ -141,11 +146,11 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: fontSize.xs,
   },
+  // Fill and hairline come from `surface="glass"`.
   moreBtn: {
     width: 26,
     height: 22,
     borderRadius: 11,
-    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },

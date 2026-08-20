@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 import { BookCover } from '@/features/books/library/components/BookCover';
 import type { BookRecord } from '@/features/books/types';
@@ -56,14 +57,15 @@ export function ContinueReadingCard({
           <View style={styles.track}>
             <View style={[styles.fill, { width: `${pct}%` }]} />
           </View>
-          <Pressable
+          <Touchable
+            minTarget={false}
             onPress={onResume}
             accessibilityRole="button"
             style={styles.button}
           >
             <Feather name="play" size={12} color={p.btnInk} />
             <Text style={styles.buttonLabel}>{resumeLabel}</Text>
-          </Pressable>
+          </Touchable>
         </View>
       </View>
     </Card>

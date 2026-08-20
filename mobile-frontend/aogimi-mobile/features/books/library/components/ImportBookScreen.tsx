@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@expo/vector-icons/Feather';
 import { useRouter } from 'expo-router';
@@ -65,9 +66,11 @@ export function ImportBookScreen({ bookId }: Props) {
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
         <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Touchable
+          minTarget={false}
+          hitSlop={10} onPress={() => router.back()}>
             <Feather name="chevron-left" size={26} color={c.fg} />
-          </Pressable>
+          </Touchable>
         </View>
         <View style={styles.centered}>
           <Text style={{ color: c.fg, fontSize: fontSize.md }}>{error ?? 'Book not found'}</Text>
@@ -79,9 +82,11 @@ export function ImportBookScreen({ bookId }: Props) {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Touchable
+        minTarget={false}
+        hitSlop={10} onPress={() => router.back()}>
           <Feather name="chevron-left" size={26} color={c.fg} />
-        </Pressable>
+        </Touchable>
       </View>
 
       <View style={styles.centered}>

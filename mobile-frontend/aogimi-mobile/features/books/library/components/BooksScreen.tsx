@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Screen } from '@/shared/components/Screen';
 import { useColors } from '@/theme/ThemeContext';
@@ -226,31 +227,30 @@ export function BooksScreen() {
               Hidden entirely; user gets the action by converting to a
               real account from the Profile page. */}
           {!cannotSync && (
-            <Pressable
+            <Touchable
+              surface="glass"
+              radius={radius.pill}
+              minTarget={false}
               onPress={online ? handleSyncNow : () => Alert.alert('Offline', 'Connect to the internet to sync.')}
               disabled={syncing || importing}
               style={[
                 styles.importBtn,
                 {
-                  backgroundColor: c.bgElev,
-                  borderColor: c.border,
                   opacity: syncing || importing || !online ? 0.55 : 1,
                 },
               ]}
-              hitSlop={6}
               accessibilityLabel={online ? 'Sync library' : 'Sync library (offline)'}
             >
               {syncing ? <ActivityIndicator size="small" color={c.fg} /> : <CloudSyncIcon size={18} color="#2E9F58" />}
-            </Pressable>
+            </Touchable>
           )}
-          <Pressable
+          <Touchable
+            surface="glass"
+            radius={radius.pill}
+            minTarget={false}
             onPress={handleImport}
             disabled={importing || syncing}
-            style={[
-              styles.importBtn,
-              { backgroundColor: c.bgElev, borderColor: c.border, opacity: importing || syncing ? 0.55 : 1 },
-            ]}
-            hitSlop={6}
+            style={[styles.importBtn, { opacity: importing || syncing ? 0.55 : 1 }]}
             accessibilityLabel={t('home.importEpub')}
           >
             {importing ? (
@@ -258,7 +258,7 @@ export function BooksScreen() {
             ) : (
               <Text style={[styles.plus, { color: c.fg }]}>+</Text>
             )}
-          </Pressable>
+          </Touchable>
         </View>
       </View>
 
@@ -292,9 +292,10 @@ export function BooksScreen() {
             <>
               <View style={styles.sectionRow}>
                 <Text style={[styles.section, { color: c.fgMuted }]}>Your books</Text>
-                <Pressable
-                  onPress={toggleAvailableOnly}
+                <Touchable
+                  minTarget={false}
                   hitSlop={6}
+                  onPress={toggleAvailableOnly}
                   style={[
                     styles.filterChip,
                     {
@@ -308,7 +309,7 @@ export function BooksScreen() {
                   <Text style={[styles.filterChipText, { color: availableOnly ? c.fg : c.fgMuted }]}>
                     {availableOnly ? 'Available only ✓' : 'All books'}
                   </Text>
-                </Pressable>
+                </Touchable>
               </View>
               <View style={styles.grid}>
                 {visibleBooks.map((b) => (
@@ -364,11 +365,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  // Fill and hairline come from `surface="glass"`.
   importBtn: {
     width: 36,
     height: 36,
     borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,4 +1,4 @@
-// /api/books/* — book metadata + reading progress + bookmarks.
+// /api/books/* — book metadata + reading progress.
 //
 // Mounted under `authenticateJWT`; `req.user.userId` is the only source
 // of truth for who's calling. Any `userId` field in request bodies is
@@ -8,9 +8,8 @@
 
 const { Router } = require("express");
 const bookService = require("../services/bookService");
-const bookmarkService = require("../services/bookmarkService");
 const { requireUserMatch } = require("../middleware/authorize");
-const { bookOwnedBy, bookmarkOwnedBy } = require("../services/ownership");
+const { bookOwnedBy } = require("../services/ownership");
 const quotas = require("../services/quotas");
 const { parseBody } = require("../validation/_helpers");
 const {
@@ -18,7 +17,6 @@ const {
   updateIdentitySchema,
   updateTitleSchema,
   progressSchema,
-  createBookmarkSchema,
   matchSchema,
 } = require("../validation/books");
 
@@ -147,47 +145,6 @@ router.delete("/:id", async (req, res) => {
   try {
     await bookService.deleteBook(req.params.id);
     return res.json({ message: "Book deleted" });
-  } catch (err) {
-    return res.status(404).json({ error: "Not found" });
-  }
-});
-
-// ── Bookmarks (nested under book) ───────────────────────────────────────────
-
-router.post("/:id/bookmarks", async (req, res) => {
-  if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
-    return res.status(404).json({ error: "Not found" });
-  }
-  const body = parseBody(createBookmarkSchema, req, res);
-  if (!body) return;
-  if (!(await quotas.enforce(res, quotas.bookmarkQuota, req.params.id))) return;
-  try {
-    const bookmark = await bookmarkService.createBookmark(req.params.id, body);
-    return res.json(bookmark);
-  } catch (err) {
-    return res.status(500).json({ error: "Create failed" });
-  }
-});
-
-router.get("/:id/bookmarks", async (req, res) => {
-  if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
-    return res.status(404).json({ error: "Not found" });
-  }
-  try {
-    const bookmarks = await bookmarkService.getBookmarks(req.params.id);
-    return res.json(bookmarks);
-  } catch (err) {
-    return res.status(500).json({ error: "Read failed" });
-  }
-});
-
-router.delete("/bookmarks/:bookmarkId", async (req, res) => {
-  if (!(await bookmarkOwnedBy(req.user.userId, req.params.bookmarkId))) {
-    return res.status(404).json({ error: "Not found" });
-  }
-  try {
-    await bookmarkService.deleteBookmark(req.params.bookmarkId);
-    return res.json({ message: "Bookmark deleted" });
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
   }

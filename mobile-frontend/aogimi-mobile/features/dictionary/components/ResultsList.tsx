@@ -32,6 +32,7 @@ export function ResultsList({
   onAddWord,
   onAddKanji,
   onOpenKanji,
+  onScrollStart,
 }: {
   rows: ResultRow[];
   query: string;
@@ -46,6 +47,11 @@ export function ResultsList({
   /** Starts a fresh search for the character. Absent in the drawer, which has
    *  no frame stack to push onto. */
   onOpenKanji?: (literal: string) => void;
+  /** Fired when the user starts dragging — the callers use it to dismiss the
+   *  keyboard. `keyboardDismissMode="on-drag"` closes the keyboard natively but
+   *  leaves RN's focused-node bookkeeping alone, which is the state that used
+   *  to re-raise it on the way back. */
+  onScrollStart?: () => void;
 }) {
   const t = useT();
 
@@ -97,7 +103,11 @@ export function ResultsList({
       ListHeaderComponent={header}
       ListEmptyComponent={empty}
       ListFooterComponent={footer}
-      contentContainerStyle={contentStyle}
+      contentContainerStyle={[styles.content, contentStyle]}
+      onScrollBeginDrag={onScrollStart}
+      // "handled", never "never": with `"never"` the first tap outside the
+      // field is swallowed to dismiss the keyboard, so opening a result while
+      // typing takes two taps. Here the tap lands, and the handler dismisses.
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
@@ -118,6 +128,9 @@ function Separator() {
 }
 
 const styles = StyleSheet.create({
+  // So a footer can flex into the space a short list leaves — the callers put
+  // their keyboard-dismiss tail there.
+  content: { flexGrow: 1 },
   separator: { height: spacing.xs + 1 },
   section: { paddingTop: spacing.md, paddingBottom: spacing.xs },
 });

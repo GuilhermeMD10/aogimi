@@ -74,8 +74,7 @@ export type PdfReaderProps = {
  * Reading position is persisted at page granularity, in the same `page-N` form
  * the mobile PDF reader writes (`lib/pdfPosition`), so a book followed on the
  * phone reopens on the right page here. What is *not* stored is where inside a
- * page you were — reopening lands at the top of it — and highlights still have
- * nothing to anchor to.
+ * page you were — reopening lands at the top of it.
  */
 export function PdfReaderClient({
   fileUrl,

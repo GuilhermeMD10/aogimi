@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
 
@@ -20,14 +21,20 @@ export function SuggestionChips({ onPick }: { onPick: (query: string) => void })
   return (
     <View style={styles.row}>
       {SUGGESTIONS.map((word) => (
-        <Pressable
+        <Touchable
           key={word}
           onPress={() => onPick(word)}
           accessibilityRole="button"
+          surface="glass"
+          radius={radius.pill}
+          // A pill grown to the 44pt floor stops reading as a chip, so the box
+          // keeps its shape and slop carries it the rest of the way.
+          minTarget={false}
+          hitSlop={6}
           style={styles.chip}
         >
           <Text style={styles.label}>{word}</Text>
-        </Pressable>
+        </Touchable>
       ))}
     </View>
   );
@@ -45,12 +52,10 @@ function useStyles(p: Palette) {
           marginTop: spacing.md + 2,
         },
         chip: {
-          paddingHorizontal: spacing.md,
-          paddingVertical: 6,
-          borderRadius: radius.pill,
-          borderWidth: 1,
-          borderColor: p.paperBd,
-          backgroundColor: p.paper,
+          paddingHorizontal: spacing.md + 2,
+          paddingVertical: 9,
+          alignItems: 'center',
+          justifyContent: 'center',
         },
         label: {
           fontFamily: fontFamily.jp,

@@ -16,6 +16,9 @@ constrained `cards.state` to the SRS ladder (see that table below).
 Row-count and field-length limits are enforced at the application layer —
 [`src/config/limits.js`](./src/config/limits.js) holds the numbers and
 [`API_ROUTES.md`](./API_ROUTES.md#quotas--input-limits) tabulates them.
+[`029_drop_bookmarks.sql`](./migrations/029_drop_bookmarks.sql) dropped
+`bookmarks` along with the reader's bookmark / highlight / annotation feature
+(see the removed-tables section below).
 [`022_card_srs.sql`](./migrations/022_card_srs.sql) extended `cards` with
 SRS state and added `card_reviews`, `study_days`, and `user_study_prefs`;
 `023` added `cards.next_due_at` for due-card scheduling.
@@ -136,20 +139,6 @@ identity fingerprints used to match the same book across devices.
 - `idx_book_progress_xmp_original_id ON (xmp_original_id) WHERE xmp_original_id IS NOT NULL`
 - `idx_book_progress_detected_doi ON (detected_doi) WHERE detected_doi IS NOT NULL`
 - `idx_book_progress_detected_isbn ON (detected_isbn) WHERE detected_isbn IS NOT NULL`
-
----
-
-## bookmarks
-
-| Column | Type | Constraints | Notes |
-|--------|------|-------------|-------|
-| id | uuid | PK, DEFAULT gen_random_uuid() | |
-| book_id | uuid | NOT NULL, FK → book_progress(id) ON DELETE CASCADE | |
-| cfi | text | NOT NULL | EPUB CFI of the bookmarked position |
-| label | text | NOT NULL DEFAULT '' | User-supplied caption |
-| created_at | timestamptz | NOT NULL DEFAULT now() | |
-
-**Indexes:** `idx_bookmarks_book_id ON (book_id)`
 
 ---
 
@@ -290,6 +279,24 @@ against what is present in local IndexedDB / `documents/books/`.
 
 Column definitions, if you need to resurrect them, are in
 [`021_auth_hardening.sql`](./migrations/021_auth_hardening.sql) lines 165–183.
+
+---
+
+## Removed: `bookmarks`
+
+Dropped by [`029_drop_bookmarks.sql`](./migrations/029_drop_bookmarks.sql).
+Bookmarks, highlights and annotations were removed from the product. Unlike
+028's tables this one held real rows — the mobile reader created bookmarks and
+synced them here — so running 029 deletes user data. The web reader had already
+dropped the feature; the mobile client and the API layer (three endpoints,
+`bookmarkService`, `bookmarkRepository`, `bookmarkOwnedBy`, the per-book quota
+and the zod schema) went first, and 029 removed the storage.
+
+Reading **position** is unaffected: `book_progress.cfi_position` is a separate
+column on a separate table, still written by both clients.
+
+Column definitions, if you need to resurrect them, are in
+[`021_auth_hardening.sql`](./migrations/021_auth_hardening.sql) lines 123–131.
 
 ---
 

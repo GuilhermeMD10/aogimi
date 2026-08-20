@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontSize, radius } from '@/theme/tokens';
 import type { StudyOutcome } from '../types';
@@ -41,7 +42,8 @@ export function ResultButtons({ onResult, disabled }: Props) {
   return (
     <View style={styles.row}>
       {GRADES.map((g) => (
-        <Pressable
+        <Touchable
+          minTarget={false}
           key={g.outcome}
           onPress={() => onResult(g.outcome)}
           disabled={disabled}
@@ -53,7 +55,7 @@ export function ResultButtons({ onResult, disabled }: Props) {
           <Text style={styles.label} numberOfLines={1}>
             {t(g.labelKey)}
           </Text>
-        </Pressable>
+        </Touchable>
       ))}
     </View>
   );

@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/ThemeContext';
@@ -93,9 +93,11 @@ export function DeckDetailScreen({ deckId }: Props) {
       <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
         <View style={styles.centered}>
           <Text style={{ color: c.fg, fontSize: fontSize.md }}>{error ?? 'Deck not found'}</Text>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={{ marginTop: 12 }}>
+          <Touchable
+          minTarget={false}
+          hitSlop={10} onPress={() => router.back()} style={{ marginTop: 12 }}>
             <Text style={{ color: c.fgMuted, fontSize: fontSize.md }}>‹ Back</Text>
-          </Pressable>
+          </Touchable>
         </View>
       </SafeAreaView>
     );
@@ -104,9 +106,11 @@ export function DeckDetailScreen({ deckId }: Props) {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Touchable
+        minTarget={false}
+        hitSlop={10} onPress={() => router.back()}>
           <Text style={[styles.back, { color: c.fg }]}>‹</Text>
-        </Pressable>
+        </Touchable>
       </View>
 
       <ScrollView
@@ -149,22 +153,26 @@ export function DeckDetailScreen({ deckId }: Props) {
             style={{ flex: 1 }}
             disabled={cards.length === 0 || (!dueLoading && dueCount === 0)}
           />
-          <Pressable
+          <Touchable
+            surface="glass"
+            radius={radius.pill}
+            minTarget={false}
             onPress={() => setConfigOpen(true)}
-            style={[styles.iconBtn, { backgroundColor: c.bgElev, borderColor: c.borderStrong }]}
-            hitSlop={6}
+            style={styles.iconBtn}
             accessibilityLabel={t('sessionConfig.title')}
           >
             <Text style={[styles.gear, { color: c.fg }]}>⚙</Text>
-          </Pressable>
-          <Pressable
+          </Touchable>
+          <Touchable
+            surface="glass"
+            radius={radius.pill}
+            minTarget={false}
             onPress={() => setAddCardOpen(true)}
-            style={[styles.iconBtn, { backgroundColor: c.bgElev, borderColor: c.borderStrong }]}
-            hitSlop={6}
+            style={styles.iconBtn}
             accessibilityLabel="Add card"
           >
             <Text style={[styles.plus, { color: c.fg }]}>+</Text>
-          </Pressable>
+          </Touchable>
         </View>
 
         <View style={styles.grid}>
@@ -255,11 +263,11 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: spacing.xl,
   },
+  // Fill and hairline come from `surface="glass"`.
   iconBtn: {
     width: 48,
     height: 48,
     borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },

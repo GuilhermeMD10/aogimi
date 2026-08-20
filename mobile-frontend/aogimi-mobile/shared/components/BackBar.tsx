@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from './Touchable';
 import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { useT } from '@/lib/i18n/I18nContext';
@@ -42,15 +43,14 @@ export function BackBar({
 
   return (
     <View style={styles.wrap}>
-      <Pressable
+      <Touchable
         onPress={onBack ?? (() => router.back())}
-        hitSlop={10}
         accessibilityRole="button"
         style={styles.backRow}
       >
         <Feather name="chevron-left" size={22} color={p.ink} />
         <Text style={styles.backLabel}>{t('common.back')}</Text>
-      </Pressable>
+      </Touchable>
 
       <View style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>

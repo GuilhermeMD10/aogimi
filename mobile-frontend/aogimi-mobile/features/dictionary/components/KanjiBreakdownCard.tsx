@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { JlptChip } from '@/shared/components/JlptChip';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
@@ -59,14 +60,15 @@ export function KanjiBreakdownCard({
     return <View style={[styles.card, compact && styles.cardCompact]}>{content}</View>;
   }
   return (
-    <Pressable
+    <Touchable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Search ${kanji.literal}`}
+      minTarget={false}
       style={[styles.card, compact && styles.cardCompact]}
     >
       {content}
-    </Pressable>
+    </Touchable>
   );
 }
 

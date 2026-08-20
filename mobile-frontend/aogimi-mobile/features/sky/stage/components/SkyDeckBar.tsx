@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 
 import { fontFamily, fontSize, palette, radius, spacing } from '@/theme/tokens';
@@ -36,15 +37,16 @@ export function SkyDeckBar({
 
   return (
     <View style={styles.root}>
-      <Pressable
-        onPress={onBack}
+      <Touchable
+        minTarget={false}
         hitSlop={8}
+        onPress={onBack}
         accessibilityRole="button"
         accessibilityLabel="Back to the whole sky"
         style={styles.iconBtn}
       >
         <Feather name="chevron-left" size={18} color={palette.ink} />
-      </Pressable>
+      </Touchable>
 
       <View style={styles.text}>
         {/* Deck names are user-written and usually Japanese, so a JP face —
@@ -60,27 +62,30 @@ export function SkyDeckBar({
         </Text>
       </View>
 
-      <Pressable
+      <Touchable
+        minTarget={false}
+        hitSlop={6}
         onPress={onStudyDeck}
         disabled={nothingDue}
-        hitSlop={6}
         accessibilityRole="button"
         accessibilityState={{ disabled: nothingDue }}
         accessibilityLabel={nothingDue ? 'Nothing due in this deck' : `Study ${dueCount} due`}
         style={[styles.studyBtn, { opacity: nothingDue ? 0.4 : 1 }]}
       >
         <Feather name="zap" size={14} color={palette.btnInk} />
-      </Pressable>
+      </Touchable>
 
-      <Pressable
-        onPress={onRequestDelete}
+      <Touchable
+        minTarget={false}
         hitSlop={6}
+        haptic={false}
+        onPress={onRequestDelete}
         accessibilityRole="button"
         accessibilityLabel={`Delete ${name}`}
         style={styles.deleteBtn}
       >
         <Feather name="trash-2" size={15} color={palette.danger} />
-      </Pressable>
+      </Touchable>
     </View>
   );
 }

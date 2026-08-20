@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontSize, spacing } from '@/theme/tokens';
@@ -16,16 +17,18 @@ export function UndoButton({ onPress, disabled }: Props) {
   const c = useColors();
   const t = useT();
   return (
-    <Pressable
+    <Touchable
+      surface="glass"
+      minTarget={false}
+      hitSlop={10}
       onPress={onPress}
       disabled={disabled}
-      hitSlop={10}
       style={[styles.btn, { opacity: disabled ? 0.3 : 1 }]}
     >
       <Text style={[styles.label, { color: c.fgMuted }]}>
         {`↶  ${t('study.undo')}`}
       </Text>
-    </Pressable>
+    </Touchable>
   );
 }
 

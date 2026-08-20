@@ -42,7 +42,7 @@ type State = {
   error: string | null;
   /** True when the reader is operating against the local cache because
    *  backend was unreachable. Caller can use this to gate backend
-   *  pushes (bookmarks, progress beacon, etc.) for the session. */
+   *  pushes (progress beacon, etc.) for the session. */
   offlineMode: boolean;
 };
 

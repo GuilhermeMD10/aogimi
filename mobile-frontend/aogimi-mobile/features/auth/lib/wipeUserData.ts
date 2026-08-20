@@ -1,6 +1,6 @@
 // Wipe every locally-stored register that belongs to the *user* (as opposed
 // to the device). Called by AuthContext when a different account signs in
-// on the same install so account A's books, highlights, lookup history,
+// on the same install so account A's books, lookup history,
 // reader prefs, etc. don't leak into account B.
 //
 // Kept here as the single owner of "what is user-scoped on mobile" so the

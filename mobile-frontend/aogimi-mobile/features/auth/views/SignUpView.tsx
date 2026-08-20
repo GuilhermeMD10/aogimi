@@ -2,11 +2,11 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/shared/components/Screen';
 import { Button } from '@/shared/components/Button';
@@ -103,9 +103,11 @@ export function SignUpView() {
     return (
       <Screen padded>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Touchable
+          minTarget={false}
+          hitSlop={12} onPress={() => router.back()}>
             <Text style={[styles.back, { color: c.fgMuted }]}>{t('common.back')}</Text>
-          </Pressable>
+          </Touchable>
         </View>
 
         <Text style={[styles.title, { color: c.fg }]}>{t('auth.signUp.closedTitle')}</Text>
@@ -113,16 +115,17 @@ export function SignUpView() {
           {t('auth.signUp.closedBody')}
         </Text>
 
-        <Pressable
+        <Touchable
+        minTarget={false}
+        hitSlop={8}
           onPress={() => router.replace('/(auth)/signin')}
-          hitSlop={8}
           style={styles.altLink}
         >
           <Text style={[styles.altText, { color: c.fgMuted }]}>
             {t('auth.signUp.haveAccount')}{' '}
             <Text style={{ color: c.fg, fontWeight: '600' }}>{t('auth.signUp.signIn')}</Text>
           </Text>
-        </Pressable>
+        </Touchable>
       </Screen>
     );
   }
@@ -134,9 +137,11 @@ export function SignUpView() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Touchable
+          minTarget={false}
+          hitSlop={12} onPress={() => router.back()}>
             <Text style={[styles.back, { color: c.fgMuted }]}>{t('common.back')}</Text>
-          </Pressable>
+          </Touchable>
         </View>
 
         <Text style={[styles.title, { color: c.fg }]}>{t('auth.signUp.title')}</Text>
@@ -190,16 +195,17 @@ export function SignUpView() {
           />
         </View>
 
-        <Pressable
+        <Touchable
+        minTarget={false}
+        hitSlop={8}
           onPress={() => router.replace('/(auth)/signin')}
-          hitSlop={8}
           style={styles.altLink}
         >
           <Text style={[styles.altText, { color: c.fgMuted }]}>
             {t('auth.signUp.haveAccount')}{' '}
             <Text style={{ color: c.fg, fontWeight: '600' }}>{t('auth.signUp.signIn')}</Text>
           </Text>
-        </Pressable>
+        </Touchable>
       </KeyboardAvoidingView>
     </Screen>
   );

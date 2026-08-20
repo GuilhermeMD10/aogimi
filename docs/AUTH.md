@@ -94,7 +94,7 @@ password (12 rounds), inserts the user, mints a token pair, returns
 
 - 409 `Username already taken` on unique-violation.
 - 400 on invalid input or weak password.
-- Rate limit: 3 per hour per IP.
+- Rate limit: 10 per hour per IP.
 
 ### `POST /api/auth/login`
 Body: `{ username, password }`. Looks up the user, runs `bcrypt.compare`
@@ -103,7 +103,7 @@ hash if the user doesn't exist) to equalise timing — no username
 enumeration via latency. Returns `{ user, accessToken, refreshToken }`.
 
 - 401 `Invalid username or password` for any failure path.
-- Rate limit: 5 per 15 min per (IP + username).
+- Rate limit: 10 per hour per (IP + username).
 
 ### `POST /api/auth/refresh`
 Body: `{ refreshToken }`. Verifies the signature, looks up the
@@ -131,7 +131,7 @@ routes sit behind it.
 
 Routes that take a `userId` in path or body **ignore it** — `req.user.userId`
 is the only identity source. Routes that take a resource id (`:id` for
-a book, deck, card, device, bookmark) check ownership via
+a book, deck, card) check ownership via
 `backend/src/services/ownership.js`:
 
 ```js
@@ -143,7 +143,7 @@ if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
 **404 on mismatch, not 403.** Same response shape as "doesn't exist",
 so a token holder can't enumerate other users' resource ids by probing.
 
-Cards are owned via deck FK; bookmarks via book FK — both ownership
+Cards are owned via deck FK — ownership
 helpers JOIN through.
 
 ---
@@ -239,7 +239,7 @@ for the spec.
 - `src/services/authService.js` — register / login / refresh / logout
 - `src/middleware/authenticateJWT.js` — verifies Bearer token
 - `src/middleware/authorize.js` — `requireUserMatch` for explicit-id routes
-- `src/services/ownership.js` — `{book,deck,card,bookmark,device}OwnedBy`
+- `src/services/ownership.js` — `{book,deck,card}OwnedBy`
 - `src/routes/auth.js` — endpoints + per-endpoint rate limiters
 - `src/repositories/refreshTokenRepository.js` — DB ops
 - `src/validation/auth.js` — zod schemas + zxcvbn gate

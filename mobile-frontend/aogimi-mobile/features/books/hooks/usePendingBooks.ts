@@ -4,8 +4,7 @@
 //
 // Each entry produced here carries a `pending:<filename>` id — the
 // library tile dispatches taps on those ids through the same reader
-// path as synced books (offlineMode true) per the recent bookmark/
-// reader-route changes.
+// path as synced books (offlineMode true).
 
 import { useCallback, useEffect, useState } from 'react';
 import { listPendingBooks } from '../lib/bookPush';

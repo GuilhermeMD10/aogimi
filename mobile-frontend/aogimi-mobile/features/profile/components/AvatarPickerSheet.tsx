@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { BottomSheet } from '@/shared/components/BottomSheet';
 import { Button } from '@/shared/components/Button';
 import { useColors } from '@/theme/ThemeContext';
@@ -34,7 +35,8 @@ export function AvatarPickerSheet({ visible, current, onDismiss, onSelect }: Pro
         {KAMON_SET.map((k, i) => {
           const active = selected === i;
           return (
-            <Pressable
+            <Touchable
+              minTarget={false}
               key={k.char}
               onPress={() => setSelected(i)}
               style={[
@@ -47,7 +49,7 @@ export function AvatarPickerSheet({ visible, current, onDismiss, onSelect }: Pro
               ]}
             >
               <Text style={[styles.glyph, { color: c.fg }]}>{k.char}</Text>
-            </Pressable>
+            </Touchable>
           );
         })}
       </View>

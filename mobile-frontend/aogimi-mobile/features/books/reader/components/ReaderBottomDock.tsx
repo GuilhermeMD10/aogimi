@@ -1,24 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Dimensions, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, PanResponder, StyleSheet, Text, View } from 'react-native';
+import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, palette } from '@/theme/tokens';
 import type { MangaPageDir, ReaderDirection, ReaderLayout } from '../lib/readerLayout';
-import type { EpubBookmark, EpubHighlight, ReaderPrefs } from '../lib/readerStorage';
+import type { ReaderPrefs } from '../lib/readerStorage';
 import type { EpubTocItem } from '../lib/foliateHtml';
 import { TocPane } from './dock/TocPane';
-import { AnnotationsPane } from './dock/AnnotationsPane';
 import { SettingsPane } from './dock/SettingsPane';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// One container, five visual modes. The dock owns its own mode, takes the
+// One container, four visual modes. The dock owns its own mode, takes the
 // container shape (width / height / position / radius) from that mode, and
 // renders the appropriate content pane inside.
 //
 //   pill         · idle grip, small centered capsule
 //   toolbar      · expanded, page-nav row + action row
 //   toc          · chapter list (taller, backdrop-dimmed)
-//   annotations  · bookmarks + highlights (taller, backdrop-dimmed)
 //   settings     · typography + layout controls (taller, no dim)
 //
 // Step-back semantics: swipe-down on the handle, tap on the backdrop, or tap
@@ -30,10 +29,9 @@ import { SettingsPane } from './dock/SettingsPane';
 // the rendered contents never lag the mode.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type DockMode = 'pill' | 'toolbar' | 'toc' | 'annotations' | 'settings';
+export type DockMode = 'pill' | 'toolbar' | 'toc' | 'settings';
 
 type Props = {
-  bookmarked?: boolean;
   layout: ReaderLayout;
   direction: ReaderDirection;
 
@@ -52,19 +50,12 @@ type Props = {
 
   // Pane data
   toc: EpubTocItem[];
-  bookmarks: EpubBookmark[];
-  highlights: EpubHighlight[];
   prefs: ReaderPrefs;
 
   // Actions
   onPrev: () => void;
   onNext: () => void;
-  onToggleBookmark: () => void;
   onNavigate: (href: string) => void;
-  onJumpBookmark: (b: EpubBookmark) => void;
-  onJumpHighlight: (h: EpubHighlight) => void;
-  onDeleteBookmark: (id: string) => void;
-  onDeleteHighlight: (id: string) => void;
   onChangePrefs: (patch: Partial<ReaderPrefs>) => void;
   onChangeLayout: (patch: { layout?: ReaderLayout; direction?: ReaderDirection }) => void;
   // Fires whenever the dock's internal mode changes. The reader uses this
@@ -103,7 +94,6 @@ const MODES: Record<
   pill: { width: PILL_WIDTH, height: PILL_HEIGHT, bottom: PILL_BOTTOM, radius: PILL_RADIUS, backdrop: false },
   toolbar: { width: SHEET_WIDTH, height: TOOLBAR_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: false },
   toc: { width: SHEET_WIDTH, height: PANE_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: true },
-  annotations: { width: SHEET_WIDTH, height: PANE_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: true },
   settings: { width: SHEET_WIDTH, height: PANE_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: false },
 };
 
@@ -126,7 +116,7 @@ export function ReaderBottomDock(props: Props) {
   // Single rule: collapse one level. Pane → toolbar → pill.
   const stepBack = useCallback(() => {
     setMode((curr) => {
-      if (curr === 'toc' || curr === 'annotations' || curr === 'settings') return 'toolbar';
+      if (curr === 'toc' || curr === 'settings') return 'toolbar';
       if (curr === 'toolbar') return 'pill';
       return curr;
     });
@@ -147,17 +137,17 @@ export function ReaderBottomDock(props: Props) {
 
   return (
     <View style={styles.host} pointerEvents="box-none">
-      {/* Backdrop — visible only for toc/annotations. Tap dismisses. */}
+      {/* Backdrop — visible only for toc. Tap dismisses. */}
       {showBackdrop && (
         <View style={styles.backdrop}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={stepBack} />
+          <PressableBackdrop style={StyleSheet.absoluteFill} onPress={stepBack} />
         </View>
       )}
 
       {/* Outside-tap zone — fills the area above the dock when expanded
           without a backdrop (toolbar / settings). */}
       {expanded && !showBackdrop && (
-        <Pressable style={StyleSheet.absoluteFill} onPress={stepBack} accessibilityLabel="Close reader controls" />
+        <PressableBackdrop style={StyleSheet.absoluteFill} onPress={stepBack} />
       )}
 
       {/* The container. */}
@@ -185,7 +175,6 @@ export function ReaderBottomDock(props: Props) {
           {mode === 'toolbar' && (
             <ToolbarContent
               colors={c}
-              bookmarked={props.bookmarked}
               layout={props.layout}
               direction={props.direction}
               variant={props.variant ?? 'default'}
@@ -196,9 +185,7 @@ export function ReaderBottomDock(props: Props) {
               onPrev={props.onPrev}
               onNext={props.onNext}
               onOpenToc={() => setMode('toc')}
-              onOpenAnnotations={() => setMode('annotations')}
               onOpenSettings={() => setMode('settings')}
-              onToggleBookmark={props.onToggleBookmark}
               onChangeLayout={props.onChangeLayout}
             />
           )}
@@ -209,22 +196,6 @@ export function ReaderBottomDock(props: Props) {
                 props.onNavigate(href);
                 setMode('pill');
               }}
-            />
-          )}
-          {mode === 'annotations' && (
-            <AnnotationsPane
-              bookmarks={props.bookmarks}
-              highlights={props.highlights}
-              onJumpBookmark={(b) => {
-                props.onJumpBookmark(b);
-                setMode('pill');
-              }}
-              onJumpHighlight={(h) => {
-                props.onJumpHighlight(h);
-                setMode('pill');
-              }}
-              onDeleteBookmark={props.onDeleteBookmark}
-              onDeleteHighlight={props.onDeleteHighlight}
             />
           )}
           {mode === 'settings' && (
@@ -248,15 +219,16 @@ export function ReaderBottomDock(props: Props) {
 
 function PillContent({ colors: c, onPress }: { colors: ReturnType<typeof useColors>; onPress: () => void }) {
   return (
-    <Pressable
+    <Touchable
+      minTarget={false}
+      hitSlop={8}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel="Open reader controls"
-      hitSlop={8}
       style={styles.pillRow}
     >
       <Text style={[styles.pillDots, { color: c.fgMuted }]}>•••</Text>
-    </Pressable>
+    </Touchable>
   );
 }
 
@@ -266,7 +238,6 @@ function PillContent({ colors: c, onPress }: { colors: ReturnType<typeof useColo
 
 function ToolbarContent({
   colors: c,
-  bookmarked,
   layout,
   direction,
   variant,
@@ -277,13 +248,10 @@ function ToolbarContent({
   onPrev,
   onNext,
   onOpenToc,
-  onOpenAnnotations,
   onOpenSettings,
-  onToggleBookmark,
   onChangeLayout,
 }: {
   colors: ReturnType<typeof useColors>;
-  bookmarked?: boolean;
   layout: ReaderLayout;
   direction: ReaderDirection;
   variant: 'default' | 'manga';
@@ -294,9 +262,7 @@ function ToolbarContent({
   onPrev: () => void;
   onNext: () => void;
   onOpenToc: () => void;
-  onOpenAnnotations: () => void;
   onOpenSettings: () => void;
-  onToggleBookmark: () => void;
   onChangeLayout: (patch: { layout?: ReaderLayout; direction?: ReaderDirection }) => void;
 }) {
   const flowNext: ReaderLayout = layout === 'continuous' ? 'pages' : 'continuous';
@@ -309,19 +275,17 @@ function ToolbarContent({
       <View style={[styles.pageRow, { borderBottomColor: c.border }]}>
         <NavCell colors={c} icon="chevron-left" onPress={onPrev} ariaLabel="Previous page" />
 
-        <Pressable onPress={onOpenToc} accessibilityLabel="Open chapter list" style={styles.pageMeta} hitSlop={6}>
+        <Touchable onPress={onOpenToc} accessibilityLabel="Open chapter list" style={styles.pageMeta}>
           <Feather name="list" size={18} color={c.fgMuted} />
-        </Pressable>
+        </Touchable>
 
         <NavCell colors={c} icon="chevron-right" onPress={onNext} ariaLabel="Next page" />
       </View>
 
-      {/* Action row. Manga trims to NOTES + MARK + a mode toggle that swaps
-          between vertical scroll (continuous stream) and horizontal paged
-          (one-page-at-a-time pinch-zoom gallery). */}
+      {/* Action row. Manga trims to a mode toggle that swaps between vertical
+          scroll (continuous stream) and horizontal paged (one-page-at-a-time
+          pinch-zoom gallery), plus the page-flip direction. */}
       <View style={styles.actionRow}>
-        <ToolCol colors={c} icon="edit-3" label="NOTES" onPress={onOpenAnnotations} />
-        <ToolCol colors={c} icon="bookmark" label="MARK" active={!!bookmarked} onPress={onToggleBookmark} />
         {isManga && onToggleMangaMode && (
           <ToolCol
             colors={c}
@@ -378,14 +342,16 @@ function NavCell({
   ariaLabel: string;
 }) {
   return (
-    <Pressable
+    <Touchable
+      surface="glass"
+      minTarget={false}
+      hitSlop={8}
       onPress={onPress}
       accessibilityLabel={ariaLabel}
-      hitSlop={8}
-      style={[styles.navCell, { backgroundColor: c.bgSunken }]}
+      style={styles.navCell}
     >
       <Feather name={icon} size={20} color={c.fg} />
-    </Pressable>
+    </Touchable>
   );
 }
 
@@ -403,11 +369,12 @@ function ToolCol({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <Touchable
+      minTarget={false}
+      hitSlop={6}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      hitSlop={4}
       style={[styles.tool, active && { backgroundColor: c.bgSunken }]}
     >
       <Feather name={icon} size={18} color={active ? c.fg : c.fgMuted} />
@@ -423,7 +390,7 @@ function ToolCol({
       >
         {label}
       </Text>
-    </Pressable>
+    </Touchable>
   );
 }
 

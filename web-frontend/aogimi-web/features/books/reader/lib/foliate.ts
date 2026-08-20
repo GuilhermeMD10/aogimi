@@ -65,19 +65,6 @@ export interface FoliateLoadDetail {
   index: number;
 }
 
-export type FoliateAnnotation = {
-  value: string;
-  id?: string;
-  color?: string;
-};
-
-export interface FoliateDrawAnnotationDetail {
-  draw: (shape: unknown, opts?: Record<string, unknown>) => void;
-  annotation: FoliateAnnotation;
-  doc: Document;
-  range: Range;
-}
-
 export interface FoliateRenderer {
   setStyles?: (css: string) => void;
   setAttribute(name: string, value: string): void;
@@ -100,20 +87,12 @@ export interface FoliateViewElement extends HTMLElement {
   prev(distance?: number): Promise<unknown>;
   next(distance?: number): Promise<unknown>;
   getCFI(index: number, range: Range): string;
-  addAnnotation(ann: FoliateAnnotation, remove?: boolean): Promise<unknown>;
-  deleteAnnotation(ann: FoliateAnnotation): unknown;
 }
-
-type FoliateOverlayerShape = {
-  highlight: (rects: DOMRect[], options?: Record<string, unknown>) => unknown;
-  underline: (rects: DOMRect[], options?: Record<string, unknown>) => unknown;
-};
 
 declare global {
   interface Window {
     __foliate?: {
       makeBook: (file: File | Blob) => Promise<FoliateBook>;
-      Overlayer: FoliateOverlayerShape;
     };
   }
 }
@@ -146,8 +125,7 @@ export function loadFoliate(): Promise<void> {
     // dynamic-imported by view.js itself on demand.
     script.textContent = `
       import { makeBook } from '${FOLIATE_BASE}/view.js';
-      import { Overlayer } from '${FOLIATE_BASE}/overlayer.js';
-      window.__foliate = { makeBook, Overlayer };
+      window.__foliate = { makeBook };
       window.dispatchEvent(new Event('foliate:ready'));
     `;
     const onReady = () => {

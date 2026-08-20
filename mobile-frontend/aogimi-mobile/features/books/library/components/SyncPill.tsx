@@ -1,5 +1,6 @@
 import { type ComponentType } from 'react';
-import { Alert, type GestureResponderEvent, Pressable, StyleSheet } from 'react-native';
+import { Alert, type GestureResponderEvent, StyleSheet } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { SyncedIcon, UnsyncedIcon, ImportIcon, type SyncIconProps } from '@/shared/icons/sync-icons';
 import { radius } from '@/theme/tokens';
 
@@ -74,7 +75,9 @@ export function SyncPill({
 
   if (effectiveVariant === 'dot') {
     return (
-      <Pressable
+      <Touchable
+        minTarget={false}
+        hitSlop={12}
         onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel={label ?? cfg.defaultLabel}
@@ -84,7 +87,8 @@ export function SyncPill({
   }
 
   return (
-    <Pressable
+    <Touchable
+      minTarget={false}
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={label ?? cfg.defaultLabel}
@@ -97,7 +101,7 @@ export function SyncPill({
       ]}
     >
       <Icon size={18} color={cfg.color} />
-    </Pressable>
+    </Touchable>
   );
 }
 

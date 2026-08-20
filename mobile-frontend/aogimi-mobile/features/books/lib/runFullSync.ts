@@ -9,7 +9,7 @@
 //      stale local entry doesn't get re-pushed as if it were fresh.
 //   2. syncPending — push every pending book entry (creates +
 //      identity backfills).
-//   3. pushAllReaderState — push bookmarks + CFI for already-synced
+//   3. pushAllReaderState — push CFI + reading progress for already-synced
 //      books accumulated during offline sessions.
 // Session-pending flags only clear for reader-state pushes that
 // finished cleanly; dirty books stay flagged for the next Sync-now.
@@ -52,8 +52,6 @@ export function fullSyncActivityCount(summary: FullSyncSummary): number {
     reconcile.syncedUp.length +
     push.pushed.length +
     push.failed.length +
-    readerState.bookmarksCreated +
-    readerState.bookmarksDeleted +
     readerState.cfisPushed +
     readerState.bookIdsDirty.length
   );
@@ -84,16 +82,6 @@ export function formatFullSyncDetails(summary: FullSyncSummary): string[] {
   }
   if (reconcile.syncedUp.length > 0) {
     parts.push(`${reconcile.syncedUp.length} backfilled with local fingerprint`);
-  }
-  if (readerState.bookmarksCreated > 0) {
-    parts.push(
-      `${readerState.bookmarksCreated} bookmark${readerState.bookmarksCreated === 1 ? '' : 's'} pushed`,
-    );
-  }
-  if (readerState.bookmarksDeleted > 0) {
-    parts.push(
-      `${readerState.bookmarksDeleted} bookmark deletion${readerState.bookmarksDeleted === 1 ? '' : 's'} pushed`,
-    );
   }
   if (readerState.cfisPushed > 0) {
     parts.push(

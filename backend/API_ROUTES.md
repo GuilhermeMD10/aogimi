@@ -32,8 +32,8 @@ enumeration.
 
 | Method | Path | Body | Response | Rate limit |
 |---|---|---|---|---|
-| POST | `/api/auth/register` | `{ username, email, password }` | **403 — closed**, see below | 5/30min/IP |
-| POST | `/api/auth/login` | `{ username, password }` | `{ user, accessToken, refreshToken }` | 5/15min/(IP+username) |
+| POST | `/api/auth/register` | `{ username, email, password }` | **403 — closed**, see below | 10/60min/IP |
+| POST | `/api/auth/login` | `{ username, password }` | `{ user, accessToken, refreshToken }` | 10/60min/(IP+username) |
 | POST | `/api/auth/refresh` | `{ refreshToken }` | `{ user, accessToken, refreshToken }` | global only |
 | POST | `/api/auth/logout` | `{ refreshToken }` | `{ ok: true }` (idempotent) | global only |
 
@@ -59,7 +59,7 @@ username-keyed — the address is stored for later, not used to authenticate.
 
 **Register is closed**: the handler's first statement is
 `return res.status(403).json({ error: "Registration is currently disabled." })`,
-so no request gets past it — validation, `registerLimiter` (5/30min/IP) and the
+so no request gets past it — validation, `registerLimiter` (10/60min/IP) and the
 409 paths above are all still wired and simply unreachable. To open sign-ups
 again, delete that one `return` rather than rewriting the handler.
 
@@ -120,14 +120,6 @@ is **not** PATCHable.
 | PATCH | `/api/books/:id` | `{ title }` | `BookProgressRecord` | `bookOwnedBy` |
 | PUT | `/api/books/:id/identity` | `{ ...fingerprints }` | `BookProgressRecord` | `bookOwnedBy` |
 | DELETE | `/api/books/:id` | — | `{ message }` | `bookOwnedBy` |
-
-### Bookmarks (nested)
-
-| Method | Path | Body | Response | Ownership check |
-|---|---|---|---|---|
-| POST | `/api/books/:id/bookmarks` | `{ cfi, label? }` | `Bookmark` | `bookOwnedBy` |
-| GET | `/api/books/:id/bookmarks` | — | `Bookmark[]` | `bookOwnedBy` |
-| DELETE | `/api/books/bookmarks/:bookmarkId` | — | `{ message }` | `bookmarkOwnedBy` |
 
 ---
 
@@ -385,11 +377,10 @@ Every write endpoint validates its body against a zod schema
 | Books per user | 50 | `BOOK_QUOTA_EXCEEDED` |
 | Decks per user | 50 | `DECK_QUOTA_EXCEEDED` |
 | Cards per deck | 5000 | `CARD_QUOTA_EXCEEDED` |
-| Bookmarks per book | 500 | `BOOKMARK_QUOTA_EXCEEDED` |
 
 Field caps (characters, after trim): deck name 100 · card front/reading 200 ·
 card back/notes/context 2000 · card meaning (one entry of `meanings`) 200 ·
-book title/author/filename 500 · book CFI 2000 · bookmark label 100 ·
+book title/author/filename 500 · book CFI 2000 ·
 display_name 64 · email 254 · language 16.
 
 Array caps: `books/match` candidates 200 · `pageHashes`/`pagePhashes` 5000 ·

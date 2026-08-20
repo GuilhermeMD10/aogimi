@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 
 import { RANK_COLORS, RANK_LABELS } from '@/features/sky/map/lib/palette';
@@ -61,15 +62,16 @@ export function CardDetailSheet({ card, onClose, onRequestDelete }: Props) {
             </Text>
           )}
         </View>
-        <Pressable
-          onPress={onClose}
+        <Touchable
+          minTarget={false}
           hitSlop={10}
+          onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel="Close card"
           style={styles.iconBtn}
         >
           <Feather name="x" size={16} color={palette.ink} />
-        </Pressable>
+        </Touchable>
       </View>
 
       <View style={styles.chips}>
@@ -102,7 +104,8 @@ export function CardDetailSheet({ card, onClose, onRequestDelete }: Props) {
         {card.notes.length > 0 && <Text style={styles.notes}>{card.notes}</Text>}
       </ScrollView>
 
-      <Pressable
+      <Touchable
+        minTarget={false}
         onPress={onRequestDelete}
         accessibilityRole="button"
         accessibilityLabel={`Delete ${card.front}`}
@@ -110,7 +113,7 @@ export function CardDetailSheet({ card, onClose, onRequestDelete }: Props) {
       >
         <Feather name="trash-2" size={14} color={palette.danger} />
         <Text style={styles.deleteLabel}>Delete card</Text>
-      </Pressable>
+      </Touchable>
     </View>
   );
 }

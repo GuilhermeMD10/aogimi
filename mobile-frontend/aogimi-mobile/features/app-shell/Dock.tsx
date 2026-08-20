@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import Feather from '@expo/vector-icons/Feather';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useDockHidden } from '@/features/app-shell/DockVisibility';
 import { usePalette, useTheme } from '@/theme/ThemeContext';
+import { BLUR_INTENSITY, glassWash } from '@/theme/glass';
+import { DECELERATE, SLIDE_MS } from '@/theme/motion';
 import { fontFamily, type Palette } from '@/theme/tokens';
+import { Sheens } from '@/shared/components/Sheens';
+import { Touchable } from '@/shared/components/Touchable';
 
 /**
  * The bottom dock — app chrome on every tab screen.
@@ -49,12 +52,7 @@ import { fontFamily, type Palette } from '@/theme/tokens';
    Local consts rather than theme tokens: the dock is one material and wants to be tuned as a
    unit. The three palette reads are the ones that genuinely belong to the app's vocabulary:
    "the selected thing" and the two inks. */
-type Glass = {
-  fill: string;
-  bd: string;
-  sheenTop: string;
-  sheenBottom: string;
-  lineMid: string;
+type Glass = ReturnType<typeof glassWash> & {
   pillFill: string;
   pillBd: string;
   pillSheenTop: string;
@@ -62,32 +60,19 @@ type Glass = {
   pillLineMid: string;
   ink: string;
   inkActive: string;
-  /** What `BlurView` should tint toward — follows the wash, not the theme name. */
-  blurTint: 'light' | 'dark';
 };
 
+/**
+ * **The wash now comes from `theme/glass.ts`**, which every glass control in the
+ * app shares. What stays here is the dock's own set — the pill and the two inks
+ * — mirroring the web, where `--dock-glass-*` is a separate block even where a
+ * value lands identically: the dock is one always-on-screen element with its own
+ * tweak pass, and it has to stay re-balanceable without touching the surfaces
+ * that share the button recipe.
+ */
 function glassFor(p: Palette, isNight: boolean): Glass {
-  // The shell wash and its two sheens, in whichever direction reads against
-  // this theme's canvas. Ratios are the web's derivation (border 0.30r, top
-  // sheen 0.55r, bottom 0.15r, specular line 0.80r).
-  const wash = isNight
-    ? {
-        fill: 'rgba(255, 255, 255, 0.10)',
-        bd: 'rgba(255, 255, 255, 0.30)',
-        sheenTop: 'rgba(255, 255, 255, 0.14)',
-        sheenBottom: 'rgba(255, 255, 255, 0.05)',
-        lineMid: 'rgba(255, 255, 255, 0.32)',
-      }
-    : {
-        fill: 'rgba(0, 0, 0, 0.10)',
-        bd: '#666666',
-        sheenTop: 'rgba(0, 0, 0, 0.10)',
-        sheenBottom: 'rgba(0, 0, 0, 0.04)',
-        lineMid: 'rgba(0, 0, 0, 0.28)',
-      };
-
   return {
-    ...wash,
+    ...glassWash(p, isNight),
     /** pill · solid selection colour, so the active tab is unmistakable */
     pillFill: p.active,
     pillBd: p.ink,
@@ -101,25 +86,30 @@ function glassFor(p: Palette, isNight: boolean): Glass {
      *  which is why it is `activeInk` and not `ink`. */
     ink: p.muted,
     inkActive: p.activeInk,
-    blurTint: isNight ? 'dark' : 'light',
   };
 }
-
-/** `--dock-glass-blur: 13px`. expo-blur takes 1–100 rather than px; 13px of backdrop blur sits
- *  around here, and it is the one value to tweak if the shell reads too clear or too milky. */
-const BLUR_INTENSITY = 24;
-
-/** `--dock-glass-slide: 280ms cubic-bezier(0.4, 0, 0.2, 1)` — the standard-decelerate curve. */
-const SLIDE_MS = 280;
-const SLIDE_EASING = Easing.bezier(0.4, 0, 0.2, 1);
 
 /* ── Geometry ───────────────────────────────────────────────────────────────────────────────────── */
 const SHELL_INSET_X = 12;
 const SHELL_BOTTOM = 14;
 const SHELL_RADIUS = 20;
+/**
+ * The shell's visual inset — and, since 2026-08-19, **padding on the tabs
+ * rather than on the shell**.
+ *
+ * It used to be `padding` on the shell, which made the outer ring of a dock that
+ * is visibly 64pt tall a dead zone: the bar looked bigger than it could be
+ * tapped, which is precisely the complaint that produced `Touchable`. The tabs
+ * now span the shell edge to edge and carry this as their own padding, so the
+ * whole visible dock answers a touch. The horizontal half is gone entirely —
+ * `PILL_INSET_X` keeps the pill where it always sat.
+ */
 const SHELL_PAD_V = 7;
-const SHELL_PAD_H = 8;
-const TAB_GAP = 2;
+
+/** How far the pill sits inside its tab column. Replaces the shell's horizontal
+ *  padding plus the old 2pt inter-tab gap — both were dead space, and with a
+ *  sliding pill the gap was never visible anyway. */
+const PILL_INSET_X = 6;
 const TAB_RADIUS = 13;
 const ICON = 19;
 
@@ -209,14 +199,14 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
 
   /* ── The sliding pill ──────────────────────────────────────────────────────────────────────────
      One measurement — the width of the row the tabs share — is enough, because the tabs are equal.
-     `tabW` is that width per tab including its gap share; the pill is one tab wide and only its x
-     moves. Held in state (not a ref) because the pill's width is rendered from it. */
+     `tabW` is that width per tab; the pill is one tab wide less `PILL_INSET_X` on each side, and
+     only its x moves. Held in state (not a ref) because the pill's width is rendered from it. */
   const [rowW, setRowW] = useState(0);
   const onRowLayout = (e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
     if (w > 0) setRowW((prev) => (prev === w ? prev : w));
   };
-  const tabW = rowW > 0 ? (rowW - TAB_GAP * (SLOTS.length - 1)) / SLOTS.length : 0;
+  const tabW = rowW > 0 ? rowW / SLOTS.length : 0;
 
   const slide = useRef(new Animated.Value(0)).current;
   // Skip the animation for the first placement, so the pill appears under the active tab instead of
@@ -224,7 +214,7 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
   const placed = useRef(false);
   useEffect(() => {
     if (tabW === 0) return;
-    const to = activeIdx * (tabW + TAB_GAP);
+    const to = activeIdx * tabW + PILL_INSET_X;
     if (!placed.current) {
       placed.current = true;
       slide.setValue(to);
@@ -233,7 +223,7 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
     Animated.timing(slide, {
       toValue: to,
       duration: SLIDE_MS,
-      easing: SLIDE_EASING,
+      easing: DECELERATE,
       useNativeDriver: true,
     }).start();
   }, [activeIdx, tabW, slide]);
@@ -245,7 +235,7 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
     Animated.timing(fade, {
       toValue: hidden ? 0 : 1,
       duration: DOCK_FADE_MS,
-      easing: SLIDE_EASING,
+      easing: DECELERATE,
       useNativeDriver: true,
     }).start();
   }, [hidden, fade]);
@@ -301,7 +291,7 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
               style={[
                 styles.pill,
                 themed.pill,
-                { width: tabW, transform: [{ translateX: slide }] },
+                { width: tabW - PILL_INSET_X * 2, transform: [{ translateX: slide }] },
               ]}
             >
               <View style={[StyleSheet.absoluteFill, styles.pillFace, themed.pillFace]} />
@@ -331,21 +321,18 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
             };
 
             return (
-              <Pressable
+              <Touchable
                 key={key}
                 onPress={onPress}
                 accessibilityRole="button"
                 accessibilityLabel={label}
                 accessibilityState={{ selected: active }}
-                style={({ pressed }) => [
-                  styles.slot,
-                  {
-                    // Stable-shape transform: RN 0.83 + Fabric coerces a conditional `undefined` to
-                    // null between press states and crashes the transform processor. This is the
-                    // app-wide press nudge, the equivalent of the web's `.glass-press`.
-                    transform: [{ translateY: pressed ? 1 : 0 }],
-                  },
-                ]}
+                // No `surface="glass"`: the sliding pill is this control's fill, and a second
+                // wash under it would double the material. The nudge and the haptic are the
+                // shared ones — the dock's hand-rolled `translateY` was the app's only press
+                // feedback before `Touchable` existed, and this is that treatment generalised.
+                minTarget={false}
+                style={styles.slot}
               >
                 <Feather name={ICONS[key]} size={ICON} color={active ? GLASS.inkActive : GLASS.ink} />
                 <Text
@@ -354,51 +341,12 @@ export function Dock({ state, descriptors, navigation }: BottomTabBarProps) {
                 >
                   {label}
                 </Text>
-              </Pressable>
+              </Touchable>
             );
           })}
         </View>
       </View>
     </Animated.View>
-  );
-}
-
-/**
- * The lit edges of a glass surface: a 1px sheen along the top and the bottom, and over the top one a
- * horizontal gradient that is brightest in the middle — the web's `::before` with
- * `background-size: 100% 1px`.
- *
- * The two surfaces light *differently*: on Day the shell's sheens are black (a white sheen on a pale
- * shell is nothing), while the pill's are always white because the pill is a solid saturated fill. So
- * `lineEdge` — the specular line's transparent end-stops — is a parameter rather than a constant: it
- * has to be the zero-alpha form of the *same* channel as `lineMid`, or the gradient fades through a
- * halo of the opposite colour on its way to transparent.
- */
-function Sheens({
-  top,
-  bottom,
-  lineMid,
-  lineEdge,
-  radius,
-}: {
-  top: string;
-  bottom: string;
-  lineMid: string;
-  /** Zero-alpha form of `lineMid`'s channel — see the note above. */
-  lineEdge: string;
-  radius?: number;
-}) {
-  return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, radius ? { borderRadius: radius } : null]}>
-      <View style={[styles.hairline, { top: 0, backgroundColor: top }]} />
-      <LinearGradient
-        colors={[lineEdge, lineMid, lineEdge]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[styles.hairline, { top: 0 }]}
-      />
-      <View style={[styles.hairline, { bottom: 0, backgroundColor: bottom }]} />
-    </View>
   );
 }
 
@@ -415,8 +363,9 @@ const styles = StyleSheet.create({
   shell: {
     borderRadius: SHELL_RADIUS,
     borderWidth: 1,
-    paddingVertical: SHELL_PAD_V,
-    paddingHorizontal: SHELL_PAD_H,
+    // No padding: the tabs reach the shell's inner edge so every pixel of the
+    // dock is tappable. `SHELL_PAD_V` lives on the slot instead, and
+    // `PILL_INSET_X` keeps the pill where it always sat.
     // clips the blur, the hairlines and the pill to the rounded corners
     overflow: 'hidden',
     // Drop shadow, 0 14px 30px rgba(0,0,0,.35). RN's shadowRadius is the CSS blur
@@ -430,14 +379,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: TAB_GAP,
     // the pill is absolutely positioned against this box, so it must be the positioning context
     position: 'relative',
   },
   pill: {
     position: 'absolute',
-    top: 0,
-    bottom: 0,
+    top: SHELL_PAD_V,
+    bottom: SHELL_PAD_V,
     left: 0,
     borderRadius: TAB_RADIUS,
     borderWidth: 1,
@@ -449,8 +397,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    paddingTop: 8,
-    paddingBottom: 6,
+    // The shell's former padding, moved here — see `SHELL_PAD_V`. A tab is now
+    // the full height of the dock rather than 48 of its 64 points.
+    paddingTop: SHELL_PAD_V + 8,
+    paddingBottom: SHELL_PAD_V + 6,
     borderRadius: TAB_RADIUS,
   },
   label: {
@@ -458,11 +408,5 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  hairline: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: StyleSheet.hairlineWidth,
   },
 });

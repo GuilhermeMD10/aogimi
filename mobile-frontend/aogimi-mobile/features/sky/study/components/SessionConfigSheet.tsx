@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { BottomSheet } from '@/shared/components/BottomSheet';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
@@ -76,17 +76,21 @@ export function SessionConfigSheet({
         style={styles.flex}
       >
         <View style={styles.header}>
-          <Pressable onPress={onDismiss} hitSlop={8}>
+          <Touchable
+            minTarget={false}
+            hitSlop={10} onPress={onDismiss}>
             <Text style={[styles.headerAction, { color: c.fgMuted }]}>{t('common.cancel')}</Text>
-          </Pressable>
+          </Touchable>
           <Text style={[styles.headerTitle, { color: c.fg }]}>
             {t('sessionConfig.title')}
           </Text>
-          <Pressable onPress={handleSave} hitSlop={8}>
+          <Touchable
+            minTarget={false}
+            hitSlop={10} onPress={handleSave}>
             <Text style={[styles.headerAction, { color: c.fg, fontWeight: '600' }]}>
               {t('common.save')}
             </Text>
-          </Pressable>
+          </Touchable>
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -157,7 +161,8 @@ function ModeRow({
   c: ReturnType<typeof useColors>;
 }) {
   return (
-    <Pressable
+    <Touchable
+      minTarget={false}
       onPress={onPress}
       style={[
         styles.modeRow,
@@ -176,7 +181,7 @@ function ModeRow({
         {selected && <View style={[styles.radioDot, { backgroundColor: c.fg }]} />}
       </View>
       <Text style={[styles.modeLabel, { color: c.fg }]}>{label}</Text>
-    </Pressable>
+    </Touchable>
   );
 }
 

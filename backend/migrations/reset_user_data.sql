@@ -8,17 +8,18 @@ BEGIN;
 
 -- ── Drop in dependency order ────────────────────────────────────────────────
 --
--- The first two are legacy: migration 028 removed the device registry, so
--- nothing below recreates them. They stay here so this script also cleans a
--- database that predates 028.
+-- The first three are legacy: migration 028 removed the device registry and
+-- 029 removed reader bookmarks, so nothing below recreates them. They stay
+-- here so this script also cleans a database that predates those migrations.
+-- `bookmarks` FK'd into `book_progress`, so it still has to go before it.
 
 DROP TABLE IF EXISTS book_availability CASCADE;
 DROP TABLE IF EXISTS devices           CASCADE;
+DROP TABLE IF EXISTS bookmarks         CASCADE;
 DROP TABLE IF EXISTS card_reviews      CASCADE;
 DROP TABLE IF EXISTS study_days        CASCADE;
 DROP TABLE IF EXISTS user_study_prefs  CASCADE;
 DROP TABLE IF EXISTS cards             CASCADE;
-DROP TABLE IF EXISTS bookmarks         CASCADE;
 DROP TABLE IF EXISTS decks             CASCADE;
 DROP TABLE IF EXISTS book_progress     CASCADE;
 DROP TABLE IF EXISTS refresh_tokens    CASCADE;
@@ -103,18 +104,6 @@ CREATE INDEX idx_book_progress_pdf_id_original   ON book_progress (pdf_id_origin
 CREATE INDEX idx_book_progress_xmp_original_id   ON book_progress (xmp_original_id)   WHERE xmp_original_id IS NOT NULL;
 CREATE INDEX idx_book_progress_detected_doi      ON book_progress (detected_doi)      WHERE detected_doi IS NOT NULL;
 CREATE INDEX idx_book_progress_detected_isbn     ON book_progress (detected_isbn)     WHERE detected_isbn IS NOT NULL;
-
--- ── bookmarks ───────────────────────────────────────────────────────────────
-
-CREATE TABLE bookmarks (
-  id          uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
-  book_id     uuid         NOT NULL REFERENCES book_progress(id) ON DELETE CASCADE,
-  cfi         text         NOT NULL,
-  label       text         NOT NULL DEFAULT '',
-  created_at  timestamptz  NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_bookmarks_book_id ON bookmarks (book_id);
 
 -- ── decks ───────────────────────────────────────────────────────────────────
 

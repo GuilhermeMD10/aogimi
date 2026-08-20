@@ -10,7 +10,6 @@ import {
   type EpubTocItem,
   type FoliateBridgeInbound,
   type FoliateBridgeOutbound,
-  type HighlightStyle,
   type ReaderThemeStyle,
   type ReaderViewMode,
 } from '../../lib/foliateHtml';
@@ -24,8 +23,6 @@ export type FoliateReaderHandle = {
   goToSpine: (index: number) => void;
   next: () => void;
   prev: () => void;
-  addHighlight: (id: string, cfi: string, color: string) => void;
-  removeHighlight: (cfi: string) => void;
   clearSelection: () => void;
 };
 
@@ -55,7 +52,7 @@ export type SelectionPayload = {
   rect: { top: number; bottom: number; left: number; right: number };
 };
 
-export type CustomMenuKey = 'dict' | 'card' | 'highlight' | 'copy';
+export type CustomMenuKey = 'dict' | 'card' | 'copy';
 export type CustomMenuEvent = { key: CustomMenuKey; selectedText: string };
 
 // OS selection bubble is replaced by NativeSelectionMenu (rendered by the
@@ -84,7 +81,6 @@ type Props = {
   filename: string;
   startCfi?: string | null;
   initialStyle: ReaderThemeStyle;
-  initialHighlights: HighlightStyle[];
   bgColor: string;
   // True once we know the book is fixed-layout (manga). Wraps the WebView
   // in a static rounded frame in RN — native pinch-zoom then only scales
@@ -106,7 +102,6 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
     filename,
     startCfi,
     initialStyle,
-    initialHighlights,
     bgColor,
     manga,
     onViewportLayout,
@@ -155,8 +150,6 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
       goToSpine: (index) => post({ type: 'goToSpine', index }),
       next: () => post({ type: 'next' }),
       prev: () => post({ type: 'prev' }),
-      addHighlight: (id, cfi, color) => post({ type: 'addHighlight', id, cfi, color }),
-      removeHighlight: (cfi) => post({ type: 'removeHighlight', cfi }),
       clearSelection: () => post({ type: 'clearSelection' }),
     }),
     [post],
@@ -180,7 +173,6 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
           base64,
           cfi: startCfi ?? null,
           style: initialStyle,
-          highlights: initialHighlights,
           viewport,
         });
       } catch (e) {
@@ -224,7 +216,7 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
   const handleCustomMenu = useCallback(
     (e: { nativeEvent: { key: string; label: string; selectedText: string } }) => {
       const { key, selectedText } = e.nativeEvent;
-      if (key === 'dict' || key === 'card' || key === 'highlight' || key === 'copy') {
+      if (key === 'dict' || key === 'card' || key === 'copy') {
         onCustomMenu?.({ key: key as CustomMenuKey, selectedText });
       }
     },

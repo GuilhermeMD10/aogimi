@@ -3,13 +3,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { BottomSheet } from '@/shared/components/BottomSheet';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
@@ -150,11 +150,15 @@ export function CardEditSheet({ visible, card, onDismiss, onSaved, onDeleted }: 
         style={styles.flex}
       >
         <View style={styles.headerRow}>
-          <Pressable onPress={onDismiss} hitSlop={8}>
+          <Touchable
+            minTarget={false}
+            hitSlop={10} onPress={onDismiss}>
             <Text style={[styles.headerAction, { color: c.fgMuted }]}>{t('common.cancel')}</Text>
-          </Pressable>
+          </Touchable>
           <Text style={[styles.headerTitle, { color: c.fg }]}>Edit card</Text>
-          <Pressable onPress={handleSave} disabled={!canSave} hitSlop={8}>
+          <Touchable
+            minTarget={false}
+            hitSlop={10} onPress={handleSave} disabled={!canSave}>
             <Text
               style={[
                 styles.headerAction,
@@ -163,7 +167,7 @@ export function CardEditSheet({ visible, card, onDismiss, onSaved, onDeleted }: 
             >
               {saving ? '…' : t('common.save')}
             </Text>
-          </Pressable>
+          </Touchable>
         </View>
 
         <ScrollView
@@ -219,9 +223,11 @@ export function CardEditSheet({ visible, card, onDismiss, onSaved, onDeleted }: 
 
           {error && <Text style={{ color: c.error, fontSize: fontSize.sm }}>{error}</Text>}
 
-          <Pressable onPress={confirmDelete} style={styles.deleteBtn}>
+          <Touchable
+            minTarget={false}
+            haptic={false} onPress={confirmDelete} style={styles.deleteBtn}>
             <Text style={[styles.deleteText, { color: c.error }]}>{t('common.delete')}</Text>
-          </Pressable>
+          </Touchable>
         </ScrollView>
       </KeyboardAvoidingView>
     </BottomSheet>

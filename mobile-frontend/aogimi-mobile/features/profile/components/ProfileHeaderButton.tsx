@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
@@ -28,16 +29,19 @@ export function ProfileHeaderButton({
   const styles = useStyles(p);
 
   return (
-    <Pressable
+    <Touchable
+      surface="glass"
+      radius={radius.md}
+      minTarget={false}
+      hitSlop={6}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      hitSlop={6}
       style={[styles.button, iconOnly && styles.square]}
     >
       {icon !== undefined && <Feather name={icon} size={15} color={p.soft} />}
       {!iconOnly && <Text style={styles.label}>{label}</Text>}
-    </Pressable>
+    </Touchable>
   );
 }
 
@@ -45,6 +49,9 @@ function useStyles(p: Palette) {
   return useMemo(
     () =>
       StyleSheet.create({
+        // Fill and hairline come from `surface="glass"`. The height stays 34 —
+        // a header control sized to the title beside it — with `hitSlop`
+        // carrying the target to the floor.
         button: {
           flexDirection: 'row',
           alignItems: 'center',
@@ -52,9 +59,6 @@ function useStyles(p: Palette) {
           gap: 6,
           height: 34,
           paddingHorizontal: spacing.md,
-          borderRadius: radius.md,
-          borderWidth: 1.5,
-          borderColor: p.paperBd,
         },
         // Square rather than pill-padded, so the icon sits centred in a box the
         // same height as its labelled sibling.

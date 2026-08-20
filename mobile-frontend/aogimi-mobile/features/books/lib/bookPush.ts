@@ -270,7 +270,7 @@ export function filenameFromPendingId(id: string): string {
  *   - Pending book (synthetic id `pending:<filename>`): look up the local
  *     entry and push it via `pushOneBook`. Returns `ok: false` on network
  *     failure so the caller can show "still pending" feedback.
- *   - Already-synced book: push any unsent reader state (CFI/bookmarks)
+ *   - Already-synced book: push any unsent reader state (CFI/progress)
  *     for just this book via `pushForBook`. Returns `ok: false` if any of
  *     those calls failed.
  *
@@ -293,7 +293,7 @@ export async function syncOneBookOnDemand(
     return result.ok ? { ok: true } : { ok: false, reason: result.reason };
   }
 
-  // Synced book: only reader-state writes (CFI, bookmarks) can be pending.
+  // Synced book: only reader-state writes (CFI, progress) can be pending.
   // pushForBook returns `clean: true` when every write succeeded or there
   // was nothing to push.
   try {

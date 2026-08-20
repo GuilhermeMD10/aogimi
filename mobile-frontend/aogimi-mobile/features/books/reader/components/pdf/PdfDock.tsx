@@ -2,11 +2,11 @@ import { useCallback, useRef, useState } from 'react';
 import {
   Dimensions,
   PanResponder,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily } from '@/theme/tokens';
@@ -78,11 +78,7 @@ export function PdfDock({ title, page, totalPages, onPrev, onNext }: Props) {
   return (
     <View style={styles.host} pointerEvents="box-none">
       {expanded && (
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={stepBack}
-          accessibilityLabel="Close PDF controls"
-        />
+        <PressableBackdrop style={StyleSheet.absoluteFill} onPress={stepBack} />
       )}
 
       <View
@@ -106,11 +102,12 @@ export function PdfDock({ title, page, totalPages, onPrev, onNext }: Props) {
 
         <View style={styles.contentWrap}>
           {mode === 'pill' ? (
-            <Pressable
+            <Touchable
+              minTarget={false}
+              hitSlop={8}
               onPress={() => setMode('toolbar')}
               accessibilityRole="button"
               accessibilityLabel={`Open PDF controls — ${title}, ${counter}`}
-              hitSlop={8}
               style={styles.pillRow}
             >
               <Text
@@ -124,7 +121,7 @@ export function PdfDock({ title, page, totalPages, onPrev, onNext }: Props) {
                 {counter}
               </Text>
               <Feather name="chevron-up" size={12} color={c.fgMuted} />
-            </Pressable>
+            </Touchable>
           ) : (
             <View style={styles.toolbar}>
               <View style={styles.pageRow}>
@@ -163,14 +160,16 @@ function NavCell({
   ariaLabel: string;
 }) {
   return (
-    <Pressable
+    <Touchable
+      surface="glass"
+      minTarget={false}
+      hitSlop={8}
       onPress={onPress}
       accessibilityLabel={ariaLabel}
-      hitSlop={8}
-      style={[styles.navCell, { backgroundColor: c.bgSunken }]}
+      style={styles.navCell}
     >
       <Feather name={icon} size={20} color={c.fg} />
-    </Pressable>
+    </Touchable>
   );
 }
 

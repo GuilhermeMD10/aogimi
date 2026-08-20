@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 import type { DeckRecord } from '@/features/sky/stage/types';
 import { deckGlyphFor } from '@/features/sky/stage/lib/deckVisuals';
@@ -57,7 +58,11 @@ export function StudyCard({
       {decks.length > 0 && (
         <View style={styles.chipRow}>
           {decks.map((d) => (
-            <Pressable
+            <Touchable
+              surface="glass"
+              radius={radius.xl}
+              minTarget={false}
+              hitSlop={6}
               key={d.id}
               onPress={() => onStudyDeck(d.id)}
               accessibilityRole="button"
@@ -66,12 +71,13 @@ export function StudyCard({
               <Text style={styles.chipLabel}>
                 {deckGlyphFor(d.name)} {d.name} · {countFor(d.id)}
               </Text>
-            </Pressable>
+            </Touchable>
           ))}
         </View>
       )}
 
-      <Pressable
+      <Touchable
+        minTarget={false}
         onPress={onStudyAll}
         disabled={nothingDue}
         accessibilityRole="button"
@@ -80,7 +86,7 @@ export function StudyCard({
       >
         <Feather name="star" size={13} color={p.btnInk} />
         <Text style={styles.buttonLabel}>{studyLabel}</Text>
-      </Pressable>
+      </Touchable>
     </Card>
   );
 }
@@ -112,13 +118,10 @@ function useStyles(p: Palette) {
         },
         // `paperTile` on `paper`: the chip is an inset *within* the card, which
         // is the pair that token is judged against — not against the canvas.
+        // Fill and hairline come from `surface="glass"`; this is geometry only.
         chip: {
-          paddingVertical: 6,
-          paddingHorizontal: 11,
-          borderRadius: radius.xl,
-          backgroundColor: p.paperTile,
-          borderWidth: 1,
-          borderColor: p.paperBd,
+          paddingVertical: 7,
+          paddingHorizontal: 12,
         },
         chipLabel: {
           fontFamily: fontFamily.ui,

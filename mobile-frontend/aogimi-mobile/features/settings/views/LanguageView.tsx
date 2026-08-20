@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { Screen } from '@/shared/components/Screen';
@@ -31,7 +32,8 @@ export function LanguageView() {
         {LOCALES.map((entry, i) => {
           const active = entry.code === locale;
           return (
-            <Pressable
+            <Touchable
+              minTarget={false}
               key={entry.code}
               onPress={() => pick(entry.code)}
               style={[
@@ -50,7 +52,7 @@ export function LanguageView() {
                 )}
               </View>
               {active && <Feather name="check" size={18} color={c.fg} />}
-            </Pressable>
+            </Touchable>
           );
         })}
       </ScrollView>

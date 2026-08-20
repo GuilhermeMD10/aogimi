@@ -7,7 +7,7 @@
 // EpubReader.tsx once we flip the flag in ReaderScreen.
 //
 // Status (initial scaffold): book opens, navigation works, relocate events
-// fire. Style themes, view modes, highlights, and selection are stubbed --
+// fire. Style themes, view modes, and selection are stubbed --
 // they'll be wired in the next migration pass.
 
 import { FOLIATE_SOURCE } from './foliateLibs';
@@ -29,7 +29,6 @@ export type ReaderThemeStyle = {
 };
 
 export type EpubTocItem = { label: string; href: string };
-export type HighlightStyle = { id: string; cfi: string; color: string };
 
 export type FoliateBridgeInbound =
   | {
@@ -37,7 +36,6 @@ export type FoliateBridgeInbound =
       base64: string;
       cfi?: string | null;
       style: ReaderThemeStyle;
-      highlights: HighlightStyle[];
       viewport: { width: number; height: number };
     }
   | { type: 'setStyle'; style: ReaderThemeStyle }
@@ -47,8 +45,6 @@ export type FoliateBridgeInbound =
   | { type: 'goToSpine'; index: number }
   | { type: 'next' }
   | { type: 'prev' }
-  | { type: 'addHighlight'; id: string; cfi: string; color: string }
-  | { type: 'removeHighlight'; cfi: string }
   | { type: 'clearSelection' };
 
 export type FoliateBridgeOutbound =
@@ -183,9 +179,6 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
       // we'd never enforce max-column-count="1". Force-apply on the first
       // call.
       var viewModeApplied = false;
-      // CFI -> { id, color }. Populated on addHighlight / initial highlight
-      // restore so the draw-annotation listener knows what color to paint.
-      var highlightInfo = new Map();
       // index -> doc (for selection wiring). One entry per loaded chapter
       // iframe; selectionchange handlers are attached lazily inside the
       // foliate-view 'load' event.
@@ -432,34 +425,6 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
           currentChapterIndex = ev.detail.index;
           attachSelectionListener(ev.detail.doc, ev.detail.index);
         });
-        // Highlight rendering. We pass our color through annotation metadata
-        // and recover it here; foliate provides the draw fn that wraps the
-        // SVG positioning so we only have to pick a shape.
-        view.addEventListener('draw-annotation', function (ev) {
-          if (!ev.detail) return;
-          var draw = ev.detail.draw;
-          var ann = ev.detail.annotation || {};
-          var info = highlightInfo.get(ann.value);
-          var color = (info && info.color) || (ann && ann.color) || 'yellow';
-          var Overlayer = globalThis.FoliateOverlayer;
-          if (typeof draw === 'function' && Overlayer && typeof Overlayer.highlight === 'function') {
-            try { draw(Overlayer.highlight, { color: color }); } catch (e) { err('draw', e); }
-          }
-        });
-      }
-
-      function addHighlight(id, cfi, color) {
-        if (!view) return;
-        highlightInfo.set(cfi, { id: id, color: color });
-        try {
-          view.addAnnotation({ value: cfi, color: color, id: id });
-        } catch (e) { err('addHighlight', e); }
-      }
-
-      function removeHighlight(cfi) {
-        if (!view) return;
-        highlightInfo.delete(cfi);
-        try { view.deleteAnnotation({ value: cfi }); } catch (e) { err('removeHighlight', e); }
       }
 
       // Manga scroll mode is now rendered on the RN side (a ScrollView of
@@ -511,7 +476,7 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
         } catch (e) { err('nav', e); }
       }
 
-      async function loadBook(base64, cfi, style, highlights, viewport) {
+      async function loadBook(base64, cfi, style, viewport) {
         try {
           if (viewport && viewport.width > 0 && viewport.height > 0) {
             viewportW = viewport.width;
@@ -616,15 +581,6 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
             direction: direction,
             spineCount: spineTotal,
           });
-
-          // Replay highlights from RN. Each becomes a foliate annotation;
-          // the draw-annotation listener paints them with the stored color.
-          if (highlights && highlights.length) {
-            for (var i = 0; i < highlights.length; i++) {
-              var h = highlights[i];
-              addHighlight(h.id, h.cfi, h.color);
-            }
-          }
         } catch (e) {
           // Hide the in-WebView loading overlay even on hard failure so the
           // RN error UI (if any) isn't masked by stale "Loading..." text.
@@ -638,7 +594,7 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
         var msg;
         try { msg = JSON.parse(raw); } catch (e) { return; }
         if (!msg || !msg.type) return;
-        if (msg.type === 'load') return loadBook(msg.base64, msg.cfi, msg.style, msg.highlights, msg.viewport);
+        if (msg.type === 'load') return loadBook(msg.base64, msg.cfi, msg.style, msg.viewport);
         if (!view) return;
         if (msg.type === 'next') return nav('next');
         if (msg.type === 'prev') return nav('prev');
@@ -657,13 +613,11 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
           // automatically. No explicit call needed.
           return;
         }
-        if (msg.type === 'addHighlight') return addHighlight(msg.id, msg.cfi, msg.color);
-        if (msg.type === 'removeHighlight') return removeHighlight(msg.cfi);
         if (msg.type === 'clearSelection') return clearSelectionInAllDocs();
       }
 
       // Called when the user taps outside the custom selection menu — we
-      // wipe the visible selection in every chapter doc so the highlight
+      // wipe the visible selection in every chapter doc so the selection
       // band disappears alongside the menu.
       function clearSelectionInAllDocs() {
         loadedDocs.forEach(function (doc) {

@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
+import { Touchable } from '@/shared/components/Touchable';
 import { usePalette } from '@/theme/ThemeContext';
-import { radius, type Palette } from '@/theme/tokens';
+import { MIN_TARGET } from '@/theme/motion';
+import { radius } from '@/theme/tokens';
 
 /**
  * The square vermillion "add to deck" affordance that sits at the end of a
@@ -16,6 +17,11 @@ import { radius, type Palette } from '@/theme/tokens';
  * **Not on every row.** Names have no card builder — `cardDraft.ts` produces
  * word and kanji drafts only — and a recent-lookup row holds a snapshot without
  * the meanings a draft needs. Both are documented where they are omitted.
+ *
+ * Takes the glass wash, like every other button in the app. Its whole visual
+ * box is tappable and `hitSlop` only extends past it to the 44pt floor — the
+ * one direction slop is legitimate, since a control can be larger to the finger
+ * than to the eye but never smaller.
  */
 export function AddButton({
   onPress,
@@ -28,33 +34,27 @@ export function AddButton({
   size?: number;
 }) {
   const p = usePalette();
-  const styles = useStyles(p);
   return (
-    <Pressable
+    <Touchable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      hitSlop={8}
+      surface="glass"
+      radius={radius.md - 3}
+      minTarget={false}
+      hitSlop={(MIN_TARGET - size) / 2}
       style={[styles.button, { width: size, height: size }]}
     >
       <Feather name="plus" size={size === 32 ? 15 : 14} color={p.accent} />
-    </Pressable>
+    </Touchable>
   );
 }
 
-function useStyles(p: Palette) {
-  return useMemo(
-    () =>
-      StyleSheet.create({
-        button: {
-          borderRadius: radius.md - 3,
-          borderWidth: 1,
-          borderColor: p.paperBd,
-          backgroundColor: p.paper,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-      }),
-    [p],
-  );
-}
+// Fill, border and sheens come from `surface="glass"`, so nothing here reads
+// the palette and it can be a module-scope sheet.
+const styles = StyleSheet.create({
+  button: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

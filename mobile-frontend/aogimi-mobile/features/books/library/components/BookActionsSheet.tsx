@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { BottomSheet } from '@/shared/components/BottomSheet';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
@@ -125,7 +125,7 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
               //   3. Manga page cache (cache/manga-pages/<bookId>) + LRU
               //      index entry + session handle
               //   4. AsyncStorage reader.book.<filename> (lastCfi,
-              //      highlights, bookmarks)
+              //      reading progress)
               //   5. Optimistic progress patch from the back-press cache
               try { deleteBookFile(book.filename); } catch { /* */ }
               try { deleteCoverFor(book.filename); } catch { /* */ }
@@ -205,7 +205,8 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
               editable={!busy}
             />
             <View style={styles.row}>
-              <Pressable
+              <Touchable
+                minTarget={false}
                 onPress={() => setMode('menu')}
                 disabled={busy}
                 style={[
@@ -214,8 +215,9 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
                 ]}
               >
                 <Text style={[styles.btnGhostText, { color: c.fgMuted }]}>Cancel</Text>
-              </Pressable>
-              <Pressable
+              </Touchable>
+              <Touchable
+                minTarget={false}
                 onPress={handleRenameSubmit}
                 disabled={busy || draftTitle.trim().length === 0}
                 style={[
@@ -228,7 +230,7 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
                 ) : (
                   <Text style={[styles.btnPrimaryText, { color: c.bg }]}>Save</Text>
                 )}
-              </Pressable>
+              </Touchable>
             </View>
           </View>
         )}
@@ -251,13 +253,14 @@ function ActionRow({
   disabled?: boolean;
 }) {
   return (
-    <Pressable
+    <Touchable
+      minTarget={false}
       onPress={onPress}
       disabled={disabled}
       style={[styles.actionRow, { borderColor: border, opacity: disabled ? 0.55 : 1 }]}
     >
       <Text style={[styles.actionText, { color: tint }]}>{label}</Text>
-    </Pressable>
+    </Touchable>
   );
 }
 

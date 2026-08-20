@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, radius } from '@/theme/tokens';
@@ -73,7 +74,8 @@ export function SettingsPane({
             {FONTS.map((f) => {
               const active = prefs.fontFamily === f.key;
               return (
-                <Pressable
+                <Touchable
+                  minTarget={false}
                   key={f.key}
                   onPress={() => onChange({ fontFamily: f.key })}
                   style={[
@@ -102,7 +104,7 @@ export function SettingsPane({
                   <Text style={[styles.fontSub, { color: c.fgMuted, fontFamily: fontFamily.ui }]}>
                     {f.jp}
                   </Text>
-                </Pressable>
+                </Touchable>
               );
             })}
           </View>
@@ -136,7 +138,8 @@ export function SettingsPane({
               const active = prefs.theme === t.key;
               const swatch = READER_THEMES[t.key];
               return (
-                <Pressable
+                <Touchable
+                  minTarget={false}
                   key={t.key}
                   onPress={() => onChange({ theme: t.key })}
                   accessibilityLabel={`Theme: ${t.label}`}
@@ -150,7 +153,7 @@ export function SettingsPane({
                   ]}
                 >
                   <Text style={[styles.swatchGlyph, { color: swatch.fg, fontFamily: fontFamily.jp }]}>あ</Text>
-                </Pressable>
+                </Touchable>
               );
             })}
           </View>
@@ -237,25 +240,31 @@ function Stepper({
 }) {
   return (
     <View style={[styles.stepper, { backgroundColor: c.bgSunken, borderColor: c.border }]}>
-      <Pressable
+      <Touchable
+        surface="glass"
+        radius={radius.pill}
+        minTarget={false}
+        hitSlop={8}
         onPress={onMinus}
         disabled={minusDisabled}
-        hitSlop={6}
         style={[styles.stepperBtn, { opacity: minusDisabled ? 0.3 : 1 }]}
       >
         <Feather name="minus" size={14} color={c.fgMuted} />
-      </Pressable>
+      </Touchable>
       <Text style={[styles.stepperValue, { color: c.fg, fontVariant: ['tabular-nums'] }]}>
         {value}
       </Text>
-      <Pressable
+      <Touchable
+        surface="glass"
+        radius={radius.pill}
+        minTarget={false}
+        hitSlop={8}
         onPress={onPlus}
         disabled={plusDisabled}
-        hitSlop={6}
         style={[styles.stepperBtn, { opacity: plusDisabled ? 0.3 : 1 }]}
       >
         <Feather name="plus" size={14} color={c.fg} />
-      </Pressable>
+      </Touchable>
     </View>
   );
 }
@@ -276,7 +285,9 @@ function Seg<T extends string>({
       {options.map((opt) => {
         const active = opt.key === value;
         return (
-          <Pressable
+          <Touchable
+            minTarget={false}
+            hitSlop={6}
             key={opt.key}
             onPress={() => onChange(opt.key)}
             style={[
@@ -299,7 +310,7 @@ function Seg<T extends string>({
             >
               {opt.label}
             </Text>
-          </Pressable>
+          </Touchable>
         );
       })}
     </View>
@@ -366,7 +377,14 @@ const styles = StyleSheet.create({
     minWidth: 130,
     justifyContent: 'space-between',
   },
-  stepperBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+  // A padded glyph became a real control when it took the glass wash: 32×28
+  // is the box, `hitSlop` carries the target the rest of the way to 44.
+  stepperBtn: {
+    width: 32,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   stepperValue: {
     fontSize: 13,
     fontWeight: '500',

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Touchable } from '@/shared/components/Touchable';
 import { JlptChip } from '@/shared/components/JlptChip';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
@@ -39,9 +40,10 @@ export function RecentLookupRow({
   const level = lookup.jlptLevel ?? null;
 
   return (
-    <Pressable
+    <Touchable
       onPress={onPress}
       accessibilityRole="button"
+      minTarget={false}
       style={[styles.row, divider && styles.divider]}
     >
       <View style={styles.body}>
@@ -64,7 +66,7 @@ export function RecentLookupRow({
       </View>
 
       {age !== '' && <Text style={styles.age}>{age}</Text>}
-    </Pressable>
+    </Touchable>
   );
 }
 
