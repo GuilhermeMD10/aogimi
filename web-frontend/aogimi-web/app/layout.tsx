@@ -73,10 +73,15 @@ export const metadata: Metadata = {
   icons: {
     // Next auto-serves /app/icon.png, /app/apple-icon.png, /app/opengraph-image.png
     // via its file-based convention. Sized PWA/favicon variants ship from /public.
+    //
+    // The favicon sizes carry the gold star on the sky and nothing else — at 16
+    // to 64px the card, bow, eyes and keyline all collapse into mush, so the
+    // star does the identifying. The 192/512 tiles are the full mark.
     icon: [
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
       { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
       { url: '/favicon-48x48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/favicon-64x64.png', sizes: '64x64', type: 'image/png' },
       { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icon-512x512.png', sizes: '512x512', type: 'image/png' },
     ],

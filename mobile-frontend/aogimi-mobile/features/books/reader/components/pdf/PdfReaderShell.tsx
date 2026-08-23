@@ -19,8 +19,12 @@ type ProgressSnapshot = {
 /**
  * Native PDF reader. Renders the file with react-native-pdf, reuses the
  * standard ReaderTopBar for the back chevron, and pins a PdfDock at the
- * bottom for title + page count + prev/next. No selection or
- * dictionary integration — by design.
+ * bottom for title + page count + prev/next + a DICT action.
+ *
+ * The native renderer surfaces no text selection, so there is no tap-a-word
+ * path here. The dock's DICT action instead opens the reader's lookup sheet
+ * with an empty query — the user types the word, and adding to a deck runs
+ * through the same drawer the EPUB reader uses.
  *
  * Progress is reported as `page-N` in the cfi slot so it lands in the same
  * book_progress.cfi_position column the EPUB reader uses.
@@ -30,11 +34,13 @@ export function PdfReaderShell({
   initialCfi,
   onBack,
   onPageChange,
+  onOpenDictionary,
 }: {
   book: BookRecord;
   initialCfi?: string | null;
   onBack: () => void;
   onPageChange: (snapshot: ProgressSnapshot) => void;
+  onOpenDictionary: () => void;
 }) {
   const c = useColors();
   const pdfRef = useRef<PdfRef>(null);
@@ -141,6 +147,7 @@ export function PdfReaderShell({
         totalPages={totalPages}
         onPrev={() => goToPage(visiblePage - 1)}
         onNext={() => goToPage(visiblePage + 1)}
+        onOpenDictionary={onOpenDictionary}
       />
     </Fragment>
   );

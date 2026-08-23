@@ -16,7 +16,8 @@ import { fontFamily } from '@/theme/tokens';
 // ReaderBottomDock — pill ↔ toolbar container, swipe-down to close, tap-outside
 // to step back — but ships only two modes and a trimmed content surface. The
 // pill carries the file title and N/total counter; the toolbar adds prev/next
-// chevrons. PDF has no notes / marks / settings panes.
+// chevrons plus a DICT action that opens the reader's lookup sheet. PDF has no
+// notes / marks / settings panes.
 //
 // No pill↔toolbar morph: the box is read straight out of `MODES[mode]` and the
 // switch is instant. Swipe-down-to-close and tap-outside still work — the
@@ -32,6 +33,9 @@ type Props = {
   totalPages: number;
   onPrev: () => void;
   onNext: () => void;
+  /** Opens the reader's dictionary sheet with an empty query. The PDF
+   *  renderer surfaces no selection, so this is the only way in. */
+  onOpenDictionary: () => void;
 };
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -42,7 +46,7 @@ const PILL_BOTTOM = 22;
 const PILL_RADIUS = 999;
 
 const SHEET_WIDTH = SCREEN_W;
-const TOOLBAR_HEIGHT = 96;
+const TOOLBAR_HEIGHT = 150;
 const SHEET_BOTTOM = 0;
 const SHEET_RADIUS = 22;
 
@@ -54,7 +58,7 @@ const MODES: Record<Mode, { width: number; height: number; bottom: number; radiu
 const SWIPE_CLOSE_VELOCITY = 0.6;
 const SWIPE_CLOSE_DISTANCE = 60;
 
-export function PdfDock({ title, page, totalPages, onPrev, onNext }: Props) {
+export function PdfDock({ title, page, totalPages, onPrev, onNext, onOpenDictionary }: Props) {
   const c = useColors();
   const [mode, setMode] = useState<Mode>('pill');
   const box = MODES[mode];
@@ -124,7 +128,7 @@ export function PdfDock({ title, page, totalPages, onPrev, onNext }: Props) {
             </Touchable>
           ) : (
             <View style={styles.toolbar}>
-              <View style={styles.pageRow}>
+              <View style={[styles.pageRow, { borderBottomColor: c.border }]}>
                 <NavCell colors={c} icon="chevron-left" onPress={onPrev} ariaLabel="Previous page" />
 
                 <View style={styles.pageMeta}>
@@ -139,6 +143,20 @@ export function PdfDock({ title, page, totalPages, onPrev, onNext }: Props) {
                 </View>
 
                 <NavCell colors={c} icon="chevron-right" onPress={onNext} ariaLabel="Next page" />
+              </View>
+
+              {/* Action row. One action: the lookup sheet. Collapsing to the
+                  pill first keeps the toolbar from sitting behind the sheet. */}
+              <View style={styles.actionRow}>
+                <ToolCol
+                  colors={c}
+                  icon="book-open"
+                  label="DICT"
+                  onPress={() => {
+                    setMode('pill');
+                    onOpenDictionary();
+                  }}
+                />
               </View>
             </View>
           )}
@@ -169,6 +187,34 @@ function NavCell({
       style={styles.navCell}
     >
       <Feather name={icon} size={20} color={c.fg} />
+    </Touchable>
+  );
+}
+
+function ToolCol({
+  colors: c,
+  icon,
+  label,
+  onPress,
+}: {
+  colors: ReturnType<typeof useColors>;
+  icon: React.ComponentProps<typeof Feather>['name'];
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Touchable
+      minTarget={false}
+      hitSlop={6}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={styles.tool}
+    >
+      <Feather name={icon} size={18} color={c.fgMuted} />
+      <Text style={[styles.toolLabel, { color: c.fgMuted, fontFamily: fontFamily.ui }]}>
+        {label}
+      </Text>
     </Touchable>
   );
 }
@@ -207,7 +253,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     gap: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 10,
+  },
+  tool: {
+    minWidth: 44,
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  toolLabel: { fontSize: 9, letterSpacing: 0.8, fontWeight: '500' },
   navCell: {
     width: 36,
     height: 36,

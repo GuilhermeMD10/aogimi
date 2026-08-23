@@ -434,8 +434,11 @@ export function ReaderScreen({ bookId }: Props) {
   }
 
   // ── PDF short-circuit ──────────────────────────────────────────────
-  // PDFs are read with the native renderer (react-native-pdf). No foliate,
-  // no selection — just open + page progress.
+  // PDFs are read with the native renderer (react-native-pdf). No foliate and
+  // no selection — open + page progress, plus the dock's DICT action, which
+  // opens the same lookup sheet the EPUB path uses with an empty query. The
+  // two drawers are re-rendered here rather than hoisted above the branch:
+  // this return has its own SafeAreaView, and the overlays belong inside it.
   if (book.filename.toLowerCase().endsWith('.pdf')) {
     if (!hasFile) {
       return (
@@ -466,6 +469,23 @@ export function ReaderScreen({ bookId }: Props) {
               totalSpineItems: snap.totalSpineItems,
             };
           }}
+          // Empty string, not null: `null` is the closed state, `''` opens the
+          // sheet on its search stage with nothing queried yet.
+          onOpenDictionary={() => setDictTerm('')}
+        />
+
+        <DictDrawer
+          visible={dictTerm !== null}
+          term={dictTerm ?? ''}
+          onDismiss={() => setDictTerm(null)}
+          onAddFlashcard={handleAddFlashcardFromDict}
+          onAddKanji={handleAddFlashcardFromKanji}
+        />
+
+        <FlashcardDrawer
+          visible={flashcardPrefill !== null}
+          prefill={flashcardPrefill}
+          onDismiss={() => setFlashcardPrefill(null)}
         />
       </SafeAreaView>
     );
