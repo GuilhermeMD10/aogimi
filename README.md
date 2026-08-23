@@ -1,9 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="aogimi-brand-assets/app-icon/app-icon-ink-dot-256.png">
-  <img src="aogimi-brand-assets/app-icon/app-icon-paper-dot-256.png" alt="Aogimi" width="88">
-</picture>
+<img src="aogimi-brand-assets/app-icon/icon-256.png" alt="Aogimi" width="88">
 
 # Aogimi
 
@@ -41,13 +38,15 @@ Import your own book · tap a word you don't know · it becomes a flashcard sche
 
 ### ▶ Try it
 
-**[aogimi.app](https://TODO-deployed-url)** — nothing to install, runs in any browser.
+**[aogimi.com](https://aogimi.com)** — nothing to install, runs in any browser.
 
-| Username | Password |
-| :------- | :------- |
-| `demo`   | `TODO`   |
+| Username | Password   |
+| :------- | :--------- |
+| `Demo`   | `Demo123.` |
 
-<sub>Sign-up is closed while the project is in development — the demo account is the way in.</sub>
+<sub>Sign-up is closed while the project is in development — the demo account is the way in.<br>
+Book files live on your device and never reach the server, so the demo library lists five books it cannot open.<br>
+Drop in any EPUB or PDF to try the reader — import, lookup and card capture all work on your own file.</sub>
 
 </div>
 

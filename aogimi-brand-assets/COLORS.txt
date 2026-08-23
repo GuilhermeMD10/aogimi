@@ -1,5 +1,35 @@
 # Aogimi palette
 
-ink     #1A1918   rgb(26, 25, 24)
-paper   #FFFEFB   rgb(255, 254, 251)
-indigo  #1E3D6B   rgb(30, 61, 107)
+## Sky (the icon's ground)
+
+Mirrors --sky-1/2/3 and the --page-base glow under html[data-theme="dark"] in
+web-frontend/aogimi-web/styles/ds-tokens.css. The icon sits on the same
+gradient the app paints as its page background.
+
+sky-1   #16223c   rgb( 22,  34,  60)   top stop
+sky-2   #0d1526   rgb( 13,  21,  38)   mid stop, at 10%
+sky-3   #080514   rgb(  8,   5,  20)   base stop — a shade violet, not black
+glow    rgba(19, 10, 51, .69) -> 0     violet cast, radial 80% x 100% at 50/50
+
+sky-3 is also <html>'s background-color, the PWA background_color, and the
+flatten colour for every opaque icon slot.
+
+## Mark
+
+card    #C3C8EA   rgb(195, 200, 234)   ema plaque + seigaiha cloud
+gold    #E0B54B   rgb(224, 181,  75)   inset keyline
+red     #C2452C   rgb(194,  69,  44)   bow + eyes — NIGHT.accent, the logo
+                                       tile's vermilion
+cream   #F7E9E2   rgb(247, 233, 226)   eye highlight
+star    #FFE085   rgb(255, 224, 133)   gold star — NIGHT.gold
+pink    #FF5CA8   rgb(255,  92, 168)   small sparkle + dots
+purple  #7A6BE8   rgb(122, 107, 232)   dots
+line    #FFFFFF   rgb(255, 255, 255)   seigaiha arcs, on the card
+
+red and star come from NIGHT in
+web-frontend/aogimi-web/features/sky/stage/lib/nightChrome.ts.
+
+## Wordmark
+
+ink     #1A1918   rgb(26, 25, 24)      on light grounds
+paper   #F2F1EE   rgb(242, 241, 238)   on the sky — NIGHT.ink
