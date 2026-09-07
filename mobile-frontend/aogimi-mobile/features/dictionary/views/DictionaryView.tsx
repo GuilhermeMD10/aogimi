@@ -1,42 +1,45 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Feather from '@expo/vector-icons/Feather';
-import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { BackButton } from '@/shared/components/BackButton';
 import { Screen } from '@/shared/components/Screen';
 import { useDockClearance } from '@/features/app-shell/Dock';
 import { FlashcardDrawer, type FlashcardPrefill } from '@/features/sky/stage/components/FlashcardDrawer';
 import { useT } from '@/lib/i18n/I18nContext';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import type { KanjiInfo, WordDetails, WordResult } from '../types';
 import { useDictionaryNav } from '../hooks/useDictionaryNav';
 import { useDictionarySearch } from '../hooks/useDictionarySearch';
 import { useSearchKeyboard } from '../hooks/useSearchKeyboard';
 import { kanjiCardDraft, wordCardDraft } from '../lib/cardDraft';
 import { getRecentLookups, pushRecentLookup, type RecentLookup } from '../lib/dictionaryStorage';
-import { resultRows, totalResults } from '../lib/resultSections';
 import { SearchField } from '../components/SearchField';
-import { DictHero } from '../components/DictHero';
-import { SuggestionChips } from '../components/SuggestionChips';
-import { SectionHeading } from '../components/SectionHeading';
-import { RecentLookupRow } from '../components/RecentLookupRow';
-import { ResultsList } from '../components/ResultsList';
-import { EntryView } from '../components/EntryView';
+import { SearchPane } from '../components/SearchPane';
+import { EntryPane } from '../components/EntryPane';
 
 /**
  * The dictionary tab.
  *
- * **Composition and data only** — every visual piece is a component in
- * `../components`, each reading `usePalette()` with a memoised style factory.
- * Order: hero, field, suggestions, recents; then field, count, results; then
- * entry.
+ * **A page and three panes.** This file is the page: the back control, the one
+ * search bar, the frame stack, and the data the panes render. Every pixel below
+ * the bar belongs to a pane — `SearchPane` for a search frame, `EntryPane` for
+ * an entry, a spinner for the moment between them — and each pane is a
+ * component in `../components` reading `usePalette()` with a memoised style
+ * factory.
+ *
+ * ── One bar, above everything ───────────────────────────────────────────────
+ * The field is **outside the frame switch**, so it is the same mounted input in
+ * every state: it does not move, re-mount, or lose focus when a result opens,
+ * and there is always somewhere to type. It shows the query that led to
+ * whatever is on screen — on an entry, that is the search below it — and typing
+ * unwinds back to those results. `useDictionaryNav` holds that rule.
  *
  * ── Why a stack, not three flat states ──────────────────────────────────────
  * The tab is a **frame stack** (`useDictionaryNav`): tapping a kanji inside an
  * entry pushes a fresh *search* frame, so a user can drill 辞書 → 辞 → 辭典 →
- * … and unwind one step at a time. Android's hardware back and re-tapping the
- * tab both pop it.
+ * … and unwind one step at a time. Android's hardware back, the chevron and
+ * re-tapping the tab all pop it.
  *
  * ── Recents are lookups, not queries ─────────────────────────────────────────
  * One store — see `lib/dictionaryStorage.ts`. This list and Home's card are
@@ -46,13 +49,12 @@ import { EntryView } from '../components/EntryView';
 export function DictionaryView() {
   const t = useT();
   const p = usePalette();
-  const styles = useStyles(p);
   const dockClearance = useDockClearance();
 
   const { current, canGoBack, query, setQuery, openDetail, openKanjiSearch, back, detailError } =
     useDictionaryNav();
 
-  const searchState = useDictionarySearch(query);
+  const search = useDictionarySearch(query);
   const { inputRef, dismiss } = useSearchKeyboard();
   const [prefill, setPrefill] = useState<FlashcardPrefill | null>(null);
   const [recents, setRecents] = useState<RecentLookup[]>([]);
@@ -140,7 +142,7 @@ export function DictionaryView() {
     [query],
   );
 
-  // Both cross a frame boundary, and a frame boundary unmounts the field — the
+  // Both cross a frame boundary, and a frame boundary unmounts the pane — the
   // exact transition that used to leave RN holding a stale focused node.
   const openKanji = useCallback(
     (literal: string) => {
@@ -154,106 +156,47 @@ export function DictionaryView() {
     back();
   }, [dismiss, back]);
 
-  const isSearching = query.trim() !== '';
-  const rows = useMemo(
-    () =>
-      isSearching && searchState.kind === 'results' ? resultRows(searchState.response) : [],
-    [isSearching, searchState],
-  );
-  const total =
-    isSearching && searchState.kind === 'results' ? totalResults(searchState.response) : 0;
-
-  const field = (
-    <SearchField
-      value={query}
-      ref={inputRef}
-      onChangeText={setQuery}
-      placeholder={t('dict.fieldPlaceholder')}
-      active={isSearching}
-      onSubmit={dismiss}
-      clearLabel={t('dict.clearSearch')}
-    />
-  );
-
   return (
     <Screen padded>
+      {/* Pinned above every frame: the chevron out of a drilled-into frame and
+          the one search field. Outside the switch below, so no state change can
+          move either of them. */}
+      <View style={styles.pinned}>
+        {canGoBack && (
+          <BackButton
+            label={current.kind === 'detail' ? t('dict.backToResults') : t('dict.back')}
+            onPress={goBack}
+          />
+        )}
+        <SearchField
+          value={query}
+          ref={inputRef}
+          onChangeText={setQuery}
+          placeholder={t('dict.fieldPlaceholder')}
+          active={query.trim() !== ''}
+          onSubmit={dismiss}
+          clearLabel={t('dict.clearSearch')}
+        />
+      </View>
+
       {current.kind === 'search' && (
-        <>
-          {/* Pinned: outside the list, so no state change can move it. */}
-          <View style={styles.pinned}>
-            {/* A search frame reached by drilling into a kanji sits on top of
-                another frame, so it needs its own way back — the dock's tab
-                is not one. */}
-            {canGoBack && <BackLink label={t('dict.back')} onPress={goBack} />}
-            {field}
-          </View>
-
-          <ResultsList
-            rows={rows}
-            query={query}
-            contentStyle={{ paddingBottom: dockClearance }}
-            onOpenWord={(w) => void openWord(w.id, query)}
-            onAddWord={addWord}
-            onAddKanji={addKanji}
-            onOpenKanji={openKanji}
-            onScrollStart={dismiss}
-            header={
-              // Tapping the header's empty space is one of the "outside" gestures
-              // that closes the keyboard; the chips and rows inside it still win
-              // their own taps.
-              <PressableBackdrop onPress={dismiss}>
-                {!isSearching && (
-                  <DictHero
-                    kicker={t('dict.heroKicker')}
-                    title={t('dict.heroTitle')}
-                    caption={t('dict.heroCaption')}
-          />
-              )}
-
-              {!isSearching && <SuggestionChips onPick={setQuery} />}
-
-              {detailError !== null && <Text style={styles.error}>{detailError}</Text>}
-
-              {isSearching && searchState.kind === 'loading' && (
-                <ActivityIndicator color={p.muted} style={styles.spinner} />
-              )}
-              {isSearching && searchState.kind === 'error' && (
-                <Text style={styles.error}>{searchState.message}</Text>
-              )}
-              {isSearching && searchState.kind === 'results' && total > 0 && (
-                <View style={styles.resultsHeading}>
-                  <SectionHeading
-                    label={t('dict.results')}
-                    tone="accent"
-                    trailing={
-                      <Text style={styles.count}>
-                        {t('dict.resultsFor', { count: total })}{' '}
-                        <Text style={styles.countQuery}>「{query.trim()}」</Text>
-                      </Text>
-                    }
-                  />
-                </View>
-              )}
-            </PressableBackdrop>
-          }
-          // Fills whatever the content does not, so the blank area under a short
-          // list is a dismiss target rather than dead page.
-          footer={<PressableBackdrop onPress={dismiss} style={styles.dismissTail} />}
-          empty={
-            isSearching ? (
-              searchState.kind === 'results' ? (
-                <Text style={styles.empty}>{t('dict.noResults', { query: query.trim() })}</Text>
-              ) : undefined
-            ) : (
-              <RecentLookups
-                recents={recents}
-                label={t('dict.recentlyLookedUp')}
-                onOpen={(lookup) => void openWord(lookup.wordId, lookup.headword)}
-              />
-            )
-          }
-          />
-        </>
+        <SearchPane
+          query={query}
+          state={search.state}
+          onLoadMore={search.loadMore}
+          canLoadMore={search.canLoadMore}
+          loadingMore={search.loadingMore}
+          recents={recents}
+          detailError={detailError}
+          bottomInset={dockClearance}
+          onPickSuggestion={setQuery}
+          onOpenWord={(w) => void openWord(w.id, query)}
+          onOpenRecent={(lookup) => void openWord(lookup.wordId, lookup.headword)}
+          onAddWord={addWord}
+          onAddKanji={addKanji}
+          onOpenKanji={openKanji}
+          onDismissKeyboard={dismiss}
+        />
       )}
 
       {current.kind === 'detailLoading' && (
@@ -263,20 +206,13 @@ export function DictionaryView() {
       )}
 
       {current.kind === 'detail' && (
-        <View style={styles.flex}>
-          <BackLink label={t('dict.backToResults')} onPress={goBack} />
-          <ScrollView
-            contentContainerStyle={{ paddingBottom: dockClearance + spacing.lg }}
-            showsVerticalScrollIndicator={false}
-          >
-            <EntryView
-              details={current.details}
-              query={query}
-              onAddToDeck={() => addFromEntry(current.details)}
-              onKanjiPress={openKanji}
-            />
-          </ScrollView>
-        </View>
+        <EntryPane
+          details={current.details}
+          query={query}
+          bottomInset={dockClearance}
+          onAddToDeck={() => addFromEntry(current.details)}
+          onKanjiPress={openKanji}
+        />
       )}
 
       <FlashcardDrawer
@@ -288,113 +224,9 @@ export function DictionaryView() {
   );
 }
 
-/** The mono "‹ BACK TO RESULTS" link above an entry. */
-function BackLink({ label, onPress }: { label: string; onPress: () => void }) {
-  const p = usePalette();
-  const styles = useStyles(p);
-  return (
-    <Touchable onPress={onPress} accessibilityRole="button" minTarget={false} style={styles.backLink}>
-      <Feather name="chevron-left" size={13} color={p.muted} />
-      <Text style={styles.backLabel}>{label}</Text>
-    </Touchable>
-  );
-}
-
-/**
- * RECENTLY LOOKED UP. Absent entirely when there is nothing in it — a first-run
- * user has no history and does not need to be told so; the hero and the
- * suggestion chips are the empty state.
- */
-function RecentLookups({
-  recents,
-  label,
-  onOpen,
-}: {
-  recents: RecentLookup[];
-  label: string;
-  onOpen: (lookup: RecentLookup) => void;
-}) {
-  const p = usePalette();
-  const styles = useStyles(p);
-  if (recents.length === 0) return null;
-  return (
-    <View style={styles.recents}>
-      <View style={styles.recentsHeading}>
-        <SectionHeading label={label} />
-      </View>
-      {recents.map((lookup, i) => (
-        <RecentLookupRow
-          key={lookup.wordId}
-          lookup={lookup}
-          divider={i < recents.length - 1}
-          onPress={() => onOpen(lookup)}
-        />
-      ))}
-    </View>
-  );
-}
-
-function useStyles(p: Palette) {
-  return useMemo(
-    () =>
-      StyleSheet.create({
-        flex: { flex: 1 },
-        // The bar's own block. `paddingBottom` is the gap to the list; the list
-        // supplies none of its own, so the bar's position is set here alone.
-        pinned: { paddingBottom: spacing.md },
-        // Grows into the leftover space below short content — see `footer`.
-        dismissTail: { flexGrow: 1, minHeight: 96 },
-        spinner: { marginTop: spacing.xl },
-
-        resultsHeading: { marginTop: spacing.lg, marginBottom: spacing.sm },
-        count: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm - 1,
-          color: p.muted,
-        },
-        countQuery: {
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.sm + 1,
-          color: p.ink,
-        },
-
-        error: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm,
-          color: p.danger,
-          marginTop: spacing.md,
-          textAlign: 'center',
-        },
-        empty: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm,
-          color: p.muted,
-          marginTop: spacing.xl,
-          textAlign: 'center',
-        },
-        centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-        recents: { marginTop: spacing.xl },
-        recentsHeading: {
-          paddingBottom: spacing.md - 1,
-          borderBottomWidth: 1,
-          borderBottomColor: p.paperBd,
-        },
-
-        backLink: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 5,
-          paddingVertical: spacing.sm,
-        },
-        backLabel: {
-          fontFamily: fontFamily.mono,
-          fontSize: fontSize.xs - 1,
-          letterSpacing: 1.2,
-          textTransform: 'uppercase',
-          color: p.muted,
-        },
-      }),
-    [p],
-  );
-}
+const styles = StyleSheet.create({
+  // The bar's own block. `paddingBottom` is the gap to whichever pane follows;
+  // the panes supply none of their own, so the bar's position is set here alone.
+  pinned: { paddingBottom: spacing.md },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+});

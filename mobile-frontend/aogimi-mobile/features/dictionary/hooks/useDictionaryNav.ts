@@ -19,7 +19,7 @@ export type DictFrame =
 export type DictNav = {
   current: DictFrame;
   canGoBack: boolean;
-  /** Search-frame query, or `''` when the top frame isn't a search. */
+  /** The nearest search frame's query — see `query` in the hook below. */
   query: string;
   detailError: string | null;
   setQuery: (v: string) => void;
@@ -33,10 +33,15 @@ export type DictNav = {
  * Stack-based navigation state for the dictionary tab.
  *
  * Frames are pushed when the user opens a detail or drills into a kanji,
- * and popped on `back()`. The active screen is the topmost frame. Search
- * input is bound to whichever search frame is on top — drilling into a
- * kanji starts a new search frame seeded with that kanji as the query, and
- * popping back restores the previous frame's query verbatim.
+ * and popped on `back()`. The active screen is the topmost frame. Drilling
+ * into a kanji starts a new search frame seeded with that kanji as the query,
+ * and popping back restores the previous frame's query verbatim.
+ *
+ * ── The search bar outlives the frame ──────────────────────────────────────
+ * `DictionaryView` pins one field above *every* frame, so `query` and
+ * `setQuery` address the nearest search frame rather than the top one — the
+ * bar keeps showing what led here while an entry is open, and editing it
+ * unwinds back to those results. See both below.
  */
 export function useDictionaryNav(): DictNav {
   const [history, setHistory] = useState<DictFrame[]>(() => [
@@ -45,7 +50,11 @@ export function useDictionaryNav(): DictNav {
   const [detailError, setDetailError] = useState<string | null>(null);
 
   const current = history[history.length - 1]!;
-  const query = current.kind === 'search' ? current.query : '';
+  // The search bar is pinned above every frame, so it needs a query on a
+  // *detail* frame too — the one that produced the entry, which is the nearest
+  // search frame below it. Reading the top frame alone would blank the bar the
+  // moment a result is opened.
+  const query = nearestSearch(history)?.query ?? '';
 
   const push = useCallback((frame: DictFrame) => {
     setHistory((h) => [...h, frame]);
@@ -55,19 +64,17 @@ export function useDictionaryNav(): DictNav {
     setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h));
   }, []);
 
-  const setQuery = useCallback(
-    (v: string) => {
-      // Only mutate when the active frame is a search frame — otherwise
-      // bail. The TextInput is only rendered in search mode, so this guard
-      // is mostly defensive.
-      setHistory((h) => {
-        const top = h[h.length - 1]!;
-        if (top.kind !== 'search') return h;
-        return [...h.slice(0, -1), { kind: 'search', query: v }];
-      });
-    },
-    [],
-  );
+  // Typing is always typing into the nearest search frame, and everything
+  // stacked above it goes: a pinned bar that says one thing while an unrelated
+  // entry fills the page is the one state it must not produce. From a search
+  // frame this is a plain edit; from an entry it is "back to results, changed".
+  const setQuery = useCallback((v: string) => {
+    setHistory((h) => {
+      const i = lastSearchIndex(h);
+      if (i < 0) return h;
+      return [...h.slice(0, i), { kind: 'search', query: v }];
+    });
+  }, []);
 
   // Returns the resolved entry, or `null` when the load failed. The caller
   // needs it to record the lookup in the recents store, and returning it beats
@@ -154,4 +161,18 @@ export function useDictionaryNav(): DictNav {
     openKanjiSearch,
     back,
   };
+}
+
+/** Index of the topmost search frame; `-1` only if there is none, which the
+ *  initial state rules out. */
+function lastSearchIndex(history: DictFrame[]): number {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i]!.kind === 'search') return i;
+  }
+  return -1;
+}
+
+function nearestSearch(history: DictFrame[]): { kind: 'search'; query: string } | null {
+  const i = lastSearchIndex(history);
+  return i < 0 ? null : (history[i] as { kind: 'search'; query: string });
 }

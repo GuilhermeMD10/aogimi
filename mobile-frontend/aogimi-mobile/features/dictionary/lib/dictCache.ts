@@ -62,12 +62,20 @@ function wordKey(id: string | number): string {
 
 // ── Search ──────────────────────────────────────────────────────────────────
 
-export function peekSearch(query: string): SearchResponse | undefined {
-  return searchCache.get(normaliseQuery(query));
+// Keyed on query **and** page size: the same query answers differently at
+// limit 20 and limit 40, so a query-only key would serve page one forever and
+// "More results" would appear to do nothing. `\u0000` cannot occur in a
+// normalised query, so it cannot be forged by the query itself.
+function searchKey(query: string, limit: number): string {
+  return `${normaliseQuery(query)}\u0000${limit}`;
 }
 
-export function cacheSearch(query: string, response: SearchResponse): void {
-  searchCache.set(normaliseQuery(query), response);
+export function peekSearch(query: string, limit: number): SearchResponse | undefined {
+  return searchCache.get(searchKey(query, limit));
+}
+
+export function cacheSearch(query: string, limit: number, response: SearchResponse): void {
+  searchCache.set(searchKey(query, limit), response);
 }
 
 // ── Word details ────────────────────────────────────────────────────────────

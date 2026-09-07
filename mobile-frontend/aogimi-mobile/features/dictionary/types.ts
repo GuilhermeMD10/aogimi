@@ -44,11 +44,29 @@ export type NameResult = {
   translations: string[];
 };
 
-export type SearchResponse =
+/**
+ * One **page** of results.
+ *
+ * `hasMore` is an intersection over the union rather than a field on each
+ * shape, so every response carries it and a shape added later cannot forget
+ * it. `res.type` still narrows — an intersection distributes over a union.
+ *
+ * It exists because the dictionary used to answer with a hard cap of 20 and no
+ * way to tell "there are exactly 20 matches" from "here are the first 20 of
+ * 400". `searchLocal` now pages, and `hasMore` is a *fact*, not a guess: each
+ * capped query asks the database for one row more than it returns, and the
+ * overflow row is the answer. See `PAGE_SIZE` in `lib/localDict.ts`.
+ *
+ * Mobile-only. The backend's `GET /api/search` has no equivalent field and
+ * mobile never calls it — the dictionary here is the bundled SQLite, see
+ * `lib/dictApi.ts`.
+ */
+export type SearchResponse = { hasMore: boolean } & (
   | { type: 'kanji';   kanji: KanjiInfo | null; words: WordResult[]; names: NameResult[] }
   | { type: 'word';    words: WordResult[] }
   | { type: 'kana';    words: WordResult[]; names: NameResult[]; kanjis: KanjiInfo[] }
-  | { type: 'meaning'; words: WordResult[] };
+  | { type: 'meaning'; words: WordResult[] }
+);
 
 export type ExampleSentence = {
   id: number;

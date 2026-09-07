@@ -1,4 +1,4 @@
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { Touchable } from '@/shared/components/Touchable';
@@ -27,8 +27,11 @@ const PAD_V_COMPACT = spacing.sm + 2;
  * the bar's own height *is* the target, and the divider says the segment is a
  * separate control rather than an icon sitting in the text.
  *
- * The field never calls `focus()` on itself. Tapping it is the only thing that
- * raises the keyboard — see `useSearchKeyboard`.
+ * **Clearing focuses.** The segment empties the field *and* raises the
+ * keyboard, because "clear" is only ever the start of typing the next query —
+ * leaving the user on an empty field with no keyboard makes them tap twice to
+ * do the one thing an empty field is for. It is the only `focus()` in the
+ * feature; everything else follows `useSearchKeyboard`'s rule.
  */
 export const SearchField = forwardRef<TextInput, {
   value: string;
@@ -48,6 +51,19 @@ export const SearchField = forwardRef<TextInput, {
   const p = usePalette();
   const styles = useStyles(p);
 
+  // The clear segment has to focus the input, and the caller owns the ref, so
+  // this keeps a second handle on the same node and forwards through to
+  // whatever the caller passed — object ref or callback.
+  const inputRef = useRef<TextInput | null>(null);
+  const attachRef = useCallback(
+    (node: TextInput | null) => {
+      inputRef.current = node;
+      if (typeof ref === 'function') ref(node);
+      else if (ref) ref.current = node;
+    },
+    [ref],
+  );
+
   return (
     <View
       style={[
@@ -58,7 +74,7 @@ export const SearchField = forwardRef<TextInput, {
     >
       <Feather name="search" size={compact ? 16 : 18} color={p.accent} />
       <TextInput
-        ref={ref}
+        ref={attachRef}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -75,7 +91,10 @@ export const SearchField = forwardRef<TextInput, {
       />
       {value.length > 0 && (
         <Touchable
-          onPress={() => onChangeText('')}
+          onPress={() => {
+            onChangeText('');
+            inputRef.current?.focus();
+          }}
           accessibilityRole="button"
           accessibilityLabel={clearLabel}
           // The segment is as tall as the bar, so the 44pt floor would only add
