@@ -373,6 +373,34 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
       }
 
 
+      // The selected text, with furigana dropped.
+      //
+      // A Japanese book annotates kanji as <ruby>漢字<rt>かんじ</rt></ruby>, and
+      // sel.toString() walks the DOM in document order — so it returns
+      // "漢字かんじ", base and reading run together. That string is what goes
+      // out as selection.text, which becomes the dictionary lookup term, the
+      // clipboard copy, and the front of a card made straight from a
+      // selection: a lookup of "漢字かんじ" matches nothing, and a card keeps the
+      // reading welded to the word forever.
+      //
+      // Cloning the range and removing the annotation nodes is the same rule
+      // the web reader applies in lib/selectionText.ts. Books omit <rp> (it is
+      // a fallback for renderers with no ruby support), which is why the leak
+      // shows up with no parentheses around the kana.
+      function selectionText(sel) {
+        try {
+          var frag = sel.getRangeAt(0).cloneContents();
+          var ann = frag.querySelectorAll('rt, rp');
+          for (var i = 0; i < ann.length; i++) {
+            if (ann[i].parentNode) ann[i].parentNode.removeChild(ann[i]);
+          }
+          return (frag.textContent || '').trim();
+        } catch (e) {
+          // A range that will not clone is still better read than not read.
+          return (sel.toString() || '').trim();
+        }
+      }
+
       function attachSelectionListener(doc, index) {
         if (!doc || loadedDocs.get(index) === doc) return;
         loadedDocs.set(index, doc);
@@ -393,7 +421,7 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
               var sel = doc.defaultView && doc.defaultView.getSelection();
               if (!sel || sel.rangeCount === 0) return;
               var range = sel.getRangeAt(0);
-              var text = (sel.toString() || '').trim();
+              var text = selectionText(sel);
               if (!text) return;
               var rect = range.getBoundingClientRect();
               var cfi = '';

@@ -39,7 +39,32 @@ import {
   type ScoredHit,
 } from './searchIndex';
 
-const RESULT_LIMIT = 20;
+/**
+ * Results per page.
+ *
+ * This used to be `RESULT_LIMIT` — a hard cap. Everything past the twentieth
+ * match was simply dropped, and the response could not say so, so the list had
+ * no way to offer the rest and the count line claimed "20" for a query with
+ * four hundred matches.
+ *
+ * ── The probe row ──────────────────────────────────────────────────────────
+ * Every capped query below asks for `limit + 1` rows and returns `limit`. The
+ * row that does not fit is never rendered; its *existence* is what sets
+ * `hasMore`. That makes "is there another page" a fact rather than the usual
+ * `length === limit` guess, which cannot tell a full last page from a partial
+ * one and leaves a "More results" button that yields nothing.
+ *
+ * ── Growing limit, not offset ──────────────────────────────────────────────
+ * A later page re-runs the whole search with a larger `limit` instead of
+ * fetching an offset slice. That is deliberate: the response is assembled from
+ * several queries that are merged, de-duplicated by word id and re-sorted
+ * (`hydrateAndAnnotate`, and the kana+English merge in branch 4), so row N of
+ * one page is not row N of the next and `OFFSET` would silently skip and repeat
+ * entries. Re-querying is also cheap — this is a local, indexed SQLite file,
+ * not a network round trip.
+ */
+export const PAGE_SIZE = 20;
+
 const SENTENCE_LIMIT = 5;
 
 const IS_KANJI = /\p{Script=Han}/u;
@@ -60,38 +85,55 @@ function normalize(raw: string): string {
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export async function searchLocal(rawQuery: string): Promise<SearchResponse> {
+/**
+ * One page of results for `rawQuery`.
+ *
+ * `limit` is the number of rows *returned per capped list*, and grows by
+ * `PAGE_SIZE` for each further page the user asks for. See `PAGE_SIZE` for why
+ * the limit grows rather than an offset advancing.
+ */
+export async function searchLocal(
+  rawQuery: string,
+  limit: number = PAGE_SIZE,
+): Promise<SearchResponse> {
   if (!rawQuery || !rawQuery.trim()) {
     throw new Error('Query must not be empty');
   }
   const q = normalize(rawQuery);
+  // One past the page: present iff a further page exists.
+  const probe = limit + 1;
 
   // 1. Single kanji → triple-lookup (kanji table, kanji-containing words, names)
   if (isSingleKanji(q)) {
     const [kanjiRow, kanjiWordHits, nameRows] = await Promise.all([
       findKanjiByLiteral(q),
-      searchByKanjiContaining(q, RESULT_LIMIT),
-      findNamesByKanji(q),
+      searchByKanjiContaining(q, probe),
+      findNamesByKanji(q, probe),
     ]);
+    // Counted *after* hydration, not on the raw hits: `hydrateAndAnnotate`
+    // de-duplicates by word id, so the probe row can vanish there and the hit
+    // count would over-report.
     const words = await hydrateAndAnnotate(kanjiWordHits);
     return {
       type: 'kanji',
       kanji: kanjiRow ? formatKanji(kanjiRow) : null,
-      words,
-      names: nameRows.map(assembleNameRow),
+      words: words.slice(0, limit),
+      names: nameRows.slice(0, limit).map(assembleNameRow),
+      // Either list overflowing means there is another page to show.
+      hasMore: words.length > limit || nameRows.length > limit,
     };
   }
 
   // 2. Kanji-containing word
   if (hasKanji(q)) {
-    return japaneseWithDeinflection(q, 'word');
+    return japaneseWithDeinflection(q, 'word', limit);
   }
 
   // 3. Pure kana
   if (IS_KANA.test(q)) {
     const [kanaResult, nameRows, onKanjis, kunKanjis] = await Promise.all([
-      japaneseWithDeinflection(q, 'kana'),
-      findNamesByKana(q),
+      japaneseWithDeinflection(q, 'kana', limit),
+      findNamesByKana(q, probe),
       findKanjiByOnReading(q),
       findKanjiByKunReading(q),
     ]);
@@ -115,9 +157,12 @@ export async function searchLocal(rawQuery: string): Promise<SearchResponse> {
 
     return {
       type: 'kana',
+      // Already paged by `japaneseWithDeinflection`.
       words,
-      names: nameRows.map(assembleNameRow),
+      names: nameRows.slice(0, limit).map(assembleNameRow),
+      // Uncapped on purpose — a reading maps to a handful of characters.
       kanjis,
+      hasMore: kanaResult.hasMore || nameRows.length > limit,
     };
   }
 
@@ -127,8 +172,8 @@ export async function searchLocal(rawQuery: string): Promise<SearchResponse> {
     const kana = romajiToKana(q);
 
     const [jpResult, englishHits] = await Promise.all([
-      kana ? japaneseWithDeinflection(kana, 'kana') : Promise.resolve(null),
-      searchEnglish(englishQ, RESULT_LIMIT),
+      kana ? japaneseWithDeinflection(kana, 'kana', limit) : Promise.resolve(null),
+      searchEnglish(englishQ, probe),
     ]);
 
     const englishWords = await hydrateAndAnnotate(englishHits);
@@ -136,11 +181,23 @@ export async function searchLocal(rawQuery: string): Promise<SearchResponse> {
     if (jpResult && 'words' in jpResult && jpResult.words.length > 0) {
       const seenIds = new Set(jpResult.words.map((w) => w.id));
       const deduped = englishWords.filter((w) => !seenIds.has(w.id));
-      const merged = [...jpResult.words, ...deduped].slice(0, RESULT_LIMIT);
-      return { type: 'meaning', words: merged };
+      const merged = [...jpResult.words, ...deduped];
+      return {
+        type: 'meaning',
+        words: merged.slice(0, limit),
+        // The merge is the reason `OFFSET` was never an option here: the kana
+        // half is prepended and the English half de-duplicated against it, so
+        // the boundary between pages moves. `jpResult.hasMore` still counts —
+        // its own words were paged before the merge saw them.
+        hasMore: merged.length > limit || jpResult.hasMore,
+      };
     }
 
-    return { type: 'meaning', words: englishWords };
+    return {
+      type: 'meaning',
+      words: englishWords.slice(0, limit),
+      hasMore: englishWords.length > limit,
+    };
   }
 
   throw new Error('Enter a kanji, kana, or English word.');
@@ -213,37 +270,51 @@ export async function getWordDetailsLocal(id: number): Promise<WordDetails> {
 
 type SearchKind = 'word' | 'kana';
 
+/**
+ * The word/kana shape, paged.
+ *
+ * Extracted because the ternary below was written out three times and now has
+ * a third thing to keep in step (`hasMore`) — the slice, the overflow test and
+ * the shape belong together in one place.
+ *
+ * `words` arrives here **unsliced**: this is what pages it, so callers hand
+ * over everything hydration produced, probe row included.
+ */
+function pagedFrame(kind: SearchKind, words: WordResult[], limit: number): SearchResponse {
+  const page = words.slice(0, limit);
+  const hasMore = words.length > limit;
+  return kind === 'word'
+    ? { type: 'word', words: page, hasMore }
+    : { type: 'kana', words: page, names: [], kanjis: [], hasMore };
+}
+
 async function japaneseWithDeinflection(
   q: string,
   kind: SearchKind,
+  limit: number = PAGE_SIZE,
 ): Promise<SearchResponse> {
+  const probe = limit + 1;
+
   // Direct match first.
-  const direct = await searchJapaneseForms([q], RESULT_LIMIT);
+  const direct = await searchJapaneseForms([q], probe);
   if (direct.length > 0) {
-    const words = await hydrateAndAnnotate(direct);
-    return kind === 'word'
-      ? { type: 'word', words }
-      : { type: 'kana', words, names: [], kanjis: [] };
+    return pagedFrame(kind, await hydrateAndAnnotate(direct), limit);
   }
 
   const candidates = deinflect(q);
   const forms = candidates.map((c) => c.base).filter((f) => f !== q);
   if (forms.length === 0) {
-    return kind === 'word'
-      ? { type: 'word', words: [] }
-      : { type: 'kana', words: [], names: [], kanjis: [] };
+    return pagedFrame(kind, [], limit);
   }
 
-  const hits = await searchJapaneseForms(forms, RESULT_LIMIT);
+  const hits = await searchJapaneseForms(forms, probe);
   const inflectionByForm = new Map(candidates.map((c) => [c.base, c.inflections]));
   const words = await hydrateAndAnnotate(hits, (hit) => ({
     from: q,
     path: hit.form ? inflectionByForm.get(hit.form) ?? [] : [],
   }));
 
-  return kind === 'word'
-    ? { type: 'word', words }
-    : { type: 'kana', words, names: [], kanjis: [] };
+  return pagedFrame(kind, words, limit);
 }
 
 type AnnotatedWord = WordResult & {

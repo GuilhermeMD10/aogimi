@@ -488,19 +488,23 @@ export type NameRow = {
   meaning: string | null;
 };
 
-export async function findNamesByKanji(kanji: string): Promise<NameRow[]> {
+// `limit` is a parameter, not the old hardcoded 20, because the name lists are
+// paged alongside the words — see `searchLocal`. The kanji-by-reading queries
+// above take no limit and are deliberately left uncapped: a reading maps to a
+// handful of characters, never a page's worth.
+export async function findNamesByKanji(kanji: string, limit = 20): Promise<NameRow[]> {
   const db = await getDictionary();
   return db.getAllAsync<NameRow>(
-    `SELECT id, kanji, kana, name_type, meaning FROM names WHERE kanji = ? LIMIT 20`,
-    [kanji],
+    `SELECT id, kanji, kana, name_type, meaning FROM names WHERE kanji = ? LIMIT ?`,
+    [kanji, limit],
   );
 }
 
-export async function findNamesByKana(kana: string): Promise<NameRow[]> {
+export async function findNamesByKana(kana: string, limit = 20): Promise<NameRow[]> {
   const db = await getDictionary();
   return db.getAllAsync<NameRow>(
-    `SELECT id, kanji, kana, name_type, meaning FROM names WHERE kana = ? LIMIT 20`,
-    [kana],
+    `SELECT id, kanji, kana, name_type, meaning FROM names WHERE kana = ? LIMIT ?`,
+    [kana, limit],
   );
 }
 

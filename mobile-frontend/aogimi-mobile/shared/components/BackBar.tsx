@@ -1,20 +1,18 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Touchable } from './Touchable';
 import { useRouter } from 'expo-router';
-import Feather from '@expo/vector-icons/Feather';
+import { BackButton } from './BackButton';
 import { useT } from '@/lib/i18n/I18nContext';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
 
 /**
- * The way out of a pushed screen: a chevron and the word "Back".
+ * The way out of a pushed screen, plus the screen's heading.
  *
- * **This is the app's existing affordance, kept on purpose.** The design
- * handoff draws it as a 38px bordered box holding a bare chevron; a boxed
- * icon-only control is both a smaller target and less obvious than a labelled
- * one, and every pushed screen in the app already uses this row. Keeping it
- * means Profile, Settings and the settings sub-pages all exit the same way.
+ * The control itself is `BackButton` — a bare chevron over a 44pt square. It
+ * used to be a chevron *and* the word "Back" on one row, which was a line of
+ * text pretending to be a button: the label said nothing the chevron does not,
+ * and the hit area was the height of the glyph. See `BackButton` for the rest.
  *
  * Extracted from `LanguageView` / `AppearanceView`, which had identical copies,
  * when Profile and Settings became the third and fourth callers.
@@ -43,14 +41,7 @@ export function BackBar({
 
   return (
     <View style={styles.wrap}>
-      <Touchable
-        onPress={onBack ?? (() => router.back())}
-        accessibilityRole="button"
-        style={styles.backRow}
-      >
-        <Feather name="chevron-left" size={22} color={p.ink} />
-        <Text style={styles.backLabel}>{t('common.back')}</Text>
-      </Touchable>
+      <BackButton label={t('common.back')} onPress={onBack ?? (() => router.back())} />
 
       <View style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>
@@ -68,21 +59,12 @@ function useStyles(p: Palette) {
     () =>
       StyleSheet.create({
         wrap: { marginBottom: spacing.md },
-        backRow: {
+        titleRow: {
           flexDirection: 'row',
-          alignItems: 'center',
-          gap: 2,
-          marginBottom: spacing.sm,
-          // Pulled left so the chevron's own glyph padding lines the *label* up
-          // with the title below it rather than the icon box.
-          marginLeft: -6,
+          alignItems: 'baseline',
+          gap: spacing.sm,
+          marginTop: spacing.xs,
         },
-        backLabel: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.md,
-          color: p.ink,
-        },
-        titleRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
         title: {
           fontFamily: fontFamily.ui,
           fontSize: fontSize.lg + 1,

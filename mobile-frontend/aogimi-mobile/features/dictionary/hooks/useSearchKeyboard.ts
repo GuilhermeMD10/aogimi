@@ -13,10 +13,11 @@ import { Keyboard, type TextInput } from 'react-native';
  *
  * The rule now, and there is only one:
  *
- *   · **A tap on the field is the only thing that opens the keyboard.** Nothing
- *     in this feature calls `focus()` — the old empty-state card wrapped the
- *     field in a `Pressable` that did, which is why a tap near the bar could
- *     raise it again.
+ *   · **Only the field opens the keyboard**, and only from a tap on it or on
+ *     its clear segment. The one `focus()` in the feature is that segment's —
+ *     clearing is the start of the next query, so it hands the keyboard back.
+ *     Nothing else calls it; the old empty-state card wrapped the field in a
+ *     `Pressable` that did, which is why a tap *near* the bar could raise it.
  *   · **Return, a result, a kanji, a recent, a frame change or a tap on the
  *     page all close it**, through `dismiss()`.
  *

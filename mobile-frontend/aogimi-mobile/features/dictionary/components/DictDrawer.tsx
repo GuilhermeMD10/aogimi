@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Feather from '@expo/vector-icons/Feather';
+import { BackButton } from '@/shared/components/BackButton';
 import { BottomSheet } from '@/shared/components/BottomSheet';
-import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
+import { PressableBackdrop } from '@/shared/components/Touchable';
 import { useT } from '@/lib/i18n/I18nContext';
 import { usePalette } from '@/theme/ThemeContext';
 import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
@@ -83,7 +83,11 @@ function DictDrawerInner({
   const [stage, setStage] = useState<Stage>({ kind: 'search' });
   const [error, setError] = useState<string | null>(null);
 
-  const searchState = useDictionarySearch(query);
+  // Only the state: the sheet stays on page one. A 65% overlay over a book is
+  // the wrong place to grow an unbounded list — the tab is where you go to
+  // work through every match. Wiring `loadMore` here is a one-line change if
+  // that judgement turns out wrong.
+  const { state: searchState } = useDictionarySearch(query);
   const rows = useMemo(
     () => (searchState.kind === 'results' ? resultRows(searchState.response) : []),
     [searchState],
@@ -118,18 +122,16 @@ function DictDrawerInner({
     return (
       <View style={styles.flex}>
         <View style={styles.header}>
-          <Touchable
+          {/* Smaller chevron than a page's — the sheet is at `compact` scale —
+              but the same 44pt square underneath it. */}
+          <BackButton
+            label={t('dict.backToResults')}
+            size={20}
             onPress={() => {
               dismiss();
               setStage({ kind: 'search' });
             }}
-            accessibilityRole="button"
-            minTarget={false}
-            style={styles.backLink}
-          >
-            <Feather name="chevron-left" size={13} color={p.muted} />
-            <Text style={styles.backLabel}>{t('dict.backToResults')}</Text>
-          </Touchable>
+          />
         </View>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <EntryView
@@ -208,19 +210,6 @@ function useStyles(p: Palette) {
         scroll: { paddingHorizontal: spacing.xl - 2, paddingBottom: spacing.xl },
         centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
         spinner: { marginTop: spacing.lg },
-        backLink: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 5,
-          paddingVertical: spacing.xs,
-        },
-        backLabel: {
-          fontFamily: fontFamily.mono,
-          fontSize: fontSize.xs - 1,
-          letterSpacing: 1.2,
-          textTransform: 'uppercase',
-          color: p.muted,
-        },
         error: {
           fontFamily: fontFamily.ui,
           fontSize: fontSize.sm,

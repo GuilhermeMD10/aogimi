@@ -1,4 +1,4 @@
-import { getWordDetailsLocal, searchLocal } from './localDict';
+import { getWordDetailsLocal, PAGE_SIZE, searchLocal } from './localDict';
 import { cacheSearch, cacheWord, peekSearch, peekWord } from './dictCache';
 import type { SearchResponse, WordDetails } from '../types';
 
@@ -14,11 +14,17 @@ import type { SearchResponse, WordDetails } from '../types';
 // — local queries can't actually be aborted mid-flight, but if the
 // caller aborts after the resolve we still skip the cache write to
 // avoid populating it with stale data.
-export async function queryDictionary(q: string, signal?: AbortSignal): Promise<SearchResponse> {
-  const cached = peekSearch(q);
+/** `limit` is the page size — see `PAGE_SIZE` in `localDict.ts`. It is part of
+ *  the cache key, not just the query. */
+export async function queryDictionary(
+  q: string,
+  limit: number = PAGE_SIZE,
+  signal?: AbortSignal,
+): Promise<SearchResponse> {
+  const cached = peekSearch(q, limit);
   if (cached) return cached;
-  const response = await searchLocal(q);
-  if (!signal?.aborted) cacheSearch(q, response);
+  const response = await searchLocal(q, limit);
+  if (!signal?.aborted) cacheSearch(q, limit, response);
   return response;
 }
 
