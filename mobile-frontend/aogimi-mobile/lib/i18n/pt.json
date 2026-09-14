@@ -126,6 +126,8 @@
     "good": "Bom",
     "easy": "Fácil",
     "undo": "Desfazer",
+    "finishSession": "Terminar",
+    "lookUp": "Dicionário",
     "studyAgain": "Estudar de novo",
     "backToDeck": "Voltar ao baralho",
     "finish": {
@@ -241,5 +243,14 @@
     "daySub": "Tinta sobre papel",
     "night": "Noite",
     "nightSub": "Meia-noite"
+  },
+  "highlight": {
+    "title": "Cor do destaque",
+    "intro": "A faixa que o leitor pinta atrás do texto selecionado. Todos os valores são translúcidos, portanto a página continua legível por baixo em qualquer tema.",
+    "blue": "Azul",
+    "green": "Verde",
+    "yellow": "Amarelo",
+    "pink": "Rosa",
+    "grey": "Cinza"
   }
 }

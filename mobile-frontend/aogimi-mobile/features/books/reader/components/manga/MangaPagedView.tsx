@@ -63,14 +63,35 @@ export const MangaPagedView = forwardRef<MangaPagedViewHandle, Props>(function M
     return idx < 0 ? 0 : idx;
   }, [handle, initialSpineIndex, entries]);
 
+  // Which PAGE the reader is on, as opposed to where that page currently sits
+  // in the gallery's array. The two are not the same thing once the array can
+  // be reversed underneath it, and that difference is the whole bug below.
+  const currentSpineRef = useRef<number | null>(null);
+
   const onIndexChange = useCallback(
     (idx: number) => {
-      if (!onSpineChange) return;
       const entry = entries[idx];
-      if (entry) onSpineChange(entry.spineIndex);
+      if (!entry) return;
+      currentSpineRef.current = entry.spineIndex;
+      onSpineChange?.(entry.spineIndex);
     },
     [entries, onSpineChange],
   );
+
+  // Flipping the reading direction reverses `entries`, but the gallery holds
+  // on to the positional index it already had -- and after a reverse that
+  // index names a different page entirely. Position 0 becomes the LAST page,
+  // which is why turning the toggle on page one threw the reader to the end of
+  // the book. Nothing was wrong with the flow; the page under the index moved.
+  //
+  // So: re-point the gallery at the page they were actually reading. Same
+  // page, approached from the other side, which is all the toggle ever meant.
+  useEffect(() => {
+    const spine = currentSpineRef.current;
+    if (spine == null) return;
+    const idx = entries.findIndex((e) => e.spineIndex === spine);
+    if (idx >= 0) galleryRef.current?.setIndex(idx, false);
+  }, [entries]);
 
   const renderItem = useCallback(
     ({

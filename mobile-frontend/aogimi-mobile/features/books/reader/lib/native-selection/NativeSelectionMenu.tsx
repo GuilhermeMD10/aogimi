@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
 import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
 import { palette } from '@/theme/tokens';
 import { computeMenuPosition, type SelectionRect, type Viewport } from './menuPosition';
@@ -13,12 +14,23 @@ type Props = {
   onDismiss: () => void;
 };
 
-type Item = { key: NativeMenuKey; label: string };
+// Icons rather than words. The three actions are short, frequent and always
+// the same three, so a glyph is quicker to hit than a word is to read -- and
+// it keeps the menu narrow enough to sit over a line of text without covering
+// the sentence the reader is looking at. The word survives as the
+// accessibility label, which is the place that actually needs it.
+type Item = {
+  key: NativeMenuKey;
+  label: string;
+  icon: React.ComponentProps<typeof Feather>['name'];
+};
 const ITEMS: Item[] = [
-  { key: 'dict', label: 'Dict' },
-  { key: 'card', label: 'Card' },
-  { key: 'copy', label: 'Copy' },
+  { key: 'dict', label: 'Dictionary', icon: 'book-open' },
+  { key: 'card', label: 'Add card', icon: 'plus-square' },
+  { key: 'copy', label: 'Copy', icon: 'copy' },
 ];
+
+const ICON_SIZE = 20;
 
 // Replaces the OS selection bubble. Positioned above the selection by
 // default; flips below when there's no room at the top. Tap outside to
@@ -39,60 +51,76 @@ export function NativeSelectionMenu({ selectionRect, viewport, onAction, onDismi
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
       <PressableBackdrop onPress={onDismiss} style={StyleSheet.absoluteFill} />
+      {/* Two views, because one cannot do both jobs: overflow:hidden sets
+          masksToBounds on iOS, which clips the view's own shadow along with
+          its children. The outer view casts, the inner view clips. */}
       <View
         onLayout={onLayout}
         style={[
-          styles.menu,
+          styles.shadow,
           pos
             ? { top: pos.top, left: pos.left, opacity: 1 }
             : { top: 0, left: 0, opacity: 0 },
         ]}
       >
-        {ITEMS.map((item, idx) => (
-          <View key={item.key} style={styles.itemWrap}>
-            {idx > 0 && <View style={styles.divider} />}
-            <Touchable
-              minTarget={false}
-              hitSlop={6}
-              onPress={() => onAction(item.key)}
-              style={styles.item}
-            >
-              <Text style={styles.label}>{item.label}</Text>
-            </Touchable>
-          </View>
-        ))}
+        <View style={styles.menu}>
+          {ITEMS.map((item, idx) => (
+            <View key={item.key} style={styles.itemWrap}>
+              {idx > 0 && <View style={styles.divider} />}
+              <Touchable
+                minTarget={false}
+                hitSlop={8}
+                onPress={() => onAction(item.key)}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                style={styles.item}
+              >
+                <Feather name={item.icon} size={ICON_SIZE} color={palette.btnInk} />
+              </Touchable>
+            </View>
+          ))}
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Light panel, black labels, token borders — like every other popover.
-  menu: {
+  // A dark panel with light glyphs, not the pale popover this used to be.
+  //
+  // It is the one piece of chrome that has to land ON the page, over whatever
+  // the book is made of, and the page is light, sepia or dark depending on the
+  // reader's theme. A near-white panel had almost nothing to separate it from
+  // a light page. btn/btnInk is the palette's filled-primary pair -- its
+  // highest-contrast combination -- so the menu reads on all three.
+  // Casts only. No background and no mask, so the shadow is free to draw.
+  shadow: {
     position: 'absolute',
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  // Clips only.
+  menu: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    backgroundColor: palette.paper,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.paperBd,
-    borderRadius: 12,
+    backgroundColor: palette.btn,
+    borderRadius: 14,
     overflow: 'hidden',
   },
   itemWrap: { flexDirection: 'row', alignItems: 'stretch' },
   divider: {
     width: StyleSheet.hairlineWidth,
-    backgroundColor: palette.paperBd,
+    // Reads as a seam on the dark face; paperBd would vanish into it.
+    backgroundColor: palette.soft,
   },
   item: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  label: {
-    color: palette.ink,
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 0.2,
   },
 });

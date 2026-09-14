@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Platform, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import type { SuppressMenuItem } from 'react-native-webview/lib/WebViewTypes';
 import { File } from 'expo-file-system';
@@ -11,14 +11,12 @@ import {
   type FoliateBridgeInbound,
   type FoliateBridgeOutbound,
   type ReaderThemeStyle,
-  type ReaderViewMode,
 } from '../../lib/foliateHtml';
 
 // foliate-js WebView wrapper. Sole reader path after the epubjs migration.
 
 export type FoliateReaderHandle = {
   setStyle: (style: ReaderThemeStyle) => void;
-  setViewMode: (mode: ReaderViewMode) => void;
   goTo: (cfi: string) => void;
   goToSpine: (index: number) => void;
   next: () => void;
@@ -56,9 +54,23 @@ export type CustomMenuKey = 'dict' | 'card' | 'copy';
 export type CustomMenuEvent = { key: CustomMenuKey; selectedText: string };
 
 // OS selection bubble is replaced by NativeSelectionMenu (rendered by the
-// reader screen). We pass `menuItems: []` and exhaustively suppress every
-// stock action so the bubble has nothing to draw.
-const MENU_ITEMS: { key: CustomMenuKey; label: string }[] = [];
+// reader screen). On Android we pass `menuItems: []`, which leaves the
+// action-mode bubble with nothing to draw, and exhaustively suppress every
+// stock action.
+//
+// **iOS must not get the prop at all.** react-native-webview installs a
+// UILongPressGestureRecognizer on the host view whenever `menuItems` is
+// non-nil, with `cancelsTouchesInView = YES` and a 0.4s minimum duration
+// (RNCWebViewImpl.m, setupWebView / startLongPress). The moment it
+// recognises, UIKit cancels the touches already delivered to the WKWebView,
+// the page sees `touchcancel`, and the hold-and-drag selection is torn down
+// mid-gesture -- which is why highlighting did nothing at all on device. We
+// render our own menu from the `selection` bridge message, so nothing on
+// this path needs the native bubble; `suppressMenuItems` is checked before
+// `menuItems` in `canPerformAction`, so dropping one keeps the other
+// working.
+const MENU_ITEMS: { key: CustomMenuKey; label: string }[] | undefined =
+  Platform.OS === 'ios' ? undefined : [];
 // react-native-webview only exposes this fixed union for suppression. That
 // covers iOS's stock items; on Android the bubble has fewer items by default
 // and an empty menuItems list collapses it.
@@ -93,6 +105,10 @@ type Props = {
   onReady?: (payload: ReadyPayload) => void;
   onRelocated?: (payload: RelocatedPayload) => void;
   onSelection?: (payload: SelectionPayload) => void;
+  /** Selection touch feedback, fired from inside the WebView's drag gesture.
+   *  Kept as a callback rather than firing expo-haptics here so the reader
+   *  screen stays the single owner of what the app feels like. */
+  onHaptic?: (kind: 'start' | 'tick') => void;
   onCustomMenu?: (event: CustomMenuEvent) => void;
   onError?: (message: string) => void;
 };
@@ -108,6 +124,7 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
     onReady,
     onRelocated,
     onSelection,
+    onHaptic,
     onCustomMenu,
     onError,
   },
@@ -145,7 +162,6 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
     ref,
     () => ({
       setStyle: (style) => post({ type: 'setStyle', style }),
-      setViewMode: (mode) => post({ type: 'setViewMode', mode }),
       goTo: (cfi) => post({ type: 'goToCfi', cfi }),
       goToSpine: (index) => post({ type: 'goToSpine', index }),
       next: () => post({ type: 'next' }),
@@ -209,8 +225,9 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
       else if (msg.type === 'error') onError?.(msg.message);
       else if (msg.type === 'relocated') onRelocated?.(msg);
       else if (msg.type === 'selection') onSelection?.(msg);
+      else if (msg.type === 'haptic') onHaptic?.(msg.kind);
     },
-    [onReady, onError, onRelocated, onSelection],
+    [onReady, onError, onRelocated, onSelection, onHaptic],
   );
 
   const handleCustomMenu = useCallback(

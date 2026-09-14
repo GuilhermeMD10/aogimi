@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Dimensions, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
 import { useColors } from '@/theme/ThemeContext';
 import { fontFamily, palette } from '@/theme/tokens';
-import type { MangaPageDir, ReaderDirection, ReaderLayout } from '../lib/readerLayout';
+import type { MangaPageDir } from '../lib/readerLayout';
 import type { ReaderPrefs } from '../lib/readerStorage';
 import type { EpubTocItem } from '../lib/foliateHtml';
 import { TocPane } from './dock/TocPane';
@@ -32,9 +32,6 @@ import { SettingsPane } from './dock/SettingsPane';
 export type DockMode = 'pill' | 'toolbar' | 'toc' | 'settings';
 
 type Props = {
-  layout: ReaderLayout;
-  direction: ReaderDirection;
-
   // Manga variant: hides the TYPE / SCROLL / HORIZ controls (irrelevant for
   // fixed-layout pages). Title + progress live in the top bar now, so the
   // toolbar doesn't carry per-page metadata anymore.
@@ -57,11 +54,6 @@ type Props = {
   onNext: () => void;
   onNavigate: (href: string) => void;
   onChangePrefs: (patch: Partial<ReaderPrefs>) => void;
-  onChangeLayout: (patch: { layout?: ReaderLayout; direction?: ReaderDirection }) => void;
-  // Fires whenever the dock's internal mode changes. The reader uses this
-  // to slide the floating back chevron out of the way when the dock
-  // expands beyond the pill.
-  onModeChange?: (mode: DockMode) => void;
 };
 
 // ─── Layout per mode ─────────────────────────────────────────────────────────
@@ -74,7 +66,7 @@ const PILL_HEIGHT = 38;
 const PILL_BOTTOM = 22;
 const PILL_RADIUS = 999;
 
-const TOOLBAR_HEIGHT = 168;
+const TOOLBAR_HEIGHT = 108;
 const PANE_HEIGHT = Math.round(SCREEN_H * 0.7);
 
 const SHEET_WIDTH = SCREEN_W;
@@ -85,7 +77,8 @@ const MODES: Record<
   DockMode,
   {
     width: number;
-    height: number;
+    /** Omitted means "as tall as its content" -- see `settings`. */
+    height?: number;
     bottom: number;
     radius: number;
     backdrop: boolean;
@@ -94,7 +87,11 @@ const MODES: Record<
   pill: { width: PILL_WIDTH, height: PILL_HEIGHT, bottom: PILL_BOTTOM, radius: PILL_RADIUS, backdrop: false },
   toolbar: { width: SHEET_WIDTH, height: TOOLBAR_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: false },
   toc: { width: SHEET_WIDTH, height: PANE_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: true },
-  settings: { width: SHEET_WIDTH, height: PANE_HEIGHT, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: false },
+  // No height: the typography pane is four rows of controls and nothing that
+  // scrolls, so a fixed box could only be too big -- and at PANE_HEIGHT it was,
+  // spending 70% of the screen on something that needs a third of it. Leaving
+  // height off lets the container take the height of what it actually holds.
+  settings: { width: SHEET_WIDTH, bottom: SHEET_BOTTOM, radius: SHEET_RADIUS, backdrop: false },
 };
 
 // Swipe-down close thresholds.
@@ -106,11 +103,6 @@ export function ReaderBottomDock(props: Props) {
 
   const [mode, setMode] = useState<DockMode>('pill');
   const box = MODES[mode];
-
-  const onModeChange = props.onModeChange;
-  useEffect(() => {
-    onModeChange?.(mode);
-  }, [mode, onModeChange]);
 
   // ── Step-back ────────────────────────────────────────────────────────
   // Single rule: collapse one level. Pane → toolbar → pill.
@@ -150,13 +142,24 @@ export function ReaderBottomDock(props: Props) {
         <PressableBackdrop style={StyleSheet.absoluteFill} onPress={stepBack} />
       )}
 
-      {/* The container. */}
+      {/* The container.
+
+          At rest the pill is the only chrome on screen and it sits directly
+          ON the page, so it takes the same treatment as the selection menu:
+          the palette's filled-primary pair, which is its highest-contrast
+          combination and therefore the one thing that reads against a light,
+          sepia or dark page alike. As bgElev over a near-white page it was
+          all but invisible.
+
+          Expanded, the dock is a sheet with its own edge against dimmed or
+          displaced content, so it stays on the surface tokens. */}
       <View
         style={[
           styles.container,
+          expanded
+            ? { backgroundColor: c.bgElev, borderColor: c.border }
+            : [styles.pillSurface, { backgroundColor: palette.btn }],
           {
-            backgroundColor: c.bgElev,
-            borderColor: c.border,
             width: box.width,
             height: box.height,
             bottom: box.bottom,
@@ -170,13 +173,11 @@ export function ReaderBottomDock(props: Props) {
           </View>
         )}
 
-        <View style={styles.contentWrap}>
-          {mode === 'pill' && <PillContent colors={c} onPress={() => setMode('toolbar')} />}
+        <View style={[styles.contentWrap, box.height == null && styles.contentAuto]}>
+          {mode === 'pill' && <PillContent onPress={() => setMode('toolbar')} />}
           {mode === 'toolbar' && (
             <ToolbarContent
               colors={c}
-              layout={props.layout}
-              direction={props.direction}
               variant={props.variant ?? 'default'}
               mangaMode={props.mangaMode}
               onToggleMangaMode={props.onToggleMangaMode}
@@ -186,7 +187,6 @@ export function ReaderBottomDock(props: Props) {
               onNext={props.onNext}
               onOpenToc={() => setMode('toc')}
               onOpenSettings={() => setMode('settings')}
-              onChangeLayout={props.onChangeLayout}
             />
           )}
           {mode === 'toc' && (
@@ -199,13 +199,7 @@ export function ReaderBottomDock(props: Props) {
             />
           )}
           {mode === 'settings' && (
-            <SettingsPane
-              prefs={props.prefs}
-              layout={props.layout}
-              direction={props.direction}
-              onChange={props.onChangePrefs}
-              onLayoutChange={props.onChangeLayout}
-            />
+            <SettingsPane prefs={props.prefs} onChange={props.onChangePrefs} />
           )}
         </View>
       </View>
@@ -217,7 +211,7 @@ export function ReaderBottomDock(props: Props) {
 // Pill content (A1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PillContent({ colors: c, onPress }: { colors: ReturnType<typeof useColors>; onPress: () => void }) {
+function PillContent({ onPress }: { onPress: () => void }) {
   return (
     <Touchable
       minTarget={false}
@@ -227,7 +221,7 @@ function PillContent({ colors: c, onPress }: { colors: ReturnType<typeof useColo
       accessibilityLabel="Open reader controls"
       style={styles.pillRow}
     >
-      <Text style={[styles.pillDots, { color: c.fgMuted }]}>•••</Text>
+      <Text style={styles.pillDots}>•••</Text>
     </Touchable>
   );
 }
@@ -238,8 +232,6 @@ function PillContent({ colors: c, onPress }: { colors: ReturnType<typeof useColo
 
 function ToolbarContent({
   colors: c,
-  layout,
-  direction,
   variant,
   mangaMode,
   onToggleMangaMode,
@@ -249,11 +241,8 @@ function ToolbarContent({
   onNext,
   onOpenToc,
   onOpenSettings,
-  onChangeLayout,
 }: {
   colors: ReturnType<typeof useColors>;
-  layout: ReaderLayout;
-  direction: ReaderDirection;
   variant: 'default' | 'manga';
   mangaMode?: 'scroll' | 'pages';
   onToggleMangaMode?: () => void;
@@ -263,64 +252,47 @@ function ToolbarContent({
   onNext: () => void;
   onOpenToc: () => void;
   onOpenSettings: () => void;
-  onChangeLayout: (patch: { layout?: ReaderLayout; direction?: ReaderDirection }) => void;
 }) {
-  const flowNext: ReaderLayout = layout === 'continuous' ? 'pages' : 'continuous';
-  const dirNext: ReaderDirection = direction === 'horizontal' ? 'vertical' : 'horizontal';
   const isManga = variant === 'manga';
   return (
     <View style={styles.toolbar}>
-      {/* Page-nav row. Chevrons drive prev/next; the center icon opens
-          the chapter list (title + progress moved up to the top bar). */}
-      <View style={[styles.pageRow, { borderBottomColor: c.border }]}>
+      {/* One row for everything.
+          The arrows keep the edges, because that is where their direction
+          reads from -- left goes back, right goes on -- and the tools sit
+          between them. It was two rows, arrows above and TYPE below, which
+          spent a whole band of the dock on a single button. */}
+      <View style={styles.toolRow}>
         <NavCell colors={c} icon="chevron-left" onPress={onPrev} ariaLabel="Previous page" />
 
-        <Touchable onPress={onOpenToc} accessibilityLabel="Open chapter list" style={styles.pageMeta}>
-          <Feather name="list" size={18} color={c.fgMuted} />
-        </Touchable>
+        <View style={styles.tools}>
+          <ToolCol colors={c} icon="list" label="TOC" onPress={onOpenToc} />
+          {isManga && onToggleMangaMode && (
+            <ToolCol
+              colors={c}
+              icon={mangaMode === 'pages' ? 'menu' : 'file-text'}
+              label={mangaMode === 'pages' ? 'SCROLL' : 'PAGES'}
+              onPress={onToggleMangaMode}
+            />
+          )}
+          {isManga && mangaMode === 'pages' && onToggleMangaPageDir && (
+            <ToolCol
+              colors={c}
+              // Reading direction only matters in pages mode; in scroll mode
+              // pages stack top-to-bottom regardless.
+              icon={mangaPageDir === 'rtl' ? 'arrow-left' : 'arrow-right'}
+              label={mangaPageDir === 'rtl' ? 'RTL' : 'LTR'}
+              onPress={onToggleMangaPageDir}
+            />
+          )}
+          {/* Typography is the only reading control a reflowable book has
+              left -- SCROLL/PAGES and VERT/HORIZ are gone, because the book
+              decides its own flow now (see readerLayout). */}
+          {!isManga && (
+            <ToolCol colors={c} icon="type" label="TYPE" onPress={onOpenSettings} />
+          )}
+        </View>
 
         <NavCell colors={c} icon="chevron-right" onPress={onNext} ariaLabel="Next page" />
-      </View>
-
-      {/* Action row. Manga trims to a mode toggle that swaps between vertical
-          scroll (continuous stream) and horizontal paged (one-page-at-a-time
-          pinch-zoom gallery), plus the page-flip direction. */}
-      <View style={styles.actionRow}>
-        {isManga && onToggleMangaMode && (
-          <ToolCol
-            colors={c}
-            icon={mangaMode === 'pages' ? 'menu' : 'file-text'}
-            label={mangaMode === 'pages' ? 'SCROLL' : 'PAGES'}
-            onPress={onToggleMangaMode}
-          />
-        )}
-        {isManga && mangaMode === 'pages' && onToggleMangaPageDir && (
-          <ToolCol
-            colors={c}
-            // Reading direction only matters in pages mode; in scroll mode
-            // pages stack top-to-bottom regardless.
-            icon={mangaPageDir === 'rtl' ? 'arrow-left' : 'arrow-right'}
-            label={mangaPageDir === 'rtl' ? 'RTL' : 'LTR'}
-            onPress={onToggleMangaPageDir}
-          />
-        )}
-        {!isManga && (
-          <>
-            <ToolCol colors={c} icon="type" label="TYPE" onPress={onOpenSettings} />
-            <ToolCol
-              colors={c}
-              icon={layout === 'continuous' ? 'menu' : 'file-text'}
-              label={layout === 'continuous' ? 'SCROLL' : 'PAGES'}
-              onPress={() => onChangeLayout({ layout: flowNext })}
-            />
-            <ToolCol
-              colors={c}
-              icon={direction === 'horizontal' ? 'columns' : 'align-left'}
-              label={direction === 'horizontal' ? 'HORIZ' : 'VERT'}
-              onPress={() => onChangeLayout({ direction: dirNext })}
-            />
-          </>
-        )}
       </View>
     </View>
   );
@@ -415,13 +387,37 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
   },
+  // Resting pill: no hairline (it would only darken an already-dark edge) and
+  // a cast shadow instead, which is what separates it from the page. Same
+  // values as the selection menu, so the two read as one family.
+  pillSurface: {
+    borderColor: 'transparent',
+    // overflow:hidden sets masksToBounds on iOS, which clips a view's OWN
+    // shadow as well as its children. The pill holds one centred glyph and
+    // has nothing that needs clipping, so it drops the mask and the shadow
+    // actually draws. (The expanded sheet keeps the mask -- its panes do run
+    // to the rounded corners -- which is why the shadow lives only here.)
+    overflow: 'visible',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
   contentWrap: { flex: 1 },
+  // `flex: 1` is `flexBasis: 0` in RN, so inside a container that takes ITS
+  // height from its content (the settings box) it resolves against zero free
+  // space and collapses the pane to nothing. Modes with no fixed height opt
+  // out and are measured normally.
+  contentAuto: { flex: 0 },
 
   // Handle (expanded modes)
   handleArea: {
     paddingTop: 10,
     paddingBottom: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 36,
   },
   handle: { width: 40, height: 5, borderRadius: 99 },
 
@@ -434,16 +430,29 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 14,
   },
-  pillDots: { fontSize: 18, fontWeight: '500', lineHeight: 18, letterSpacing: 2 },
+  pillDots: {
+    color: palette.btnInk,
+    fontSize: 18,
+    fontWeight: '500',
+    lineHeight: 18,
+    letterSpacing: 2,
+  },
 
   // Toolbar
   toolbar: { flex: 1, paddingHorizontal: 8, paddingBottom: 16 },
-  pageRow: {
+  toolRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 6,
     gap: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  // Takes the space between the two arrows and shares it out, so the tools
+  // stay centred however many of them this variant renders.
+  tools: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
   },
   navCell: {
     width: 36,
@@ -451,17 +460,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pageMeta: { flex: 1, alignItems: 'center' },
-  pageMetaText: {
-    fontSize: 14,
-    fontWeight: '500',
-    maxWidth: '100%',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 10,
   },
   tool: {
     minWidth: 44,

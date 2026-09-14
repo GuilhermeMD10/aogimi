@@ -16,6 +16,7 @@ import {
   updateBookIdentity,
 } from './booksApi';
 import type { BookRecord, LocalBookEntry, PendingPayload } from '../types';
+import type { ImportedBook } from './bookFiles';
 import { getEntry, markSynced, readAllEntries } from './bookLocalState';
 import { buildMatchCandidate } from './matchCandidate';
 import { pushForBook } from './readerStatePush';
@@ -302,4 +303,19 @@ export async function syncOneBookOnDemand(
   } catch {
     return { ok: false, reason: 'network' };
   }
+}
+
+/**
+ * The snapshot a pending entry stores, built from a freshly imported file.
+ *
+ * `PendingPayload` is `ImportedBook` minus the on-disk bits (filename, uri,
+ * the same-bytes flag) plus the import timestamp, so this used to be written
+ * out field by field at the call site -- twenty lines of `x: imported.x` that
+ * had to be edited every time the fingerprint gained a field, and silently
+ * dropped it if anyone forgot.
+ */
+export function pendingPayloadFrom(imported: ImportedBook): PendingPayload {
+  const { filename, uri, wasAlreadyPresentSameBytes, ...fingerprint } = imported;
+  void filename; void uri; void wasAlreadyPresentSameBytes;
+  return { ...fingerprint, firstSeenAt: new Date().toISOString() };
 }

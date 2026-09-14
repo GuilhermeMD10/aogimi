@@ -5,11 +5,28 @@ import { booksDir } from './bookPaths';
 import { sha256Hex } from './fingerprint/hash';
 import { FINGERPRINT_VERSION } from './fingerprint/version';
 import { getStoredFileHash, setStoredFileHash } from './bookLocalState';
+import { checkImportCandidate, type ImportCheckFailure } from './importChecks';
 
 // Path / existence helpers + the destructive `deleteBookFile` /
 // `wipeAllBookFiles` / `listLocalBookFilenames` exports live in
 // `./bookPaths` so consumers that just need to *read* book paths don't
 // pull this module's import-flow side. Keeps the dependency graph acyclic.
+
+/**
+ * A file that did not pass the import gate.
+ *
+ * Carries the check's own title and message rather than a bare string, so the
+ * caller shows the reader what is actually wrong with their file instead of a
+ * generic "import failed".
+ */
+export class ImportRejectedError extends Error {
+  readonly failure: ImportCheckFailure;
+  constructor(failure: ImportCheckFailure) {
+    super(failure.message);
+    this.name = 'ImportRejectedError';
+    this.failure = failure;
+  }
+}
 
 export type ImportedBook = {
   filename: string;
@@ -257,6 +274,13 @@ export async function importEpub(opts?: {
   // 1. Pick + extension-check.
   const picked = await pickSourceFile(opts);
   if (!picked) return null;
+
+  // 1b. Vet it before anything is written. This has to sit above the copy:
+  //     once commitFileToTarget runs, a bad file is in the books directory
+  //     and has already been pulled into memory to be hashed. Rejecting here
+  //     leaves no trace on disk and costs one stat and five bytes.
+  const failure = checkImportCandidate(picked.source, picked.filename);
+  if (failure) throw new ImportRejectedError(failure);
 
   // 2. Copy bytes to the target slot, honoring the defensive-reimport
   //    rule. After this point the on-disk file is the new one.

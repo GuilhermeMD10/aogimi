@@ -6,6 +6,7 @@ import {
   syncLocalBooksToBackend,
   backfillBookIdentity,
 } from '../lib/bookStore';
+import { findLocalTwin, findRemoteTwin } from '../lib/pairBooks';
 import type { BookProgressRecord } from '@/features/books/types';
 import type { AuthUser } from '@/features/auth/types';
 import type { Book } from '../types';
@@ -63,24 +64,24 @@ export function useSyncBooks(user: AuthUser | null) {
           return;
         }
 
-        let backendMap = new Map<string, BookProgressRecord>();
+        let backendBooks: BookProgressRecord[] = [];
         try {
-          backendMap = await syncLocalBooksToBackend(user.id);
+          backendBooks = await syncLocalBooksToBackend(user.id);
         } catch {
           /* backend unavailable */
         }
         if (cancelled) return;
 
-        const backendBooks = Array.from(backendMap.values());
-
-        const localFilenames = new Set(localBooks.map((b) => b.filename));
-
         // No special case for "signed in on a fresh device". A backend book with
         // no local file merges below as `available: false` and the shelf renders
         // it as a re-import tile, so an empty device is just a library where
         // every tile is waiting for a file — no separate screen to escape from.
+        //
+        // Local and backend are paired by content, not filename (see
+        // `pairBooks`), so the same book held under different names on
+        // different devices merges into one tile instead of two.
         const merged: Book[] = backendBooks.map((remote) => {
-          const local = localBooks.find((b) => b.filename === remote.filename);
+          const local = findLocalTwin(remote, localBooks);
           if (local) {
             return {
               id: local.id,
@@ -107,14 +108,14 @@ export function useSyncBooks(user: AuthUser | null) {
             // Backend says we have this book registered but the file
             // isn't in local IDB — the "locate this file" affordance
             // catches that gap.
-            available: localFilenames.has(remote.filename),
+            available: false,
             backendId: remote.id,
             lastReadAt: remote.last_read_at,
           };
         });
 
         for (const local of localBooks) {
-          if (!backendBooks.find((r) => r.filename === local.filename)) {
+          if (!findRemoteTwin(local, backendBooks)) {
             merged.push({
               id: local.id,
               title: local.title,
@@ -136,7 +137,7 @@ export function useSyncBooks(user: AuthUser | null) {
         // Best-effort: backfill identity for any local books missing fileHash
         // whose backend twin also lacks one. Fire-and-forget.
         for (const local of localBooks.filter((b) => !b.fileHash)) {
-          const remote = backendMap.get(local.filename);
+          const remote = findRemoteTwin(local, backendBooks);
           if (remote && !remote.file_hash) {
             backfillBookIdentity(local.id, remote.id).catch(() => {});
           }

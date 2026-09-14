@@ -1,8 +1,10 @@
-// Single-value defaults for the native selection appearance. Theme hookup
-// (per ReaderThemeStyle or app theme) is a follow-up — keeping the values
-// here lets future themes override by reading from this module.
-
-export const SELECTION_BAND_COLOR = '#C0EDEB';
+// Single-value defaults for the native selection appearance.
+//
+// The selection band itself is **not** here any more: it is a user setting
+// (Profile > Settings > Highlight colour), so its five values live beside the
+// other reader palettes in `readerStorage.ts` as `HIGHLIGHT_COLORS`, and the
+// chosen one reaches the WebView on `ReaderThemeStyle.highlight`. A constant
+// here could not be changed without a rebuild.
 
 // More accented than the band — used by the Android handle drawables (vector
 // line) and as the iOS tint. Mirrored in `android/app/src/main/res/values/

@@ -9,6 +9,7 @@ import {
 import type { BookProgressRecord } from '@/features/books/types';
 import { computeEpubIdentity, extractEpubData, type EpubData } from './epubIdentity';
 import { computePdfIdentity, extractPdfData } from './pdfIdentity';
+import { findRemoteTwin } from './pairBooks';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -395,23 +396,24 @@ export async function ensureBackendBook(
 
 /**
  * Sync all local IndexedDB books to the backend for the given user.
- * Returns a map of filename → backend BookProgressRecord.
+ * Returns the user's backend books, including any this pass registered.
  * Best-effort: books that fail to register are skipped.
  */
 export async function syncLocalBooksToBackend(
   userId: number,
-): Promise<Map<string, BookProgressRecord>> {
+): Promise<BookProgressRecord[]> {
   const [localBooks, remoteBooks] = await Promise.all([
     getAllBooks(),
     getUserBooks(userId),
   ]);
 
-  const remoteMap = new Map<string, BookProgressRecord>();
-  for (const r of remoteBooks) remoteMap.set(r.filename, r);
+  const remotes = [...remoteBooks];
 
-  // Register any local books not yet in the backend
+  // Register any local books the backend doesn't already hold. Paired by
+  // content, not filename (see `pairBooks`) — a locally renamed copy of a
+  // book the account already has must not be pushed as a second register.
   for (const local of localBooks) {
-    if (remoteMap.has(local.filename)) continue;
+    if (findRemoteTwin(local, remotes)) continue;
     // Phase 1 migration aid: pre-phase-1 PDF IDB rows stored /ID[0] in
     // `contentHash`. Route it to `pdfIdOriginal` so older rows backfill
     // the new column on first sync.
@@ -448,13 +450,13 @@ export async function syncLocalBooksToBackend(
         language: local.language,
         publisher: local.publisher,
       });
-      remoteMap.set(registered.filename, registered);
+      remotes.push(registered);
     } catch {
       // Skip this book — will retry next time
     }
   }
 
-  return remoteMap;
+  return remotes;
 }
 
 /**

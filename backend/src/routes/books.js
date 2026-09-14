@@ -26,14 +26,16 @@ const router = Router();
 //
 // The quota check sits AFTER `createBook`'s dedup would have run, so it's
 // done here against the count: `bookService.createBook` returns the existing
-// row when (user, filename) already exists, and re-registering a book the
-// user already has must not be refused. `alreadyRegistered` asks that
-// question first so an at-quota user can still re-sync their own library.
+// row when the caller already has this book (same bytes under any filename,
+// or the same filename slot — see `findExistingRegistration`), and
+// re-registering a book the user already has must not be refused. Asking
+// that question first is what lets an at-quota user re-sync their own
+// library from a second device.
 router.post("/", async (req, res) => {
   const body = parseBody(createBookSchema, req, res);
   if (!body) return;
   try {
-    const existing = await bookService.findByFilename(req.user.userId, body.filename);
+    const existing = await bookService.findExistingRegistration(req.user.userId, body);
     if (!existing && !(await quotas.enforce(res, quotas.bookQuota, req.user.userId))) {
       return;
     }

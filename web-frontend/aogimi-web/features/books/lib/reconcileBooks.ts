@@ -6,17 +6,24 @@
 //
 //   1. Fetch backend `getUserBooks`. Trust the response only when it
 //      parses cleanly — never wipe on a flaky / empty response.
-//   2. For each local IDB book by filename:
-//        - backend has same filename:
+//
+//   Only a filename-paired twin can disagree on file_hash: a hash-paired
+//   one matched BECAUSE the hashes are equal. So the stale-bytes wipe below
+//   fires exactly where it should — same name, different content, no copy
+//   of those bytes anywhere else in the account.
+//   2. For each local IDB book, paired to its backend twin by content
+//      first and filename second (see `pairBooks`):
+//        - backend has a twin:
 //             • backend file_hash matches local → keep
 //             • backend file_hash differs from local → STALE local bytes,
 //               wipe local file + reader_book + reader_progress
 //             • backend has hash, local doesn't → backfill local
 //             • local has hash, backend doesn't → backfill backend
-//        - backend doesn't have it:
-//             • try POST /api/books (idempotent on user+filename) to
-//               re-register. The matcher inside the POST uses the same
-//               file_hash-only auto-attach guard the +-button import does.
+//        - backend has no twin:
+//             • try POST /api/books (idempotent on the caller's file_hash,
+//               else on user+filename) to re-register. The matcher inside
+//               the POST uses the same file_hash-only auto-attach guard the
+//               +-button import does.
 //             • if registration succeeds, re-evaluate file_hash match
 //             • if registration fails (network), keep local for next pass
 //
@@ -41,6 +48,7 @@ import {
   getUserBooks,
   updateBookIdentity as apiUpdateBookIdentity,
 } from './booksApi';
+import { findRemoteTwin } from './pairBooks';
 import { effectiveSyncState, pushAllPending, type SyncSummary } from './sync';
 import type { BookProgressRecord } from '@/features/books/types';
 
@@ -82,7 +90,6 @@ export async function reconcileBooks(
     return summary;
   }
   if (signal?.aborted) return summary;
-  const remoteByFilename = new Map(remoteBooks.map((b) => [b.filename, b]));
 
   // 2. Snapshot local IDB books. If this fails, we have no work to do.
   let localBooks: BookRecord[];
@@ -98,7 +105,7 @@ export async function reconcileBooks(
     // were mid-iteration. Aborts here leave any already-completed
     // operations in place; the next reconcile picks up the rest.
     if (signal?.aborted) return summary;
-    let remote = remoteByFilename.get(local.filename);
+    let remote = findRemoteTwin(local, remoteBooks);
     const syncState = effectiveSyncState(local);
 
     // Pending books are intentionally local-only awaiting a manual push

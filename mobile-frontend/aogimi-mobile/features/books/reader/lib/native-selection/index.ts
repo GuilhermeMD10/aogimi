@@ -1,5 +1,5 @@
-export { SELECTION_BAND_COLOR, POINTER_ACCENT_COLOR } from './constants';
-export { selectionCss, TAP_TO_SELECT_FN } from './webviewInjections';
+export { POINTER_ACCENT_COLOR } from './constants';
+export { TAP_TO_SELECT_FN } from './webviewInjections';
 export {
   computeMenuPosition,
   type SelectionRect,

@@ -4,10 +4,13 @@ import {
   Text,
   View,
 } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
 import { Touchable } from '@/shared/components/Touchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button } from '@/shared/components/Button';
+import { LookupDrawers } from '@/features/dictionary/components/LookupDrawers';
+import { useWordLookup } from '@/features/dictionary/hooks/useWordLookup';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontSize, spacing } from '@/theme/tokens';
@@ -30,8 +33,9 @@ type Props = {
 // lives in its own component or hook:
 //   useStudySession         — queue + algorithm + backend submit + undo
 //   useStudyDisplayPrefs    — preset + front/back toggles, cloud-synced
+//   useWordLookup           — the dictionary sheet raised over the card
 //   CardBody                — card content (kanji/meaning/cloze/etc.)
-//   ResultButtons / UndoButton / FinishPlaceholder
+//   ResultButtons / UndoButton / FinishScreen
 //
 // The session is parameterised by the spec passed in: single-deck
 // modes resolve via deckIds, cross-deck modes via scope='all'.
@@ -41,6 +45,7 @@ export function StudyScreen({ sessionSpec, title }: Props) {
   const router = useRouter();
   const session = useStudySession(sessionSpec);
   const { prefs } = useStudyDisplayPrefs();
+  const lookup = useWordLookup();
   const deckName = title ?? '';
 
   if (session.loading) {
@@ -105,10 +110,13 @@ export function StudyScreen({ sessionSpec, title }: Props) {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
       <View style={styles.topBar}>
-        <Touchable
-        minTarget={false}
-        hitSlop={12} onPress={() => router.back()}>
-          <Text style={[styles.close, { color: c.fg }]}>✕</Text>
+        {/* Leaving early *finishes* — it does not discard. The session ends on
+            the cards answered so far and lands on the same summary a session
+            run to the last card does, which is the only honest reading of a
+            session whose every grade was already written and posted. A ✕ said
+            the opposite: that walking away threw the work out. */}
+        <Touchable minTarget={false} hitSlop={12} onPress={session.finishEarly}>
+          <Text style={[styles.finish, { color: c.fgMuted }]}>{t('study.finishSession')}</Text>
         </Touchable>
         <View style={[styles.track, { backgroundColor: c.bgSunken }]}>
           <View style={[styles.fill, { backgroundColor: c.fg, width: `${progressPct}%` }]} />
@@ -129,10 +137,31 @@ export function StudyScreen({ sessionSpec, title }: Props) {
         {isFront ? (
           <Button label={t('study.tapToReveal')} onPress={session.reveal} full />
         ) : (
-          <ResultButtons onResult={session.submit} />
+          <>
+            <ResultButtons onResult={session.submit} />
+            {/* Back side only: the entry the sheet opens *is* the answer, so
+                offering it on the front would hand the card away rather than
+                look it up. `card.front` and not whatever face is showing —
+                that column is the Japanese headword whichever way the display
+                prefs turn the card, and the deinflector takes the surface form
+                a reader-started card carries (食べました → 食べる). */}
+            <Touchable
+              minTarget={false}
+              hitSlop={8}
+              onPress={() => lookup.open(card.front)}
+              accessibilityRole="button"
+              accessibilityLabel={t('study.lookUp')}
+              style={styles.lookUp}
+            >
+              <Feather name="book-open" size={14} color={c.fgMuted} />
+              <Text style={[styles.lookUpLabel, { color: c.fgMuted }]}>{t('study.lookUp')}</Text>
+            </Touchable>
+          </>
         )}
         <UndoButton onPress={session.undo} disabled={!session.canUndo} />
       </View>
+
+      <LookupDrawers {...lookup.drawers} />
     </SafeAreaView>
   );
 }
@@ -154,7 +183,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  close: { fontSize: 20, lineHeight: 22 },
+  finish: { fontSize: fontSize.sm, fontWeight: '600' },
   track: { flex: 1, height: 4, borderRadius: 99, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 99 },
   count: {
@@ -180,4 +209,12 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     gap: spacing.sm,
   },
+  lookUp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  lookUpLabel: { fontSize: fontSize.sm, fontWeight: '500' },
 });

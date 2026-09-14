@@ -6,7 +6,6 @@ import { fontFamily } from '@/theme/tokens';
 import type { BookRecord } from '@/features/books/types';
 import { bookFilePath } from '@/features/books/lib/bookPaths';
 import { ReaderTopBar } from '../ReaderTopBar';
-import { FloatingBackButton } from '../FloatingBackButton';
 import { PdfDock } from './PdfDock';
 
 type ProgressSnapshot = {
@@ -109,8 +108,8 @@ export function PdfReaderShell({
       <ReaderTopBar
         title={book.title}
         progress={totalPages > 0 ? (currentPage / totalPages) * 100 : 0}
+        onBack={onBack}
       />
-      <FloatingBackButton onPress={onBack} />
 
       <View style={[styles.body, { backgroundColor: c.bg }]}>
         {error ? (

@@ -5,6 +5,7 @@ import { BackBar } from '@/shared/components/BackBar';
 import { DangerButton } from '@/shared/components/DangerButton';
 import { RowGroup, Row, SectionLabel } from '@/shared/components/RowGroup';
 import { LOCALES, useI18n, useT } from '@/lib/i18n/I18nContext';
+import { useReaderPrefs } from '@/features/books/reader/lib/readerPrefs';
 import { useTheme } from '@/theme/ThemeContext';
 import { spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/providers/AuthContext';
@@ -25,6 +26,7 @@ export function SettingsView() {
   const { signOut, status } = useAuth();
   const { preference } = useTheme();
   const { locale } = useI18n();
+  const { prefs, hydrated: highlightHydrated } = useReaderPrefs();
 
   // Sign-out is only meaningful when there is a backend account to leave.
   // Signed-out users see sign-up / sign-in on the Profile screen instead.
@@ -42,6 +44,9 @@ export function SettingsView() {
   // opening the page.
   const themeValue = t(`appearance.${preference}`);
   const localeLabel = LOCALES.find((l) => l.code === locale)?.nativeLabel ?? locale;
+  // Blank until reader prefs hydrate, rather than showing the default and
+  // correcting it a frame later — the same rule the picker page follows.
+  const highlightValue = highlightHydrated ? t(`highlight.${prefs.highlight}`) : undefined;
 
   return (
     <Screen padded>
@@ -61,6 +66,12 @@ export function SettingsView() {
             value={localeLabel}
             chevron
             onPress={() => router.push('/profile/settings/language')}
+          />
+          <Row
+            label={t('highlight.title')}
+            value={highlightValue}
+            chevron
+            onPress={() => router.push('/profile/settings/highlight')}
           />
         </RowGroup>
 

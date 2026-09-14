@@ -20,6 +20,7 @@ import { useProgressSync, type ProgressTarget } from '@/features/books/reader/ho
 import { parsePdfPageCfi } from '@/features/books/reader/lib/pdfPosition';
 import { getAllBooks, getBookFile, ensureBackendBook } from '@/features/books/lib/bookStore';
 import { getUserBooks } from '@/features/books/lib/booksApi';
+import { findRemoteTwin } from '@/features/books/lib/pairBooks';
 import { getReaderProgress } from '@/features/books/lib/readerSession';
 import type { BookProgressRecord } from '@/features/books/types';
 import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
@@ -101,10 +102,15 @@ export default function ReaderView({ bookId }: { bookId: string }) {
 
         // Best-effort registration. Without a backend id the session still
         // opens — `useProgressSync` just keeps to the localStorage buffer.
+        //
+        // The row is found by content, not filename (see `pairBooks`): this
+        // device may hold the file under a different name than the device
+        // that registered it, and registering a second row for it would
+        // strand the reading position on the first.
         let record: BookProgressRecord | undefined;
         try {
           const remote = await getUserBooks(user.id);
-          record = remote.find((b) => b.filename === local.filename);
+          record = findRemoteTwin(local, remote);
           if (!record) record = await ensureBackendBook(local, user.id);
         } catch {
           /* backend unavailable */

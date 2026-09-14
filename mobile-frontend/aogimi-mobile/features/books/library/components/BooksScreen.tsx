@@ -7,12 +7,12 @@ import { Screen } from '@/shared/components/Screen';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import type { BookRecord, PendingPayload } from '../../types';
+import type { BookRecord } from '../../types';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { bookFileExists, renameBookFile } from '../../lib/bookPaths';
-import { importEpub } from '../../lib/bookFiles';
+import { importEpub, ImportRejectedError } from '../../lib/bookFiles';
 import { markPending } from '../../lib/bookLocalState';
-import { pushOneBook } from '../../lib/bookPush';
+import { pendingPayloadFrom, pushOneBook } from '../../lib/bookPush';
 import { useBooks } from '../../hooks/useBooks';
 import { useOnline } from '@/lib/network/network';
 import { ContinueReadingCard } from './ContinueReadingCard';
@@ -128,91 +128,71 @@ export function BooksScreen() {
     router.push(`/reader/${id}`);
   };
 
+  // ── Import ────────────────────────────────────────────────────────────
+  //
+  // One path, in the order the answers actually arrive:
+  //
+  //   pick → vet → is it already here? → keep it → tell the backend → show it
+  //
+  // The tile appears ONCE, already in its settled state. It used to be written
+  // to the library as PENDING the moment the bytes landed and then corrected
+  // afterwards, which meant every successful import flashed UNSYNCED on its way
+  // to green -- and if anything interrupted the correction, it simply stayed
+  // wrong. Nothing is shown now until its sync state is known, and since the
+  // request layer caps every call at 8s, the wait it costs is bounded.
+  //
+  // Offline is unchanged in substance: the file is committed locally before the
+  // push is attempted, so a failed push is a book you have with an UNSYNCED
+  // badge, not a failed import.
   async function handleImport() {
     if (!user || importing) return;
     setImporting(true);
     try {
+      // Throws ImportRejectedError for a file that is not a book we can open.
       const imported = await importEpub();
-      if (!imported) return;
+      if (!imported) return; // cancelled
 
-      // Same bytes already on disk under this filename — nothing to do.
+      // Already here, byte for byte.
       if (imported.wasAlreadyPresentSameBytes) {
         Alert.alert(
           'Already in your library',
-          `"${imported.title || imported.filename}" is already imported on this device with the same bytes.`,
+          `"${imported.title || imported.filename}" is already on this device.`,
         );
-        void silentRefresh();
+        await silentRefresh();
         return;
       }
 
-      // Offline-aware dedup against the cached backend list. If the
-      // imported file matches a cloud record (by file_hash), wire the
-      // local file to that record instead of creating a new pending
-      // entry. Skips any duplicate-creation work at sync time.
+      // Already in the cloud under a different name: adopt the existing record
+      // rather than creating a second one for the same bytes.
       if (imported.fileHash) {
-        const cachedTwin = await findCachedBookByFileHash(imported.fileHash);
-        if (cachedTwin) {
-          if (cachedTwin.filename !== imported.filename) {
-            // Rename the local file to match the canonical backend
-            // filename so the cached BookRecord can resolve to it via
-            // bookFileExists / bookFilePath.
-            renameBookFile(imported.filename, cachedTwin.filename);
+        const twin = await findCachedBookByFileHash(imported.fileHash);
+        if (twin) {
+          if (twin.filename !== imported.filename) {
+            renameBookFile(imported.filename, twin.filename);
           }
           Alert.alert(
-            'Already in your cloud library',
-            `"${cachedTwin.title}" matches what you just imported. The file is now on this device.`,
+            'Already in your library',
+            `"${twin.title}" matches this file. It's now available on this device.`,
           );
-          void silentRefresh();
+          await silentRefresh();
           return;
         }
       }
 
-      // No cached match → commit the pending entry LOCALLY first.
-      // That's the only blocking step; everything else is best-effort
-      // network work that the user shouldn't have to wait on. If the
-      // backend is unreachable, the import still completes and the new
-      // tile appears as UNSYNCED in the library — exactly the behavior
-      // a user expects from "offline-first".
-      const payload: PendingPayload = {
-        title: imported.title || imported.filename,
-        author: imported.author,
-        fileHash: imported.fileHash,
-        contentHash: imported.contentHash,
-        pdfIdOriginal: imported.pdfIdOriginal,
-        pdfIdCurrent: imported.pdfIdCurrent,
-        pageCount: imported.pageCount,
-        hasTextLayer: imported.hasTextLayer,
-        producer: imported.producer,
-        xmpDocumentId: imported.xmpDocumentId,
-        xmpOriginalId: imported.xmpOriginalId,
-        pageHashes: imported.pageHashes,
-        textLength: imported.textLength,
-        detectedDoi: imported.detectedDoi,
-        detectedIsbn: imported.detectedIsbn,
-        pagePhashes: imported.pagePhashes,
-        fingerprintVersion: imported.fingerprintVersion,
-        dcIdentifier: imported.dcIdentifier,
-        language: imported.language,
-        publisher: imported.publisher,
-        firstSeenAt: new Date().toISOString(),
-      };
+      const payload = pendingPayloadFrom(imported);
 
+      // Keep it locally first -- this is the part that must not depend on the
+      // network -- then settle its sync state before the library is told.
       await markPending(imported.filename, imported.fileHash ?? '', payload);
-      // Update the library state in-place so the new pending tile shows
-      // up without waiting for a backend round-trip.
+      const pushed = await pushOneBook(user.id, imported.filename, payload);
+      if (pushed.ok) await silentRefresh();
       await reloadPending();
-
-      // Fire-and-forget push. If the backend is reachable it promotes
-      // the entry to 'synced' and a later refresh will pick that up; if
-      // not, the entry stays pending and a later manual sync handles
-      // it. Either way the user is done.
-      void pushOneBook(user.id, imported.filename, payload).catch(() => undefined);
-      // Opportunistic refresh — fires the backend fetch in the
-      // background but doesn't block the import. silentRefresh swallows
-      // its own errors, so an unreachable backend is a no-op here.
-      void silentRefresh();
     } catch (err) {
-      Alert.alert('Import failed', err instanceof Error ? err.message : t('common.error'));
+      if (err instanceof ImportRejectedError) {
+        Alert.alert(err.failure.title, err.failure.message);
+      } else {
+        Alert.alert('Import failed', err instanceof Error ? err.message : t('common.error'));
+      }
     } finally {
       setImporting(false);
     }

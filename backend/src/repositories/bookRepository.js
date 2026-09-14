@@ -49,6 +49,23 @@ module.exports = {
     return result.rows[0];
   },
 
+  /** The user's row holding these exact bytes, whatever it is called. Backs
+   *  the content-identity half of the registration dedup: the same file
+   *  imported on a second device under a different name must resolve to the
+   *  row that already carries the user's progress, not insert a new one.
+   *  Oldest first so a library that already accumulated duplicates keeps
+   *  collapsing onto the original row. */
+  findBookByUserAndFileHash: async (userId, fileHash) => {
+    const result = await pool.query(
+      `SELECT * FROM book_progress
+        WHERE user_id = $1 AND file_hash = $2
+        ORDER BY created_at ASC
+        LIMIT 1`,
+      [userId, fileHash]
+    );
+    return result.rows[0];
+  },
+
   updateBookProgress: async (id, { cfiPosition, progress, spineIndex, totalSpineItems }) => {
     const result = await pool.query(
       `UPDATE book_progress

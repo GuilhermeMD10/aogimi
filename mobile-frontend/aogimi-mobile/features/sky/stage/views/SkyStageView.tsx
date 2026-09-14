@@ -19,6 +19,8 @@ import { useDockClearance } from '@/features/app-shell/Dock';
 import { useHideDock } from '@/features/app-shell/DockVisibility';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { SkyMap, type Insets, type SkyFrameMeta } from '@/features/sky/map';
+import { LookupDrawers } from '@/features/dictionary/components/LookupDrawers';
+import { useWordLookup } from '@/features/dictionary/hooks/useWordLookup';
 import { fontFamily, fontSize, palette, radius, spacing } from '@/theme/tokens';
 
 import { CardDetailSheet } from '../components/CardDetailSheet';
@@ -120,6 +122,7 @@ export function SkyStageView() {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [newDeckOpen, setNewDeckOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const lookup = useWordLookup();
 
   // Chrome is measured rather than assumed: both bars wrap text that can wrap,
   // and the card panel's height depends on how many meanings the card has. The
@@ -430,6 +433,7 @@ export function SkyStageView() {
             card={selectedCard}
             onClose={() => setSelectedCardId(null)}
             onRequestDelete={confirmDeleteCard}
+            onLookUp={() => lookup.open(selectedCard.front)}
           />
         </View>
       )}
@@ -447,6 +451,13 @@ export function SkyStageView() {
           void reloadLocal();
         }}
       />
+
+      {/* A sibling of the panel that raises it, not a child: `BottomSheet` is a
+          `Modal`, and the docked card panel is a plain view the camera reads the
+          height of. Mutually exclusive with `NewDeckSheet` by construction — the
+          create button only exists at the outer tier, where no card is selected —
+          so the two modals never contend for the same view controller. */}
+      <LookupDrawers {...lookup.drawers} />
     </View>
   );
 }

@@ -3,7 +3,6 @@
 import { clip } from '../lib/cards';
 import {
   HOVER_HALO_PX,
-  LABEL_FONT_PX,
   LABEL_FONT_WEIGHT,
   LABEL_MAX_CHARS,
   LABEL_OFFSET_X_PX,
@@ -33,6 +32,7 @@ import {
   orbitOf,
   ringRadii,
   ringWidth,
+  labelWorldSize,
   starRadiusPx,
 } from '../lib/star';
 import type { Star } from '../lib/types';
@@ -132,6 +132,9 @@ type Props = {
   /** ...and this tier's ceiling in the same currency, which is what the focused deck's size ramp
    *  runs between (FOCUSED_STAR_SCALE → FOCUSED_STAR_PEAK_SCALE). */
   relZoomMax?: number;
+  /** The camera's absolute zoom. Walks a focused deck's stars down to a point as the camera pulls
+   *  back — see `starZoomSize`. */
+  zoom: number;
   /** World units per screen px. */
   u: number;
   hovered: number | null;
@@ -150,12 +153,16 @@ export function SkyStars({
   vivid = false,
   relZoom,
   relZoomMax,
+  zoom,
   u,
   hovered,
   selected,
   labelOp,
 }: Props) {
   const labelled = focused && labelOp > 0.01;
+  // Once per render, not per star. World units, so the svg's world-space viewBox scales it with the
+  // sky — constant above the floor's crossover. See labelWorldSize.
+  const labelFontSize = labelWorldSize(zoom);
   return (
     <g style={{ pointerEvents: 'none' }}>
       {stars.map((s) => {
@@ -168,6 +175,7 @@ export function SkyStars({
         const rPx = starRadiusPx(s.mastery, {
           relZoom,
           relZoomMax,
+          zoom,
           focused,
           fulcral: isFulcral,
           scale: starScale,
@@ -336,7 +344,7 @@ export function SkyStars({
               <text
                 x={s.x + r + LABEL_OFFSET_X_PX * u}
                 y={s.y + LABEL_OFFSET_Y_PX * u}
-                fontSize={LABEL_FONT_PX * u}
+                fontSize={labelFontSize}
                 fontWeight={LABEL_FONT_WEIGHT}
                 fill={STAR_LABEL_COLOR}
                 fillOpacity={(isSelected ? 1 : 0.85) * labelOp}

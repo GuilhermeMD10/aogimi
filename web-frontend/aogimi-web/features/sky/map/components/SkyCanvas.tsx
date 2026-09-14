@@ -123,6 +123,9 @@ type DeckLayerProps = {
   relZoom: number;
   /** This tier's relZoom ceiling — what the focused deck's star-size ramp is anchored to. */
   relZoomMax: number;
+  /** The camera's absolute zoom, which walks a focused deck's stars down to a point as the camera
+   *  pulls back (see `starZoomSize`). A primitive, so the memo below survives it. */
+  zoom: number;
   u: number;
   /** Hovered star id, already gated to this deck by the parent. */
   hovered: number | null;
@@ -147,6 +150,7 @@ const DeckLayer = memo(function DeckLayer({
   dimmed,
   relZoom,
   relZoomMax,
+  zoom,
   u,
   hovered,
   selected,
@@ -311,6 +315,7 @@ const DeckLayer = memo(function DeckLayer({
             focused
             relZoom={relZoom}
             relZoomMax={relZoomMax}
+            zoom={zoom}
             u={u}
             hovered={null}
             // no ring and no labels in the preview: it exists below the label zoom by
@@ -331,6 +336,7 @@ const DeckLayer = memo(function DeckLayer({
           vivid={deck.vivid}
           relZoom={relZoom}
           relZoomMax={relZoomMax}
+          zoom={zoom}
           u={u}
           hovered={hovered}
           selected={selected}
@@ -417,6 +423,7 @@ export function SkyCanvas({
   const focusedDid = focus.length ? focus[0] : null;
   const focusedDeck = frame.decks.find((d) => d.focused) ?? null;
   // a function of zoom alone, like the layer crossfade — it lands on the same frame as the viewBox
+  const camZoom = camera.zoom;
   const labelOp = labelOpAt(camera.zoom);
   // per palette, not per frame: nothing camera-derived reaches either of them
   const glow = useMemo(() => glowDefs(palette.ranks), [palette]);
@@ -560,6 +567,7 @@ export function SkyCanvas({
           dimmed={focusedDid !== null && !deck.focused}
           relZoom={relZoom}
           relZoomMax={relZoomMax}
+          zoom={camZoom}
           u={u}
           hovered={deck.focused ? hovered : null}
           selected={deck.focused ? selected : null}

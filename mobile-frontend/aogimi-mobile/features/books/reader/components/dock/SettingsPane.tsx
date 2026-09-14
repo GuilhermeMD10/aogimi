@@ -9,17 +9,16 @@ import {
   type ReaderPrefs,
   type ReaderTheme,
 } from '../../lib/readerStorage';
-import type { ReaderDirection, ReaderLayout } from '../../lib/readerLayout';
 
-// Pure settings content (font / size / line / theme + flow/view segs).
-// The dock provides the surrounding frame, handle, and animation.
+// Pure settings content: font, size, line height, theme. The dock provides
+// the surrounding frame and handle.
+//
+// The flow and direction segments are gone -- a reflowable book has no reading
+// mode to choose any more; it runs on foliate's own defaults (see readerLayout).
 
 type Props = {
   prefs: ReaderPrefs;
-  layout: ReaderLayout;
-  direction: ReaderDirection;
   onChange: (patch: Partial<ReaderPrefs>) => void;
-  onLayoutChange: (patch: { layout?: ReaderLayout; direction?: ReaderDirection }) => void;
 };
 
 const FONTS: { key: ReaderFont; label: string; jp: string }[] = [
@@ -40,13 +39,7 @@ const FONT_MIN = 12;
 const FONT_MAX = 28;
 const FONT_STEP = 2;
 
-export function SettingsPane({
-  prefs,
-  layout,
-  direction,
-  onChange,
-  onLayoutChange,
-}: Props) {
+export function SettingsPane({ prefs, onChange }: Props) {
   const c = useColors();
 
   const bumpFont = (delta: number) => {
@@ -159,29 +152,6 @@ export function SettingsPane({
           </View>
         </Row>
 
-        <Row label="Flow" colors={c}>
-          <Seg
-            colors={c}
-            options={[
-              { key: 'continuous', icon: 'menu', label: 'Scroll' },
-              { key: 'pages', icon: 'file-text', label: 'Pages' },
-            ]}
-            value={layout}
-            onChange={(v) => onLayoutChange({ layout: v as ReaderLayout })}
-          />
-        </Row>
-
-        <Row label="View" colors={c}>
-          <Seg
-            colors={c}
-            options={[
-              { key: 'horizontal', icon: 'columns', label: 'Horiz' },
-              { key: 'vertical', icon: 'align-left', label: 'Vert' },
-            ]}
-            value={direction}
-            onChange={(v) => onLayoutChange({ direction: v as ReaderDirection })}
-          />
-        </Row>
       </View>
     </View>
   );
@@ -269,56 +239,10 @@ function Stepper({
   );
 }
 
-function Seg<T extends string>({
-  colors: c,
-  options,
-  value,
-  onChange,
-}: {
-  colors: ReturnType<typeof useColors>;
-  options: { key: T; icon: React.ComponentProps<typeof Feather>['name']; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <View style={[styles.seg, { backgroundColor: c.bgSunken, borderColor: c.border }]}>
-      {options.map((opt) => {
-        const active = opt.key === value;
-        return (
-          <Touchable
-            minTarget={false}
-            hitSlop={6}
-            key={opt.key}
-            onPress={() => onChange(opt.key)}
-            style={[
-              styles.segChip,
-              active && {
-                backgroundColor: c.bgElev,
-                borderColor: c.borderStrong,
-                borderWidth: StyleSheet.hairlineWidth,
-              },
-            ]}
-            accessibilityLabel={opt.label}
-            accessibilityState={{ selected: active }}
-          >
-            <Feather name={opt.icon} size={12} color={active ? c.fg : c.fgMuted} />
-            <Text
-              style={[
-                styles.segLabel,
-                { color: active ? c.fg : c.fgMuted, fontWeight: active ? '600' : '500' },
-              ]}
-            >
-              {opt.label}
-            </Text>
-          </Touchable>
-        );
-      })}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  // Deliberately not flex:1 -- the dock's settings box takes ITS height from
+  // this content, so stretching to fill would be circular.
+  root: {},
   header: {
     paddingHorizontal: 22,
     paddingTop: 4,
@@ -333,13 +257,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
-  body: { paddingHorizontal: 22, paddingBottom: 24 },
+  body: { paddingHorizontal: 22, paddingBottom: 10 },
 
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
+    paddingVertical: 9,
     borderTopWidth: StyleSheet.hairlineWidth,
     gap: 16,
   },
@@ -354,7 +278,7 @@ const styles = StyleSheet.create({
   fontRow: { flexDirection: 'row', gap: 8 },
   fontCard: {
     minWidth: 64,
-    paddingVertical: 10,
+    paddingVertical: 7,
     paddingHorizontal: 14,
     borderRadius: 12,
     alignItems: 'center',
@@ -402,20 +326,4 @@ const styles = StyleSheet.create({
   },
   swatchGlyph: { fontSize: 16, fontWeight: '500' },
 
-  seg: {
-    flexDirection: 'row',
-    padding: 2,
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  segChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: radius.pill,
-    borderColor: 'transparent',
-  },
-  segLabel: { fontSize: 11, letterSpacing: 0.4 },
 });
