@@ -122,18 +122,47 @@ export const DEFAULT_SEED = 'andromeda'; // a constant, so SSR and client render
  * that lengthens a link on screen, which is what the larger stars needed. A deck big enough for its
  * own box to set the fit is unaffected, exactly as the paragraph above says.
  *
- * Territory follows from the seeding, not from the clearances: zone n is an annulus
- * RADIUS_SPAN thick holding SEEDS_PER_ZONE * n seeds, which works out to a patch of
- * RADIUS_SPAN * sqrt(2 / SEEDS_PER_ZONE) radius per constellation. Keep that comfortably
- * above the radius a group actually grows to, or groups overflow into each other and end up
- * pressed together at the GROUP_CLEARANCE floor. The 1.4 above holds it: every one of these moved
- * together, so a group's reach and its territory grew by the same factor.
+ * Territory follows from the seeding, not from the clearances, and it is measured in **stars, not
+ * constellations**. Zone n is an annulus RADIUS_SPAN thick; it stays the frontier until
+ * STARS_PER_ZONE * (2n - 1) stars have landed while it was — the (2n - 1) being exactly the annulus'
+ * share of the disc's area, so every ring is filled to the same density and a deck's field grows as
+ * sqrt(cards) whatever shape its days took.
+ *
+ * **Counting seeds instead was the bug this replaces.** A budget of "N constellations per ring" hands
+ * a one-card day the same patch of sky as a forty-card one, so a deck studied a word at a time paid a
+ * full constellation's territory per star: thirty single stars spread over 2200x1500 units with 240
+ * between neighbours, against the 33..70 their own groups are drawn at. Same cards, same clearances,
+ * a fifth of the density a deck of big days got. Sizing the budget in stars is what makes a sparse
+ * deck and a dense one land at the same spacing, without the generator having to know at seed time
+ * how big the day it is seeding will turn out to be — which it cannot, the seed being the day's
+ * first card.
+ *
+ * The per-star patch is RADIUS_SPAN / sqrt(STARS_PER_ZONE) in radius, and it wants to stay near a
+ * group's own per-star reach (STAR_GAP..LINK_REACH). Push it far below that and the moat stops
+ * reading, since a group cannot pack tighter than GROUP_CLEARANCE and simply presses against its
+ * neighbours at that floor. 10 puts the patch at 62 units, inside that band.
+ *
+ * Only a *dense* deck feels this number, and that is the whole reason it is tuned where it is. A
+ * sparse deck saturates its ring on SEED_CLEARANCE long before it has spent ten stars on it — every
+ * value from 10 up leaves a one-card-a-day deck identical — so raising it only stops *over*-charging
+ * a day of forty, whose stars share one moat between them rather than buying forty. 10 is the
+ * largest value that still leaves a deck of big days close to the separation it had.
+ *
+ * Measured over four deck shapes × five sky seeds, median gap between neighbouring groups and the
+ * most isolated group in the deck, before → after:
+ *
+ *   thirty one-card days     220 → 132     447 → 260
+ *   thirty mixed days        213 → 120     467 → 227
+ *   sixty mixed days         210 → 120     414 → 218
+ *   eight fifteen-card days  128 → 108     335 → 203
+ *
+ * Sparse decks lose the sprawl; the dense one gives up 20 units of moat and keeps a legible one.
  */
 export const RADIUS_SPAN = 196; // zone thickness, used when seeding a new constellation
-export const SEEDS_PER_ZONE = 2; // zone n seeds SEEDS_PER_ZONE * n constellations
+export const STARS_PER_ZONE = 10; // zone n stays the frontier for STARS_PER_ZONE * (2n - 1) stars
 export const MIN_DISTANCE = 20; // star-to-star floor inside a group, also the tap-target floor
 export const GROUP_CLEARANCE = 84; // moat between groups; 1.2x LINK_REACH, so it never reads as a link
-export const SEED_CLEARANCE = 196; // a new seed wants this much empty space around it
+export const SEED_CLEARANCE = 120; // a new seed wants this much empty space around it
 export const LINK_REACH = 70; // how far a new star may sit from the member it grows off
 export const EDGE_CLEARANCE = 28; // nothing may graze a link this closely
 
@@ -276,6 +305,30 @@ export const MESH_EDGE_PX = 1; // stroke width, screen px
  */
 export const CULL_SLACK = 1.35;
 
+/* ---------- star size vs zoom ---------- */
+/**
+ * **There is no shrink ramp any more, and this note is why there must not be one again.**
+ *
+ * `STAR_SHRINK_EXPONENT` used to drive `starZoomSize`, a multiplier running from 1 at
+ * FOCUS_MAX_ZOOM down to 0 at CLOUD_ZOOM, applied to a focused deck's stars. Its aim was sound —
+ * screen-px radii hold their size as the camera pulls back, which reads as the stars *growing* into
+ * a mass of identical dots — but the shape was wrong in a way that only shows on a real deck: the
+ * ramp is anchored on **absolute** zoom while a deck rests at its **own** fitted zoom, and those two
+ * disagree badly. Measured on the mobile viewport: a 200-card deck fits at zoom 0.23 against a
+ * CLOUD_ZOOM of 0.44, so its stars entered the tier at a radius of exactly **0px**, stayed invisible
+ * through the first ~40% of the pinch, and then grew 30x on the way in. A 25-card deck fitted at
+ * 1.08 fared better but still opened at 1.63px — half what the same star was drawn at on the outer
+ * view it was just tapped from.
+ *
+ * The reader reads that as "zooming in makes the stars smaller", because that is what it is.
+ *
+ * The concern it was answering is already met by the cloud handover in lod.ts, which hands a deck
+ * over to soft forms exactly when its stars stop being separable — the same statement about
+ * distance, made without ever drawing a star smaller than the reader last saw it. So the size law is
+ * now monotone by construction (see `starRadiusPx`), and any future depth cue has to be too.
+ */
+
+
 /* ---------- star labels ---------- */
 /**
  * When each star shows its card's front text beside it — **an absolute camera zoom**, deliberately.
@@ -285,15 +338,58 @@ export const CULL_SLACK = 1.35;
  * separable at all, but it makes the label gate depend on a constant that only approximates real
  * spacing, and it lands far below the zooms a focused deck actually resolves to, leaving labels up
  * almost the whole time. Read off the stage instead — with a live readout of `camera.zoom` in the
- * corner, the wanted answer is plainly 3.
+ * corner.
+ *
+ * **1.2, down from the 3 this was first read at.** The reading was taken on a desktop viewport,
+ * and the threshold does not travel: `focusLimits` fits a deck to the window, so the same deck
+ * rests at a much lower zoom on a phone than on a monitor, while the ceiling stays pinned at
+ * MAX_ZOOM..FOCUS_MAX_ZOOM. At 3 the labels lived only in the top slice of the range — you had to
+ * push a focused deck nearly to its limit before a single word appeared, which is not what the
+ * gate is for. 1.2 puts them just above the resting fit of a deck of any size, so zooming in at
+ * all is enough to read the cards.
  *
  * At or below LABEL_HIDE_ZOOM nothing is labelled; the fade completes a LABEL_BAND factor above it.
  */
-export const LABEL_HIDE_ZOOM = 3;
+export const LABEL_HIDE_ZOOM = 1.2;
 /** Width of the fade-in, as a zoom factor above the hide threshold — one unhurried wheel notch. */
 export const LABEL_BAND = 1.4;
-/** The zoom the fade completes at, so labels are fully up at 4.2 and gone at 3. */
+/** The zoom the fade completes at, so labels are fully up at 1.68 and gone at 1.2. */
 export const LABEL_ZOOM = LABEL_HIDE_ZOOM * LABEL_BAND;
+/**
+ * The label's size, as the two ends of its range in screen px.
+ *
+ * These are what the reader actually sees: LABEL_MIN_PX where the label fades in, LABEL_MAX_PX at
+ * FOCUS_MAX_ZOOM. `labelWorldSize` resolves them into the world size a renderer draws with.
+ *
+ * ── Why there is a floor as well as a slope ────────────────────────────────
+ *
+ * A world-fixed label grows exactly with the zoom, seamlessly and with no per-zoom arithmetic,
+ * which is the property worth keeping — but it also fixes the *ratio* between the two ends at the
+ * zoom ratio, about 5× here. So one constant cannot give a readable 16px where the label appears
+ * and a 31px cap fully zoomed in: pick the floor and the top runs past 60px, pick the top and the
+ * bottom lands at 6px, well under the ~12px kanji needs.
+ *
+ * The floor breaks that tie without giving up the growth. Below the zoom where the slope catches
+ * up the label holds at LABEL_MIN_PX; above it, it is world-fixed and scales 1:1 with the camera
+ * like the stars do. The reader gets a legible label the moment one appears, growth that tracks the
+ * zoom, and a top end that stays in proportion.
+ *
+ * **The crossover is `LABEL_MIN_PX / LABEL_WORLD_PX`, not a number to be tuned separately** — it
+ * falls out of the pair and moves whenever either does. At 14 it sat at zoom ~2.7; at 16 it is
+ * ~3.1, so the label now holds its floor over a little more of the range and the growth phase
+ * starts correspondingly later. LABEL_MAX_PX is untouched, so the top end is where it was.
+ */
+export const LABEL_MIN_PX = 16;
+export const LABEL_MAX_PX = 31.25;
+/**
+ * The world size behind the slope: what the label measures per unit of zoom once it is past the
+ * floor. Derived from the top of the range, so LABEL_MAX_PX is what it actually reaches at
+ * FOCUS_MAX_ZOOM rather than something to be re-derived by hand.
+ *
+ * A deck whose ceiling is MAX_ZOOM rather than FOCUS_MAX_ZOOM tops out proportionally lower — the
+ * label is a function of zoom, and those decks simply do not zoom as far in.
+ */
+export const LABEL_WORLD_PX = LABEL_MAX_PX / FOCUS_MAX_ZOOM;
 /** A backstop for hosts whose fronts are sentences: the label is a glance, the panel is the card. */
 export const LABEL_MAX_CHARS = 18;
 // Sized against the focused view's larger stars (FOCUSED_STAR_SCALE and its peak) — labels only ever
@@ -628,9 +724,14 @@ export const FULCRAL_SCALE = 1.55;
  *
  * **A pair, not a constant**: the deck's stars carry `FOCUSED_STAR_SCALE` at its resting fit and
  * `FOCUSED_STAR_PEAK_SCALE` at its zoom ceiling, interpolated in log space between the two
- * (`focusedScale` in star.ts). The peak is twice the base, so fully zoomed in a star is exactly
- * double its resting size, and at every zoom short of that it tapers back toward the resting
- * sizing — the extra ink is a reward for going in, not the resting state.
+ * (`focusedScale` in star.ts) — the extra ink is a reward for going in, not the resting state.
+ *
+ * The peak was 2.7 (twice the base) while `starZoomSize` was still cutting a third to all of the
+ * size back off at the shallow end; with that gone the pair is the *whole* focused ramp and it
+ * compounds with the sublinear swell, so it is deliberately gentle now. At 1.7 a small deck grows
+ * ~2.4x across its entire zoom range and a 20x-range deck ~4.4x — a small delta against the zoom
+ * that bought it. Raising this is the knob for more reward on the way in; it can never introduce a
+ * shrink, because both ends are above 1.
  *
  * The ramp is anchored to the deck's **own** ceiling rather than to a nominal zoom, because there is
  * no such thing as one max zoom here: `focusLimits` gives a sparse deck a relZoom ceiling of ~1.5 and
@@ -641,7 +742,7 @@ export const FULCRAL_SCALE = 1.55;
  * SMALL_DECK_MAX below).
  */
 export const FOCUSED_STAR_SCALE = 1.35;
-export const FOCUSED_STAR_PEAK_SCALE = 2.7;
+export const FOCUSED_STAR_PEAK_SCALE = 1.7;
 /** Stars of a deck that is not the focused one, relative to the neutral base — the outer view's
  *  scale, which the focused boost above deliberately leaves untouched. */
 export const UNFOCUSED_STAR_SCALE = 0.86;

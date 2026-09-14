@@ -141,10 +141,12 @@ export type CameraOptions = {
   onZoomOutFloor?: () => void;
   /**
    * How much of each viewport edge the host's overlays cover, in CSS px — a glass column on the
-   * left, a ledger below. Subtracted from the viewport before every fit and clamp, so the sky
-   * rests centred in the uncovered window rather than under the chrome. Compared **by value**:
-   * hosts build the object per render, and a change of the numbers re-fits the camera as a
-   * flight (the handover's panel-toggle refit), not a jump.
+   * left, a ledger below. Subtracted from the viewport before every fit and clamp, so a fit
+   * *lands* centred in the uncovered window rather than under the chrome. Compared **by value**:
+   * hosts build the object per render.
+   *
+   * A change of the numbers does not move the camera — see the pinning effect. Insets decide
+   * where a fit or a flight settles, never where a camera the reader has already placed sits.
    */
   insets?: Insets;
   /**
@@ -328,23 +330,34 @@ export function useCamera(rawBounds: Bounds, opts: CameraOptions = {}): CameraCo
     },
     [stopFlight],
   );
-  // An insets change is the host's chrome moving — a panel toggling, a tier swapping its
-  // overlays — and the camera answers it by re-fitting, as a flight rather than a jump (the
-  // handover's panel-toggle behaviour). A layout effect, so the departure pose is committed
-  // before the re-fit frame paints. Skipped on mount (nothing to depart from) and while a flight
-  // is already running — a running 'fit' target re-resolves against the new insets every frame,
-  // and restarting it would only discard its onArrive.
+  // An insets change is the host's chrome moving — a panel toggling, the detail card opening
+  // because a star was selected — and it does **not** move the camera. Where the camera is
+  // looking is the reader's alone: a wheel, a drag, or a deliberate change of tier.
+  //
+  // Holding still takes an explicit step, because a camera resting on the 'fit' *intent* would
+  // otherwise silently re-resolve against the new insets and settle somewhere else — a smaller
+  // window fits at a lower zoom. So an insets change pins the intent to the pose it currently
+  // resolves to, read through `cameraRef` as of the previous commit: the fit of the window as it
+  // was. A layout effect, so the pin is committed before this frame paints and a re-resolved fit
+  // is never shown. Inert while locked, where `effective` forces 'fit' whatever the pose says.
+  //
+  // The trade-off, taken deliberately: chrome opening over an already-fitted sky now covers part
+  // of it rather than the sky re-settling into what is left. Pinning also gives that axis pan
+  // slack it did not have at the fit, so a covered star is something the reader can pull into
+  // view themselves — which is the point.
+  //
+  // A running flight is left alone: it is already going somewhere on purpose, and a 'fit' target
+  // re-resolves per frame by design.
   const prevInsRef = useRef(ins);
   useLayoutEffect(() => {
     if (prevInsRef.current === ins) return;
     prevInsRef.current = ins;
     if (flightRef.current) return;
-    // legitimate sync-from-external-trigger (the AppShell pending-field precedent): the flight's
-    // departure pose must be committed in response to the prop change, guarded to fire once per
-    // change — flyTo here is exactly what SkyMap's own focus-change effect already does
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    flyTo('fit');
-  }, [ins, flyTo]);
+    const pinned = cameraRef.current;
+    // A response to the prop change itself, guarded to fire once per change — the
+    // sync-from-external-trigger idiom, and a no-op for any pose but the intent.
+    setPose((current) => (current === 'fit' ? pinned : current));
+  }, [ins]);
 
   const view = useMemo(() => viewOf(camera, viewport), [camera, viewport]);
   // the fitted zoom of the current bounds, which both figures below are expressed against

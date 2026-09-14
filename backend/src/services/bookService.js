@@ -18,20 +18,33 @@ const VISUAL_PAGE_COUNT_TOLERANCE = 0.10;
 const VISUAL_MAX_HAMMING_DIST = 8;
 
 /**
- * The (user, filename) row, if any. Exposed because the route needs to know
- * whether a POST /api/books is a NEW registration or a re-registration of
- * something the user already has: `createBook` treats the second case as a
- * no-op returning the existing row, so it must not be refused by the book
- * quota. Without this, a user sitting at the cap couldn't re-sync their own
- * library from a second device.
+ * The row this registration would re-register, if any — the question
+ * "does the caller already have this book?".
+ *
+ * Two things count as already having it, and `file_hash` comes first:
+ *
+ *   - Same bytes under ANY filename. The user renames a file, or downloads
+ *     it under a different name on a second device; it is still the book
+ *     that carries their progress. Filename is presentation, not identity.
+ *   - Same filename (the `UNIQUE (user_id, filename)` slot), which is what
+ *     rows registered before fingerprinting have to fall back on.
+ *
+ * Exposed because both `createBook` (which returns the existing row instead
+ * of inserting) and POST /api/books (which must not spend quota on a
+ * re-registration) ask it. Without the hash half, the same file imported
+ * under a new name inserts a second row at progress 0 and the user's
+ * reading position is orphaned on the first one.
  */
-async function findByFilename(userId, filename) {
+async function findExistingRegistration(userId, { filename, fileHash }) {
+  if (fileHash) {
+    const byHash = await bookRepo.findBookByUserAndFileHash(userId, fileHash);
+    if (byHash) return byHash;
+  }
   return await bookRepo.findBookByUserAndFilename(userId, filename);
 }
 
 async function createBook(userId, fields) {
-  // Check if user already has this book (by filename)
-  const existing = await bookRepo.findBookByUserAndFilename(userId, fields.filename);
+  const existing = await findExistingRegistration(userId, fields);
   if (existing) {
     return existing;
   }
@@ -203,4 +216,4 @@ async function deleteBook(id) {
   return true;
 }
 
-module.exports = { findByFilename, createBook, getUserBooks, getBook, updateProgress, updateTitle, updateIdentity, matchBooks, deleteBook };
+module.exports = { findExistingRegistration, createBook, getUserBooks, getBook, updateProgress, updateTitle, updateIdentity, matchBooks, deleteBook };

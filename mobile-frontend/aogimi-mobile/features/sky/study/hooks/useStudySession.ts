@@ -47,6 +47,8 @@ export type StudyState = {
   submit: (outcome: StudyOutcome) => void;
   undo: () => void;
   restart: () => void;
+  /** End the session now, on the cards answered so far. */
+  finishEarly: () => void;
 };
 
 async function resolveSession(
@@ -161,6 +163,21 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
   const reveal = useCallback(() => setSide('back'), []);
   const flip = useCallback(() => setSide((s) => (s === 'front' ? 'back' : 'front')), []);
   const restart = useCallback(() => setReloadKey((k) => k + 1), []);
+
+  // Ending early is *finishing*, not abandoning: `finished` is derived from an
+  // empty queue against a non-zero `totalAtStart`, so emptying the queue is the
+  // whole act and the summary the screen shows is the real one, built from the
+  // cards actually answered. Nothing is discarded — every submit already wrote
+  // its card state and posted its review as it happened.
+  //
+  // The undo buffer goes with it. It rewinds *the last card*, which the user is
+  // no longer looking at, and the summary is rendered from `perCard`; leaving it
+  // armed would offer to un-review a card off a screen that has no card on it.
+  const finishEarly = useCallback(() => {
+    setQueue([]);
+    lastReviewRef.current = null;
+    setCanUndo(false);
+  }, []);
 
   const submit = useCallback((outcome: StudyOutcome) => {
     setQueue((q) => {
@@ -323,7 +340,8 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
       submit,
       undo,
       restart,
+      finishEarly,
     }),
-    [loading, error, queue, current, side, reviewed, totalAtStart, finished, canUndo, summary, reveal, flip, submit, undo, restart],
+    [loading, error, queue, current, side, reviewed, totalAtStart, finished, canUndo, summary, reveal, flip, submit, undo, restart, finishEarly],
   );
 }

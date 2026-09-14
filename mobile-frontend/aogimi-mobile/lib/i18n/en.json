@@ -126,6 +126,8 @@
     "good": "Good",
     "easy": "Easy",
     "undo": "Undo",
+    "finishSession": "Finish",
+    "lookUp": "Dictionary",
     "studyAgain": "Study again",
     "backToDeck": "Back to deck",
     "finish": {
@@ -241,5 +243,14 @@
     "daySub": "Ink on paper",
     "night": "Night",
     "nightSub": "Midnight"
+  },
+  "highlight": {
+    "title": "Highlight colour",
+    "intro": "The band the reader paints behind selected text. Every value is translucent, so the page stays readable underneath it in any theme.",
+    "blue": "Blue",
+    "green": "Green",
+    "yellow": "Yellow",
+    "pink": "Pink",
+    "grey": "Grey"
   }
 }

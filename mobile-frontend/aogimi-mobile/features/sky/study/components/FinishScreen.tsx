@@ -38,17 +38,27 @@ export function FinishScreen({ summary, onStudyAgain, onBackToDeck }: Props) {
           </Text>
         </View>
 
-        <Section c={c}>
-          <BreakdownBar entries={summary.perCard} />
-        </Section>
+        {/* Gated on there being any card at all, not just on each list's own
+            emptiness: a `Section` draws its label above whatever it is handed,
+            and the lists return null when they have nothing, so an empty
+            summary would render two headings over blank space. Reachable since
+            the top bar's Finish ends a session on the spot — including one the
+            user opened and answered nothing in. */}
+        {summary.perCard.length > 0 && (
+          <>
+            <Section c={c}>
+              <BreakdownBar entries={summary.perCard} />
+            </Section>
 
-        <Section c={c} label={t('study.finish.progression')}>
-          <StateChangesList entries={summary.perCard} />
-        </Section>
+            <Section c={c} label={t('study.finish.progression')}>
+              <StateChangesList entries={summary.perCard} />
+            </Section>
 
-        <Section c={c} label={t('study.finish.hardest')}>
-          <HardestInSessionList entries={summary.perCard} />
-        </Section>
+            <Section c={c} label={t('study.finish.hardest')}>
+              <HardestInSessionList entries={summary.perCard} />
+            </Section>
+          </>
+        )}
       </ScrollView>
 
       <View style={styles.actions}>

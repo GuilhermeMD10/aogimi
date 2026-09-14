@@ -276,6 +276,28 @@ export const MESH_EDGE_PX = 1; // stroke width, screen px
  */
 export const CULL_SLACK = 1.35;
 
+/* ---------- star size vs zoom ---------- */
+/**
+ * How steeply a focused deck's stars shrink as the camera pulls back — the exponent on a ramp that
+ * runs from full size at FOCUS_MAX_ZOOM to nothing at CLOUD_ZOOM. `starZoomSize` in star.ts applies
+ * it; 1 is linear in log space, and higher keeps stars small until further in.
+ *
+ * **Screen-px radii do not shrink on their own, and that is what this is for.** RANK_R_PX is in
+ * screen px, so a star holds its size on the reader's screen at every zoom — which reads, pulling
+ * back, as the stars *growing*: the field collapses towards them while they stay put, until a deck
+ * is a mass of identical dots with no depth in it. Tying the radius to zoom makes pulling back read
+ * as distance instead, and lands the stars at a point exactly where the handover to clouds is
+ * already saying the same thing.
+ *
+ * Anchored on **absolute** zoom, unlike the sublinear swell beside it, because both ends of this
+ * ramp are absolute facts: CLOUD_ZOOM is where clouds take over for every deck alike, and
+ * FOCUS_MAX_ZOOM is as far in as any deck goes. A per-deck relative floor would sit at each deck's
+ * own fit — and a small deck's fit is *above* CLOUD_ZOOM (it never clouds at all, see lod.ts), so
+ * its stars would shrink to nothing while resting in plain view.
+ */
+export const STAR_SHRINK_EXPONENT = 1;
+
+
 /* ---------- star labels ---------- */
 /**
  * When each star shows its card's front text beside it — **an absolute camera zoom**, deliberately.
@@ -285,15 +307,53 @@ export const CULL_SLACK = 1.35;
  * separable at all, but it makes the label gate depend on a constant that only approximates real
  * spacing, and it lands far below the zooms a focused deck actually resolves to, leaving labels up
  * almost the whole time. Read off the stage instead — with a live readout of `camera.zoom` in the
- * corner, the wanted answer is plainly 3.
+ * corner.
+ *
+ * **1.2, down from the 3 this was first read at.** The reading was taken on a desktop viewport,
+ * and the threshold does not travel: `focusLimits` fits a deck to the window, so the same deck
+ * rests at a much lower zoom on a phone than on a monitor, while the ceiling stays pinned at
+ * MAX_ZOOM..FOCUS_MAX_ZOOM. At 3 the labels lived only in the top slice of the range — you had to
+ * push a focused deck nearly to its limit before a single word appeared, which is not what the
+ * gate is for. 1.2 puts them just above the resting fit of a deck of any size, so zooming in at
+ * all is enough to read the cards.
  *
  * At or below LABEL_HIDE_ZOOM nothing is labelled; the fade completes a LABEL_BAND factor above it.
  */
-export const LABEL_HIDE_ZOOM = 3;
+export const LABEL_HIDE_ZOOM = 1.2;
 /** Width of the fade-in, as a zoom factor above the hide threshold — one unhurried wheel notch. */
 export const LABEL_BAND = 1.4;
-/** The zoom the fade completes at, so labels are fully up at 4.2 and gone at 3. */
+/** The zoom the fade completes at, so labels are fully up at 1.68 and gone at 1.2. */
 export const LABEL_ZOOM = LABEL_HIDE_ZOOM * LABEL_BAND;
+/**
+ * The label's size, as the two ends of its range in screen px.
+ *
+ * These are what the reader actually sees: LABEL_MIN_PX where the label fades in, LABEL_MAX_PX at
+ * FOCUS_MAX_ZOOM. `labelWorldSize` resolves them into the world size a renderer draws with.
+ *
+ * ── Why there is a floor as well as a slope ────────────────────────────────
+ *
+ * A world-fixed label grows exactly with the zoom, seamlessly and with no per-zoom arithmetic,
+ * which is the property worth keeping — but it also fixes the *ratio* between the two ends at the
+ * zoom ratio, about 5× here. So one constant cannot give a readable 14px where the label appears
+ * and a 31px cap fully zoomed in: pick the floor and the top runs past 60px, pick the top and the
+ * bottom lands at 6px, well under the ~12px kanji needs.
+ *
+ * The floor breaks that tie without giving up the growth. Below the zoom where the slope catches
+ * up (~2.7) the label holds at LABEL_MIN_PX; above it, it is world-fixed and scales 1:1 with the
+ * camera like the stars do. The reader gets a legible label the moment one appears, growth that
+ * tracks the zoom, and a top end that stays in proportion.
+ */
+export const LABEL_MIN_PX = 14;
+export const LABEL_MAX_PX = 31.25;
+/**
+ * The world size behind the slope: what the label measures per unit of zoom once it is past the
+ * floor. Derived from the top of the range, so LABEL_MAX_PX is what it actually reaches at
+ * FOCUS_MAX_ZOOM rather than something to be re-derived by hand.
+ *
+ * A deck whose ceiling is MAX_ZOOM rather than FOCUS_MAX_ZOOM tops out proportionally lower — the
+ * label is a function of zoom, and those decks simply do not zoom as far in.
+ */
+export const LABEL_WORLD_PX = LABEL_MAX_PX / FOCUS_MAX_ZOOM;
 /** A backstop for hosts whose fronts are sentences: the label is a glance, the panel is the card. */
 export const LABEL_MAX_CHARS = 18;
 // Sized against the focused view's larger stars (FOCUSED_STAR_SCALE and its peak) — labels only ever

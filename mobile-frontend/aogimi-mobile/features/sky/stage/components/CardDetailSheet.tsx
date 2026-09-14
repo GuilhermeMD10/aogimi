@@ -35,9 +35,13 @@ type Props = {
   onClose: () => void;
   /** Opens the view's confirm step; the deletion itself happens there. */
   onRequestDelete: () => void;
+  /** Raises the lookup sheet on this card's headword. The stage owns the sheet
+   *  — a `Modal` mounted inside this panel would present from the panel's own
+   *  view controller and fight the camera for the gestures. */
+  onLookUp: () => void;
 };
 
-export function CardDetailSheet({ card, onClose, onRequestDelete }: Props) {
+export function CardDetailSheet({ card, onClose, onRequestDelete, onLookUp }: Props) {
   // The *displayed* rank, not the raw column: a card that reached Learned keeps
   // its tier through a lapse, and this badge sits beside a star already drawn
   // that way. `MIX_ORDER` index is the sky's 0..3 rank, so the two ramps align.
@@ -104,16 +108,31 @@ export function CardDetailSheet({ card, onClose, onRequestDelete }: Props) {
         {card.notes.length > 0 && <Text style={styles.notes}>{card.notes}</Text>}
       </ScrollView>
 
-      <Touchable
-        minTarget={false}
-        onPress={onRequestDelete}
-        accessibilityRole="button"
-        accessibilityLabel={`Delete ${card.front}`}
-        style={styles.delete}
-      >
-        <Feather name="trash-2" size={14} color={palette.danger} />
-        <Text style={styles.deleteLabel}>Delete card</Text>
-      </Touchable>
+      {/* Two actions on one row: the reference and the destructive one. Delete
+          keeps its danger fill and its own width, so the row cannot turn a
+          reach for the dictionary into a reach for the trash. */}
+      <View style={styles.actions}>
+        <Touchable
+          minTarget={false}
+          onPress={onLookUp}
+          accessibilityRole="button"
+          accessibilityLabel={`Look up ${card.front} in the dictionary`}
+          style={styles.lookUp}
+        >
+          <Feather name="book-open" size={14} color={palette.ink} />
+          <Text style={styles.lookUpLabel}>Dictionary</Text>
+        </Touchable>
+        <Touchable
+          minTarget={false}
+          onPress={onRequestDelete}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${card.front}`}
+          style={styles.delete}
+        >
+          <Feather name="trash-2" size={14} color={palette.danger} />
+          <Text style={styles.deleteLabel}>Delete</Text>
+        </Touchable>
+      </View>
     </View>
   );
 }
@@ -182,12 +201,32 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: spacing.sm,
   },
+  actions: { flexDirection: 'row', gap: spacing.sm },
+  lookUp: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: radius.md,
+    backgroundColor: palette.tintB,
+    borderColor: palette.bdB,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  lookUpLabel: {
+    color: palette.ink,
+    fontFamily: fontFamily.ui,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
   delete: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 9,
+    paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
     backgroundColor: palette.dangerBg,
     borderColor: palette.dangerBd,

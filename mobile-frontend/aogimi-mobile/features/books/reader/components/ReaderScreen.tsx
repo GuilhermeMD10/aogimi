@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, AppState, StyleSheet, Text, View } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -12,20 +12,22 @@ import { locateBookFile } from '@/features/books/lib/locateBookFile';
 import { useBookFile } from '@/features/books/hooks/useBookFile';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import {
+  HIGHLIGHT_COLORS,
   MANGA_SHELL_BG,
   READER_FONT_STACKS,
   READER_THEMES,
   saveProgressSnapshot,
   useReaderStorage,
 } from '../lib/readerStorage';
+import { selectionStartFeedback, selectionTickFeedback } from '@/lib/haptics';
 import { useReaderPrefs } from '../lib/readerPrefs';
-import { DictDrawer } from '@/features/dictionary/components/DictDrawer';
+import { LookupDrawers } from '@/features/dictionary/components/LookupDrawers';
 import { kanjiCardDraft, plainCardDraft, wordCardDraft } from '@/features/dictionary/lib/cardDraft';
-import { FlashcardDrawer } from '@/features/sky/stage/components/FlashcardDrawer';
 import { Button } from '@/shared/components/Button';
 import { ReaderTopBar } from './ReaderTopBar';
-import { FloatingBackButton } from './FloatingBackButton';
-import type { DockMode } from './ReaderBottomDock';
+import { BookCover } from '../../library/components/BookCover';
+import { DECELERATE } from '@/theme/motion';
+import { useReduceMotion } from '@/lib/useReduceMotion';
 import { MangaScrollView, type MangaScrollViewHandle } from './manga/MangaScrollView';
 import { MangaPagedView, type MangaPagedViewHandle } from './manga/MangaPagedView';
 import { useMangaSpine } from './manga/useMangaSpine';
@@ -44,11 +46,38 @@ import { NovelReader } from './novel/NovelReader';
 import { MangaReader } from './manga/MangaReader';
 import { NativeSelectionMenu, type NativeMenuKey } from '../lib/native-selection';
 import type { BookType, EpubTocItem, ReaderThemeStyle } from '../lib/foliateHtml';
-import { useReaderLayoutPrefs, flowForCombo } from '../lib/readerLayout';
+import { useReaderLayoutPrefs } from '../lib/readerLayout';
 import { setLocalProgress } from '@/features/books/lib/booksLocalCache';
 import { persistLocalProgress } from '@/features/books/lib/syncedBookCache';
 
 type Props = { bookId: string };
+
+/** The shortest the placing frame is allowed to be on screen.
+ *
+ *  A frame that is correct but brief still reads as a flash -- the reader sees
+ *  *something* appear and vanish, and cannot tell that it was deliberate. The
+ *  floor is what separates "the book is opening" from "something flickered".
+ *
+ *  It is a MINIMUM, not a duration: the frame is dismissed at whichever comes
+ *  later, this or the book actually being placed. A fixed delay would be the
+ *  wrong tool -- too long on a quick open, and on a slow one it would expire
+ *  early and put the flicker back. */
+const MIN_PLACING_MS = 1000;
+
+/** How long the cover takes to open into the book.
+ *
+ *  Deliberately outside `theme/motion`'s four values. Those are the vocabulary
+ *  for UI state -- a press, a fill, a pill sliding -- and all of them are under
+ *  300ms because a control that lags its own tap feels broken. This is not a
+ *  control changing state; it is one screen becoming another, and at 280ms the
+ *  zoom reads as a glitch rather than a movement. The easing still comes from
+ *  the shared vocabulary so it belongs to the same family. */
+const ENTER_MS = 460;
+
+/** How long the placing frame may hold before it gives up and shows the book
+ *  anyway. Generous: it is a backstop for a book that never reports ready,
+ *  not a pacing device. */
+const PLACING_TIMEOUT_MS = 6000;
 
 export function ReaderScreen({ bookId }: Props) {
   const c = useColors();
@@ -87,6 +116,58 @@ export function ReaderScreen({ bookId }: Props) {
   // foliate; FoliateReader's onReady then refines the bookType to 'text'
   // vs 'novel' (vertical-rl JP).
   const [bookType, setBookType] = useState<BookType | null>(null);
+  // False until the WebView reports 'ready', which it does only once the book
+  // has been put back where the reader left off. Until then the reader is
+  // covered -- see the placing frame below.
+  // Three independent facts, combined below into one question: may the book
+  // be shown yet? Keeping them apart is what lets the floor and the backstop
+  // coexist without either having to know about the other.
+  const [placedReported, setPlacedReported] = useState(false);  // the book is in position
+  const [minHeld, setMinHeld] = useState(false);                // the floor has passed
+  const [placingTimedOut, setPlacingTimedOut] = useState(false);// the backstop fired
+  // The frame outlives `placed` by the length of its fade: `placed` says the
+  // book may be shown, `placingMounted` says the cover is still on top of it.
+  // Swapping them in one frame is the "bland transposition" -- the cover has
+  // to leave, not be replaced.
+  const [placingMounted, setPlacingMounted] = useState(true);
+  // One driver, 0 -> 1, with every track interpolated off it. Keeping a single
+  // value means the four layers cannot drift out of step, and all four
+  // properties (opacity and transform) are native-drivable, so the whole thing
+  // leaves the JS thread -- which matters because it plays over the reader's
+  // most expensive moment.
+  const enter = useRef(new Animated.Value(0)).current;
+
+  // The cover pulls back a touch before it pushes through. That tiny
+  // anticipation is most of what makes it read as going INTO the book rather
+  // than the cover simply being scaled up and deleted.
+  const coverScale = enter.interpolate({
+    inputRange: [0, 0.16, 1],
+    outputRange: [1, 0.96, 1.7],
+  });
+  // It holds its ink while it grows, then goes late and fast: a cover that
+  // fades evenly just dissolves, where one that stays solid and then vanishes
+  // feels like it passed the camera.
+  const coverOpacity = enter.interpolate({
+    inputRange: [0, 0.45, 1],
+    outputRange: [1, 1, 0],
+  });
+  // The ground goes FIRST -- earlier than the cover, and fully gone by 0.75 --
+  // so the page is already there behind a cover that is still solid. Getting
+  // this order the wrong way round (cover clearing first) looks almost right
+  // and is completely wrong: the cover dissolves into a blank wall and the
+  // book appears afterwards, which is a transition between two screens rather
+  // than a passage into one.
+  const groundOpacity = enter.interpolate({
+    inputRange: [0, 0.2, 0.75],
+    outputRange: [1, 1, 0],
+  });
+  // The spinner is the only part that is not scenery -- it says "waiting", and
+  // the moment we are not, it should stop saying it.
+  const spinnerOpacity = enter.interpolate({
+    inputRange: [0, 0.22],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
   const [toc, setToc] = useState<EpubTocItem[]>([]);
   // Foliate's `relocate` payload sets all five location fields atomically.
   // Bundling them keeps each page-turn a single setState write.
@@ -103,6 +184,20 @@ export function ReaderScreen({ bookId }: Props) {
   // from the returned state.
   const manga = useMangaSpine(book ?? null, hasFile);
   const { handle: mangaHandle, error: mangaError } = manga;
+  const isManga = bookType === 'manga';
+
+  // Each renderer has its own idea of "the book is ready", and the frame has
+  // to ask the one that is actually running.
+  //
+  // Manga does not go through the WebView at all -- it is unzipped page by page
+  // on the RN side and is ready when useMangaSpine hands over a handle. The
+  // frame used to be hidden for manga outright, but `isManga` is false until
+  // the OPF has been read, so it appeared anyway and then vanished the instant
+  // the book was *detected* -- which is the start of the slow part, not the end
+  // of it. Hence a loader that let go while the pages were still extracting.
+  const contentReady = isManga ? mangaHandle != null : placedReported;
+  const placed = placingTimedOut || (contentReady && minHeld);
+
   // Current spine index as reported by whichever reader is active. Used
   // for the toolbar's page-count and to persist scroll position.
   const currentSpineRef = useRef<number>(0);
@@ -117,10 +212,6 @@ export function ReaderScreen({ bookId }: Props) {
   // FoliateReader's frame size, used to clamp the custom selection menu so
   // it doesn't extend below the dock or off the screen.
   const [readerViewport, setReaderViewport] = useState<{ width: number; height: number } | null>(null);
-  // Current bottom-dock mode. Drives the floating back-chevron visibility:
-  // when the dock expands beyond the pill, the chevron slides out so it
-  // doesn't compete with the toolbar.
-  const [dockMode, setDockMode] = useState<DockMode>('pill');
   const {
     dictTerm,
     setDictTerm,
@@ -129,33 +220,8 @@ export function ReaderScreen({ bookId }: Props) {
   } = useReaderModals();
 
   const epubRef = useRef<FoliateReaderHandle | null>(null);
-  const {
-    layout,
-    direction,
-    mangaMode,
-    mangaPageDir,
-    setLayout,
-    setDirection,
-    toggleLayout,
-    toggleDirection,
-    toggleMangaMode,
-    toggleMangaPageDir,
-  } = useReaderLayoutPrefs();
-  const [readerReady, setReaderReady] = useState(false);
-
-  // Apply the layout/direction combo via setViewMode. Fires:
-  //   - after 'ready' (initial setup, once the renderer is fully alive --
-  //     setting flow during loadBook silently races foliate's renderer init)
-  //   - whenever the user toggles layout or direction in the toolbar
-  // Translates the user-facing combo to the renderer's viewMode vocab.
-  // Manga (fixed-layout) has its own toolbar with its own viewMode state, so
-  // we skip this effect when bookType is 'manga' to avoid clobbering it with
-  // the text-book layout pref every time those prefs are read.
-  useEffect(() => {
-    if (!readerReady || !epubRef.current || bookType === 'manga') return;
-    const flow = flowForCombo(layout, direction);
-    epubRef.current.setViewMode(flow === 'scrolled' ? 'scroll' : 'single');
-  }, [readerReady, layout, direction, bookType]);
+  const { mangaMode, mangaPageDir, toggleMangaMode, toggleMangaPageDir } =
+    useReaderLayoutPrefs();
   const latestLocationRef = useRef<{
     cfi: string;
     progress: number;
@@ -192,6 +258,7 @@ export function ReaderScreen({ bookId }: Props) {
       fontPx: prefs.fontPx,
       lineHeight: prefs.lineHeight,
       vertical: bookType === 'novel',
+      highlight: HIGHLIGHT_COLORS[prefs.highlight],
     }),
     [prefs, bookType],
   );
@@ -203,9 +270,9 @@ export function ReaderScreen({ bookId }: Props) {
 
   // ── EPUB callbacks ──────────────────────────────────────────────────
   const handleReady = useCallback((payload: ReadyPayload) => {
+    setPlacedReported(true);
     setBookType(payload.bookType);
     setToc(payload.toc);
-    setReaderReady(true);
   }, []);
 
   const handleRelocated = useCallback(
@@ -233,6 +300,14 @@ export function ReaderScreen({ bookId }: Props) {
 
   const handleSelection = useCallback((payload: SelectionPayload) => {
     setSelection(payload);
+  }, []);
+
+  // Selection touch feedback. The WebView gesture decides *when* — it is the
+  // only thing that knows the band engaged or grew a character — and this
+  // decides what that feels like.
+  const handleHaptic = useCallback((kind: 'start' | 'tick') => {
+    if (kind === 'start') selectionStartFeedback();
+    else selectionTickFeedback();
   }, []);
 
   const handleEpubError = useCallback((message: string) => {
@@ -271,9 +346,8 @@ export function ReaderScreen({ bookId }: Props) {
   const handleAddFlashcardFromKanji = useCallback(
     (kanji: KanjiInfo) => {
       setFlashcardPrefill(kanjiCardDraft(kanji));
-      setDictTerm(null);
     },
-    [setDictTerm, setFlashcardPrefill],
+    [setFlashcardPrefill],
   );
 
   const handleAddFlashcardFromDict = useCallback(
@@ -287,10 +361,47 @@ export function ReaderScreen({ bookId }: Props) {
       // reaches for them, and the reader has nothing better to offer here
       // because the tap already went through the dictionary drawer.
       setFlashcardPrefill(wordCardDraft(details.word, dictTerm ?? undefined, details.sentences));
-      setDictTerm(null);
+      // The lookup deliberately stays open behind the card sheet. Closing it
+      // here threw away the query, the entry and the scroll position, and the
+      // reader who wanted a second card off the same word had to search for
+      // it again. `LookupDrawers` owns the stacking that makes this work.
     },
-    [dictTerm, setDictTerm, setFlashcardPrefill],
+    [dictTerm, setFlashcardPrefill],
   );
+
+  const reduceMotion = useReduceMotion();
+
+  // Fade the cover out, then stop rendering it. Opacity is the one property
+  // that can run entirely off the JS thread, which matters here more than
+  // usual: the frame lifts at the exact moment the reader is doing its most
+  // expensive work, so a JS-driven fade would stutter against it.
+  useEffect(() => {
+    if (!placed || !placingMounted) return;
+    if (reduceMotion) { setPlacingMounted(false); return; }
+    const anim = Animated.timing(enter, {
+      toValue: 1,
+      duration: ENTER_MS,
+      easing: DECELERATE,
+      useNativeDriver: true,
+    });
+    anim.start(({ finished }) => { if (finished) setPlacingMounted(false); });
+    return () => anim.stop();
+  }, [placed, placingMounted, enter, reduceMotion]);
+
+  // The floor. Runs once from mount, so a book that is placed instantly still
+  // shows its cover long enough to read as an opening rather than a blink.
+  useEffect(() => {
+    const t = setTimeout(() => setMinHeld(true), MIN_PLACING_MS);
+    return () => clearTimeout(t);
+  }, []);
+
+  // The backstop. If 'ready' never arrives (a broken file, a WebView that
+  // failed to boot) the reader gets the book rather than a cover forever.
+  // Deliberately independent of the floor: this one ignores it.
+  useEffect(() => {
+    const t = setTimeout(() => setPlacingTimedOut(true), PLACING_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   const { user } = useAuth();
 
@@ -304,7 +415,6 @@ export function ReaderScreen({ bookId }: Props) {
   useEffect(() => {
     if (manga.handle) {
       setLocation((l) => ({ ...l, totalPages: manga.handle!.entries.length }));
-      setReaderReady(true);
     }
   }, [manga.handle]);
 
@@ -443,8 +553,7 @@ export function ReaderScreen({ bookId }: Props) {
     if (!hasFile) {
       return (
         <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
-          <ReaderTopBar title={book.title} progress={progress} />
-          <FloatingBackButton onPress={handleBack} />
+          <ReaderTopBar title={book.title} progress={progress} onBack={handleBack} />
           <View style={styles.missingWrap}>
             <Text style={[styles.missingTitle, { color: c.fg }]}>File not on this device</Text>
             <Text style={[styles.missingBody, { color: c.fgMuted }]}>
@@ -474,18 +583,13 @@ export function ReaderScreen({ bookId }: Props) {
           onOpenDictionary={() => setDictTerm('')}
         />
 
-        <DictDrawer
-          visible={dictTerm !== null}
-          term={dictTerm ?? ''}
-          onDismiss={() => setDictTerm(null)}
+        <LookupDrawers
+          dictTerm={dictTerm}
+          onCloseDict={() => setDictTerm(null)}
           onAddFlashcard={handleAddFlashcardFromDict}
           onAddKanji={handleAddFlashcardFromKanji}
-        />
-
-        <FlashcardDrawer
-          visible={flashcardPrefill !== null}
-          prefill={flashcardPrefill}
-          onDismiss={() => setFlashcardPrefill(null)}
+          flashcardPrefill={flashcardPrefill}
+          onCloseFlashcard={() => setFlashcardPrefill(null)}
         />
       </SafeAreaView>
     );
@@ -498,20 +602,12 @@ export function ReaderScreen({ bookId }: Props) {
     toc,
     prefs,
     onChangePrefs: savePrefs,
-    layout,
-    direction,
-    onToggleLayout: toggleLayout,
-    onToggleDirection: toggleDirection,
-    onSetLayout: setLayout,
-    onSetDirection: setDirection,
     onPrev: () => epubRef.current?.prev(),
     onNext: () => epubRef.current?.next(),
     onJumpHref: (href: string) => epubRef.current?.goTo(href),
     onJumpCfi: (cfi: string) => epubRef.current?.goTo(cfi),
-    onModeChange: setDockMode,
   };
 
-  const isManga = bookType === 'manga';
   // Match the safe-area inset bg to the body for manga so there's no seam
   // between the inset (where the floating chevron sits) and the rounded
   // frame below it.
@@ -519,11 +615,7 @@ export function ReaderScreen({ bookId }: Props) {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: safeBg }]} edges={['top']}>
-      <ReaderTopBar title={book.title} progress={progress} />
-
-      {/* Back navigation: floating chevron pinned bottom-left, fades out
-          when the dock expands so it doesn't compete with the toolbar. */}
-      <FloatingBackButton onPress={handleBack} visible={dockMode === 'pill'} />
+      <ReaderTopBar title={book.title} progress={progress} onBack={handleBack} />
 
       <View style={styles.body}>
         {/* Manga and reflowable text are two separate renderers, mutually
@@ -563,6 +655,7 @@ export function ReaderScreen({ bookId }: Props) {
             onReady={handleReady}
             onRelocated={handleRelocated}
             onSelection={handleSelection}
+            onHaptic={handleHaptic}
             onCustomMenu={handleCustomMenu}
             onViewportLayout={setReaderViewport}
             onError={handleEpubError}
@@ -578,6 +671,50 @@ export function ReaderScreen({ bookId }: Props) {
         ) : (
           <View style={styles.missingWrap}>
             <ActivityIndicator color={c.fg} />
+          </View>
+        )}
+
+        {/* The placing frame.
+            Covers the reader between mounting and the book being put back
+            where it was left. The WebView withholds its own paint over the
+            same window, so without this the reader would be looking at an
+            empty rectangle; with it, they are looking at the book they opened.
+            Manga is excluded -- it has no stored position to restore and its
+            RN renderers paint immediately. */}
+        {placingMounted && hasFile && (
+          <View pointerEvents={placed ? 'none' : 'auto'} style={styles.placing}>
+            {/* The ground. Its own layer rather than a background on the
+                container, so it can fall away while the cover is still
+                solid -- the cover has to have somewhere to arrive. */}
+            <Animated.View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: style.bg, opacity: groundOpacity },
+              ]}
+            />
+            <Animated.View
+              style={{ opacity: coverOpacity, transform: [{ scale: coverScale }] }}
+            >
+              <BookCover
+                title={book.title}
+                coverColor={book.cover_color}
+                filename={book.filename}
+                width={132}
+                // Without this the cover has a width and no height at all:
+                // BookCover only takes a shape from `aspectRatio` or from the
+                // image's own dimensions once it loads, and its <Image> is
+                // absolutely positioned so it lends the container nothing. The
+                // result is a 132px-wide bar of no height -- and it can stay
+                // that way, because an unlaid-out image may never fire the
+                // onLoad that would have supplied the real ratio. 3/4 is the
+                // same fallback the library grid uses, so a book is the same
+                // shape here as on its tile; a real cover still overrides it.
+                aspectRatio={3 / 4}
+              />
+            </Animated.View>
+            <Animated.View style={{ opacity: spinnerOpacity }}>
+              <ActivityIndicator color={c.fgMuted} />
+            </Animated.View>
           </View>
         )}
 
@@ -624,22 +761,16 @@ export function ReaderScreen({ bookId }: Props) {
               mangaScrollViewRef.current?.scrollToSpine(idx, true);
             }
           }}
-          onModeChange={setDockMode}
         />
       )}
 
-      <DictDrawer
-        visible={dictTerm !== null}
-        term={dictTerm ?? ''}
-        onDismiss={() => setDictTerm(null)}
+      <LookupDrawers
+        dictTerm={dictTerm}
+        onCloseDict={() => setDictTerm(null)}
         onAddFlashcard={handleAddFlashcardFromDict}
         onAddKanji={handleAddFlashcardFromKanji}
-      />
-
-      <FlashcardDrawer
-        visible={flashcardPrefill !== null}
-        prefill={flashcardPrefill}
-        onDismiss={() => setFlashcardPrefill(null)}
+        flashcardPrefill={flashcardPrefill}
+        onCloseFlashcard={() => setFlashcardPrefill(null)}
       />
     </SafeAreaView>
   );
@@ -674,6 +805,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 14,
     padding: 32,
+  },
+  // Sits over the reader body, not the chrome: the top bar stays readable so
+  // the book's title and the way out are there the whole time.
+  //
+  // Centring and nothing else. No offsets, no absolute placement of the
+  // children -- whatever this lands on is what plain centring gives, which is
+  // the baseline to judge the rest against.
+  placing: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   missingTitle: { fontSize: 18, fontWeight: '600' },
   missingBody: { fontSize: 14, textAlign: 'center', lineHeight: 20 },

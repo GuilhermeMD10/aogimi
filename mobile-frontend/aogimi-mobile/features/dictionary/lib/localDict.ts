@@ -33,6 +33,7 @@ import {
   searchByKanjiContaining,
   searchEnglish,
   searchJapaneseForms,
+  searchJapanesePrefix,
   type HydratedWord,
   type KanjiRow,
   type NameRow,
@@ -288,6 +289,23 @@ function pagedFrame(kind: SearchKind, words: WordResult[], limit: number): Searc
     : { type: 'kana', words: page, names: [], kanjis: [], hasMore };
 }
 
+/**
+ * Exact and deinflected matches, then the partial ones.
+ *
+ * ── Why the two blocks are hydrated separately ─────────────────────────────
+ * `hydrateAndAnnotate` re-sorts everything it is given by its own tiebreakers
+ * (JLPT tier, grade, form length), which are the right rules *within* a set of
+ * equally-good matches and the wrong ones *across* them: a common short word
+ * that merely starts with the query would outrank the word the reader actually
+ * typed. So each block is ranked on its own and the blocks are concatenated —
+ * exact first, always. This is the same shape branch 4 already uses to put
+ * Japanese hits ahead of English ones.
+ *
+ * The prefix query runs in parallel with the direct one because it does not
+ * depend on the answer: partial matches are shown *alongside* an exact hit,
+ * not only when there is none. Typing 食べる should still reveal 食べる方 below
+ * it, which is the whole point of asking for partial results.
+ */
 async function japaneseWithDeinflection(
   q: string,
   kind: SearchKind,
@@ -295,35 +313,74 @@ async function japaneseWithDeinflection(
 ): Promise<SearchResponse> {
   const probe = limit + 1;
 
-  // Direct match first.
-  const direct = await searchJapaneseForms([q], probe);
-  if (direct.length > 0) {
-    return pagedFrame(kind, await hydrateAndAnnotate(direct), limit);
-  }
+  const [direct, prefixHits] = await Promise.all([
+    searchJapaneseForms([q], probe),
+    searchJapanesePrefix(q, probe),
+  ]);
 
+  const exact = direct.length > 0
+    ? await hydrateAndAnnotate(direct)
+    : await deinflected(q, probe);
+
+  return pagedFrame(kind, await withPartials(exact, prefixHits), limit);
+}
+
+/** The deinflection fallback: 食べた → 食べる, annotated with the path taken. */
+async function deinflected(q: string, probe: number): Promise<AnnotatedWord[]> {
   const candidates = deinflect(q);
   const forms = candidates.map((c) => c.base).filter((f) => f !== q);
-  if (forms.length === 0) {
-    return pagedFrame(kind, [], limit);
-  }
+  if (forms.length === 0) return [];
 
   const hits = await searchJapaneseForms(forms, probe);
   const inflectionByForm = new Map(candidates.map((c) => [c.base, c.inflections]));
-  const words = await hydrateAndAnnotate(hits, (hit) => ({
+  return hydrateAndAnnotate(hits, (hit) => ({
     from: q,
     path: hit.form ? inflectionByForm.get(hit.form) ?? [] : [],
   }));
+}
 
-  return pagedFrame(kind, words, limit);
+/**
+ * `exact` followed by the partial matches it does not already contain.
+ *
+ * De-duplicated by word id against the exact block, so a word matched both
+ * ways keeps its higher position rather than appearing twice. Returns the
+ * merged list **unsliced** — `pagedFrame` owns the page boundary, and it needs
+ * the probe row to know whether another page exists.
+ */
+async function withPartials(
+  exact: AnnotatedWord[],
+  prefixHits: ScoredHit[],
+): Promise<AnnotatedWord[]> {
+  if (prefixHits.length === 0) return exact;
+  const seen = new Set(exact.map((w) => w.id));
+  const partial = (await hydrateAndAnnotate(prefixHits, undefined, true))
+    .filter((w) => !seen.has(w.id));
+  return [...exact, ...partial];
 }
 
 type AnnotatedWord = WordResult & {
   inflection?: { from: string; path: string[] };
 };
 
+/**
+ * `keepOrder` leaves the caller's ranking alone instead of applying the
+ * tiebreakers below.
+ *
+ * The tiebreakers answer "which of these equally-exact matches did the reader
+ * most likely mean" — JLPT tier, school grade, shortest form. That is the
+ * wrong question for the partial block, and asking it there breaks paging:
+ * the sort runs over however many candidates this page fetched, so a longer
+ * page can rank a newly-arrived row *above* one already on screen, and
+ * pressing "More results" reshuffles rows the reader was looking at instead
+ * of just adding to them. Left in SQL order the block is a growing prefix —
+ * page two always starts with page one — and the SQL score (priority, common,
+ * JLPT, minus form length) is already a total order over exactly the rows
+ * being ranked.
+ */
 async function hydrateAndAnnotate(
   hits: ScoredHit[],
   metaFn?: (hit: ScoredHit) => { from: string; path: string[] },
+  keepOrder = false,
 ): Promise<AnnotatedWord[]> {
   if (hits.length === 0) return [];
 
@@ -345,13 +402,29 @@ async function hydrateAndAnnotate(
   const hydrated = await hydrate(orderedIds);
   const annotated = await annotateKanjiGrades(hydrated);
 
-  // Sort rules — direct port of searchService.hydrateAndAnnotate:
-  //  1. Single-kanji word with exact match in senses 1–5 (earlier sense first)
-  //  2. Any exact match in top-10 senses (earlier sense first)
-  //  3. JLPT presence + higher level first (N5 = 5 > N1 = 1)
-  //  4. Grade ascending (nulls last)
-  //  5. Primary kanji length, then primary reading length
-  //  6. Stable fallback preserves upstream SQL score order
+  if (!keepOrder) sortByMatchQuality(annotated, exactSenseById);
+
+  return annotated.map((r) => {
+    const meta = metaById.get(r.id);
+    return meta ? { ...r, inflection: meta } : r;
+  });
+}
+
+/**
+ * The tiebreaker sort, in place. See `hydrateAndAnnotate`'s `keepOrder`.
+ *
+ * Sort rules — direct port of searchService.sortByMatchQuality:
+ *  1. Single-kanji word with exact match in senses 1–5 (earlier sense first)
+ *  2. Any exact match in top-10 senses (earlier sense first)
+ *  3. JLPT presence + higher level first (N5 = 5 > N1 = 1)
+ *  4. Grade ascending (nulls last)
+ *  5. Primary kanji length, then primary reading length
+ *  6. Stable fallback preserves upstream SQL score order
+ */
+function sortByMatchQuality(
+  annotated: AnnotatedWord[],
+  exactSenseById: Map<number, number>,
+): void {
   annotated.sort((a, b) => {
     const aEx = exactSenseById.get(a.id);
     const bEx = exactSenseById.get(b.id);
@@ -384,11 +457,6 @@ async function hydrateAndAnnotate(
     if (aKanjiLen !== bKanjiLen) return aKanjiLen - bKanjiLen;
     return primaryLength(a.readings.map((r) => r.form)) -
            primaryLength(b.readings.map((r) => r.form));
-  });
-
-  return annotated.map((r) => {
-    const meta = metaById.get(r.id);
-    return meta ? { ...r, inflection: meta } : r;
   });
 }
 

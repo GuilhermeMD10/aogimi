@@ -31,6 +31,18 @@ class SearchIndex {
   async searchJapaneseForms(_forms, _limit) { throw new Error('not implemented'); }
 
   /**
+   * Look up Japanese words whose kanji form or kana reading *starts with* the
+   * given surface form without equalling it — the partial matches. Ranked the
+   * same way as the exact path, minus a length penalty so the closest form
+   * comes first. Returns [] for a query too short or too pattern-like to
+   * prefix-search (see the concrete implementation's canPrefixSearch).
+   * @param {string} q
+   * @param {number} limit
+   * @returns {Promise<{ word_id: number, form: string }[]>}
+   */
+  async searchJapanesePrefix(_q, _limit) { throw new Error('not implemented'); }
+
+  /**
    * Words that contain a given kanji character in any of their kanji forms.
    * Used for the single-kanji query type.
    * @param {string} char  a single CJK character

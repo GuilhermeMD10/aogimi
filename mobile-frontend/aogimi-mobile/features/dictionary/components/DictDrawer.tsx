@@ -36,6 +36,7 @@ export function DictDrawer({
   onDismiss,
   onAddFlashcard,
   onAddKanji,
+  children,
 }: {
   visible: boolean;
   term: string;
@@ -44,6 +45,18 @@ export function DictDrawer({
   /** A kanji result's add button. The reader owns the draft builders it uses,
    *  so the sheet reports the character rather than building the card. */
   onAddKanji: (kanji: KanjiInfo) => void;
+  /**
+   * Sheets that have to open *over* this one — the reader passes its
+   * flashcard drawer here.
+   *
+   * **They must be nested rather than sibling**, because `BottomSheet` is a
+   * `Modal` and iOS presents one from the nearest view controller up the
+   * responder chain. Two sibling modals resolve to the *same* controller, and
+   * UIKit drops the second presentation on the floor ("already presenting"),
+   * so the card sheet simply never appeared. Rendered inside this sheet, the
+   * chain reaches this modal's own controller and the presentation lands.
+   */
+  children?: React.ReactNode;
 }) {
   return (
     <BottomSheet visible={visible} onDismiss={onDismiss} heightRatio={0.65}>
@@ -56,6 +69,7 @@ export function DictDrawer({
         onAddFlashcard={onAddFlashcard}
         onAddKanji={onAddKanji}
       />
+      {children}
     </BottomSheet>
   );
 }

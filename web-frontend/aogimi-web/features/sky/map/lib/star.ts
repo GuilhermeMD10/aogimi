@@ -1,9 +1,13 @@
 import {
   BEAD_MIN_CORE_PX,
+  CLOUD_ZOOM,
   CORE_SCALE,
+  FOCUS_MAX_ZOOM,
   FOCUSED_STAR_PEAK_SCALE,
   FOCUSED_STAR_SCALE,
   FULCRAL_SCALE,
+  LABEL_MIN_PX,
+  LABEL_WORLD_PX,
   ORBIT_RX,
   ORBIT_RY,
   ORBIT_TILT,
@@ -20,6 +24,7 @@ import {
   SMALL_DECK_MAX,
   SMALL_DECK_STAR_BOOST,
   STAR_GLOW_SCALE,
+  STAR_SHRINK_EXPONENT,
   STAR_ZOOM_EXPONENT,
   UNFOCUSED_STAR_SCALE,
 } from './config';
@@ -58,6 +63,9 @@ export type StarSizing = {
    * is the old flat behaviour and the right degradation for a host that cannot say.
    */
   relZoomMax?: number;
+  /** The camera's **absolute** zoom, which is what `starZoomSize` shrinks a focused deck's stars
+   *  against. Omitted, the shrink is skipped and the size is the pre-ramp one. */
+  zoom?: number;
   /** A fulcral star stands in for a whole collapsed group, so it is drawn larger than a lone one. */
   fulcral?: boolean;
   /** The deck's own multiplier — `deckPresence().scale` at the chooser, 1 everywhere else. */
@@ -94,10 +102,42 @@ export const deckPresence = (cards: number): { scale: number; vivid: boolean } =
 };
 
 /**
+ * How much of a focused star's size survives at this zoom: 1 at FOCUS_MAX_ZOOM, 0 at CLOUD_ZOOM,
+ * where the clouds take the view over and the star is a vanishing point.
+ *
+ * See STAR_SHRINK_EXPONENT for why the ramp is anchored on absolute zoom, and why it is a focused
+ * deck's business alone.
+ */
+export const starZoomSize = (zoom: number | undefined): number => {
+  if (zoom == null) return 1;
+  const span = Math.log(FOCUS_MAX_ZOOM / CLOUD_ZOOM);
+  if (!(span > 0)) return 1;
+  return Math.pow(clamp01(Math.log(zoom / CLOUD_ZOOM) / span), STAR_SHRINK_EXPONENT);
+};
+
+/**
+ * The label's size in **world units** at this zoom — the floor and the slope resolved into the one
+ * number a renderer draws with. See LABEL_MIN_PX / LABEL_MAX_PX.
+ *
+ * `max` of the two, because the floor and the slope are each expressed as the world size that
+ * *produces* the size wanted on screen: `LABEL_MIN_PX / zoom` holds the label at a constant
+ * LABEL_MIN_PX, and LABEL_WORLD_PX lets it scale 1:1 with the camera. Whichever is larger is the
+ * one in force, so the label rises off the floor exactly where the slope overtakes it and there is
+ * no threshold stated twice.
+ */
+export const labelWorldSize = (zoom: number): number =>
+  zoom > 0 ? Math.max(LABEL_WORLD_PX, LABEL_MIN_PX / zoom) : LABEL_WORLD_PX;
+
+/**
  * A star's radius **in screen px**, which is what the renderer converts to world units through
  * `View.worldPerPx`. Screen px is the only currency that makes sense here: the point of the
  * sublinear exponent is that a star's size on the reader's screen is a controlled quantity rather
  * than something the world scale drags around.
+ *
+ * Inside a focused deck that quantity is then walked down by `starZoomSize` as the camera pulls
+ * back, so the sizes above are what "fully zoomed in" looks like rather than what every zoom looks
+ * like. The outer view keeps them flat: out there a star stands for a whole deck and has to stay
+ * findable, which is the same reason lod.ts gives for the outer view sharing no zoom threshold.
  */
 export const starRadiusPx = (mastery: number, s: StarSizing): number => {
   const base = RANK_R_PX[rankOf(mastery)];
@@ -110,7 +150,7 @@ export const starRadiusPx = (mastery: number, s: StarSizing): number => {
     s.focused === false
       ? UNFOCUSED_STAR_SCALE
       : s.focused === true
-        ? focusedScale(s.relZoom, s.relZoomMax)
+        ? focusedScale(s.relZoom, s.relZoomMax) * starZoomSize(s.zoom)
         : 1;
   return base * swell * deck * (s.scale ?? 1) * (s.fulcral ? FULCRAL_SCALE : 1);
 };

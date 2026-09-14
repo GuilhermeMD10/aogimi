@@ -10,8 +10,8 @@ import {
   MIN_DISTANCE,
   RADIUS_SPAN,
   SAFETY_ZONE_LIMIT,
-  SEEDS_PER_ZONE,
   SEED_CLEARANCE,
+  STARS_PER_ZONE,
 } from './config';
 import type { CardContent } from './cards';
 import { ORIGIN, dist2, pointToSegment, segmentsCross } from './geometry';
@@ -70,6 +70,20 @@ const FIELD_SCALE_X = Math.sqrt(FIELD_ASPECT);
 const FIELD_SCALE_Y = 1 / Math.sqrt(FIELD_ASPECT);
 
 /**
+ * Which annulus a deck-local point lies in, counting from 1 at the origin. The field's stretch is
+ * undone first, so the ring read back is the circular one the zones are drawn in.
+ */
+const ringOf = (p: Point): number =>
+  Math.max(1, Math.ceil(Math.hypot(p.x / FIELD_SCALE_X, p.y / FIELD_SCALE_Y) / RADIUS_SPAN));
+
+/**
+ * How many stars zone n holds before the frontier moves out. `2n - 1` is the annulus' share of the
+ * disc it closes (n² - (n-1)²), so every ring is filled to the same density and the field grows as
+ * sqrt(cards) — see STARS_PER_ZONE.
+ */
+const zoneCapacity = (zone: number): number => STARS_PER_ZONE * (2 * zone - 1);
+
+/**
  * One deck's own patch of sky, in **deck-local** coordinates, growing outward from its own origin.
  *
  * Every placement rule is confined to one of these, which is what makes deck separation structural
@@ -85,9 +99,11 @@ class DeckField {
   members = new Map<number, Star[]>();
   starGrid = new SpatialGrid<Star>(GRID_CELL);
   linkGrid = new SpatialGrid<Segment>(GRID_CELL);
-  /** Which annulus the next new session seeds into, and how many have gone into it so far. */
+  /** Which annulus the next new session seeds into, and how many stars have landed while it has
+   *  been the frontier. **Stars, not seeds** — see STARS_PER_ZONE: a ring is full when it holds a
+   *  ring's worth of sky, and a day of one card must not cost what a day of forty does. */
   zone = 1;
-  seededInZone = 0;
+  starsInZone = 0;
   cids: number[] = [];
   starCount = 0;
 }
@@ -248,26 +264,29 @@ export class SkyGenerator {
       this.nextCid = Math.max(this.nextCid, copy.id + 1);
     }
 
-    // Each deck's frontier: which annulus its next new session seeds into. Read back from where the
-    // existing seeds actually sit rather than recomputed from their count, so a zone the search once
-    // skipped past as saturated is not re-entered and slowly refilled.
+    // Each deck's frontier: which annulus its next new session seeds into, and how full it is. Read
+    // back from where the stars actually sit rather than recomputed from their count, so a zone the
+    // search once skipped past as saturated is not re-entered and slowly refilled.
+    //
+    // The frontier is the outermost ring a *seed* reached — that is the decision `placeSeed` last
+    // made — while its occupancy is counted in *stars* lying in that ring, whichever constellation
+    // they belong to, because that is the budget `placeSeed` now spends. A star grown outward from
+    // an inner seed takes up room out there and is counted where it lies.
     for (const field of this.fields.values()) {
       let zone = 1;
-      let seeded = 0;
       for (const cid of field.cids) {
         const c = this.byCid.get(cid);
         const seed = c && this.byId.get(c.starIds[0]);
         if (!seed) continue;
-        // undo the field's stretch, so the ring read back is the one the seed was drawn in
-        const z = Math.max(1, Math.ceil(Math.hypot(seed.x / FIELD_SCALE_X, seed.y / FIELD_SCALE_Y) / RADIUS_SPAN));
-        if (z > zone) {
-          zone = z;
-          seeded = 0;
-        }
-        if (z === zone) seeded += 1;
+        const z = ringOf(seed);
+        if (z > zone) zone = z;
+      }
+      let stars = 0;
+      for (const list of field.members.values()) {
+        for (const star of list) if (ringOf(star) === zone) stars += 1;
       }
       field.zone = zone;
-      field.seededInZone = seeded;
+      field.starsInZone = stars;
     }
   }
 
@@ -318,9 +337,9 @@ export class SkyGenerator {
     if (field.starCount === 0) return ORIGIN;
 
     while (field.zone < SAFETY_ZONE_LIMIT) {
-      if (field.seededInZone >= SEEDS_PER_ZONE * field.zone) {
+      if (field.starsInZone >= zoneCapacity(field.zone)) {
         field.zone += 1;
-        field.seededInZone = 0;
+        field.starsInZone = 0;
         continue;
       }
       const n = field.zone;
@@ -333,12 +352,13 @@ export class SkyGenerator {
         const p = { x: Math.cos(a) * r * FIELD_SCALE_X, y: Math.sin(a) * r * FIELD_SCALE_Y };
         if (field.starGrid.some(pointBox(p, SEED_REACH), (s) => dist2(s, p) < SEED_D2)) continue;
         if (!this.clearOfLinks(field, p)) continue;
-        field.seededInZone += 1;
+        // No increment here: the seed is a star like any other and `addStar` counts it once the
+        // placement lands, which is also what keeps growth stars on the same ledger.
         return p;
       }
       // no free angles at this radius, so try the next ring out
       field.zone += 1;
-      field.seededInZone = 0;
+      field.starsInZone = 0;
     }
     return null; // unreachable outside pathological constants
   }
@@ -443,6 +463,13 @@ export class SkyGenerator {
     this.byId.set(star.id, star);
     field.starGrid.insert(star, pointBox(star, 0));
     field.starCount += 1;
+    // Every star spends the frontier's budget, grown or seeded: a ring fills up with sky taken, not
+    // with sessions started. Charged to the ring the star *lies* in rather than to whichever was
+    // frontier when it was mined — a session seeded near the outer edge sprawls across two rings,
+    // and only the part of it that is actually out there has taken room out there. That reading is
+    // also the one `hydrate` can reconstruct from stored positions alone, so the live counter and a
+    // reloaded one are the same number rather than two approximations of it.
+    if (ringOf(star) === field.zone) field.starsInZone += 1;
 
     const members = field.members.get(target.id);
     if (members) members.push(star);

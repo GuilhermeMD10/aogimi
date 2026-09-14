@@ -137,8 +137,11 @@ export async function importBookWithMatch(
     // When a strong match exists with a different filename (e.g. same book
     // imported on a phone as "book.pdf" but downloaded on this device as
     // "Book Title - Author.pdf"), realign the local copy to the matched
-    // filename so useSyncBooks's filename-keyed merge picks it up
-    // correctly.
+    // filename. Local↔backend pairing no longer needs this — `pairBooks`
+    // pairs on file_hash — but naming the local slot after the register it
+    // attached to keeps the shelf's optimistic tile update (keyed on
+    // filename, since a `Book` tile carries no hash) replacing that tile
+    // instead of appending a second one for the same book.
     const fileForImport =
       strongMatchFilename && strongMatchFilename !== file.name
         ? new File([arrayBuffer], strongMatchFilename, { type: file.type })

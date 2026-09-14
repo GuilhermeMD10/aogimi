@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
+import { gradeFeedback, type GradeFeel } from '@/lib/haptics';
 import { useT } from '@/lib/i18n/I18nContext';
 import { fontSize, radius } from '@/theme/tokens';
 import type { StudyOutcome } from '../types';
@@ -29,12 +30,19 @@ type Props = {
  * default success. The palette is stated inline rather than tokenised because
  * these four are semantic to grading and shouldn't drift with the theme; the
  * design handoff may restyle the row, but Again must not stop being the alarm.
+ *
+ * `feel` is the same idea in the other sense the row is read through. Grading a
+ * queue is four buttons pressed hundreds of times, mostly without looking down,
+ * so each one answers with its own weight: crisp and abrupt on Again, softening
+ * step by step to barely-there on Easy. It rides the *same* ordering the
+ * colours do, which is what makes it learnable rather than merely varied — see
+ * `GradeFeel` for why none of them is heavy.
  */
-const GRADES: { outcome: StudyOutcome; labelKey: string; color: string }[] = [
-  { outcome: 'again', labelKey: 'study.again', color: '#B84238' },
-  { outcome: 'hard',  labelKey: 'study.hard',  color: '#B8862B' },
-  { outcome: 'good',  labelKey: 'study.good',  color: '#3B7A40' },
-  { outcome: 'easy',  labelKey: 'study.easy',  color: '#2E5C8A' },
+const GRADES: { outcome: StudyOutcome; labelKey: string; color: string; feel: GradeFeel }[] = [
+  { outcome: 'again', labelKey: 'study.again', color: '#B84238', feel: 'firm' },
+  { outcome: 'hard',  labelKey: 'study.hard',  color: '#B8862B', feel: 'solid' },
+  { outcome: 'good',  labelKey: 'study.good',  color: '#3B7A40', feel: 'light' },
+  { outcome: 'easy',  labelKey: 'study.easy',  color: '#2E5C8A', feel: 'soft' },
 ];
 
 export function ResultButtons({ onResult, disabled }: Props) {
@@ -46,6 +54,12 @@ export function ResultButtons({ onResult, disabled }: Props) {
           minTarget={false}
           key={g.outcome}
           onPress={() => onResult(g.outcome)}
+          // The grade's own weight replaces Touchable's shared Light tick — two
+          // haptics on one press reads as a stutter, and the generic one would
+          // drown the distinction these four exist to make. Press-*in*, like
+          // the one it replaces, so it lands with the finger.
+          haptic={false}
+          onPressIn={() => gradeFeedback(g.feel)}
           disabled={disabled}
           style={[
             styles.button,

@@ -32,6 +32,7 @@ import {
   orbitOf,
   ringRadii,
   ringWidth,
+  labelWorldSize,
   starRadiusPx,
 } from '../lib/star';
 import type { Star } from '../lib/types';
@@ -163,6 +164,9 @@ type Props = {
   /** Zoom relative to this tier's fitted view. Drives the sublinear swell. */
   relZoom: number;
   relZoomMax?: number;
+  /** The camera's absolute zoom. Sizes the labels (`labelWorldSize`) and nothing else — the star
+   *  radius is a function of `relZoom` alone, so that it can only ever grow as you zoom in. */
+  zoom: number;
   /** World units per screen px, from the committed camera. */
   u: number;
   /** The open card's star: ringed and its glow amplified, so the panel and the sky agree. */
@@ -184,12 +188,16 @@ export function SkyStars({
   vivid = false,
   relZoom,
   relZoomMax,
+  zoom,
   u,
   selected,
   labelOp,
   font,
 }: Props) {
   const labelled = focused && labelOp > 0.01 && font !== null;
+  // Once per render, not per star. Constant above the floor's crossover, so a zoomed-in reader is
+  // back to a fixed world size and the camera does the scaling — see labelWorldSize.
+  const labelGlyphScale = labelWorldSize(zoom) / LABEL_FONT_PX;
 
   return (
     <Group>
@@ -345,15 +353,15 @@ export function SkyStars({
             {/* 7 · the front text, right and slightly below, once the zoom has bought it room.
                 Clipped hard — the label is a glance and the card detail lives in the host's chrome.
                 Skia sizes text through the font object, not a prop, so the canvas hands down a font
-                already built at LABEL_FONT_PX and the group scales it by `u`. */}
+                already built at LABEL_FONT_PX and the group scales it by a constant. */}
             {labelled && (
               <Group
                 opacity={(isSelected ? 1 : 0.85) * labelOp}
                 transform={[
                   { translateX: s.x + r + LABEL_OFFSET_X_PX * u },
                   { translateY: s.y + LABEL_OFFSET_Y_PX * u },
-                  { scaleX: u },
-                  { scaleY: u },
+                  { scaleX: labelGlyphScale },
+                  { scaleY: labelGlyphScale },
                 ]}
               >
                 <Text x={0} y={0} text={clip(s.front, LABEL_MAX_CHARS)} font={font} color={STAR_LABEL_COLOR} />
@@ -366,7 +374,7 @@ export function SkyStars({
   );
 }
 
-/** The size the label font must be built at. The renderer scales it by `u`, so the font itself is
- *  created once at the design size rather than rebuilt per zoom — a Skia font is a real object and
+/** The size the label font must be built at. The renderer scales it by `LABEL_GLYPH_SCALE`, so the
+ *  font itself is created once at the design size rather than rebuilt per zoom — a Skia font is a real object and
  *  re-making one per frame is the mistake this constant exists to prevent. */
 export const LABEL_FONT_SIZE = LABEL_FONT_PX;

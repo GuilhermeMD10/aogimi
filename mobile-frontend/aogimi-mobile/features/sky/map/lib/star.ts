@@ -4,6 +4,8 @@ import {
   FOCUSED_STAR_PEAK_SCALE,
   FOCUSED_STAR_SCALE,
   FULCRAL_SCALE,
+  LABEL_MIN_PX,
+  LABEL_WORLD_PX,
   ORBIT_RX,
   ORBIT_RY,
   ORBIT_TILT,
@@ -94,10 +96,39 @@ export const deckPresence = (cards: number): { scale: number; vivid: boolean } =
 };
 
 /**
+ * The label's size in **world units** at this zoom — the floor and the slope resolved into the one
+ * number a renderer draws with. See LABEL_MIN_PX / LABEL_MAX_PX.
+ *
+ * `max` of the two, because the floor and the slope are each expressed as the world size that
+ * *produces* the size wanted on screen: `LABEL_MIN_PX / zoom` holds the label at a constant
+ * LABEL_MIN_PX, and LABEL_WORLD_PX lets it scale 1:1 with the camera. Whichever is larger is the
+ * one in force, so the label rises off the floor exactly where the slope overtakes it and there is
+ * no threshold stated twice.
+ */
+export const labelWorldSize = (zoom: number): number =>
+  zoom > 0 ? Math.max(LABEL_WORLD_PX, LABEL_MIN_PX / zoom) : LABEL_WORLD_PX;
+
+/**
  * A star's radius **in screen px**, which is what the renderer converts to world units through
  * `View.worldPerPx`. Screen px is the only currency that makes sense here: the point of the
  * sublinear exponent is that a star's size on the reader's screen is a controlled quantity rather
  * than something the world scale drags around.
+ *
+ * **Monotone in zoom, and floored at the resting size.** Every term here is ≥ 1 at a tier's fit and
+ * only climbs, so zooming in can never make a star smaller — the one property the reader actually
+ * notices, and the one the old absolute-zoom shrink ramp broke. That ramp multiplied a focused
+ * star by `clamp01(log(zoom / CLOUD_ZOOM) / log(FOCUS_MAX_ZOOM / CLOUD_ZOOM))`, which is **below 1
+ * everywhere short of FOCUS_MAX_ZOOM and exactly 0 at or below CLOUD_ZOOM** — and a deck's fitted
+ * zoom routinely sits below CLOUD_ZOOM (a 200-card deck fits at 0.23 against a 0.44 threshold). So
+ * entering such a deck drew its stars at literally zero radius and kept them there through the
+ * first stretch of the pinch, then grew them 30× on the way in. Its stated aim — pulling back
+ * should read as distance — is already carried by the cloud handover in lod.ts, which says the same
+ * thing without ever making a star smaller than the reader last saw it.
+ *
+ * What is left is one gentle law shared by both tiers: the sublinear `swell`, plus the focused
+ * interior's own scale. Growth across a deck's whole zoom range is ~2x for a small deck and ~4x for
+ * one spanning 20x of zoom — a small delta against the zoom that produced it, which is the point of
+ * the sublinear exponent.
  */
 export const starRadiusPx = (mastery: number, s: StarSizing): number => {
   const base = RANK_R_PX[rankOf(mastery)];

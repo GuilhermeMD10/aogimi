@@ -105,6 +105,11 @@ export default function RootLayout() {
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(tabs)" />
+                {/* The reader owns every horizontal drag on its surface: in
+                    paginated flow a left-swipe turns the page, and iOS's
+                    swipe-back would race it and pop the screen mid-sentence.
+                    Leaving the library is the dock's exit chevron. */}
+                <Stack.Screen name="reader/[id]" options={{ gestureEnabled: false }} />
               </Stack>
             </AuthProvider>
           </I18nProvider>

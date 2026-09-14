@@ -238,6 +238,103 @@ export async function searchJapaneseForms(
 }
 
 /**
+ * The shortest query worth prefix-matching, in code points.
+ *
+ * A one-character prefix matches a large fraction of the dictionary — every
+ * reading that starts with あ — which is neither a useful answer nor a cheap
+ * one, since the index range scan would then have to sort most of
+ * `word_readings` by score. Single characters are also the case the other
+ * paths already answer well: a lone kanji routes to `searchByKanjiContaining`
+ * before it ever reaches here, and a lone kana to the on/kun reading lookups.
+ *
+ * Mirrored in `PgSearchIndex.MIN_PREFIX_CHARS`; the two engines must agree.
+ */
+export const MIN_PREFIX_CHARS = 2;
+
+/**
+ * Characters that would make a prefix query mean something other than itself.
+ *
+ * This is the **union of both engines' pattern metacharacters** — SQLite GLOB
+ * reads `* ? [ ]`, Postgres LIKE reads `% _ \` — deliberately, so a query is
+ * either prefix-searched by both engines or by neither. Splitting the sets
+ * would let the same input take the fast path online and the empty path
+ * offline, which is exactly the online/offline divergence this file exists to
+ * prevent.
+ *
+ * In practice callers only reach the prefix path with kanji or kana, so this
+ * never fires. It is here so that stays true by construction rather than by
+ * the routing above happening to hold.
+ */
+const PATTERN_META = /[*?[\]%_\\]/;
+
+/** Whether `q` can be prefix-searched at all. Same predicate in both engines. */
+export function canPrefixSearch(q: string): boolean {
+  return Array.from(q).length >= MIN_PREFIX_CHARS && !PATTERN_META.test(q);
+}
+
+/**
+ * Words whose kanji form or kana reading **starts with** `q` without being
+ * `q` — the partial matches, in other words: 食べ turns up 食べ物 and 食べ方
+ * beside the exact 食べる.
+ *
+ * Two arms, not the three `searchJapaneseForms` uses. `word_forms` (the
+ * inflected surfaces) is left out on purpose: a prefix of an inflection is not
+ * a word the reader asked about, and every base it could reach is already
+ * reached by the exact and deinflected passes that run before this one.
+ *
+ * GLOB rather than LIKE for the same reason `searchEnglish` uses it — GLOB is
+ * case-sensitive, so SQLite can answer a literal-prefix pattern from the
+ * B-tree (`idx_wk_kanji`, `idx_wr_kana`) instead of scanning. Equality is
+ * excluded here rather than in the caller so the row budget is spent entirely
+ * on rows the caller has not already seen.
+ *
+ * The length penalty is `searchByKanjiContaining`'s, and means the same thing:
+ * of two forms that both start with the query, the shorter one is the closer
+ * answer.
+ */
+export async function searchJapanesePrefix(
+  q: string,
+  limit = 20,
+): Promise<ScoredHit[]> {
+  if (!canPrefixSearch(q)) return [];
+  const db = await getDictionary();
+  const pattern = q + '*';
+
+  const rows = await db.getAllAsync<{
+    form: string;
+    word_id: number;
+    score: number;
+  }>(
+    `
+    SELECT form, word_id, score FROM (
+      SELECT wk.kanji AS form, wk.word_id,
+             COALESCE(w.priority_score, 0)
+               + CASE WHEN w.is_common = 1 THEN 20 ELSE 0 END
+               + CASE WHEN w.jlpt_level IS NOT NULL THEN 50 + w.jlpt_level * 5 ELSE 0 END
+               - length(wk.kanji) AS score
+        FROM word_kanji wk
+        JOIN words w ON w.id = wk.word_id
+       WHERE wk.kanji GLOB ? AND wk.kanji <> ?
+      UNION
+      SELECT wr.kana AS form, wr.word_id,
+             COALESCE(w.priority_score, 0)
+               + CASE WHEN w.is_common = 1 THEN 20 ELSE 0 END
+               + CASE WHEN w.jlpt_level IS NOT NULL THEN 50 + w.jlpt_level * 5 ELSE 0 END
+               - length(wr.kana) AS score
+        FROM word_readings wr
+        JOIN words w ON w.id = wr.word_id
+       WHERE wr.kana GLOB ? AND wr.kana <> ?
+    ) matches
+    ORDER BY score DESC, word_id
+    LIMIT ?
+    `,
+    [pattern, q, pattern, q, limit],
+  );
+
+  return rows.map((r) => ({ word_id: r.word_id, form: r.form }));
+}
+
+/**
  * Words containing a given kanji character. Used for the
  * single-kanji search dispatch path. Prefers shorter kanji forms
  * (more canonical) via a length penalty.

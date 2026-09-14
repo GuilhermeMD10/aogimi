@@ -126,6 +126,8 @@
     "good": "普通",
     "easy": "簡単",
     "undo": "戻す",
+    "finishSession": "終了",
+    "lookUp": "辞書",
     "studyAgain": "もう一度学習",
     "backToDeck": "デッキに戻る",
     "finish": {
@@ -241,5 +243,14 @@
     "daySub": "紙と墨",
     "night": "ナイト",
     "nightSub": "真夜中"
+  },
+  "highlight": {
+    "title": "ハイライトの色",
+    "intro": "選択した文字の後ろに敷く帯の色です。どれも半透明なので、どのテーマでも下の文字は読めます。",
+    "blue": "ブルー",
+    "green": "グリーン",
+    "yellow": "イエロー",
+    "pink": "ピンク",
+    "grey": "グレー"
   }
 }

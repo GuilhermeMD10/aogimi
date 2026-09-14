@@ -4,12 +4,15 @@ import { loadJSON, saveJSON } from '@/lib/storage';
 
 export type ReaderTheme = 'light' | 'dark' | 'sepia';
 export type ReaderFont = 'serif-jp' | 'sans-jp' | 'system';
+export type HighlightColor = 'blue' | 'green' | 'yellow' | 'pink' | 'grey';
 
 export type ReaderPrefs = {
   fontPx: number;
   lineHeight: number;
   fontFamily: ReaderFont;
   theme: ReaderTheme;
+  /** Which band the text-selection strip paints. See `HIGHLIGHT_COLORS`. */
+  highlight: HighlightColor;
 };
 
 export const READER_THEMES: Record<ReaderTheme, { bg: string; fg: string }> = {
@@ -27,6 +30,31 @@ export const MANGA_SHELL_BG: Record<ReaderTheme, string> = {
   sepia: '#C0B49E',
 };
 
+/**
+ * The selection band, as five named colours.
+ *
+ * **All translucent, because the band is drawn over the text.** It is not a
+ * `::selection` colour: iOS never paints a script-created selection, so the
+ * reader draws its own band from its own Range (see `native-selection`), as
+ * plain divs sitting above the glyphs. That makes the alpha ours to composite
+ * rather than the engine's to ignore — it works on both platforms — and it is
+ * what lets the page's own ink read straight through, so one palette serves
+ * the light, dark and sepia themes instead of three.
+ *
+ * Keep them light: a band this reads as a highlighter drawn over the words,
+ * and anything much stronger stops the words showing through.
+ *
+ * Just the colour: the names are `highlight.<key>` in the i18n bundles, since
+ * a label the user reads is a translated string and not a palette value.
+ */
+export const HIGHLIGHT_COLORS: Record<HighlightColor, string> = {
+  blue: 'rgba(80, 160, 255, 0.35)',
+  green: 'rgba(80, 200, 130, 0.35)',
+  yellow: 'rgba(255, 208, 70, 0.42)',
+  pink: 'rgba(255, 120, 170, 0.35)',
+  grey: 'rgba(150, 158, 168, 0.42)',
+};
+
 export const READER_FONT_STACKS: Record<ReaderFont, string> = {
   'serif-jp':
     '"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif',
@@ -40,6 +68,7 @@ export const DEFAULT_PREFS: ReaderPrefs = {
   lineHeight: 1.7,
   fontFamily: 'serif-jp',
   theme: 'light',
+  highlight: 'blue',
 };
 
 // Prefs (font, theme, line height, font family) used to live here per-book;

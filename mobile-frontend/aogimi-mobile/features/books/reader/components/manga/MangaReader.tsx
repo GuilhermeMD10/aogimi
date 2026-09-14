@@ -1,4 +1,4 @@
-import { ReaderBottomDock, type DockMode } from '../ReaderBottomDock';
+import { ReaderBottomDock } from '../ReaderBottomDock';
 import type { EpubTocItem } from '../../lib/foliateHtml';
 import type { ReaderPrefs } from '../../lib/readerStorage';
 import type { MangaPageDir } from '../../lib/readerLayout';
@@ -22,7 +22,6 @@ export type MangaReaderProps = {
   // Chevron callback used by both views — jumps to a spine index (the
   // current view's ref handles the actual scroll/setIndex).
   onJumpSpine: (spineIndex: number) => void;
-  onModeChange?: (mode: DockMode) => void;
 };
 
 /**
@@ -40,7 +39,6 @@ export function MangaReader({
   pageDir,
   onTogglePageDir,
   onJumpSpine,
-  onModeChange,
 }: MangaReaderProps) {
   const goPrev = () => onJumpSpine(Math.max(0, page - 2));
   const goNext = () => onJumpSpine(Math.min(totalPages - 1, page));
@@ -52,8 +50,6 @@ export function MangaReader({
       onToggleMangaMode={onToggleMode}
       mangaPageDir={pageDir}
       onToggleMangaPageDir={onTogglePageDir}
-      layout="pages"
-      direction="horizontal"
       toc={toc}
       prefs={prefs}
       onPrev={goPrev}
@@ -65,8 +61,6 @@ export function MangaReader({
         void href;
       }}
       onChangePrefs={() => undefined}
-      onChangeLayout={() => undefined}
-      onModeChange={onModeChange}
     />
   );
 }

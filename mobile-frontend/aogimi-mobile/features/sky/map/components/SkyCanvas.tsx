@@ -26,6 +26,7 @@ import {
   UNFOCUSED_DECK_OPACITY,
 } from '../lib/config';
 import { deckAt, type SkyLayout } from '../lib/layout';
+import { starTapFeedback } from '@/lib/haptics';
 import { labelOpAt } from '../lib/lod';
 import { STAR_LABEL_COLOR, type SkyPalette, lerpHex, rankOf, strandRamps } from '../lib/palette';
 import { pickStar } from '../lib/picking';
@@ -97,6 +98,9 @@ type DeckLayerProps = {
   dimmed: boolean;
   relZoom: number;
   relZoomMax: number;
+  /** The camera's absolute zoom, which walks a focused deck's stars down to a point as the camera
+   *  pulls back (see `starZoomSize`). A primitive, so the memo above survives it. */
+  zoom: number;
   u: number;
   /** Selected star id, gated to this deck by the parent — a primitive, so the memo survives it. */
   selected: number | null;
@@ -119,6 +123,7 @@ const DeckLayer = memo(function DeckLayer({
   dimmed,
   relZoom,
   relZoomMax,
+  zoom,
   u,
   selected,
   labelOp,
@@ -235,6 +240,7 @@ const DeckLayer = memo(function DeckLayer({
             focused
             relZoom={relZoom}
             relZoomMax={relZoomMax}
+            zoom={zoom}
             u={u}
             // No ring and no labels in the preview: it exists below the label zoom by construction,
             // and the selected star may not be among its survivors.
@@ -257,6 +263,7 @@ const DeckLayer = memo(function DeckLayer({
           vivid={deck.vivid}
           relZoom={relZoom}
           relZoomMax={relZoomMax}
+          zoom={zoom}
           u={u}
           selected={selected}
           labelOp={labelOp}
@@ -318,7 +325,10 @@ export function SkyCanvas({
   const u = view.worldPerPx;
   const focusedDid = focus.length ? focus[0] : null;
   const focusedDeck = frame.decks.find((d) => d.focused) ?? null;
-  // A function of zoom alone, like the layer crossfade — it lands on the same commit as the LOD.
+  // Both are functions of zoom alone, like the layer crossfade — they land on the same commit as
+  // the LOD. `camZoomNow` rather than `camZoom`: that name is already the animated shared value
+  // driving the transform below, and this is the committed number the size ramp reads.
+  const camZoomNow = cam.camera.zoom;
   const labelOp = labelOpAt(cam.camera.zoom);
 
   // Per palette, not per commit: nothing camera-derived reaches either of them.
@@ -353,8 +363,15 @@ export function SkyCanvas({
       if (!focusedDeck) return;
       const local = { x: world.x - focusedDeck.origin.x, y: world.y - focusedDeck.origin.y };
       const i = pickStar(focusedDeck.stars, local, cam.camera.zoom);
-      if (i >= 0) onStarClick(focusedDeck.stars[i]);
-      else onMiss?.(); // empty sky: the tap meant "nothing", which the host reads as deselect
+      if (i >= 0) {
+        // Fired here rather than by the host: this is the only place that knows
+        // a star was *hit*, and the canvas is not a Touchable so nothing else
+        // answers the tap. A miss stays silent — see starTapFeedback.
+        starTapFeedback();
+        onStarClick(focusedDeck.stars[i]);
+      } else {
+        onMiss?.(); // empty sky: the tap meant "nothing", which the host reads as deselect
+      }
     },
     [hidden, focusedDid, focusedDeck, layout, toWorldLive, cam.camera.zoom, onEnterDeck, onStarClick, onMiss],
   );
@@ -415,6 +432,7 @@ export function SkyCanvas({
                   dimmed={focusedDid !== null && !deck.focused}
                   relZoom={relZoom}
                   relZoomMax={relZoomMax}
+                  zoom={camZoomNow}
                   u={u}
                   selected={deck.focused ? selected : null}
                   labelOp={deck.focused ? labelOp : 0}

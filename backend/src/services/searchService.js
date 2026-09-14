@@ -125,40 +125,87 @@ async function search(rawQuery) {
 }
 
 /**
- * Try direct lookup first; fall back to deinflected candidates if nothing
- * matches. Annotates deinflected hits with their inflection path so the
- * frontend can show "食べた → 食べる (past)".
+ * Exact and deinflected matches, then the partial ones.
+ *
+ * Direct lookup first; deinflected candidates when nothing matches, annotated
+ * with their inflection path so the frontend can show "食べた → 食べる (past)".
+ * Either way, words that merely *start with* the query follow underneath.
+ *
+ * ── Why the two blocks are hydrated separately ─────────────────────────────
+ * `hydrateAndAnnotate` re-sorts everything it is given by its own tiebreakers
+ * (JLPT tier, grade, form length), which are the right rules *within* a set of
+ * equally-good matches and the wrong ones *across* them: a common short word
+ * that merely starts with the query would outrank the word the reader actually
+ * typed. So each block is ranked on its own and the blocks are concatenated —
+ * exact first, always. This is the same shape the romaji branch already uses
+ * to put Japanese hits ahead of English ones.
+ *
+ * The prefix query runs in parallel with the direct one because it does not
+ * depend on the answer: partial matches are shown *alongside* an exact hit,
+ * not only when there is none. Typing 食べる should still reveal 食べる方 below
+ * it, which is the whole point of having partial results.
  */
 async function japaneseWithDeinflection(q, kind) {
-  // Direct match — cheap, single indexed lookup.
-  const direct = await index.searchJapaneseForms([q], RESULT_LIMIT);
-  if (direct.length > 0) {
-    return { type: kind, words: await hydrateAndAnnotate(direct) };
-  }
+  const [direct, prefixHits] = await Promise.all([
+    index.searchJapaneseForms([q], RESULT_LIMIT),
+    index.searchJapanesePrefix(q, RESULT_LIMIT),
+  ]);
 
-  // No direct hit — try to deinflect.
+  const exact = direct.length > 0
+    ? await hydrateAndAnnotate(direct)
+    : await deinflected(q);
+
+  return { type: kind, words: await withPartials(exact, prefixHits) };
+}
+
+/** The deinflection fallback: 食べた → 食べる, annotated with the path taken. */
+async function deinflected(q) {
   const candidates = deinflect(q);
   const forms = candidates.map(c => c.base).filter(f => f !== q);
-  if (forms.length === 0) {
-    return { type: kind, words: [] };
-  }
+  if (forms.length === 0) return [];
 
   const hits = await index.searchJapaneseForms(forms, RESULT_LIMIT);
   const inflectionByForm = new Map(candidates.map(c => [c.base, c.inflections]));
-  const hydrated = await hydrateAndAnnotate(hits, hit => ({
+  return hydrateAndAnnotate(hits, hit => ({
     from: q,
     path: inflectionByForm.get(hit.form) || [],
   }));
+}
 
-  return { type: kind, words: hydrated };
+/**
+ * `exact` followed by the partial matches it does not already contain, capped
+ * at RESULT_LIMIT.
+ *
+ * De-duplicated by word id against the exact block, so a word matched both
+ * ways keeps its higher position rather than appearing twice.
+ */
+async function withPartials(exact, prefixHits) {
+  if (prefixHits.length === 0) return exact;
+  const seen = new Set(exact.map(w => w.id));
+  const partial = (await hydrateAndAnnotate(prefixHits, undefined, true))
+    .filter(w => !seen.has(w.id));
+  return [...exact, ...partial].slice(0, RESULT_LIMIT);
 }
 
 /**
  * Hydrate scored candidate rows, attach kanji-grade metadata (frontend
  * display uses it for G1..G6 badges), and attach per-hit inflection data
  * when provided. Preserves the scoring order supplied by the caller.
+ *
+ * `keepOrder` leaves the caller's ranking alone instead of applying the
+ * tiebreakers below.
+ *
+ * The tiebreakers answer "which of these equally-exact matches did the reader
+ * most likely mean" — JLPT tier, school grade, shortest form. That is the
+ * wrong question for the partial block, whose rows are not exact matches of
+ * anything: there the SQL score (priority, common, JLPT, minus form length) is
+ * already the ranking, and re-sorting it only lets a rarely-used short word
+ * jump a common longer one. The mobile port needs this for a second reason —
+ * it pages, and a sort over one page's candidates reshuffles rows already on
+ * screen when the next page arrives — so the flag exists in both engines and
+ * must be passed in the same places.
  */
-async function hydrateAndAnnotate(hits, metaFn) {
+async function hydrateAndAnnotate(hits, metaFn, keepOrder = false) {
   if (hits.length === 0) return [];
 
   // Deduplicate while preserving first-occurrence order (= highest score).
@@ -197,6 +244,18 @@ async function hydrateAndAnnotate(hits, metaFn) {
   //   4. Grade ascending (nulls last).
   //   5. Primary kanji length, then primary reading length.
   //   6. Stable fallback preserves upstream SQL score order.
+  if (!keepOrder) sortByMatchQuality(rows, exactSenseById);
+
+  return rows.map(r => {
+    const meta = metaById.get(r.id);
+    // Strip internal-only priority_score from the public payload.
+    const { priority_score: _p, ...publicRow } = r;
+    return meta ? { ...publicRow, inflection: meta } : publicRow;
+  });
+}
+
+/** The tiebreaker sort, in place. See hydrateAndAnnotate's `keepOrder`. */
+function sortByMatchQuality(rows, exactSenseById) {
   rows.sort((a, b) => {
     const aEx = exactSenseById.get(a.id);
     const bEx = exactSenseById.get(b.id);
@@ -228,13 +287,6 @@ async function hydrateAndAnnotate(hits, metaFn) {
     const bKanjiLen = primaryLength(b.kanji);
     if (aKanjiLen !== bKanjiLen) return aKanjiLen - bKanjiLen;
     return primaryLength(a.readings) - primaryLength(b.readings);
-  });
-
-  return rows.map(r => {
-    const meta = metaById.get(r.id);
-    // Strip internal-only priority_score from the public payload.
-    const { priority_score: _p, ...publicRow } = r;
-    return meta ? { ...publicRow, inflection: meta } : publicRow;
   });
 }
 
