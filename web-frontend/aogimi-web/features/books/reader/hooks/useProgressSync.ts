@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { updateBookProgress, sendProgressKeepalive } from '@/features/books/lib/booksApi';
-import { setReaderProgress } from '@/features/books/lib/readerSession';
+import { markReaderProgressSynced, setReaderProgress } from '@/features/books/lib/readerSession';
 
 /** What this hook needs to know about the open book: where to buffer locally,
  *  and where to flush remotely. `backendBookId` absent → local-only book, so
@@ -96,24 +96,32 @@ export function useProgressSync(session: ProgressTarget | null) {
     const key = positionKey(latest);
     if (key === lastSyncedKeyRef.current) return;
 
+    const flushedAt = Date.now();
     const payload = {
       cfiPosition: latest.cfi || undefined,
       progress: latest.progress,
       spineIndex: latest.spineIndex,
       totalSpineItems: latest.totalSpineItems,
+      lastReadAt: new Date(flushedAt).toISOString(),
     };
 
     if (keepalive) {
-      // Best-effort: optimistically mark synced. If the browser/token drops
-      // it, the localStorage snapshot still holds the truth for next open.
+      // Best-effort: optimistically mark synced for this session's dedup. If
+      // the browser/token drops it, the localStorage snapshot still holds the
+      // truth for next open — and stays flagged unsynced, so the library's
+      // drain re-sends it (an idempotent PUT with the same lastReadAt).
       if (sendProgressKeepalive(sess.backendBookId, payload)) {
         lastSyncedKeyRef.current = key;
       }
     } else {
       // Only mark synced after the request resolves, so a failure retries on
       // the next flush instead of stranding a stale position on the server.
+      const { filename } = sess;
       updateBookProgress(sess.backendBookId, payload)
-        .then(() => { lastSyncedKeyRef.current = key; })
+        .then(() => {
+          lastSyncedKeyRef.current = key;
+          markReaderProgressSynced(filename, flushedAt);
+        })
         .catch((err) => { console.warn('[useProgressSync] flush failed', err); });
     }
   }, []);

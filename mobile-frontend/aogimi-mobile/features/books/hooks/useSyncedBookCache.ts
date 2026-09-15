@@ -17,6 +17,7 @@ import {
   getAllCachedBooks,
   listSessionPendingIds,
   mergeBackendBooks,
+  subscribeSessionPending,
 } from '../lib/syncedBookCache';
 import type { BookRecord } from '../types';
 
@@ -70,17 +71,23 @@ export function useSyncedBookCache(data: BookRecord[] | null): UseSyncedBookCach
     };
   }, [data]);
 
-  // Session-pending flags may have changed (a manual sync clears
-  // them for cleanly-pushed books). Refresh whenever `data` updates.
+  // Session-pending flags change on writes, not on fetches: the reader
+  // sets one when it opens a book offline, a sync clears them. Subscribe
+  // to the store rather than keying off `data` — while offline, `data`
+  // never changes, which is exactly when the flag most needs to show.
   useEffect(() => {
     let cancelled = false;
-    listSessionPendingIds().then((ids) => {
-      if (!cancelled) setSessionPendingIds(new Set(ids));
-    });
+    const reread = () => {
+      listSessionPendingIds().then((ids) => {
+        if (!cancelled) setSessionPendingIds(new Set(ids));
+      });
+    };
+    const unsub = subscribeSessionPending(reread);
     return () => {
       cancelled = true;
+      unsub();
     };
-  }, [data]);
+  }, []);
 
   return { cachedBooks, sessionPendingIds };
 }

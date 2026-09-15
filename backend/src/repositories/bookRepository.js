@@ -66,17 +66,33 @@ module.exports = {
     return result.rows[0];
   },
 
-  updateBookProgress: async (id, { cfiPosition, progress, spineIndex, totalSpineItems }) => {
+  /** Most-recent-read wins. With a client `lastReadAt`, the row only moves
+   *  when that time is at or after the stored `last_read_at` — a stale push
+   *  arriving late is a no-op and returns undefined (the caller falls back
+   *  to the current row). Without one, the write is unconditional and
+   *  stamped with arrival time, as before. */
+  updateBookProgress: async (
+    id,
+    { cfiPosition, progress, spineIndex, totalSpineItems, lastReadAt },
+  ) => {
     const result = await pool.query(
       `UPDATE book_progress
        SET cfi_position      = COALESCE($2, cfi_position),
            progress           = COALESCE($3, progress),
            spine_index        = COALESCE($4, spine_index),
            total_spine_items  = COALESCE($5, total_spine_items),
-           last_read_at       = now()
+           last_read_at       = COALESCE($6::timestamptz, now())
        WHERE id = $1
+         AND ($6::timestamptz IS NULL OR last_read_at <= $6::timestamptz)
        RETURNING *`,
-      [id, cfiPosition ?? null, progress ?? null, spineIndex ?? null, totalSpineItems ?? null]
+      [
+        id,
+        cfiPosition ?? null,
+        progress ?? null,
+        spineIndex ?? null,
+        totalSpineItems ?? null,
+        lastReadAt ?? null,
+      ]
     );
     return result.rows[0];
   },

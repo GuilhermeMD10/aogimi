@@ -77,10 +77,16 @@ const progressSchema = z
     progress: boundedInt("progress", NUMBERS.PROGRESS_MAX),
     spineIndex: boundedInt("spineIndex", NUMBERS.SPINE_INDEX_MAX),
     totalSpineItems: boundedInt("totalSpineItems", NUMBERS.SPINE_INDEX_MAX),
+    // When the position was actually read, from the client's clock. A
+    // deferred push (mobile Sync-now hours after an offline session) sends
+    // the real time so it can't outrank a later session on another device;
+    // omitted → the server stamps arrival time as before.
+    lastReadAt: z.iso.datetime({ offset: true }).optional(),
   })
-  .refine((v) => Object.values(v).some((x) => x !== undefined), {
-    message: "Provide at least one progress field",
-  });
+  .refine(
+    (v) => Object.entries(v).some(([k, x]) => k !== "lastReadAt" && x !== undefined),
+    { message: "Provide at least one progress field" },
+  );
 
 // The match endpoint takes client-side fingerprints of files the user is
 // importing. Candidate shape is snake_case (it mirrors the DB row the client

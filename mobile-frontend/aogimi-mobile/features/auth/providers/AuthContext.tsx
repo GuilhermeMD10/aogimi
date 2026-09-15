@@ -16,7 +16,8 @@ import { refreshSession } from '@/lib/api';
 import type { UserProfile } from '@/features/profile/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { reconcileBooks, syncPending } from '@/features/books/lib/reconcileBooks';
-import { pushAllReaderState } from '@/features/books/lib/readerStatePush';
+import { pushReaderStateAndSettle } from '@/features/books/lib/runFullSync';
+import { syncAllDeckChanges } from '@/features/sky/stage/lib/decksSyncAll';
 import { subscribeOnlineTransition } from '@/lib/network/network';
 import { wipeUserData } from '../lib/wipeUserData';
 
@@ -218,7 +219,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           await syncPending(userId).catch(() => undefined);
           if (cancelled) return;
-          await pushAllReaderState().catch(() => undefined);
+          // Settles the UNSYNCED flags too — a push that leaves the pill
+          // up until a manual Sync-now is what this effect used to do.
+          await pushReaderStateAndSettle().catch(() => undefined);
+          if (cancelled) return;
+          // Decks, cards, and the grades from any offline study session.
+          await syncAllDeckChanges().catch(() => undefined);
         } catch {
           /* best-effort */
         }
@@ -272,23 +278,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserState(next);
   }, []);
 
-  // First-load library reconcile. Fires once per user-id transition.
+  // First-load library reconcile. Counts as done once per user-id
+  // transition — but only once it actually ran against the backend list.
+  // A launch with no network returns `skipped`, and the pass then retries
+  // on the next offline→online edge instead of being burned for the
+  // session.
   const reconciledForUserId = useRef<number | null>(null);
+  const reconcileInFlight = useRef(false);
   useEffect(() => {
-    if (status !== 'signed-in') {
-      reconciledForUserId.current = null;
-      return;
-    }
     const userId = user?.id;
-    if (userId == null) {
+    if (status !== 'signed-in' || userId == null) {
       reconciledForUserId.current = null;
       return;
     }
-    if (reconciledForUserId.current === userId) return;
-    reconciledForUserId.current = userId;
-    reconcileBooks(userId).catch(() => {
-      reconciledForUserId.current = null;
-    });
+    const attempt = () => {
+      if (reconciledForUserId.current === userId || reconcileInFlight.current) return;
+      reconcileInFlight.current = true;
+      reconcileBooks(userId)
+        .then((summary) => {
+          if (!summary.skipped) reconciledForUserId.current = userId;
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          reconcileInFlight.current = false;
+        });
+    };
+    attempt();
+    return subscribeOnlineTransition(attempt);
   }, [status, user]);
 
   const value = useMemo<AuthContextValue>(

@@ -62,8 +62,14 @@ async function getBook(id) {
   return await bookRepo.findBookById(id);
 }
 
-async function updateProgress(id, { cfiPosition, progress, spineIndex, totalSpineItems }) {
-  const book = await bookRepo.updateBookProgress(id, { cfiPosition, progress, spineIndex, totalSpineItems });
+async function updateProgress(id, { cfiPosition, progress, spineIndex, totalSpineItems, lastReadAt }) {
+  const updated = await bookRepo.updateBookProgress(id, {
+    cfiPosition, progress, spineIndex, totalSpineItems, lastReadAt,
+  });
+  // No row back means either the book is gone or the push was older than
+  // what's stored (see the repository's guard). The second is not an error:
+  // answer with the current row so the client learns the newer position.
+  const book = updated ?? (await bookRepo.findBookById(id));
   if (!book) throw new Error("Book not found");
   return book;
 }

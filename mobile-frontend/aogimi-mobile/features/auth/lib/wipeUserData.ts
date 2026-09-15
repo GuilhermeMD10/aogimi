@@ -19,6 +19,12 @@
 //         reader_manga_page_dir
 //       reader_book_<filename>           (prefix sweep)
 //       book_fingerprints_v1             (file-hash side-table)
+//       synced_book_cache_v1 / session_pending_books_v1
+//       deck_local_state_v1 / card_local_state_v1
+//         (local-first mirrors + their offline create/update/delete queue —
+//          a pending create left here would be pushed INTO THE NEXT ACCOUNT)
+//       pending_reviews_v1               (grades queued offline)
+//       study_deck_overrides_v1 / study_display_prefs_v1
 //       dictionary_recent_lookups
 //   - File system:
 //       documents/books/   (raw EPUB/PDF blobs)
@@ -37,6 +43,10 @@ import { wipeMangaCache } from '@/features/books/lib/mangaPages';
 import { clearDictionaryCaches } from '@/features/dictionary/lib/dictCache';
 import { clearLocalProgress } from '@/features/books/lib/booksLocalCache';
 import { clearAll as clearAllSyncEntries } from '@/features/books/lib/bookLocalState';
+import { clearSyncedBookCache } from '@/features/books/lib/syncedBookCache';
+import { clearAllDecks } from '@/features/sky/stage/lib/deckLocalState';
+import { clearAllCards } from '@/features/sky/stage/lib/cardLocalState';
+import { clearAllPendingReviews } from '@/features/sky/study/lib/pendingReviews';
 
 const USER_PREFIXES = ['reader_book_'];
 const USER_KEYS = [
@@ -46,6 +56,10 @@ const USER_KEYS = [
   'reader_manga_mode',
   'reader_manga_page_dir',
   'dictionary_recent_lookups',
+  // Per-user study preferences (the backend keeps them in user_study_prefs;
+  // these are that account's local copies).
+  'study_deck_overrides_v1',
+  'study_display_prefs_v1',
 ];
 
 /**
@@ -74,10 +88,21 @@ export async function wipeUserData(): Promise<void> {
 
   // 3. Local fingerprint cache — drop the entire filename → hash side
   //    table so the next account's imports don't compare against a
-  //    previous user's hashes.
+  //    previous user's hashes. The synced-book cache goes with it, or the
+  //    next account's library paints the previous one's tiles until its
+  //    first fetch lands.
   try { await clearAllSyncEntries(); } catch { /* */ }
+  try { await clearSyncedBookCache(); } catch { /* */ }
 
-  // 4. In-memory caches that outlive a screen but not a process.
+  // 4. Decks, cards and queued grades. These stores are local-first
+  //    queues, not just caches: a deck or card still `pendingOp: 'create'`
+  //    from account A would otherwise be pushed into account B on its
+  //    first sync, and A's offline grades replayed against B's cards.
+  try { await clearAllDecks(); } catch { /* */ }
+  try { await clearAllCards(); } catch { /* */ }
+  try { await clearAllPendingReviews(); } catch { /* */ }
+
+  // 5. In-memory caches that outlive a screen but not a process.
   try { clearDictionaryCaches(); } catch { /* */ }
   try { clearLocalProgress(); } catch { /* */ }
 }

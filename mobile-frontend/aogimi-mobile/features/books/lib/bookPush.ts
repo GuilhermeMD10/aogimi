@@ -18,8 +18,10 @@ import {
 import type { BookRecord, LocalBookEntry, PendingPayload } from '../types';
 import type { ImportedBook } from './bookFiles';
 import { getEntry, markSynced, readAllEntries } from './bookLocalState';
+import { adoptRemoteTwin } from './adoptRemoteTwin';
 import { buildMatchCandidate } from './matchCandidate';
 import { pushForBook } from './readerStatePush';
+import { clearSessionPending } from './syncedBookCache';
 import { loadStoredBook } from '@/features/books/reader/lib/readerStorage';
 
 export type PushResult =
@@ -55,6 +57,7 @@ export async function pushOneBook(
   payload: PendingPayload,
 ): Promise<PushResult> {
   let bookId: string | null = null;
+  let adopted = false;
   try {
     const [matchResult] = await matchBooks(userId, [candidateFrom(filename, payload)]);
     // Only the file_hash match type is safe to silently attach to —
@@ -63,6 +66,11 @@ export async function pushOneBook(
     // flows enforce.
     if (matchResult?.match && matchResult.match_type === 'file_hash') {
       bookId = matchResult.match.id;
+      // Attach = become that record's file: move into its filename slot
+      // and retire the pending entry. Left under its own name, the file
+      // has no row by filename and reconcile wipes it as an orphan.
+      await adoptRemoteTwin(filename, matchResult.match, payload.fileHash ?? matchResult.match.file_hash ?? '');
+      adopted = true;
       // Backfill any backend fields the existing row was missing so
       // the next cross-device matcher pass has the strong signals.
       void updateBookIdentity(bookId, {
@@ -123,7 +131,8 @@ export async function pushOneBook(
     }
   }
 
-  await markSynced(filename);
+  // An adopted book's entry already lives, synced, under the twin's name.
+  if (!adopted) await markSynced(filename);
   return { ok: true, bookId };
 }
 
@@ -281,7 +290,7 @@ export function filenameFromPendingId(id: string): string {
  */
 export async function syncOneBookOnDemand(
   userId: number,
-  book: { id: string; filename: string },
+  book: BookRecord,
 ): Promise<{ ok: true } | { ok: false; reason: 'network' | 'rejected' }> {
   if (isPendingBookId(book.id)) {
     const entry = await getEntry(book.filename);
@@ -296,10 +305,12 @@ export async function syncOneBookOnDemand(
 
   // Synced book: only reader-state writes (CFI, progress) can be pending.
   // pushForBook returns `clean: true` when every write succeeded or there
-  // was nothing to push.
+  // was nothing to push — and a clean book has nothing left to flag.
   try {
-    const result = await pushForBook(book as BookRecord);
-    return result.clean ? { ok: true } : { ok: false, reason: 'network' };
+    const result = await pushForBook(book);
+    if (!result.clean) return { ok: false, reason: 'network' };
+    await clearSessionPending(book.id);
+    return { ok: true };
   } catch {
     return { ok: false, reason: 'network' };
   }

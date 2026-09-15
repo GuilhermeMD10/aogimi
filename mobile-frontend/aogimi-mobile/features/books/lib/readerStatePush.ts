@@ -62,6 +62,9 @@ export async function pushForBook(book: BookRecord): Promise<{
         progress: stored.lastProgress ?? book.progress,
         spineIndex: book.spine_index,
         totalSpineItems: book.total_spine_items ?? undefined,
+        // The real read time, not the push time — this is what lets a
+        // Sync-now hours later lose to a newer session on another device.
+        lastReadAt: stored.lastReadAt,
       });
       await patchStoredBook(book.filename, (current) => ({
         ...current,

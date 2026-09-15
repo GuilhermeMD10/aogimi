@@ -7,6 +7,8 @@ import {
   backfillBookIdentity,
 } from '../lib/bookStore';
 import { findLocalTwin, findRemoteTwin } from '../lib/pairBooks';
+import { getReaderProgress } from '../lib/readerSession';
+import { pushUnsyncedProgress } from '../lib/sync/pushProgress';
 import type { BookProgressRecord } from '@/features/books/types';
 import type { AuthUser } from '@/features/auth/types';
 import type { Book } from '../types';
@@ -67,6 +69,10 @@ export function useSyncBooks(user: AuthUser | null) {
         let backendBooks: BookProgressRecord[] = [];
         try {
           backendBooks = await syncLocalBooksToBackend(user.id);
+          // Drain positions the reader couldn't push (offline session,
+          // dropped keepalive). Updates `backendBooks` in place with what
+          // the server answers, so the merge below sees the result.
+          await pushUnsyncedProgress(localBooks, backendBooks);
         } catch {
           /* backend unavailable */
         }
@@ -83,6 +89,13 @@ export function useSyncBooks(user: AuthUser | null) {
         const merged: Book[] = backendBooks.map((remote) => {
           const local = findLocalTwin(remote, localBooks);
           if (local) {
+            // Newer wins between the backend row and this device's own
+            // snapshot — the same comparison the reader makes to pick its
+            // restore anchor. Without it the tile shows the backend's stale
+            // number beside a reader that opens at the newer position.
+            const snapshot = getReaderProgress(local.filename);
+            const localNewer =
+              snapshot != null && snapshot.updatedAt > Date.parse(remote.last_read_at);
             return {
               id: local.id,
               title: local.title,
@@ -91,10 +104,12 @@ export function useSyncBooks(user: AuthUser | null) {
               coverColor: local.coverColor,
               hasCover: local.hasCover,
               coverImage: local.coverImage,
-              progress: remote.progress,
+              progress: localNewer ? snapshot.progress : remote.progress,
               available: true,
               backendId: remote.id,
-              lastReadAt: remote.last_read_at,
+              lastReadAt: localNewer
+                ? new Date(snapshot.updatedAt).toISOString()
+                : remote.last_read_at,
             };
           }
           return {
@@ -116,6 +131,9 @@ export function useSyncBooks(user: AuthUser | null) {
 
         for (const local of localBooks) {
           if (!findRemoteTwin(local, backendBooks)) {
+            // Not on the backend (yet) — the only progress there is, is
+            // this device's snapshot.
+            const snapshot = getReaderProgress(local.filename);
             merged.push({
               id: local.id,
               title: local.title,
@@ -124,9 +142,9 @@ export function useSyncBooks(user: AuthUser | null) {
               coverColor: local.coverColor,
               hasCover: local.hasCover,
               coverImage: local.coverImage,
-              progress: 0,
+              progress: snapshot?.progress ?? 0,
               available: true,
-              lastReadAt: null,
+              lastReadAt: snapshot ? new Date(snapshot.updatedAt).toISOString() : null,
             });
           }
         }

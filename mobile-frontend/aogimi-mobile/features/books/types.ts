@@ -41,6 +41,11 @@ export type BookProgressUpdate = Partial<{
   progress: number;
   spineIndex: number;
   totalSpineItems: number;
+  /** ISO time the position was actually read. The backend keeps the newer
+   *  of this and its stored `last_read_at`, so a deferred push (Sync-now
+   *  hours after an offline session) can't outrank a later session
+   *  elsewhere. Omit to let the server stamp arrival time. */
+  lastReadAt: string;
 }>;
 
 // Hash + canonical identity fields used by /api/books/match and

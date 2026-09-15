@@ -44,6 +44,7 @@ import {
   setStoredFileHash,
 } from './bookLocalState';
 import { pushAllPending, type SyncSummary } from './bookPush';
+import { adoptRemoteTwin } from './adoptRemoteTwin';
 import type { BookRecord, LocalBookEntry } from '../types';
 
 export type ReconcileSummary = {
@@ -59,6 +60,16 @@ export type ReconcileSummary = {
   /** Filenames whose backend identity got backfilled with the local
    *  fingerprint (backend had null hash, local had one). */
   syncedUp: string[];
+  /** Pending (offline-imported) files whose bytes turned out to already be
+   *  on the account — pushed from another device — and were moved into
+   *  that record's filename slot instead of waiting to be pushed as a
+   *  second book. */
+  adopted: string[];
+  /** True when the backend list couldn't be fetched, so nothing was
+   *  checked. The caller decides whether to retry — a first-load
+   *  reconcile that ran offline should run again when the network
+   *  returns rather than count as done. */
+  skipped: boolean;
 };
 
 /**
@@ -70,6 +81,8 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
     staleReplaced: [],
     removed: [],
     syncedUp: [],
+    adopted: [],
+    skipped: false,
   };
 
   // 1. Backend list. Bail on transient errors so a network blip doesn't
@@ -77,11 +90,14 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
   let remoteBooks: BookRecord[];
   try {
     remoteBooks = await fetchUserBooks(userId);
-    if (!Array.isArray(remoteBooks)) return summary;
+    if (!Array.isArray(remoteBooks)) return { ...summary, skipped: true };
   } catch {
-    return summary;
+    return { ...summary, skipped: true };
   }
   const remoteByFilename = new Map(remoteBooks.map((b) => [b.filename, b]));
+  const remoteByHash = new Map(
+    remoteBooks.flatMap((b) => (b.file_hash ? [[b.file_hash, b] as const] : [])),
+  );
 
   // 2. Read the local sync map in one shot. Per-book reads would parse
   //    the JSON N times — O(N²) for users with many books.
@@ -97,10 +113,12 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
   }
 
   for (const filename of localFiles) {
+    const entry = localEntries[filename];
     await reconcileOneBook(
       filename,
       remoteByFilename.get(filename),
-      localEntries[filename],
+      entry?.fileHash ? remoteByHash.get(entry.fileHash) : undefined,
+      entry,
       summary,
     );
   }
@@ -124,9 +142,11 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
 
 /**
  * Reconcile a single locally-present file against its backend twin.
- * Owns the four decision branches the previous inline loop body did:
+ * Owns the decision branches the previous inline loop body did:
  *
- *   - Pending → no-op (waiting on a manual push).
+ *   - Pending, and the account already has these bytes under some
+ *     filename → adopt that record (see `adoptRemoteTwin`). Otherwise
+ *     no-op (waiting on a push).
  *   - No remote → wipe local (book deleted on another device).
  *   - Hashes diverge → wipe local (bytes replaced on another device).
  *   - Either side missing a hash → backfill the gap in whichever
@@ -138,14 +158,24 @@ export async function reconcileBooks(userId: number): Promise<ReconcileSummary> 
 async function reconcileOneBook(
   filename: string,
   remote: BookRecord | undefined,
+  twinByHash: BookRecord | undefined,
   entry: LocalBookEntry | undefined,
   summary: ReconcileSummary,
 ): Promise<void> {
   const syncState = entry ? effectiveSyncState(entry) : 'synced';
 
-  // Pending books are intentionally local-only awaiting a manual push.
-  // They have no backend twin BY DESIGN — skip every check below.
-  if (syncState === 'pending') return;
+  // Pending books are intentionally local-only awaiting a push. They have
+  // no backend twin by filename BY DESIGN — skip every check below. The
+  // one thing worth doing: if the same bytes reached the account from
+  // another device meanwhile, this file IS that book; adopt the record
+  // now rather than showing two tiles until the push resolves it.
+  if (syncState === 'pending') {
+    if (twinByHash && entry?.fileHash) {
+      await adoptRemoteTwin(filename, twinByHash, entry.fileHash);
+      summary.adopted.push(filename);
+    }
+    return;
+  }
 
   if (!remote) {
     // Synced book that lost its backend twin = deleted on another

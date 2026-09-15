@@ -41,12 +41,27 @@ async function readPendingSet(): Promise<Set<string>> {
   }
 }
 
+// The session-pending set changes from places the library screen never
+// re-renders for (the reader marking a book offline, an auto-push on
+// reconnect clearing it). Subscribers are told on every write so a
+// mounted library re-reads the set instead of waiting for a backend
+// response that, while offline, never comes.
+const pendingListeners = new Set<() => void>();
+
+export function subscribeSessionPending(cb: () => void): () => void {
+  pendingListeners.add(cb);
+  return () => {
+    pendingListeners.delete(cb);
+  };
+}
+
 async function writePendingSet(set: Set<string>): Promise<void> {
   try {
     await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(Array.from(set)));
   } catch {
     /* best-effort */
   }
+  for (const cb of pendingListeners) cb();
 }
 
 // ── Reads ──────────────────────────────────────────────────────────────────

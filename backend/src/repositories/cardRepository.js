@@ -163,6 +163,37 @@ module.exports = {
     return result.rows[0];
   },
 
+  // The re-fold variant: the whole memory state was rebuilt from the review
+  // log, so `reviewed_times` is set to the number of applied events rather
+  // than bumped. `db` is the transaction client the fold runs in.
+  applySrsFold: async (id, next, reviewedTimes, db = pool) => {
+    const result = await db.query(
+      `UPDATE cards
+          SET difficulty       = $2,
+              stability        = $3,
+              last_outcomes    = $4,
+              last_reviewed_at = $5,
+              state            = $6,
+              next_due_at      = $7,
+              peak_rank        = $8,
+              reviewed_times   = $9
+        WHERE id = $1
+        RETURNING *`,
+      [
+        id,
+        next.difficulty,
+        next.stability,
+        next.last_outcomes,
+        next.last_reviewed_at,
+        next.state,
+        next.next_due_at,
+        next.peak_rank,
+        reviewedTimes,
+      ],
+    );
+    return result.rows[0];
+  },
+
   delete: async (id) => {
     const result = await pool.query(
       `DELETE FROM cards WHERE id = $1`,

@@ -1,10 +1,10 @@
 // Owns the lifecycle of one study session: fetch → review → finish.
 // Coordinates three things on every result tap: algorithm computation,
-// local card state update, and backend submission. Backend POST is
-// fire-and-forget — the local card state and queue are always
-// authoritative for the in-session UX. If a POST fails the user just
-// loses one event row from card_reviews; their next session sees the
-// correct card state because that lives in the local store.
+// local card state update, and the review queue. The local card state and
+// queue are always authoritative for the in-session UX; every grade that
+// counted is written to `pendingReviews` first and pushed from there — at
+// once when online, on Sync-now / reconnect otherwise — so an offline
+// session is a session, not a preview.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardRecord } from '../../stage/types';
@@ -17,7 +17,10 @@ import {
 import { applyOutcome, isDue, type SrsApplyResult } from '../lib/srs';
 import { orderByMode } from '../lib/orderByMode';
 import { advanceQueue } from '../lib/reviewQueue';
-import { fetchStudySession, submitReview } from '../lib/studyApi';
+import { fetchStudySession } from '../lib/studyApi';
+import { newClientReviewId } from '../lib/pendingReviews';
+import { cancelReview, recordReview } from '../lib/reviewPush';
+import { isOnlineNow } from '@/lib/network/network';
 import type {
   CardSessionEntry,
   SessionSummary,
@@ -57,13 +60,17 @@ async function resolveSession(
 ): Promise<CardRecord[]> {
   // Signed-in happy path: backend orders + slices for us, including
   // SRS weighting that the local fallback can't fully match (the
-  // backend has the authoritative card_reviews log).
-  try {
-    const res = await fetchStudySession(spec, signal);
-    return res.cards;
-  } catch (err) {
-    if (signal.aborted) throw err;
-    // Fall through to local — signed-out or offline.
+  // backend has the authoritative card_reviews log). Not even attempted
+  // when the device knows it's offline — the local pool is the answer,
+  // and waiting out the request deadline to learn that reads as broken.
+  if (isOnlineNow()) {
+    try {
+      const res = await fetchStudySession(spec, signal);
+      return res.cards;
+    } catch (err) {
+      if (signal.aborted) throw err;
+      // Fall through to local — signed-out or backend unreachable.
+    }
   }
 
   const limit = spec.limit ?? DEFAULT_SESSION_SIZE;
@@ -122,7 +129,12 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
   // We keep this in a ref *and* expose `canUndo` so the button can
   // disable itself without forcing a re-render every time the buffer
   // changes (it changes on every submit, which already re-renders).
-  const lastReviewRef = useRef<{ card: CardRecord; prior: SrsApplyResult['prior'] } | null>(null);
+  const lastReviewRef = useRef<{
+    card: CardRecord;
+    prior: SrsApplyResult['prior'];
+    /** The queued grade to cancel on undo; null when the grade didn't count. */
+    clientReviewId: string | null;
+  } | null>(null);
   const [canUndo, setCanUndo] = useState(false);
 
   useEffect(() => {
@@ -180,45 +192,30 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
   }, []);
 
   const submit = useCallback((outcome: StudyOutcome) => {
-    setQueue((q) => {
-      if (q.length === 0) return q;
-      const [current, ...tail] = q;
-      if (!current) return q;
+    // Read the head from `queue` rather than inside a `setQueue` updater: the
+    // grade has side effects (the local card write, the review queue), and
+    // React may invoke an updater twice in Strict Mode. Same shape as web.
+    const current = queue[0];
+    if (!current) return;
 
-      const { applied, next, prior } = applyOutcome(current, outcome);
+    const now = new Date();
+    const { applied, next, prior } = applyOutcome(current, outcome, now);
 
-      // **A review only counts if the card is due.** Grading ahead of schedule
-      // changes nothing at all — no stability, no rank, no schedule, no
-      // `card_reviews` row, no `reviewed_times`. The server enforces this and
-      // is the authority; `applyOutcome` runs the same check so the UI never
-      // promises a promotion the POST is about to refuse, and so we can skip
-      // the round trip entirely rather than send a write we know is a no-op.
-      //
-      // The card still advances through the queue: the user answered it, and
-      // the session should move on. It just doesn't earn anything.
-      if (applied) {
-        // Persist locally so the next session sees the new state; never
-        // marks the card as pending (review sync is a separate concern
-        // from card create/update/delete).
-        void applyLocalReview(current.id, {
-          difficulty:       next.difficulty,
-          stability:        next.stability,
-          last_outcomes:    next.last_outcomes,
-          last_reviewed_at: next.last_reviewed_at,
-          next_due_at:      next.next_due_at,
-          state:            next.state,
-          peak_rank:        next.peak_rank,
-        });
-
-        // Backend update is best-effort; the local store wins for any
-        // in-session UX. A swallowed failure here just means stats are
-        // one event short; the next review on the same card overwrites
-        // the backend card row anyway.
-        submitReview(current.id, outcome).catch(() => {});
-      }
-
-      const updatedCurrent: CardRecord = {
-        ...current,
+    // **A review only counts if the card is due.** Grading ahead of schedule
+    // changes nothing at all — no stability, no rank, no schedule, no
+    // `card_reviews` row, no `reviewed_times`. The server enforces this and
+    // is the authority; `applyOutcome` runs the same check so the UI never
+    // promises a promotion the POST is about to refuse, and so we can skip
+    // the round trip entirely rather than send a write we know is a no-op.
+    //
+    // The card still advances through the queue: the user answered it, and
+    // the session should move on. It just doesn't earn anything.
+    let clientReviewId: string | null = null;
+    if (applied) {
+      // Persist locally so the next session sees the new state; never
+      // marks the card as pending (review sync is a separate concern
+      // from card create/update/delete).
+      void applyLocalReview(current.id, {
         difficulty:       next.difficulty,
         stability:        next.stability,
         last_outcomes:    next.last_outcomes,
@@ -226,41 +223,67 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
         next_due_at:      next.next_due_at,
         state:            next.state,
         peak_rank:        next.peak_rank,
-        reviewed_times:   applied ? current.reviewed_times + 1 : current.reviewed_times,
-      };
-
-      lastReviewRef.current = { card: updatedCurrent, prior };
-      setCanUndo(true);
-      setReviewed((n) => n + 1);
-      setSide('front');
-
-      // Track this card's session arc. The first encounter pins the
-      // startState; subsequent submits on the same card only update
-      // endState + outcomes + finalDifficulty.
-      setPerCard((prev) => {
-        const existing = prev[current.id];
-        const startState = existing?.startState ?? prior.state;
-        return {
-          ...prev,
-          [current.id]: {
-            card: updatedCurrent,
-            startState,
-            endState: next.state,
-            outcomes: existing ? [...existing.outcomes, outcome] : [outcome],
-            finalDifficulty: next.difficulty,
-          },
-        };
       });
 
-      return advanceQueue(tail, updatedCurrent, outcome);
+      // Queue the grade — stamped with the moment it happened — then push it
+      // at once if the network is up. Offline, it waits for Sync-now or the
+      // reconnect auto-push; the server schedules it by `reviewedAt`, so a
+      // late arrival is still the review it was.
+      clientReviewId = newClientReviewId();
+      void recordReview({
+        clientReviewId,
+        cardId: current.id,
+        outcome,
+        reviewedAt: now.toISOString(),
+      });
+    }
+
+    const updatedCurrent: CardRecord = {
+      ...current,
+      difficulty:       next.difficulty,
+      stability:        next.stability,
+      last_outcomes:    next.last_outcomes,
+      last_reviewed_at: next.last_reviewed_at,
+      next_due_at:      next.next_due_at,
+      state:            next.state,
+      peak_rank:        next.peak_rank,
+      reviewed_times:   applied ? current.reviewed_times + 1 : current.reviewed_times,
+    };
+
+    lastReviewRef.current = { card: updatedCurrent, prior, clientReviewId };
+    setCanUndo(true);
+    setReviewed((n) => n + 1);
+    setSide('front');
+
+    // Track this card's session arc. The first encounter pins the
+    // startState; subsequent submits on the same card only update
+    // endState + outcomes + finalDifficulty.
+    setPerCard((prev) => {
+      const existing = prev[current.id];
+      const startState = existing?.startState ?? prior.state;
+      return {
+        ...prev,
+        [current.id]: {
+          card: updatedCurrent,
+          startState,
+          endState: next.state,
+          outcomes: existing ? [...existing.outcomes, outcome] : [outcome],
+          finalDifficulty: next.difficulty,
+        },
+      };
     });
-  }, []);
+
+    setQueue((q) => advanceQueue(q.slice(1), updatedCurrent, outcome));
+  }, [queue]);
 
   const undo = useCallback(() => {
     const snapshot = lastReviewRef.current;
     if (!snapshot) return;
 
     void revertLocalReview(snapshot.card.id, snapshot.prior);
+    // Pull the grade back out of the queue if it hasn't been sent. Once it
+    // has, the server keeps it — undo is local-only there, as before.
+    if (snapshot.clientReviewId) void cancelReview(snapshot.clientReviewId);
 
     const restored: CardRecord = {
       ...snapshot.card,

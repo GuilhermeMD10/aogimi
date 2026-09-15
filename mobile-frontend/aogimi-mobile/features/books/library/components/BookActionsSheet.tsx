@@ -14,10 +14,10 @@ import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import { deleteBook, updateBookTitle } from '../../lib/booksApi';
 import { deleteBookFile } from '../../lib/bookPaths';
 import { evictBookCache } from '../../lib/mangaPages';
-import { deleteCoverFor } from '../../lib/epubCover';
-import { clearBookStorage } from '@/features/books/reader/lib/readerStorage';
+import { wipeBookLocalState } from '../../lib/wipeBookLocalState';
 import { clearLocalProgress } from '../../lib/booksLocalCache';
-import { syncOneBookOnDemand } from '../../lib/bookPush';
+import { removeCachedBook } from '../../lib/syncedBookCache';
+import { isPendingBookId, syncOneBookOnDemand } from '../../lib/bookPush';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import type { BookRecord } from '../../types';
 
@@ -80,10 +80,7 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
     if (!book || !user || busy) return;
     setBusy(true);
     try {
-      const result = await syncOneBookOnDemand(user.id, {
-        id: book.id,
-        filename: book.filename,
-      });
+      const result = await syncOneBookOnDemand(user.id, book);
       if (result.ok) {
         onChanged();
         onDismiss();
@@ -116,22 +113,26 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
           onPress: async () => {
             setBusy(true);
             try {
-              await deleteBook(book.id);
+              // A pending book has no backend row yet — its id is the
+              // synthetic `pending:<filename>` — so there is nothing to
+              // DELETE; it is removed by the local cleanup alone.
+              if (!isPendingBookId(book.id)) await deleteBook(book.id);
               // Local cleanup, all best-effort. Every chunk is independent —
               // a failure in one shouldn't stop the others.
               //
               //   1. The .epub / .pdf file itself
-              //   2. Extracted EPUB cover (documents/covers/) + memCache
-              //   3. Manga page cache (cache/manga-pages/<bookId>) + LRU
+              //   2. Manga page cache (cache/manga-pages/<bookId>) + LRU
               //      index entry + session handle
-              //   4. AsyncStorage reader.book.<filename> (lastCfi,
-              //      reading progress)
-              //   5. Optimistic progress patch from the back-press cache
+              //   3. Everything keyed by filename — reader_book_ row,
+              //      extracted cover, sync-map entry (wipeBookLocalState)
+              //   4. Optimistic progress patch from the back-press cache
+              //   5. The synced-book cache entry (+ its session-pending
+              //      flag), so an offline library doesn't keep the tile
               try { deleteBookFile(book.filename); } catch { /* */ }
-              try { deleteCoverFor(book.filename); } catch { /* */ }
               try { await evictBookCache(book.id); } catch { /* */ }
-              try { await clearBookStorage(book.filename); } catch { /* */ }
+              try { await wipeBookLocalState(book.filename); } catch { /* */ }
               clearLocalProgress(book.id);
+              try { await removeCachedBook(book.id); } catch { /* */ }
               onChanged();
               onDismiss();
             } catch (err) {

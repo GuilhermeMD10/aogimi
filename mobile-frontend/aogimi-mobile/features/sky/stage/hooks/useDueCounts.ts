@@ -2,6 +2,9 @@ import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { fetchDueCounts } from '@/features/sky/study/lib/studyApi';
+import { isDue } from '@/features/sky/study/lib/srs';
+import { getAllCards } from '../lib/cardLocalState';
+import { isOnlineNow } from '@/lib/network/network';
 
 type DueCounts = {
   /** Cards due right now across every deck. */
@@ -13,6 +16,20 @@ type DueCounts = {
 
 const EMPTY: DueCounts = { total: 0, byDeck: {} };
 
+/** The same figures from the local card store — the offline answer. Same
+ *  shape as the server's, including omitting decks with nothing due. */
+async function localDueCounts(): Promise<DueCounts> {
+  const now = new Date();
+  const byDeck: Record<string, number> = {};
+  let total = 0;
+  for (const card of await getAllCards()) {
+    if (card.pendingOp === 'delete' || !isDue(card, now)) continue;
+    byDeck[card.deck_id] = (byDeck[card.deck_id] ?? 0) + 1;
+    total += 1;
+  }
+  return { total, byDeck };
+}
+
 /**
  * Due counts for the whole account, in one request.
  *
@@ -22,12 +39,13 @@ const EMPTY: DueCounts = { total: 0, byDeck: {} };
  * a session where every answer silently does nothing. The count is what lets the
  * label tell the truth, and what lets the button refuse when the answer is zero.
  *
- * **Backend-only, deliberately.** The local card store could compute this from
- * `next_due_at` without a round trip, but the two would disagree the moment a
- * review synced from another device — and the *server* is the authority on
- * due-ness, since it is the thing that will accept or ignore the review. A
- * signed-out or offline user gets `total: 0` and a disabled button, which is
- * honest: without a server there is nothing to sync a grade to either.
+ * **Backend first, local when there is no backend to ask.** The server is the
+ * authority on due-ness — it is the thing that will accept or ignore a review —
+ * so online, the figure is its answer. Offline, the local card store computes
+ * the same predicate (`isDue`, mirrored from the server's SQL) over the cards
+ * it holds: grades made offline are queued and replayed with their own
+ * timestamps, so an offline session is real study, and the button has to say
+ * how much of it there is. Signed-out stays `total: 0`.
  *
  * **Re-read on focus, not on mount.** Same reason as `useDecks` and
  * `useSkyDecks`: tab navigators keep child screens mounted, so a mount effect
@@ -78,15 +96,20 @@ export function useDueCounts(): {
         setCounts(EMPTY);
         return;
       }
+      if (!isOnlineNow()) {
+        const local = await localDueCounts();
+        if (!signal.aborted) setCounts(local);
+        return;
+      }
       try {
         const res = await fetchDueCounts(signal);
         if (!signal.aborted) setCounts(res);
       } catch {
-        // Offline or a dead session. `EMPTY` is the right answer for both: there
-        // is no server to count against, and none to send a review to either.
-        // The next focus retries, so connectivity returning fixes the figure
-        // without an app restart.
-        if (!signal.aborted) setCounts(EMPTY);
+        // Backend unreachable or a dead session: count what this device
+        // holds. The next focus retries, so connectivity returning restores
+        // the server's figure without an app restart.
+        const local = await localDueCounts();
+        if (!signal.aborted) setCounts(local);
       }
     },
     [identity],

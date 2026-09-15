@@ -210,6 +210,10 @@ export type ReaderStorage = {
    *  (either an in-session flush or a sync-now). Persists across reader
    *  sessions so a cold open can seed its session-dedup state. */
   lastCfiPushed?: string;
+  /** When the last session on this device ended (see `saveProgressSnapshot`).
+   *  The reader compares it against the record's `last_read_at` to decide
+   *  whether `lastCfi` or the record's `cfi_position` is the restore anchor. */
+  lastReadAt?: string;
   saveLastCfi: (cfi: string) => void;
   /** Called after a successful progress beacon so we can stop re-pushing
    *  the same cfi. */
@@ -220,6 +224,10 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
   const [state, setState] = useState<StoredBook>(EMPTY);
   const [hydrated, setHydrated] = useState(false);
 
+  // Hydrate the WHOLE row, not just `lastCfi`. The row is shared with
+  // `saveProgressSnapshot` / `readerStatePush`, which write the other
+  // fields; hydrating a subset used to mean the first write below
+  // replaced the row with that subset and erased everything else.
   useEffect(() => {
     if (!filename) {
       setState(EMPTY);
@@ -228,9 +236,9 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
     }
     let cancelled = false;
     setHydrated(false);
-    loadJSON<Partial<StoredBook> | null>(keyOf(filename), null).then((data) => {
+    loadStoredBook(filename).then((data) => {
       if (cancelled) return;
-      setState({ lastCfi: data?.lastCfi });
+      setState(data ?? EMPTY);
       setHydrated(true);
     });
     return () => {
@@ -238,13 +246,14 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
     };
   }, [filename]);
 
+  // Persist read-modify-write via `patchStoredBook`, never a whole-row
+  // `saveJSON` from in-memory state: other writers (the background
+  // progress snapshot, the sync push) patch this same key between our
+  // writes and their fields must survive a page turn.
   const update = useCallback(
     (patch: (prev: StoredBook) => StoredBook) => {
-      setState((prev) => {
-        const next = patch(prev);
-        if (filename) saveJSON(keyOf(filename), next);
-        return next;
-      });
+      setState(patch);
+      if (filename) void patchStoredBook(filename, patch);
     },
     [filename],
   );
@@ -263,6 +272,7 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
     hydrated,
     lastCfi: state.lastCfi,
     lastCfiPushed: state.lastCfiPushed,
+    lastReadAt: state.lastReadAt,
     saveLastCfi,
     markCfiPushed,
   };

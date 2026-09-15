@@ -24,17 +24,35 @@ export type ReaderProgressSnapshot = {
   /** ms epoch of the write. Used to reconcile against the backend's
    *  `last_read_at` on restore (newer wins). */
   updatedAt: number;
+  /** ms epoch as of which the backend had this snapshot. Absent, or older
+   *  than `updatedAt`, means an unpushed session — the library drains it on
+   *  its next load (see `pushUnsyncedProgress`). */
+  syncedAt?: number;
 };
 
 export function getReaderProgress(filename: string): ReaderProgressSnapshot | null {
   return getJSON<ReaderProgressSnapshot>(progressKey(filename));
 }
 
+/** Newer than what the backend last confirmed — needs a push. */
+export function isReaderProgressUnsynced(snapshot: ReaderProgressSnapshot): boolean {
+  return snapshot.updatedAt > (snapshot.syncedAt ?? 0);
+}
+
 export function setReaderProgress(
   filename: string,
-  snapshot: Omit<ReaderProgressSnapshot, 'updatedAt'>,
+  snapshot: Omit<ReaderProgressSnapshot, 'updatedAt' | 'syncedAt'>,
 ): void {
-  setJSON(progressKey(filename), { ...snapshot, updatedAt: Date.now() });
+  const prev = getReaderProgress(filename);
+  setJSON(progressKey(filename), { ...snapshot, updatedAt: Date.now(), syncedAt: prev?.syncedAt });
+}
+
+/** Record that the backend accepted the position as of `syncedAt`. Any
+ *  page turn after that instant leaves the snapshot unsynced again. */
+export function markReaderProgressSynced(filename: string, syncedAt: number): void {
+  const prev = getReaderProgress(filename);
+  if (!prev) return;
+  setJSON(progressKey(filename), { ...prev, syncedAt });
 }
 
 /** Drop the reader_progress_<filename> snapshot — call on book delete so a

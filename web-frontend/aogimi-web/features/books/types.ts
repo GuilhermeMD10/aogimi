@@ -83,6 +83,11 @@ export interface ProgressPayload {
   progress?: number;
   spineIndex?: number;
   totalSpineItems?: number;
+  /** ISO time the position was actually read. The backend keeps the newer
+   *  of this and its stored `last_read_at`, so a position pushed late (the
+   *  library draining an offline session) can't outrank a later session on
+   *  another device. Omit to let the server stamp arrival time. */
+  lastReadAt?: string;
 }
 
 // ── Hash-based matching ─────────────────────────────────────────────────────
