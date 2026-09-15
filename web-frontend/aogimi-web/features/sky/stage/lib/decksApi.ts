@@ -26,19 +26,39 @@ export async function getDeck(id: string, signal?: AbortSignal): Promise<DeckRec
 }
 
 /**
- * Every deck with its full card inventory, one round trip — the sky page's mount query, where
- * each card is a star and a per-deck fan-out would be one request per deck. Don't reach for this
- * to read a count or one deck's cards; the narrower endpoints above exist for exactly that.
+ * Every deck with its card inventory in the sky's lean projection, one round trip — the sky
+ * page's mount query, where each card is a star and a per-deck fan-out would be one request per
+ * deck. Don't reach for this to read a count or one deck's cards; the narrower endpoints above
+ * exist for exactly that.
  */
-export async function getUserDecksWithCards(
+export async function getUserSkyDecks(
   userId: number,
   signal?: AbortSignal,
 ): Promise<DeckWithCards[]> {
   const { decks } = await apiGet<{ decks: DeckWithCards[] }>(
+    `/api/decks/user/${userId}/cards?view=sky`,
+    signal,
+  );
+  return decks;
+}
+
+/** The same decks with **full** card rows — what whole-library practice drills. Several times
+ *  the size of `getUserSkyDecks`; nothing that merely draws or lists cards should call it. */
+export async function getUserDecksWithCards(
+  userId: number,
+  signal?: AbortSignal,
+): Promise<(DeckRecord & { cards: CardRecord[] })[]> {
+  const { decks } = await apiGet<{ decks: (DeckRecord & { cards: CardRecord[] })[] }>(
     `/api/decks/user/${userId}/cards`,
     signal,
   );
   return decks;
+}
+
+/** One card, every column — what the detail card reads on open, since the inventory the page
+ *  holds is the lean projection. */
+export async function getCard(cardId: string, signal?: AbortSignal): Promise<CardRecord> {
+  return apiGet<CardRecord>(`/api/decks/cards/${cardId}`, signal);
 }
 
 export async function updateDeck(

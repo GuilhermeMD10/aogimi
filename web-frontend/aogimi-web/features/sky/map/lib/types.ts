@@ -7,10 +7,8 @@ export type Point = { x: number; y: number };
  * deck moves. It is also why clustering can never span two decks — the trees are built per deck,
  * in a space that only that deck occupies.
  *
- * `count` and `seen` are the two parts of a star the seed does not decide — placement reads
- * neither, so a sky stays reproducible however much it is clicked or looked at.
- *
- * `count` is how many times the card behind this star has been reviewed.
+ * `seen` is the one part of a star the seed does not decide — placement never reads it, so a sky
+ * stays reproducible however much it is looked at.
  *
  * `seen` is whether the star has ever actually been drawn for the reader. Cards arrive in the
  * background while the sky is closed or scrolled away, and a star that has not been shown yet is
@@ -33,17 +31,13 @@ export type Star = {
    */
   key: string;
   /**
-   * The card behind the star: its two faces, and nothing else. Carried on the star rather than in a
-   * parallel store because a star *is* a card — every reader of one wants the other, and a second
-   * map keyed by id would only invent a join the data never needed. Neither is read by placement, so
-   * a sky stays reproducible whatever its cards say.
-   *
-   * `front` is the card's identity everywhere it is named: the in-sky label, the list row, the
-   * detail heading. There is deliberately no separate display name — a host's card model has a
-   * front and a back, and a third string would be one the host has to invent.
+   * The card's front — the one piece of its content the sky draws: the in-sky label and the hover
+   * readout. Carried on the star because every reader of a star wants it. Nothing else of the card
+   * rides here: the back, the review count and the rest stay on the host's own row, which `key`
+   * joins back to — copying them into five thousand stars was memory spent on text no renderer
+   * read. Not read by placement, so a sky stays reproducible whatever its cards say.
    */
   front: string;
-  back: string;
   /**
    * Mastery rank 0..3 — what the star is *drawn as*: its colour, its silhouette, its radius.
    * Comes from the host's own SRS ladder (new/met/learned/mastered), carried in on `addStar`
@@ -60,7 +54,6 @@ export type Star = {
    * It dims instead. Same standing as `mastery` — drawn from, never placed from.
    */
   glow: number;
-  count: number;
   seen: boolean;
 };
 

@@ -44,6 +44,8 @@ export type RelocatedPayload = {
 
 export type SelectionPayload = {
   text: string;
+  /** The sentence the selection sits in, when the shell could find one. */
+  sentence?: string;
   cfi: string;
   pageX: number;
   pageY: number;
@@ -51,7 +53,7 @@ export type SelectionPayload = {
 };
 
 export type CustomMenuKey = 'dict' | 'card' | 'copy';
-export type CustomMenuEvent = { key: CustomMenuKey; selectedText: string };
+export type CustomMenuEvent = { key: CustomMenuKey; selectedText: string; sentence?: string };
 
 // OS selection bubble is replaced by NativeSelectionMenu (rendered by the
 // reader screen). On Android we pass `menuItems: []`, which leaves the

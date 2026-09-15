@@ -30,9 +30,9 @@ in the wrong directory.** Web-specific code lives in `components/sky/`.
 bit-identical positions on any JS engine — Hermes, JavaScriptCore, V8. Two things protect that,
 and both are easy to break by accident:
 
-- **Placement must never read mutable state.** A star's `count` changes as cards are reviewed and
-  its `seen` changes as it is drawn; nothing in the generator may consult either. Clicking a star,
-  or merely looking at one, must not move it or any later one.
+- **Placement must never read mutable state.** A star's `seen` changes as it is drawn, and its
+  `mastery`/`glow` change between builds as cards are reviewed; nothing in the generator may consult
+  any of them. Clicking a star, or merely looking at one, must not move it or any later one.
 - **Iteration order must stay stable.** Stars, links, and constellation members are all
   append-only and read in id order. `nearestMember` breaks exact ties on the lower id for the same
   reason: so a grid's cell ordering cannot leak into the result.
@@ -72,9 +72,12 @@ as it earns the pixels to justify them.
 Two pieces, and the split between them is what keeps it cheap:
 
 - **`cluster.ts` builds, and depends only on the data.** One quadtree per constellation, each node
-  carrying the centroid, spread, tight bbox and review histogram it would be drawn from. Rebuilding
-  this when the camera moves is the single mistake that undoes the whole feature. It *does* depend
-  on `count`, so a review changes the answer — that is fine, it is 2ms at 5000 cards.
+  carrying the centroid, spread, tight bbox and rank histogram it would be drawn from. Rebuilding
+  this when the camera moves is the single mistake that undoes the whole feature. It depends on
+  `mastery`, so a review changes the answer on the next build — that is fine, it is 2ms at 5000
+  cards. It does **not** depend on the palette: a node stores its histogram, and `lobeTint`
+  resolves it to colours per ramp on demand (memoised), so switching hue preset rebuilds nothing.
+  Session trees are built lazily, per deck, the first time that deck is focused.
 - **`cloudFrame` walks, and depends on the camera.** A node stands in for its entire subtree while
   its footprint is under `LOBE_SPAN_PX` on screen, and defers to its children once it is wider.
   Cost is O(what is visible), not O(the sky): measured under 0.01ms at 5000 cards.
@@ -105,12 +108,17 @@ The lifecycle is three steps and the middle one is the subtle part:
 
 1. `addStar` creates the star with `seen: false`. Nothing else marks it — not being mined, not the
    sky being open, not a render that culls it away.
-2. The frame that actually draws it gives it the pop class. It is marked seen only `STAR_POP_MS`
-   later, on a timer in `SkyCanvas`. Marking on the drawing render would drop the class on the very
-   next commit and cancel the animation it was meant to allow; marking on `animationend` would never
-   fire under `prefers-reduced-motion`.
+2. The frame that actually draws it gives it the pop class, and marks it seen only once the pop has
+   played, on a timer. Marking on the drawing render would drop the class on the very next commit
+   and cancel the animation it was meant to allow; marking on `animationend` would never fire under
+   `prefers-reduced-motion`.
 3. `markSeen` returns how many actually changed, so the renderer's timer republishes the snapshot
    only when something did. Otherwise every idle tick would rebuild the cluster trees for nothing.
+
+**The web renderer does not run this today.** `buildSky` replays history and marks every star seen
+on build, so `SkyCanvas` carries no arrival timer and no pop class — the per-render walk that
+collected unseen stars was pure cost on a set that was always empty. The `seen` state and `markSeen`
+stay in the lib for the host that mines cards while the sky is open.
 
 Two consequences worth keeping: an unseen star that is off screen stays unseen, so it pops when you
 pan to it rather than silently while you were elsewhere; and at the far view no star is drawn at
@@ -130,13 +138,13 @@ The shared code takes numbers and returns numbers. A host provides:
    `deltaY` into `Math.exp(-deltaY * ZOOM_PER_WHEEL_PX)`; a pinch handler passes its scale change
    straight through. Neither gesture's feel leaks into the shared maths.
 4. **A hue preset.** One of `SKY_PALETTES` (`palette.ts`), which the host resolves from the reader's
-   setting and **passes down explicitly** — the ramp is an argument to `groupTint`, `starColor`,
-   `buildClouds` and `indexSky`, never a module read. There is deliberately no "set the active
-   palette" call: mutable module state here would be shared across SSR requests on the web and
-   invisible to React's dependency graph, and the cloud tints live in the quadtrees, so the palette
-   has to be a *dependency* of building them. Switching preset re-indexes once (~26ms at the
-   5000-card quota) and costs nothing per frame afterwards. Presets carry colour only — radius,
-   glow and silhouette are the same in every sky, because they are what makes a rank legible.
+   setting and **passes down explicitly** — the ramp is an argument to `groupTint`, `starColor` and
+   `lobeTint`, never a module read. There is deliberately no "set the active palette" call: mutable
+   module state here would be shared across SSR requests on the web and invisible to React's
+   dependency graph. The quadtrees store rank histograms, not colours, so switching preset rebuilds
+   nothing: `lobeTint` resolves each visible node's histogram against the new ramp and memoises it
+   per (ramp, node). Presets carry colour only — radius, glow and silhouette are the same in every
+   sky, because they are what makes a rank legible.
 5. **A renderer.** `viewOf` returns the visible world rectangle as numbers. SVG formats that into
    a `viewBox` (see `viewBoxOf` in `SkyCanvas.tsx`); a Skia or Canvas host uses it as a transform.
    For the cloud layer it also needs a soft radial falloff per lobe — SVG does it with a gradient

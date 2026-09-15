@@ -1,8 +1,8 @@
 'use client';
 
-import type { Lobe } from '../lib/cluster';
+import { type Lobe, lobeTint } from '../lib/cluster';
 import { WASH_ALPHA, WASH_LOBES, WASH_MIN_SPREAD } from '../lib/config';
-import { washStops } from '../lib/palette';
+import { type RankRamp, washStops } from '../lib/palette';
 
 /**
  * The atmosphere under a focused deck's drawing: three broad, overlapping tints sized off the deck's
@@ -18,9 +18,10 @@ import { washStops } from '../lib/palette';
  * sky, not chrome over it. Inert, like every other painted layer: picking runs against coordinates in
  * the canvas's own handlers.
  */
-export function SkyWash({ root, scope }: { root: Lobe; scope: string }) {
+export function SkyWash({ root, ranks, scope }: { root: Lobe; ranks: RankRamp; scope: string }) {
   const bodyId = `sky-wash-${scope}-b`;
   const peakId = `sky-wash-${scope}-p`;
+  const tint = lobeTint(root, ranks);
   // the y axis carries the root's aspect, so the wash lies along the same principal axis its lobes
   // and halos do — an unrotated circular wash under an elongated deck reads as a spotlight
   const spread = Math.max(root.sd, WASH_MIN_SPREAD);
@@ -30,12 +31,12 @@ export function SkyWash({ root, scope }: { root: Lobe; scope: string }) {
     <g style={{ pointerEvents: 'none' }} transform={`rotate(${root.angle} ${root.cx} ${root.cy})`}>
       <defs>
         <radialGradient id={bodyId}>
-          {washStops(root.tint.body, WASH_ALPHA).map(({ at, color, alpha }) => (
+          {washStops(tint.body, WASH_ALPHA).map(({ at, color, alpha }) => (
             <stop key={at} offset={at} stopColor={color} stopOpacity={alpha} />
           ))}
         </radialGradient>
         <radialGradient id={peakId}>
-          {washStops(root.tint.peak, WASH_ALPHA).map(({ at, color, alpha }) => (
+          {washStops(tint.peak, WASH_ALPHA).map(({ at, color, alpha }) => (
             <stop key={at} offset={at} stopColor={color} stopOpacity={alpha} />
           ))}
         </radialGradient>

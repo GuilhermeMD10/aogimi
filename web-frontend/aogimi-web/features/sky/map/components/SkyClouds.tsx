@@ -1,10 +1,7 @@
 'use client';
 
-import type { Lobe, MeshEdge } from '../lib/cluster';
+import { type Lobe, type MeshEdge, lobeTint } from '../lib/cluster';
 import {
-  CLOUD_DRIFT,
-  CLOUD_DRIFT_MS,
-  CLOUD_DRIFT_PHASES,
   HALO_SPREAD,
   HOT_CORE_MIN,
   LOBE_MIN_PX,
@@ -23,6 +20,7 @@ import {
 import {
   type ColorStop,
   type GroupTint,
+  type RankRamp,
   haloStops,
   hotStops,
   lobeStops,
@@ -31,18 +29,12 @@ import {
   tintKey,
 } from '../lib/palette';
 
-/** Which of CLOUD_DRIFT_PHASES a lobe's churn starts on, from its stable id — deterministic, so a
- *  re-render never restarts the motion, and staggered so neighbours never turn in step. */
-const driftPhase = (id: string) => {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
-  return (((h % CLOUD_DRIFT_PHASES) + CLOUD_DRIFT_PHASES) % CLOUD_DRIFT_PHASES) / CLOUD_DRIFT_PHASES;
-};
-
 type Props = {
   halos: { lobe: Lobe; veil: number }[];
   lobes: Lobe[];
   edges: MeshEdge[];
+  /** The active hue preset's ramp, which every lobe's histogram is coloured through (`lobeTint`). */
+  ranks: RankRamp;
   /** How far the whole layer is faded up. Inside a focused deck this is the zoom crossfade's
    *  cloudOp and must never be transitioned — see lib/sky/lod.ts; at the outer view it is 1 and
    *  the budget's veil does the fading instead. */
@@ -89,9 +81,9 @@ const gradient = (id: string, stops: ColorStop[]) => (
  * Inert on purpose. Picking runs against coordinates in the canvas's pointer handlers, so a cloud
  * taking pointer events would only get in the way of the pan underneath it.
  */
-export function SkyClouds({ halos, lobes, edges, opacity, scope, u, mass = 1 }: Props) {
+export function SkyClouds({ halos, lobes, edges, ranks, opacity, scope, u, mass = 1 }: Props) {
   // a mesh edge takes the colour of the group it belongs to
-  const byGid = new Map(halos.map(({ lobe }) => [lobe.gid, lobe.tint.body]));
+  const byGid = new Map(halos.map(({ lobe }) => [lobe.gid, lobeTint(lobe, ranks).body]));
 
   // Gradients are shared by *quantised* tint rather than minted per lobe: sibling lobes of one
   // group differ by a hair of blend, which at 16 levels per channel is the same def. The def count
@@ -103,12 +95,14 @@ export function SkyClouds({ halos, lobes, edges, opacity, scope, u, mass = 1 }: 
   const hotDefs = new Map<string, string>();
 
   const blobs = lobes.map((lobe) => {
-    const key = tintKey(lobe.tint);
-    if (!lobeDefs.has(key)) lobeDefs.set(key, quantiseTint(lobe.tint));
-    const hotKey = lobe.hot && lobe.hotW > HOT_CORE_MIN ? lobe.tint.peak.slice(1) : null;
-    if (hotKey && !hotDefs.has(hotKey)) hotDefs.set(hotKey, lobe.tint.peak);
+    const tint = lobeTint(lobe, ranks);
+    const key = tintKey(tint);
+    if (!lobeDefs.has(key)) lobeDefs.set(key, quantiseTint(tint));
+    const hotKey = lobe.hot && lobe.hotW > HOT_CORE_MIN ? tint.peak.slice(1) : null;
+    if (hotKey && !hotDefs.has(hotKey)) hotDefs.set(hotKey, tint.peak);
     return {
       lobe,
+      peak: tint.peak,
       key,
       hotKey,
       // sd, not the bounding box, so the lobe sits where the mass is. A bbox-sized lobe looks like
@@ -118,8 +112,9 @@ export function SkyClouds({ halos, lobes, edges, opacity, scope, u, mass = 1 }: 
     };
   });
   const withHaloKey = halos.map((h) => {
-    const key = quantiseColor(h.lobe.tint.body).slice(1);
-    if (!haloDefs.has(key)) haloDefs.set(key, quantiseTint(h.lobe.tint));
+    const tint = lobeTint(h.lobe, ranks);
+    const key = quantiseColor(tint.body).slice(1);
+    if (!haloDefs.has(key)) haloDefs.set(key, quantiseTint(tint));
     return { ...h, key };
   });
 
@@ -150,9 +145,11 @@ export function SkyClouds({ halos, lobes, edges, opacity, scope, u, mass = 1 }: 
 
       {/* The mass, as an offset pair rather than one ellipse — see LOBE_TWIN_*. The main lobe lies
           along the principal axis of the stars it hides, so the cloud echoes the shape of the
-          drawing inside it; the twin drifts slowly around the centre (transform-only — cheap), so
-          the vapour churns instead of sitting still. A lobe holding cards the reader has not been
-          shown yet breathes, because at this distance those cards have no star of their own. */}
+          drawing inside it; the twin sits offset from the centre so the form reads as vapour rather
+          than as a disc. Static: it used to orbit on an infinite transform animation, and every
+          lobe's gradient-filled layer repainting forever with the camera parked was the one
+          steady cost the sky had at rest. A lobe holding cards the reader has not been shown yet
+          breathes, because at this distance those cards have no star of their own. */}
       {blobs.map(({ lobe, rx, key, hotKey }) => {
         const op = opacity * (0.32 + 0.68 * lobe.weight);
         return (
@@ -166,24 +163,14 @@ export function SkyClouds({ halos, lobes, edges, opacity, scope, u, mass = 1 }: 
               fill={`url(#sky-lobe-${scope}-${key})`}
               opacity={op}
             />
-            {/* nested groups on purpose: the outer carries the position as an SVG attribute, the
-                inner carries the CSS rotation — CSS transform would override an attribute transform
-                on the same element, and rotating about the local origin is exactly the orbit */}
-            <g transform={`translate(${lobe.cx} ${lobe.cy})`}>
-              <g
-                className={CLOUD_DRIFT ? 'sky-drift' : undefined}
-                style={CLOUD_DRIFT ? { animationDelay: `${-driftPhase(lobe.id) * CLOUD_DRIFT_MS}ms` } : undefined}
-              >
-                <ellipse
-                  cx={rx * LOBE_TWIN_DX}
-                  cy={rx * LOBE_TWIN_DY}
-                  rx={rx * LOBE_TWIN_RX}
-                  ry={rx * LOBE_TWIN_RY}
-                  fill={`url(#sky-lobe-${scope}-${key})`}
-                  opacity={op * LOBE_TWIN_ALPHA}
-                />
-              </g>
-            </g>
+            <ellipse
+              cx={lobe.cx + rx * LOBE_TWIN_DX}
+              cy={lobe.cy + rx * LOBE_TWIN_DY}
+              rx={rx * LOBE_TWIN_RX}
+              ry={rx * LOBE_TWIN_RY}
+              fill={`url(#sky-lobe-${scope}-${key})`}
+              opacity={op * LOBE_TWIN_ALPHA}
+            />
             {/* the gold core, at the mastered knot's own position rather than the lobe's centre —
                 the cloud points at its contents before it resolves into stars */}
             {lobe.hot && hotKey && (
@@ -220,13 +207,13 @@ export function SkyClouds({ halos, lobes, edges, opacity, scope, u, mass = 1 }: 
 
       {/* the nodes, and with them the peaks: radius runs with grain, so the tightest knots simply
           are the biggest points. Screen px, so they stay hard while the fill behind them softens. */}
-      {blobs.map(({ lobe }) => (
+      {blobs.map(({ lobe, peak }) => (
         <circle
           key={lobe.id}
           cx={lobe.cx}
           cy={lobe.cy}
           r={(MESH_POINT_MIN_PX + (MESH_POINT_MAX_PX - MESH_POINT_MIN_PX) * lobe.grain) * u}
-          fill={lobe.tint.peak}
+          fill={peak}
           fillOpacity={opacity * (0.5 + 0.5 * lobe.grain)}
         />
       ))}
@@ -234,13 +221,13 @@ export function SkyClouds({ halos, lobes, edges, opacity, scope, u, mass = 1 }: 
       {/* a busy knot glints before it resolves into stars — the payoff detail of the whole layer */}
       {blobs
         .filter(({ lobe }) => lobe.grain > MESH_PEAK_GRAIN)
-        .map(({ lobe, rx }) => {
+        .map(({ lobe, rx, peak }) => {
           const arm = rx * 0.6;
           return (
             <path
               key={lobe.id}
               d={`M${lobe.cx - arm} ${lobe.cy}H${lobe.cx + arm}M${lobe.cx} ${lobe.cy - arm}V${lobe.cy + arm}`}
-              stroke={lobe.tint.peak}
+              stroke={peak}
               strokeOpacity={opacity * 0.3}
               strokeWidth={MESH_EDGE_PX}
               vectorEffect="non-scaling-stroke"

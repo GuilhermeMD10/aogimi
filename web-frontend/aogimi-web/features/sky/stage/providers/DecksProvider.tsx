@@ -11,7 +11,7 @@ import {
 import * as api from '../lib/decksApi';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
-import type { DeckSummary } from '../types';
+import type { DeckRecord, DeckSummary } from '../types';
 
 // Cross-page deck list + mutations. Decks live here (rather than inside
 // `SkyView`) so:
@@ -33,7 +33,9 @@ type DecksContextValue = {
   // ── Mutations: every one refreshes the list afterwards. The optimistic
   //    `bumpCardCount` helper is used by per-deck card add/delete so the
   //    summary count moves immediately without waiting for the refetch. ──
-  createDeck: (params: { name: string }) => Promise<{ id: string }>;
+  /** Resolves to the created row, so a caller holding its own inventory can
+   *  insert it without a refetch (`useSkyDecks.addDeck`). */
+  createDeck: (params: { name: string }) => Promise<DeckRecord>;
   updateDeck: (id: string, patch: { name?: string }) => Promise<void>;
   deleteDeck: (id: string) => Promise<void>;
   /** Apply a +1 / -1 patch to a deck's card_count locally. Used after
@@ -119,7 +121,7 @@ export function DecksProvider({ children }: { children: ReactNode }) {
       if (userId == null) throw new Error('createDeck requires a signed-in user');
       const created = await api.createDeck({ userId, ...params });
       await refreshFn();
-      return { id: created.id };
+      return created;
     },
     [userId, refreshFn],
   );

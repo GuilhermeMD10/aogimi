@@ -53,15 +53,20 @@ router.get(
   },
 );
 
-// Every deck with its full card list in one response — feeds the /sky page,
-// which needs all cards across all decks and would otherwise do a per-deck
+// Every deck with its card list in one response — one round trip for a page
+// that needs all cards across all decks and would otherwise do a per-deck
 // GET /:id/cards fan-out. Bounded by the per-user card quota, so no paging.
+//
+// `?view=sky` returns the sky page's lean projection of each card instead of
+// the full row (see cardRepository.findSkyByDeckIds). Without it the rows are
+// complete — the mobile app and whole-library practice read them that way.
 router.get(
   "/user/:userId/cards",
   requireUserMatch({ from: "params", key: "userId" }),
   async (req, res) => {
     try {
-      const decks = await deckService.getUserDecksWithCards(req.user.userId);
+      const view = req.query.view === "sky" ? "sky" : undefined;
+      const decks = await deckService.getUserDecksWithCards(req.user.userId, { view });
       return res.json({ decks });
     } catch (err) {
       return res.status(500).json({ error: "List failed" });
@@ -148,6 +153,20 @@ router.get("/:id/cards/due/count", async (req, res) => {
     return res.json({ count });
   } catch (err) {
     return res.status(500).json({ error: "Read failed" });
+  }
+});
+
+// One card, every column. The sky page's card detail reads this when a card
+// is opened, since the inventory it holds is the lean `?view=sky` projection.
+router.get("/cards/:cardId", async (req, res) => {
+  if (!(await cardOwnedBy(req.user.userId, req.params.cardId))) {
+    return res.status(404).json({ error: "Not found" });
+  }
+  try {
+    const card = await cardService.getCard(req.params.cardId);
+    return res.json(card);
+  } catch (err) {
+    return res.status(404).json({ error: "Not found" });
   }
 });
 

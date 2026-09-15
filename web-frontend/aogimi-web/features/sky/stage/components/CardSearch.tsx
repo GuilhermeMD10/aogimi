@@ -5,7 +5,7 @@ import { Search, X } from 'lucide-react';
 
 import { stageColor } from '@/shared/components';
 import { NIGHT } from '../lib/nightChrome';
-import type { CardRecord, DeckWithCards } from '../types';
+import type { DeckWithCards, SkyCardRecord } from '../types';
 
 /**
  * The glass column's word search: an in-memory filter over every card the page
@@ -23,7 +23,7 @@ import type { CardRecord, DeckWithCards } from '../types';
 
 const MAX_RESULTS = 8;
 
-type Hit = { deckKey: string; deckName: string; card: CardRecord };
+type Hit = { deckKey: string; deckName: string; card: SkyCardRecord };
 
 type Props = {
   decks: DeckWithCards[];
@@ -44,11 +44,9 @@ export function CardSearch({ decks, onPick }: Props) {
         if (
           card.front.toLowerCase().includes(q) ||
           (card.reading ?? '').toLowerCase().includes(q) ||
-          // A regression guard, not an extra: searching in English works today
-          // only because the glosses happen to live inside `back`. New cards
-          // carry them in `meanings`, so without this line a card added after
-          // migration 026 would stop being findable by its meaning the moment
-          // `back` is retired — and matching both keeps the two eras equal now.
+          // Both eras of gloss: new cards carry theirs in `meanings`; pre-026
+          // cards carry theirs inside `back`, which the sky projection ships
+          // only for exactly those cards (it is '' wherever `meanings` exist).
           card.meanings.some((m) => m.toLowerCase().includes(q)) ||
           (card.back ?? '').toLowerCase().includes(q)
         ) {

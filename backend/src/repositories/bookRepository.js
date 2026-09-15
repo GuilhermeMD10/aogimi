@@ -70,7 +70,11 @@ module.exports = {
    *  when that time is at or after the stored `last_read_at` — a stale push
    *  arriving late is a no-op and returns undefined (the caller falls back
    *  to the current row). Without one, the write is unconditional and
-   *  stamped with arrival time, as before. */
+   *  stamped with arrival time, as before.
+   *
+   *  A row that has never held a position (`cfi_position IS NULL`) always
+   *  accepts: its `last_read_at` is the row's creation, not a read, and a
+   *  book imported offline is read before its row exists. */
   updateBookProgress: async (
     id,
     { cfiPosition, progress, spineIndex, totalSpineItems, lastReadAt },
@@ -83,7 +87,9 @@ module.exports = {
            total_spine_items  = COALESCE($5, total_spine_items),
            last_read_at       = COALESCE($6::timestamptz, now())
        WHERE id = $1
-         AND ($6::timestamptz IS NULL OR last_read_at <= $6::timestamptz)
+         AND (cfi_position IS NULL
+              OR $6::timestamptz IS NULL
+              OR last_read_at <= $6::timestamptz)
        RETURNING *`,
       [
         id,

@@ -1,5 +1,5 @@
 import { shownRank } from './rankProgress';
-import type { CardRecord, CardState } from '../types';
+import type { CardState, SkyCardRecord } from '../types';
 
 /** Ladder order, bottom tier first — the order the mix bar and its legend read in. */
 export const MIX_ORDER: readonly CardState[] = ['new', 'met', 'learned', 'mastered'];
@@ -15,7 +15,7 @@ export type MasteryMix = Record<CardState, number>;
  * tier through a lapse), and a mix bar disagreeing with the sky it sits over
  * would simply look broken — the user can see both at once.
  */
-export function masteryMixOf(cards: readonly CardRecord[]): MasteryMix {
+export function masteryMixOf(cards: readonly SkyCardRecord[]): MasteryMix {
   const mix: MasteryMix = { new: 0, met: 0, learned: 0, mastered: 0 };
   for (const c of cards) {
     mix[shownRank({ state: c.state ?? 'new', peakRank: c.peak_rank })]++;

@@ -18,7 +18,6 @@ import {
 import { boundsCross, inBounds, segmentInBounds, skyBounds } from './geometry';
 import type { SkyLayout } from './layout';
 import { MIN_LAYER_OP, SKY_FULL, type SkyLayers, type SkyPhase, layersAt } from './lod';
-import type { RankRamp } from './palette';
 import { deckPresence } from './star';
 import type { Bounds, FocusPath, Point, SkySnapshot, Star } from './types';
 
@@ -55,8 +54,12 @@ export type SkyIndex = {
   linksByDeck: Map<number, DrawnLink[]>;
   /** One tree spanning each whole deck — what the outer view's budget runs over. */
   deckTrees: Map<number, Cloud>;
-  /** One tree per session, grouped by the deck that owns them — what a focused deck's walk reads. */
-  sessionTrees: Map<number, Cloud[]>;
+  /**
+   * One tree per session of this deck, in the order the sessions were studied — what a focused
+   * deck's walk reads. Built on first request and cached on the index: only the focused deck's
+   * sessions are ever walked, so building every deck's at mount was work for decks never entered.
+   */
+  sessionTreesFor: (did: number) => Cloud[];
   /** Each deck's tight box in its own local space, which is what the packer lays out. */
   localBoxes: Map<number, Bounds>;
   /** Deck names by did — the one non-geometric input the packer needs: a name floors its deck's
@@ -64,9 +67,9 @@ export type SkyIndex = {
   names: Map<number, string>;
 };
 
-/** `ranks` is the active hue preset's ramp: the trees carry each node's blended tint, so the index
- *  depends on the palette as well as on the data. See buildClouds. */
-export const indexSky = (snap: SkySnapshot, ranks: RankRamp): SkyIndex => {
+/** A function of the snapshot alone — no palette reaches it (see `lobeTint`), so a hue switch
+ *  keeps the index and every frame cached against it. */
+export const indexSky = (snap: SkySnapshot): SkyIndex => {
   const byId = new Map<number, Star>();
   for (const s of snap.stars) byId.set(s.id, s);
 
@@ -100,26 +103,31 @@ export const indexSky = (snap: SkySnapshot, ranks: RankRamp): SkyIndex => {
   for (const d of snap.decks) names.set(d.id, d.name);
 
   const deckTrees = new Map<number, Cloud>();
-  for (const cloud of buildClouds(snap.stars, dids, (s) => s.did, ranks)) deckTrees.set(cloud.gid, cloud);
+  for (const cloud of buildClouds(snap.stars, dids, (s) => s.did)) deckTrees.set(cloud.gid, cloud);
 
-  // in constellation order, so a deck's sessions draw in the order they were studied
-  const sessionTrees = new Map<number, Cloud[]>();
-  const deckOfCid = new Map<number, number>();
-  for (const c of snap.constellations) deckOfCid.set(c.id, c.did);
-  for (const cloud of buildClouds(
-    snap.stars,
-    snap.constellations.map((c) => c.id),
-    (s) => s.cid,
-    ranks,
-  )) {
-    const did = deckOfCid.get(cloud.gid);
-    if (did === undefined) continue;
-    const list = sessionTrees.get(did);
-    if (list) list.push(cloud);
-    else sessionTrees.set(did, [cloud]);
+  // Each deck's sessions in constellation order, so they draw in the order they were studied; and
+  // the sky's busiest session, so a lazily built deck normalises its lobes' weight against the
+  // same figure a whole-sky build would have.
+  const cidsByDeck = new Map<number, number[]>();
+  for (const c of snap.constellations) {
+    const list = cidsByDeck.get(c.did);
+    if (list) list.push(c.id);
+    else cidsByDeck.set(c.did, [c.id]);
   }
+  let busiestSession = 1;
+  for (const c of snap.constellations) busiestSession = Math.max(busiestSession, c.starIds.length);
 
-  return { byId, byDeck, linksByDeck, deckTrees, sessionTrees, localBoxes, names };
+  const sessionTrees = new Map<number, Cloud[]>();
+  const sessionTreesFor = (did: number): Cloud[] => {
+    let trees = sessionTrees.get(did);
+    if (!trees) {
+      trees = buildClouds(byDeck.get(did) ?? [], cidsByDeck.get(did) ?? [], (s) => s.cid, busiestSession);
+      sessionTrees.set(did, trees);
+    }
+    return trees;
+  };
+
+  return { byId, byDeck, linksByDeck, deckTrees, sessionTreesFor, localBoxes, names };
 };
 
 /** Everything one deck contributes to a frame, in that deck's own local coordinates. */
@@ -265,7 +273,7 @@ const drawFocusedDeck = (
 
   const { halos, lobes, edges } =
     layers.cloudOp > MIN_LAYER_OP
-      ? cloudFrame(index.sessionTrees.get(did) ?? [], zoom, view, LOBE_SPAN_PX)
+      ? cloudFrame(index.sessionTreesFor(did), zoom, view, LOBE_SPAN_PX)
       : EMPTY_CLOUD_FRAME;
 
   // While the full star layer is down, a budget's worth of real stars stands among the clouds —
