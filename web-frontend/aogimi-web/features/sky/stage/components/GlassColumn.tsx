@@ -8,7 +8,7 @@ import { cn } from '@/lib/util/cn';
 
 import { NIGHT } from '../lib/nightChrome';
 import { masteryRank, rankProgress, shownRank } from '../lib/rankProgress';
-import type { CardRecord, CardState, DeckWithCards } from '../types';
+import type { CardState, DeckWithCards, SkyCardRecord } from '../types';
 import { CardSearch } from './CardSearch';
 import { StudyButton } from './StudyButton';
 
@@ -155,7 +155,7 @@ function CardList({
   highlightId,
   onSelect,
 }: {
-  cards: CardRecord[];
+  cards: SkyCardRecord[];
   highlightId: string | null;
   onSelect: (cardId: string) => void;
 }) {
@@ -293,7 +293,7 @@ function Row({
   selected,
   onSelect,
 }: {
-  card: CardRecord;
+  card: SkyCardRecord;
   meta: string;
   selected: boolean;
   onSelect: () => void;
@@ -345,7 +345,7 @@ const stageIndex = (state: CardState) => LADDER.indexOf(state);
  *  which is what it means. `peak_rank` falls back to `state` for rows fetched
  *  before migration 027 added the column: "never been higher than it is now",
  *  the reading that can't overstate progress. */
-function cardArgs(card: CardRecord) {
+function cardArgs(card: SkyCardRecord) {
   return {
     state: card.state ?? 'new',
     peakRank: card.peak_rank ?? card.state ?? 'new',
@@ -356,7 +356,7 @@ function cardArgs(card: CardRecord) {
 
 /** The right-hand cell shows whatever the active sort key is, and falls back
  *  to mastery — the figure that's meaningful without a sort applied. */
-function metaFor(card: CardRecord, key: SortKey | null): string {
+function metaFor(card: SkyCardRecord, key: SortKey | null): string {
   if (key === 'added') {
     if (!card.created_at) return '—';
     const d = new Date(card.created_at);

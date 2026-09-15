@@ -28,14 +28,16 @@ let initialised = false;
 const reactSubscribers = new Set<(online: boolean) => void>();
 const transitionSubscribers = new Set<() => void>();
 
-function deriveOnline(state: NetInfoState): boolean {
-  // Treat `null` as online — NetInfo reports null when reachability
-  // probes haven't finished yet. Assuming offline in that window
-  // would needlessly gate the UI during the first few seconds after
-  // launch.
+function deriveOnline(state: NetInfoState, prev: boolean): boolean {
   if (!state.isConnected) return false;
   if (state.isInternetReachable === false) return false;
-  return true;
+  if (state.isInternetReachable === true) return true;
+  // `null` = the reachability probe hasn't answered yet: no change. At
+  // launch that keeps the initial `true`, so the UI isn't gated for the
+  // first few seconds. Coming out of airplane mode it keeps `false`, so
+  // the offline→online edge fires when the route actually works — not
+  // the instant the radio comes up, when the auto-push would only fail.
+  return prev;
 }
 
 // Idempotent — safe to call from any mount; the RN root layout owns the
@@ -46,7 +48,7 @@ export function initNetwork(): void {
   if (initialised) return;
   initialised = true;
   NetInfo.addEventListener((state) => {
-    const next = deriveOnline(state);
+    const next = deriveOnline(state, online);
     if (next === online) return;
     const wasOffline = !online;
     online = next;

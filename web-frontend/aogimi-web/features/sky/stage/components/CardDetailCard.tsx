@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Languages, Trash2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import {
   GLASS_BUTTON,
@@ -13,9 +14,10 @@ import {
 } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
+import { getCard } from '../lib/decksApi';
 import { NIGHT } from '../lib/nightChrome';
 import { nextState, rankProgress, shownRank } from '../lib/rankProgress';
-import type { CardRecord } from '../types';
+import type { SkyCardRecord } from '../types';
 
 /**
  * The selected card's detail — a floating glass card on the **opposite side of
@@ -31,18 +33,45 @@ import type { CardRecord } from '../types';
  * Closing is the × here, the list row again, or Escape — the page's tier walk
  * treats a selected card as one level in (card → deck → sky), unchanged.
  *
+ * **Everything but the context sentence renders from the row the page already
+ * holds.** The inventory is the sky's lean projection (`SkyCardRecord`), which
+ * carries the faces, the glosses and the rank inputs but not `context_sentence`
+ * — the one field this card shows that nothing else on the page reads. It is
+ * fetched by id on open (`useContextSentence`), so opening a card costs one
+ * small request and the card paints immediately; the sentence box appears when
+ * it lands, and is simply absent when the card has none.
+ *
  * Deliberately still absent, and for the same reasons as before the move:
  *   - **part of speech** — nothing on a `cards` row records one; it would be a
  *     snapshot column captured at add time, the way `jlpt_level` is;
  *   - **an example translation** — `context_sentence` stores the sentence alone.
  */
 
+/** The full row's `context_sentence`, fetched by id; `''` until it lands or when there is none.
+ *  Keyed on the card id, so switching cards drops the previous sentence rather than showing it
+ *  under the next word for a frame. */
+function useContextSentence(cardId: string): string {
+  const [state, setState] = useState<{ id: string; sentence: string } | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getCard(cardId, controller.signal)
+      .then((card) => setState({ id: cardId, sentence: card.context_sentence ?? '' }))
+      .catch(() => {
+        /* offline / aborted — the card renders without its sentence */
+      });
+    return () => controller.abort();
+  }, [cardId]);
+
+  return state?.id === cardId ? state.sentence : '';
+}
+
 const MONO = 'font-[family-name:var(--face-mono)]';
 const FOCUS_RING =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
 
 type Props = {
-  card: CardRecord;
+  card: SkyCardRecord;
   /** Clear the selection — the × button. */
   onClose: () => void;
   /** Opens the page's confirm step; deletion itself happens there. */
@@ -58,6 +87,7 @@ export function CardDetailCard({ card, onClose, onRequestDelete }: Props) {
   const next = nextState(state);
   const progress = rankProgress(cardArgs(card));
   const atTop = next === null;
+  const contextSentence = useContextSentence(card.id);
 
   return (
     <div
@@ -162,13 +192,13 @@ export function CardDetailCard({ card, onClose, onRequestDelete }: Props) {
 
         {/* No translation line beside the sentence: nothing stores one, so the
             box is the sentence alone and disappears with it. */}
-        {card.context_sentence && (
+        {contextSentence && (
           <div className={cn(GLASS_SURFACE, 'mt-3.25 rounded-[12px] px-3.25 py-2.75')}>
             <div className={`mb-[7px] ${MONO} text-[8.5px] tracking-[0.16em]`} style={{ color: NIGHT.faint }}>
               IN CONTEXT
             </div>
             <div className="font-[family-name:var(--face-jp)] text-[14.5px] leading-[1.7]" style={{ color: NIGHT.ink }}>
-              {card.context_sentence}
+              {contextSentence}
             </div>
           </div>
         )}
@@ -261,7 +291,7 @@ export function CardDetailCard({ card, onClose, onRequestDelete }: Props) {
  *  which is what it means. `peak_rank` falls back to `state` for rows fetched
  *  before migration 027 added the column: "never been higher than it is now",
  *  the reading that can't overstate progress. */
-function cardArgs(card: CardRecord) {
+function cardArgs(card: SkyCardRecord) {
   return {
     state: card.state ?? 'new',
     peakRank: card.peak_rank ?? card.state ?? 'new',

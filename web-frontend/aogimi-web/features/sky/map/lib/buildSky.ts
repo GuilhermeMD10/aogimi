@@ -20,7 +20,6 @@ export type SkyCard = {
    *  back through `Star.key`. */
   id: string;
   front: string;
-  back: string;
   /** 0..3 up the host's SRS ladder (Aogimi: new / met / learned / mastered).
    *  What the star is *drawn as* — silhouette, colour, radius. */
   mastery: number;
@@ -30,8 +29,6 @@ export type SkyCard = {
    *  fully lit, which is the right default for a host that doesn't model
    *  memory decay. */
   glow?: number;
-  /** Times reviewed (`reviewed_times`). */
-  count: number;
   /** ISO creation timestamp. Its UTC date is the card's constellation bucket — frozen by
    *  construction, since a creation time never changes. */
   createdAt: string;
@@ -75,13 +72,7 @@ export const buildSky = (args: { seed: string; today: string; decks: SkyDeckSour
     );
 
     for (const c of sorted) {
-      const card: CardContent = {
-        front: c.front,
-        back: c.back,
-        mastery: c.mastery,
-        glow: c.glow,
-        count: c.count,
-      };
+      const card: CardContent = { front: c.front, mastery: c.mastery, glow: c.glow };
       gen.addStar({ bucket: dayBucketOf(c.createdAt), key: c.id, did, deckKey: deck.key, card });
     }
   });

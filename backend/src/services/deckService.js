@@ -20,11 +20,27 @@ async function getUserDecks(userId) {
 // card query — instead of a per-deck loop. `findByDeckIds` orders by
 // created_at DESC, so grouping preserves the same within-deck order the
 // per-deck cards endpoint returns. Decks with no cards keep `cards: []`.
-async function getUserDecksWithCards(userId) {
+// `view: "sky"` swaps the full card rows for the sky page's lean projection
+// (see cardRepo.findSkyByDeckIds) and drops `deck_id` from each card — the
+// deck it sits under already says which deck it belongs to.
+async function getUserDecksWithCards(userId, { view } = {}) {
+  const lean = view === "sky";
   const decks = await deckRepo.findByUser(userId);
-  const cards = await cardRepo.findByDeckIds(decks.map((d) => d.id));
+  const deckIds = decks.map((d) => d.id);
+  const cards = lean
+    ? await cardRepo.findSkyByDeckIds(deckIds)
+    : await cardRepo.findByDeckIds(deckIds);
   const byDeck = new Map(decks.map((d) => [d.id, []]));
-  for (const card of cards) byDeck.get(card.deck_id)?.push(card);
+  for (const card of cards) {
+    const list = byDeck.get(card.deck_id);
+    if (!list) continue;
+    if (lean) {
+      const { deck_id, ...rest } = card;
+      list.push(rest);
+    } else {
+      list.push(card);
+    }
+  }
   return decks.map((d) => ({ ...d, cards: byDeck.get(d.id) }));
 }
 

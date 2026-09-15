@@ -1,17 +1,9 @@
 'use client';
-import {
-  memo,
-  type PointerEvent as ReactPointerEvent,
-  type ReactElement,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { memo, type PointerEvent as ReactPointerEvent, type ReactElement, useMemo, useState } from 'react';
 
 import { toWorld } from '../lib/camera';
 import { NO_FULCRAL } from '../lib/cluster';
 import {
-  CLOUD_DRIFT_MS,
   LINK_GLOW_ALPHA,
   LINK_GLOW_PX,
   LINK_REACH,
@@ -20,7 +12,6 @@ import {
   LINK_STRAND_MAP_ALPHA,
   LINK_STRAND_MAP_PX,
   LINK_STRAND_PX,
-  STAR_POP_MS,
   UNFOCUSED_DECK_OPACITY,
 } from '../lib/config';
 import { deckAt, frameAt, type SkyLayout } from '../lib/layout';
@@ -41,26 +32,24 @@ const viewBoxOf = (v: View) => `${v.minX} ${v.minY} ${v.spanX} ${v.spanY}`;
 
 /** Static, so it is not rebuilt on every camera frame. */
 const SKY_CSS = `
-  @keyframes sky-pop  { from { opacity: 0; transform: scale(0.2); } to { opacity: 1; transform: scale(1); } }
   @keyframes sky-fade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes sky-pulse { 0%,100% { opacity: .3; } 50% { opacity: .08; } }
   /* fill-opacity, not opacity: a lobe's own opacity is a function of what it has absorbed and must
      land with the viewBox, so the pulse has to ride on a property nothing else is driving. */
   @keyframes sky-new  { 0%,100% { fill-opacity: 1; } 50% { fill-opacity: .45; } }
-  /* the cloud's churn: transform-only, so the browser never re-uploads a gradient for it */
-  @keyframes sky-turn { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   /* a strand's arrival. A fade rather than a dashoffset draw-in, which the solid stroke would now
      allow: the strand arrives *with* the star that brought it, and a line drawing itself across the
-     sky would upstage the pop it is supposed to accompany. Opacity only, so it composes with the
-     group's lineOp instead of fighting it. */
+     sky would upstage the arrival it is supposed to accompany. Opacity only, so it composes with
+     the group's lineOp instead of fighting it. */
   .sky-edge { animation: sky-fade .7s ease-out both; }
   /* Radii carry zoom and must land on the same frame as the viewBox, so nothing sized from it is
-     ever transitioned. Only entry animations live here, and they are one-shot. */
-  .sky-star { animation: sky-pop ${STAR_POP_MS}ms ease-out; }
+     ever transitioned. Only entry animations live here, and they are one-shot — except the two
+     infinite ones, which each ride a single element (the open session's reach ring, a lobe holding
+     unshown cards). Nothing infinite runs on the whole cloud layer: the drift that used to turn
+     every lobe's twin repainted a gradient-filled layer continuously with the camera parked. */
   .sky-open { animation: sky-pulse 1.8s ease-in-out infinite; }
   .sky-hover { animation: sky-fade .12s ease-out both; }
   .sky-new { animation: sky-new 1.7s ease-in-out infinite; }
-  .sky-drift { animation: sky-turn ${CLOUD_DRIFT_MS}ms linear infinite; }
   .sky-deck { transition: opacity .45s ease; }
   /* the deck frame's hover brighten. fill/stroke only — neither is a function of zoom, so the
      no-transitions-on-camera-driven-values rule is not in play */
@@ -69,8 +58,7 @@ const SKY_CSS = `
      not have to land on the same frame as the viewBox */
   .sky-fog { transition: opacity .22s ease; }
   @media (prefers-reduced-motion: reduce) {
-    .sky-edge, .sky-star, .sky-open, .sky-hover, .sky-new, .sky-drift, .sky-deck, .sky-frame,
-    .sky-fog {
+    .sky-edge, .sky-open, .sky-hover, .sky-new, .sky-deck, .sky-frame, .sky-fog {
       animation: none; transition: none;
     }
   }
@@ -220,13 +208,14 @@ const DeckLayer = memo(function DeckLayer({
     >
       {/* under everything, including the clouds: the deck's own atmosphere, which unlike every other
           soft layer here is not a stand-in for anything and so never fades out. See SkyWash. */}
-      {deck.wash && <SkyWash root={deck.wash} scope={`${deck.did}`} />}
+      {deck.wash && <SkyWash root={deck.wash} ranks={palette.ranks} scope={`${deck.did}`} />}
 
       {(deck.lobes.length > 0 || deck.halos.length > 0) && (
         <SkyClouds
           halos={deck.halos}
           lobes={deck.lobes}
           edges={deck.edges}
+          ranks={palette.ranks}
           opacity={deck.layers.cloudOp}
           scope={`${deck.focused ? 'f' : 'o'}${deck.did}`}
           u={u}
@@ -395,8 +384,6 @@ type Props = {
   /** A tap inside a focused deck that hit no star — empty sky, which the hosts read as "clear
    *  the selection". Optional because the demo has nothing to clear that way. */
   onMiss?: () => void;
-  /** These stars have now finished popping in and should never pop again. */
-  onSeen: (ids: number[]) => void;
 };
 
 export function SkyCanvas({
@@ -412,7 +399,6 @@ export function SkyCanvas({
   onEnterDeck,
   onStarClick,
   onMiss,
-  onSeen,
 }: Props) {
   const { attach, camera, view, viewport, dragging, relZoom, relZoomMax, onPointerDown, onPointerMove, onPointerUp } =
     cam;
@@ -482,30 +468,6 @@ export function SkyCanvas({
     else onMiss?.(); // empty sky: the click meant "nothing", and the hosts read that as deselect
   };
 
-  /**
-   * Cards arrive in the background, so a star is owed its arrival until it has actually been drawn —
-   * which is what `seen` records. Everything currently on screen and still unseen is mid-pop.
-   *
-   * The marking has to wait for the animation to finish. Doing it on the render that draws them
-   * would drop the class on the very next commit and cancel the pop it was meant to allow, and
-   * `animationend` never fires under prefers-reduced-motion. One timer for the whole batch is
-   * enough: re-arming it when more scroll into view costs nothing, because the class is inert once
-   * the animation has played out.
-   */
-  // preview stars are genuinely drawn too, so they are owed their pop — and owed being marked
-  // seen, or culling would replay the arrival every time one scrolls back into view
-  const popping = frame.decks.flatMap((d) =>
-    [...d.stars, ...(d.preview?.stars ?? [])].filter((s) => !s.seen).map((s) => s.id),
-  );
-  const poppingKey = popping.join(','); // a value dep, so the timer re-arms only when the set changes
-  useEffect(() => {
-    if (!popping.length) return;
-    const timer = setTimeout(() => onSeen(popping), STAR_POP_MS + 60);
-    return () => clearTimeout(timer);
-    // popping is deliberately absent: poppingKey is its value, and depending on the array itself
-    // would re-arm the timer every render
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [poppingKey, onSeen]);
 
   return (
     /* Fills whatever box the host gives it — the camera works off the ResizeObserver in `attach`,

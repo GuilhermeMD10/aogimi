@@ -48,7 +48,7 @@ import { NativeSelectionMenu, type NativeMenuKey } from '../lib/native-selection
 import type { BookType, EpubTocItem, ReaderThemeStyle } from '../lib/foliateHtml';
 import { useReaderLayoutPrefs } from '../lib/readerLayout';
 import { setLocalProgress } from '@/features/books/lib/booksLocalCache';
-import { persistLocalProgress } from '@/features/books/lib/syncedBookCache';
+import { clearSessionPending, persistLocalProgress } from '@/features/books/lib/syncedBookCache';
 import { isNewer } from '@/features/books/lib/timestamps';
 
 type Props = { bookId: string };
@@ -105,7 +105,7 @@ export function ReaderScreen({ bookId }: Props) {
     lastCfiPushed,
     lastReadAt: storedReadAt,
     saveLastCfi,
-    markCfiPushed,
+    markPushed,
   } = storage;
 
   // Restore anchor — newer wins, mirroring web's ReaderView. The per-file
@@ -113,8 +113,10 @@ export function ReaderScreen({ bookId }: Props) {
   // `cfi_position` is whatever the backend (or the cached record) last
   // heard. Same device → local; switched device → record. A tie (the
   // back-press writes both with one timestamp) is the same cfi either way.
+  // A record with no position at all (just created by a pending push —
+  // its `last_read_at` is the row's birth, not a read) can't outrank one.
   const startCfi =
-    storedCfi && !isNewer(book?.last_read_at, storedReadAt)
+    storedCfi && (!book?.cfi_position || !isNewer(book.last_read_at, storedReadAt))
       ? storedCfi
       : book?.cfi_position ?? null;
 
@@ -227,6 +229,8 @@ export function ReaderScreen({ bookId }: Props) {
   const [readerViewport, setReaderViewport] = useState<{ width: number; height: number } | null>(null);
   const {
     dictTerm,
+    dictSentence,
+    openDict,
     setDictTerm,
     flashcardPrefill,
     setFlashcardPrefill,
@@ -329,7 +333,7 @@ export function ReaderScreen({ bookId }: Props) {
 
   // ── Custom menu (dict / card / copy) ────────────────────
   const handleCustomMenu = useCallback(
-    ({ key, selectedText }: CustomMenuEvent) => {
+    ({ key, selectedText, sentence }: CustomMenuEvent) => {
       const term = (selectedText || selection?.text || '').trim();
       if (!term) return;
       if (key === 'copy') {
@@ -337,20 +341,20 @@ export function ReaderScreen({ bookId }: Props) {
         return;
       }
       if (key === 'dict') {
-        setDictTerm(term);
+        openDict(term, sentence);
         return;
       }
       if (key === 'card') {
         // No dictionary entry behind this one — the user went straight from a
-        // selection to "Card". Everything but the front is legitimately empty
-        // and the drawer opens for them to fill in.
-        setFlashcardPrefill(plainCardDraft(term));
+        // selection to "Card". Only the front and the sentence it came from
+        // are known; the drawer opens for them to fill in the rest.
+        setFlashcardPrefill(plainCardDraft(term, sentence));
       }
     },
-    // The two setters come from `useReaderModals`, which returns raw
-    // `useState` setters — stable across renders, so listing them satisfies
-    // the rule without adding a re-render path.
-    [selection, setDictTerm, setFlashcardPrefill],
+    // `openDict` and the setter come from `useReaderModals` — stable across
+    // renders, so listing them satisfies the rule without adding a re-render
+    // path.
+    [selection, openDict, setFlashcardPrefill],
   );
 
   // A kanji result in the lookup sheet. The sheet reports the character and
@@ -370,16 +374,17 @@ export function ReaderScreen({ bookId }: Props) {
       // over the entry's `kanji[0]`, which is often a more common variant than
       // what the user actually highlighted.
       //
-      // The example sentences are a *fallback* context — `wordCardDraft` only
-      // reaches for them, and the reader has nothing better to offer here
-      // because the tap already went through the dictionary drawer.
-      setFlashcardPrefill(wordCardDraft(details.word, dictTerm ?? undefined, details.sentences));
+      // `dictSentence` is the book's own sentence; the entry's example
+      // sentences only stand in when the lookup was opened without one.
+      setFlashcardPrefill(
+        wordCardDraft(details.word, dictTerm ?? undefined, details.sentences, dictSentence),
+      );
       // The lookup deliberately stays open behind the card sheet. Closing it
       // here threw away the query, the entry and the scroll position, and the
       // reader who wanted a second card off the same word had to search for
       // it again. `LookupDrawers` owns the stacking that makes this work.
     },
-    [dictTerm, setFlashcardPrefill],
+    [dictTerm, dictSentence, setFlashcardPrefill],
   );
 
   const reduceMotion = useReduceMotion();
@@ -472,13 +477,16 @@ export function ReaderScreen({ bookId }: Props) {
         // Only now does the row say "pushed": sync-now uses this to skip
         // books whose position the server already has, so recording it
         // for a failed beacon would strand the position on this device.
-        markCfiPushed(latest.cfi);
+        // The server has this book's full reader state, so any UNSYNCED
+        // flag from an earlier offline session is settled too.
+        markPushed(latest.cfi, latest.progress);
+        void clearSessionPending(book.id);
       } else if (lastSyncedRef.current?.cfi === latest.cfi) {
         // Release the slot so the next flush in this session retries.
         lastSyncedRef.current = null;
       }
     });
-  }, [book?.id, offlineMode, markCfiPushed]);
+  }, [book?.id, offlineMode, markPushed]);
 
   // Commit the session's latest position locally. Three writes for the
   // same patch:
@@ -607,7 +615,7 @@ export function ReaderScreen({ bookId }: Props) {
           }}
           // Empty string, not null: `null` is the closed state, `''` opens the
           // sheet on its search stage with nothing queried yet.
-          onOpenDictionary={() => setDictTerm('')}
+          onOpenDictionary={() => openDict('')}
         />
 
         <LookupDrawers
@@ -754,7 +762,7 @@ export function ReaderScreen({ bookId }: Props) {
             selectionRect={selection.rect}
             viewport={readerViewport}
             onAction={(key: NativeMenuKey) => {
-              handleCustomMenu({ key, selectedText: selection.text });
+              handleCustomMenu({ key, selectedText: selection.text, sentence: selection.sentence });
               epubRef.current?.clearSelection();
               setSelection(null);
             }}

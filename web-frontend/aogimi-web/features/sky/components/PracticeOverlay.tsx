@@ -2,7 +2,10 @@
 
 import { useMemo } from 'react';
 import { coverPalette } from '@/shared/components';
+import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
+import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import type { CardRecord } from '../stage/types';
+import { getDeckCards, getUserDecksWithCards } from '../stage/lib/decksApi';
 import { deckVisuals } from '../stage/lib/deckVisuals';
 import { StudyScreen } from '../study/session';
 import type { SessionDeck } from '../study/session/types';
@@ -11,24 +14,27 @@ import type { SessionDeck } from '../study/session/types';
  * "Study ahead" — the practice runner, full-screen over the stage.
  *
  * **This file is at the sky domain root on purpose.** It is the one place that
- * composes two sub-features: `stage` (whose card inventory it drills) and
- * `study` (whose runner it reuses). Siblings don't import each other; what they
- * share sits here, the same arrangement `lib/fsrs.ts` has.
+ * composes two sub-features: `stage` (whose decks it drills) and `study` (whose
+ * runner it reuses). Siblings don't import each other; what they share sits
+ * here, the same arrangement `lib/fsrs.ts` has.
  *
- * **Why an overlay and not a route.** The session itself needs no backend — no
- * `/api/study/session` fetch, no review POST — and `/sky` is already holding
- * every card the user owns. Navigating to `/study` would have thrown that
- * inventory away and re-fetched it over the wire, purely to grade it into the
- * void. Staying put makes that structural instead of a rule everyone has to
- * remember, and there is no route to refresh into an empty queue.
+ * **Why an overlay and not a route.** The session itself needs no backend
+ * session — no `/api/study/session` fetch, no review POST — and there is no
+ * route to refresh into an empty queue. Staying put keeps that structural.
  *
- * **One request does still fire:** `StudyScreen` → `useStudyDisplayPrefs` reads
- * `/api/study/prefs` on mount, because which fields a card shows is a user
- * setting with no client cache (a deliberate call — see that hook). Skipping it
- * here would render practice cards under `DEFAULT_PREFS` while a real session
- * renders them under the user's, so the same word would show different fields
- * depending on which session it turned up in. Reading the setting is worth one
- * GET; grading into the void was not.
+ * **It fetches its own cards on open.** The stage's inventory is the sky's lean
+ * projection, which carries what a star and a list row need and not what a
+ * study card shows (`context_sentence`, the FSRS snapshot Undo restores). So
+ * opening practice reads the full rows for its scope: the focused deck's
+ * through the per-deck endpoint, or every deck's through the full inventory
+ * endpoint for a whole-sky sitting. One request, made only when the reader
+ * actually asks to practise — cheaper than shipping every card's full row to
+ * a page that mostly draws them as points.
+ *
+ * `StudyScreen` → `useStudyDisplayPrefs` still reads `/api/study/prefs` on
+ * mount, because which fields a card shows is a user setting with no client
+ * cache, and practice cards must render under the same setting a real session
+ * does.
  *
  * Grades here are dummies: the four buttons look and sound the same, and all
  * any of them does is advance the bar. Nothing is due (the stage only offers
@@ -44,19 +50,30 @@ type Props = {
   /** Open state. Rendering nothing when closed keeps the runner unmounted, so
    *  re-opening reshuffles instead of resuming a half-finished queue. */
   open: boolean;
-  /**
-   * The cards to drill — the caller's slice of what it already has in memory.
-   * `SkyView` passes the focused deck's cards when one is focused and every
-   * deck's otherwise, which is the whole of "given deck or general".
-   */
-  cards: readonly CardRecord[];
+  /** The deck to drill, or null for every deck — which is the whole of "given
+   *  deck or general". */
+  deckId: string | null;
   /** The deck being drilled, if it's a single one — draws the spine chip and
    *  names the session. Null for a whole-sky sitting. */
   deckName?: string | null;
   onClose: () => void;
 };
 
-export function PracticeOverlay({ open, cards, deckName, onClose }: Props) {
+export function PracticeOverlay({ open, deckId, deckName, onClose }: Props) {
+  const user = useAuthedUser();
+
+  // Fetched per opening (`open` is a dep, and `enabled` clears the rows while
+  // closed), so a sitting always drills the rows as they are now — a review
+  // elsewhere may have moved them since the last one.
+  const { data: cards, error } = useFetchWithAbort<CardRecord[]>(
+    (signal) =>
+      deckId
+        ? getDeckCards(deckId, signal)
+        : getUserDecksWithCards(user.id, signal).then((decks) => decks.flatMap((d) => d.cards)),
+    [open, deckId, user.id],
+    { enabled: open },
+  );
+
   const deck: SessionDeck | null = useMemo(
     () =>
       deckName
@@ -69,11 +86,12 @@ export function PracticeOverlay({ open, cards, deckName, onClose }: Props) {
   // this reference changes, so a stable one is what stops the queue reshuffling
   // under the user on every parent render.
   const source = useMemo(
-    () => ({ kind: 'local' as const, cards, limit: PRACTICE_SESSION_SIZE }),
+    () => ({ kind: 'local' as const, cards: cards ?? [], limit: PRACTICE_SESSION_SIZE }),
     [cards],
   );
 
-  if (!open || cards.length === 0) return null;
+  if (!open) return null;
+  if (cards !== null && cards.length === 0) return null;
 
   return (
     <div
@@ -88,12 +106,24 @@ export function PracticeOverlay({ open, cards, deckName, onClose }: Props) {
       aria-modal="true"
       aria-label={deckName ? `Practising ${deckName}` : 'Practising'}
     >
-      <StudyScreen
-        source={source}
-        deck={deck}
-        scopeLabel="Study ahead"
-        onExit={onClose}
-      />
+      {cards === null ? (
+        <div className="flex h-full flex-col items-center justify-center gap-4">
+          <p className="m-0 font-[family-name:var(--face-mono)] text-[11px] tracking-[0.1em] text-(--muted)">
+            {error ? `Couldn’t load the cards — ${error}` : 'Loading…'}
+          </p>
+          {error && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-(--radius-button) border border-(--bd) px-3 py-2 text-[11.5px] font-bold text-(--soft)"
+            >
+              Back to the sky
+            </button>
+          )}
+        </div>
+      ) : (
+        <StudyScreen source={source} deck={deck} scopeLabel="Study ahead" onExit={onClose} />
+      )}
     </div>
   );
 }

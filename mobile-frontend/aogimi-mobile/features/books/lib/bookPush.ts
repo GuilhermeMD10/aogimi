@@ -57,6 +57,11 @@ export async function pushOneBook(
   payload: PendingPayload,
 ): Promise<PushResult> {
   let bookId: string | null = null;
+  // The backend row this push produced or attached to. Its reader state
+  // is pushed right after: the book isn't in the synced cache yet, so
+  // the Sync-now reader-state pass wouldn't find it, and a position read
+  // offline before the push would sit here until some later sync.
+  let record: BookRecord | null = null;
   let adopted = false;
   try {
     const [matchResult] = await matchBooks(userId, [candidateFrom(filename, payload)]);
@@ -66,10 +71,11 @@ export async function pushOneBook(
     // flows enforce.
     if (matchResult?.match && matchResult.match_type === 'file_hash') {
       bookId = matchResult.match.id;
+      record = matchResult.match;
       // Attach = become that record's file: move into its filename slot
       // and retire the pending entry. Left under its own name, the file
       // has no row by filename and reconcile wipes it as an orphan.
-      await adoptRemoteTwin(filename, matchResult.match, payload.fileHash ?? matchResult.match.file_hash ?? '');
+      await adoptRemoteTwin(filename, record, payload.fileHash ?? record.file_hash ?? '');
       adopted = true;
       // Backfill any backend fields the existing row was missing so
       // the next cross-device matcher pass has the strong signals.
@@ -126,6 +132,7 @@ export async function pushOneBook(
         publisher: payload.publisher,
       });
       bookId = created.id;
+      record = created;
     } catch {
       return { ok: false, reason: 'network' };
     }
@@ -133,6 +140,12 @@ export async function pushOneBook(
 
   // An adopted book's entry already lives, synced, under the twin's name.
   if (!adopted) await markSynced(filename);
+
+  // Carry any reading done while the book was pending up with it. Best
+  // effort — if this fails the reader row stays dirty and the next
+  // Sync-now pushes it once the book is in the cache.
+  if (record) await pushForBook(record).catch(() => undefined);
+
   return { ok: true, bookId };
 }
 

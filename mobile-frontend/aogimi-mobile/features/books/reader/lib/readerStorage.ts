@@ -168,6 +168,20 @@ export async function saveProgressSnapshot(
   }));
 }
 
+/**
+ * Move the row to a new filename. Used when a locally-imported file turns
+ * out to be a book the account already has under another name
+ * (`adoptRemoteTwin`): the position read under the old name must follow
+ * the file into its new slot, or it is swept as an orphan.
+ */
+export async function renameBookStorage(from: string, to: string): Promise<void> {
+  if (from === to) return;
+  const current = await loadStoredBook(from);
+  if (!current) return;
+  await patchStoredBook(to, (existing) => ({ ...existing, ...current }));
+  await clearBookStorage(from);
+}
+
 /** Remove the reader_book_<filename> row for one book. */
 export async function clearBookStorage(filename: string): Promise<void> {
   try {
@@ -215,9 +229,10 @@ export type ReaderStorage = {
    *  whether `lastCfi` or the record's `cfi_position` is the restore anchor. */
   lastReadAt?: string;
   saveLastCfi: (cfi: string) => void;
-  /** Called after a successful progress beacon so we can stop re-pushing
-   *  the same cfi. */
-  markCfiPushed: (cfi: string) => void;
+  /** Called after a successful progress beacon: records what the server
+   *  now holds, so the sync push can skip this book. Both fields — the
+   *  beacon carries cfi and progress together. */
+  markPushed: (cfi: string, progress: number) => void;
 };
 
 export function useReaderStorage(filename: string | null): ReaderStorage {
@@ -263,8 +278,9 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
     [update],
   );
 
-  const markCfiPushed = useCallback(
-    (cfi: string) => update((p) => ({ ...p, lastCfiPushed: cfi })),
+  const markPushed = useCallback(
+    (cfi: string, progress: number) =>
+      update((p) => ({ ...p, lastCfiPushed: cfi, lastProgressPushed: progress })),
     [update],
   );
 
@@ -274,6 +290,6 @@ export function useReaderStorage(filename: string | null): ReaderStorage {
     lastCfiPushed: state.lastCfiPushed,
     lastReadAt: state.lastReadAt,
     saveLastCfi,
-    markCfiPushed,
+    markPushed,
   };
 }

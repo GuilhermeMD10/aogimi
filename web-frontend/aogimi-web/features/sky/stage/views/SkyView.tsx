@@ -33,7 +33,7 @@ import { MAX_DECKS } from '../lib/limits';
 import { masteryMixOf } from '../lib/masteryMix';
 import { NIGHT } from '../lib/nightChrome';
 import { useDecks } from '../providers/DecksProvider';
-import type { CardDraft, CardRecord } from '../types';
+import { type CardDraft, type SkyCardRecord, toSkyCard } from '../types';
 
 /**
  * `/sky` — the whole sky as a page: every deck a constellation in a card frame,
@@ -65,8 +65,11 @@ import type { CardDraft, CardRecord } from '../types';
  *
  * Mutations flow through both owners so nothing holds a ghost: the
  * `DecksProvider` (summaries the rest of the app reads) takes the API call,
- * and `useSkyDecks` hides the row optimistically then refetches — the sky, the
- * column and the frames all read the same filtered projection.
+ * and `useSkyDecks` patches its inventory in place — a created row is inserted
+ * as the server returned it, a deleted one is hidden before the request and
+ * put back if the request fails. Nothing refetches the whole inventory for a
+ * one-row change; the sky, the column and the frames all read the same
+ * patched projection.
  */
 
 /** Camera insets per tier — stage-relative (the stage is everything below the
@@ -123,14 +126,17 @@ type Confirm =
   // delete control now sits on the stats bar, one click from the mastery
   // legend, so the confirm carries the weight.
   | { kind: 'deck'; id: string; name: string; cardCount: number }
-  | { kind: 'card'; card: CardRecord }
+  // `deckId` is the focused deck's — a selected card is always in the focused
+  // deck — carried here because the lean card row does not name its deck.
+  | { kind: 'card'; card: SkyCardRecord; deckId: string }
   | null;
 
 export function SkyView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const seed = useSkySeed();
-  const { decks, sources, loading, error, refresh: refreshSky, hideDeck, hideCard } = useSkyDecks();
+  const { decks, sources, loading, error, hideDeck, unhideDeck, hideCard, unhideCard, addDeck, addCard } =
+    useSkyDecks();
   const ledger = useSkyLedger();
   const { total: dueTotal, byDeck, loading: dueLoading } = useDeckDueCounts();
   const {
@@ -296,13 +302,13 @@ export function SkyView() {
   const createDeckAndUseForPending = useCallback(
     async (name: string) => {
       const deck = await providerCreateDeck({ name });
+      // The new (empty) deck earns its frame now, even if the card is cancelled.
+      addDeck(deck);
       setPendingCardFlow((prev) =>
         prev ? { ...prev, phase: 'create-card', deckId: deck.id } : prev,
       );
-      // The new (empty) deck earns its frame now, even if the card is cancelled.
-      void refreshSky();
     },
-    [providerCreateDeck, refreshSky],
+    [providerCreateDeck, addDeck],
   );
 
   const submitPendingCard = useCallback(
@@ -312,16 +318,16 @@ export function SkyView() {
       // The draft goes over whole; `back` is derived here and only here, by the
       // one helper that knows the format (`cardBack`). The column is still
       // written because mobile and every legacy read site still expect it.
-      await api.createCard(flow.deckId, { ...draft, back: cardBack(draft) });
+      const created = await api.createCard(flow.deckId, { ...draft, back: cardBack(draft) });
       bumpCardCount(flow.deckId, +1);
+      // Into the inventory before focusing: the new star has to be in the data
+      // before the URL names its deck, or the focus degrades to the outer view.
+      // The server's own row, projected the way the endpoint would have.
+      addCard(flow.deckId, toSkyCard(created));
       setPendingCardFlow(null);
-      // Refresh before focusing: the new star (or a whole new deck) has to be
-      // in the data before the URL can name it, or the focus degrades to the
-      // outer view.
-      await refreshSky();
       router.push(urlFor(flow.deckId, null), { scroll: false });
     },
-    [pendingCardFlow, bumpCardCount, refreshSky, router],
+    [pendingCardFlow, bumpCardCount, addCard, router],
   );
 
   /* ---------- create / delete, through the provider + the sky's optimistic hides ---------- */
@@ -330,10 +336,9 @@ export function SkyView() {
 
   const createDeck = useCallback(
     async (name: string) => {
-      await providerCreateDeck({ name });
-      await refreshSky();
+      addDeck(await providerCreateDeck({ name }));
     },
-    [providerCreateDeck, refreshSky],
+    [providerCreateDeck, addDeck],
   );
 
   const runConfirm = useCallback(() => {
@@ -341,28 +346,29 @@ export function SkyView() {
     setConfirm(null);
     if (confirm.kind === 'deck') {
       const { id } = confirm;
-      hideDeck(id); // the frame goes now; the refetch makes it truth (or brings it honestly back)
+      hideDeck(id); // the frame goes now; a failed request brings it honestly back
       focusDeck(null); // the focused tier no longer exists — leave before the data does
-      void providerDeleteDeck(id).finally(() => void refreshSky());
+      void providerDeleteDeck(id).catch(() => unhideDeck(id));
     } else {
-      const { card } = confirm;
+      const { card, deckId } = confirm;
       hideCard(card.id);
       if (selectedCardId === card.id) selectCard(null);
       void api
         .deleteCard(card.id)
-        .then(() => bumpCardCount(card.deck_id, -1))
-        .finally(() => void refreshSky());
+        .then(() => bumpCardCount(deckId, -1))
+        .catch(() => unhideCard(card.id));
     }
   }, [
     confirm,
     hideDeck,
+    unhideDeck,
     hideCard,
+    unhideCard,
     focusDeck,
     selectCard,
     selectedCardId,
     providerDeleteDeck,
     bumpCardCount,
-    refreshSky,
   ]);
 
   /* ---------- the figures: frames, chrome, ledger — counted off data in hand ---------- */
@@ -413,27 +419,6 @@ export function SkyView() {
     [decks],
   );
 
-  /**
-   * The cards "Study ahead" drills — straight off the inventory this page is
-   * already holding, which is the whole point of running practice here rather
-   * than at `/study`: it costs no request, because the request already happened.
-   *
-   * **Scoped to whatever the button that opened it was scoped to**: the focused
-   * deck's cards when you are standing in one (the card list panel's own study
-   * button), every deck's out on the sky (`StageActions`). Both triggers set the
-   * same `practising` flag, so the scope is read off the focus rather than
-   * carried by the trigger — one source of truth for "which deck am I in", which
-   * is the URL.
-   *
-   * Memoised on that inventory, not rebuilt per render: `useStudySession` keys
-   * its seeding on this array's identity, so a fresh one each render would
-   * reshuffle the queue under the user mid-session. The overlay covers the whole
-   * page, so the focus can't change underneath a running sitting.
-   */
-  const practiceCards = useMemo<CardRecord[]>(
-    () => (focusedDeck ? focusedDeck.cards : decks ? decks.flatMap((d) => d.cards) : []),
-    [focusedDeck, decks],
-  );
 
   /* ---------- render: TopBar column, then one stage panel — everything floats over the sky ---------- */
 
@@ -556,17 +541,26 @@ export function SkyView() {
                 <CardDetailCard
                   card={selectedCard}
                   onClose={() => selectCard(null)}
-                  onRequestDelete={() => setConfirm({ kind: 'card', card: selectedCard })}
+                  onRequestDelete={() =>
+                    setConfirm({ kind: 'card', card: selectedCard, deckId: focusedDeck.id })
+                  }
                 />
               )}
             </>
           )}
 
           {/* Practice, over everything. Unmounted when closed, so re-opening
-              reshuffles rather than resuming a half-finished queue. */}
+              reshuffles rather than resuming a half-finished queue. **Scoped to
+              whatever the button that opened it was scoped to**: the focused
+              deck when you are standing in one (the card list panel's own study
+              button), every deck out on the sky (`StageActions`). Both triggers
+              set the same `practising` flag, so the scope is read off the focus
+              rather than carried by the trigger — one source of truth for
+              "which deck am I in", which is the URL. The overlay covers the
+              whole page, so the focus can't change under a running sitting. */}
           <PracticeOverlay
             open={practising}
-            cards={practiceCards}
+            deckId={focusedDeck?.id ?? null}
             deckName={focusedDeck?.name ?? null}
             onClose={() => setPractising(false)}
           />

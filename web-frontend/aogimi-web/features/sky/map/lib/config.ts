@@ -87,12 +87,6 @@ export const HOVER_HALO_PX = 8; // ring drawn around the hovered star
  * pan or zoom takes over mid-flight — so the ceiling on how long it can feel is the reader's own.
  */
 export const CAMERA_TWEEN_MS = 400;
-/**
- * How long a star takes to pop in when it is first shown. One constant because two things need to
- * agree on it: the CSS keyframe that plays it, and the timer that marks the star seen afterwards.
- * Marking any earlier drops the class mid-flight and cancels the animation it was meant to allow.
- */
-export const STAR_POP_MS = 400;
 
 /* ---------- grouping ---------- */
 // There is no time constant here: cards group by the *bucket string* the host passes to
@@ -237,15 +231,7 @@ export const LOBE_ASPECT_MIN = 0.45; // thinnest a lobe may be
  */
 export const HOT_CORE_MIN = 0.25;
 
-/**
- * The slow churn of a cloud: the offset twin orbits the main lobe once per period, phase-staggered
- * per lobe so neighbours never turn in step. Transform-only on purpose — animating a transform is
- * cheap paint, while animating gradient stops would re-upload every gradient every frame, which is
- * the one way to make the cloud layer expensive.
- */
-export const CLOUD_DRIFT = true;
-export const CLOUD_DRIFT_MS = 60_000;
-export const CLOUD_DRIFT_PHASES = 12;
+
 /**
  * Which lobes glint, by `grain` rather than `weight` — see the comment on Lobe.grain. Gating on
  * mass instead would put a glint on every whole session at the far view and none at all once the

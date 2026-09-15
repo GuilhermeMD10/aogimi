@@ -62,11 +62,12 @@ export type Lobe = {
    */
   grain: number;
   /**
-   * The colours this node is drawn in, from the ranks of the stars under it. Resolved once when
-   * the tree is built rather than per frame — the ranks cannot change without the tree being
-   * rebuilt anyway, and the alternative is re-blending every visible lobe sixty times a second.
+   * How many stars of each rank sit under this node — what its colours are blended from. The
+   * histogram rather than the colours, so the tree depends on the data alone and a hue switch
+   * rebuilds nothing: `lobeTint` resolves it against a ramp on demand and memoises per (ramp,
+   * node), so a visible lobe is blended once per palette rather than once per frame.
    */
-  tint: GroupTint;
+  hist: number[];
   /**
    * How the stars under this node actually lie, from the covariance of their positions: the
    * principal axis in degrees, and ry/rx along it. The lobe ellipse stretches along the real
@@ -104,6 +105,27 @@ export type Lobe = {
 };
 
 export type Cloud = { gid: number; root: Lobe };
+
+/**
+ * A node's colours under a ramp, memoised per (ramp, node). Ramps are module constants out of
+ * `SKY_PALETTES` and nodes live as long as their tree, so both are safe WeakMap keys; the cache
+ * follows the tree to the garbage collector. Per-frame cost is two lookups per visible lobe.
+ */
+const tintCache = new WeakMap<RankRamp, WeakMap<Lobe, GroupTint>>();
+
+export const lobeTint = (lobe: Lobe, ranks: RankRamp): GroupTint => {
+  let perLobe = tintCache.get(ranks);
+  if (!perLobe) {
+    perLobe = new WeakMap();
+    tintCache.set(ranks, perLobe);
+  }
+  let tint = perLobe.get(lobe);
+  if (!tint) {
+    tint = groupTint(lobe.hist, ranks);
+    perLobe.set(lobe, tint);
+  }
+  return tint;
+};
 
 /**
  * A join between two survivors of one group. Flat coordinates plus the group it belongs to, rather
@@ -205,7 +227,6 @@ const build = (
   gid: number,
   busiest: number,
   all: Lobe[],
-  ranks: RankRamp,
 ): Lobe => {
   let sx = 0;
   let sy = 0;
@@ -280,7 +301,7 @@ const build = (
     // straight count/cap collapses the moment one sky has far bigger groups than another.
     weight: Math.log(1 + points.length) / Math.log(1 + busiest),
     grain: 0, // needs the whole sky to normalise against; filled in by buildClouds
-    tint: groupTint(hist, ranks),
+    hist,
     angle,
     aspect,
     hot: nHot ? { x: hx / nHot, y: hy / nHot } : null,
@@ -303,7 +324,7 @@ const build = (
   for (let q = 0; q < 4; q++) {
     if (!quads[q].length) continue;
     lobe.children.push(
-      build(quads[q], quadrant(cell, q, midX, midY), depth + 1, `${id}.${q}`, gid, busiest, all, ranks),
+      build(quads[q], quadrant(cell, q, midX, midY), depth + 1, `${id}.${q}`, gid, busiest, all),
     );
   }
   return lobe;
@@ -319,19 +340,22 @@ const packing = (lobe: Lobe) => lobe.n / (lobe.sd * lobe.sd);
  * `keyOf` is what makes this serve every tier: pass `s => s.did` and each tree spans a whole deck,
  * pass `s => s.cid` and each spans one session. Nothing below this line knows which it got.
  *
- * Cheap enough to run whenever the data changes, which includes a click: `count` feeds the
- * histograms, so a review does change the answer.
+ * Cheap enough to run whenever the data changes: `mastery` feeds the histograms, so a review does
+ * change the answer on the next build.
  *
- * `ranks` is the active hue preset's ramp — the only thing here a colour choice reaches. It is an
- * argument rather than a module read so a hue switch is a visible dependency: change it and the
- * trees are rebuilt (a one-off, ~26ms at quota), which is where cloud tinting belongs. Tinting in
- * the per-frame walk instead would pay for it on every frame of every gesture.
+ * No palette reaches this. A node stores its rank histogram and `lobeTint` colours it per ramp on
+ * demand, so the trees are a function of the data alone and a hue switch rebuilds nothing.
+ *
+ * `busiest` is the star count `weight` is normalised against — the largest group in the sky. It
+ * defaults to the largest group *in this call*, which is right when the call spans the sky; a
+ * caller building one deck's session trees lazily passes the sky-wide figure so a session's weight
+ * means the same whichever deck it is in.
  */
 export const buildClouds = (
   stars: Star[],
   groupIds: number[],
   keyOf: (s: Star) => number,
-  ranks: RankRamp,
+  busiest?: number,
 ): Cloud[] => {
   const byGid = new Map<number, Star[]>();
   for (const s of stars) {
@@ -341,8 +365,8 @@ export const buildClouds = (
     else byGid.set(gid, [s]);
   }
 
-  let busiest = 1;
-  for (const group of byGid.values()) busiest = Math.max(busiest, group.length);
+  let top = busiest ?? 1;
+  if (busiest === undefined) for (const group of byGid.values()) top = Math.max(top, group.length);
 
   const out: Cloud[] = [];
   const all: Lobe[] = [];
@@ -351,7 +375,7 @@ export const buildClouds = (
     if (!group?.length) continue;
     // skyBounds with no padding is the tight box, which is what the root cell is squared around
     const cell = squareCell(skyBounds(group, 0, 0));
-    out.push({ gid, root: build(group, cell, 0, `${gid}`, gid, busiest, all, ranks) });
+    out.push({ gid, root: build(group, cell, 0, `${gid}`, gid, top, all) });
   }
 
   // grain needs every node before any of them can be scored, so it is a second pass rather than

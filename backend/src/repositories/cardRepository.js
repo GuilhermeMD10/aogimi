@@ -49,6 +49,27 @@ module.exports = {
     return result.rows;
   },
 
+  // The sky page's projection of the same rows: only what a star, a list row
+  // and a search hit read. `notes`, `context_sentence`, `reviewed_times` and
+  // the FSRS scheduling columns are left out — the detail card fetches the
+  // full row by id when one is opened. `back` ships only where it is the
+  // card's sole gloss source (pre-026 rows with empty `meanings`); on every
+  // other card it is a rendering of `reading` + `meanings` and would be sent
+  // twice. `deck_id` is kept for grouping and stripped by the service.
+  findSkyByDeckIds: async (deckIds) => {
+    if (!deckIds || deckIds.length === 0) return [];
+    const result = await pool.query(
+      `SELECT id, deck_id, front, reading, state, peak_rank, stability,
+              last_reviewed_at, created_at, jlpt_level, meanings,
+              CASE WHEN cardinality(meanings) = 0 THEN back ELSE '' END AS back
+         FROM cards
+        WHERE deck_id = ANY($1::uuid[])
+        ORDER BY created_at DESC`,
+      [deckIds]
+    );
+    return result.rows;
+  },
+
   // The due predicate, pooled across many decks — the session builder's input.
   // Empty input → empty result, no query.
   findDueByDeckIds: async (deckIds) => {

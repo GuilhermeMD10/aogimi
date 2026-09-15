@@ -35,9 +35,8 @@ import { type DeckFrameData, FALLBACK_COVER } from './SkyFrames';
  * component owns only the canvas and its gestures (wheel-out past a focused deck's fit leaves it).
  */
 
-/** Module consts: the frame cache and the canvas compare `focus` by identity. */
+/** Module const: the frame cache and the canvas compare `focus` by identity. */
 const OUTER: FocusPath = [];
-const noop = () => {};
 
 /**
  * Per-deck display data for the outer view's card frames — everything a frame shows that the
@@ -106,7 +105,7 @@ export function SkyMap({
   const focusedDid = focusedDeckKey === null ? null : (didByKey.get(focusedDeckKey) ?? null);
   const focus = useMemo<FocusPath>(() => (focusedDid === null ? OUTER : [focusedDid]), [focusedDid]);
 
-  const stage = useSkyStage(snapshot, focus, palette.ranks);
+  const stage = useSkyStage(snapshot, focus);
 
   // the outer view is a chooser, so it is immobile; inside a single deck the boundary is the
   // container itself (fillViewport) — both exactly as the demo establishes them
@@ -230,8 +229,6 @@ export function SkyMap({
         onEnterDeck={enterDeck}
         onStarClick={starClick}
         onMiss={miss}
-        // a replayed sky is history, not news — buildSky marks everything seen, nothing pops
-        onSeen={noop}
       />
     </>
   );

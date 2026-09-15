@@ -1,5 +1,7 @@
 'use client';
 
+import { Fragment } from 'react';
+
 import { clip } from '../lib/cards';
 import {
   HOVER_HALO_PX,
@@ -198,12 +200,12 @@ export function SkyStars({
         // honest about its standing and free of nodes exactly where they buy least
         const beaded = !dim && beadResolves(corePx);
 
+        // A keyed fragment, not a wrapping <g>: the group existed to carry the arrival pop's
+        // transform-origin, and the web renderer no longer runs arrivals (buildSky marks every
+        // star seen). Without it a star is its shapes and nothing else — one DOM node fewer per
+        // star, on the layer where nodes are most numerous.
         return (
-          <g
-            key={s.id}
-            className={s.seen ? undefined : 'sky-star'}
-            style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
-          >
+          <Fragment key={s.id}>
             {/* 1 · the glow. Deliberately tighter and fainter than the reference's — at 4.6× and
                 full strength a field of stars read as a field of halos. */}
             <circle
@@ -352,7 +354,7 @@ export function SkyStars({
                 {clip(s.front, LABEL_MAX_CHARS)}
               </text>
             )}
-          </g>
+          </Fragment>
         );
       })}
     </g>

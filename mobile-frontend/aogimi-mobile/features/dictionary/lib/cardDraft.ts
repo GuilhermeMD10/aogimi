@@ -24,14 +24,15 @@ import type { ExampleSentence, KanjiInfo, WordResult } from '../types';
 /**
  * A word entry's draft.
  *
- * `sentences` is a *fallback* context: the reader passes the sentence the word
- * was tapped in, and only when it has none does the first example sentence
- * stand in.
+ * `contextSentence` is the sentence the word was tapped in, when the reader
+ * has one. `sentences` is the *fallback*: only when there is no reader
+ * sentence does the first example sentence stand in.
  */
 export function wordCardDraft(
   word: WordResult,
   query?: string,
   sentences?: ExampleSentence[],
+  contextSentence?: string,
 ): CardDraft {
   const front = preferredHeadword(word, query);
 
@@ -52,7 +53,7 @@ export function wordCardDraft(
       .slice(0, MAX_CARD_MEANINGS)
       .map((m) => m.meaning),
     jlptLevel: word.jlpt_level,
-    contextSentence: sentences?.[0]?.ja,
+    contextSentence: contextSentence ?? sentences?.[0]?.ja,
   };
 }
 

@@ -10,7 +10,7 @@ import type { BookProgressRecord } from '@/features/books/types';
 import { computeEpubIdentity, extractEpubData, type EpubData } from './epubIdentity';
 import { computePdfIdentity, extractPdfData } from './pdfIdentity';
 import { findRemoteTwin } from './pairBooks';
-import { markSynced } from './sync/localState';
+import { effectiveSyncState, markSynced } from './sync/localState';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -410,11 +410,20 @@ export async function syncLocalBooksToBackend(
 
   const remotes = [...remoteBooks];
 
-  // Register any local books the backend doesn't already hold. Paired by
-  // content, not filename (see `pairBooks`) — a locally renamed copy of a
-  // book the account already has must not be pushed as a second register.
+  // Register local books the backend doesn't hold — but only PENDING ones
+  // (imported offline, never pushed). A `synced` book with no backend row
+  // was deleted on another device; registering it here resurrected it at
+  // 0% on every library load, while the reconcile pass was busy wiping
+  // the local copy for the same reason. Reconcile owns that case.
+  // Paired by content, not filename (see `pairBooks`) — a locally renamed
+  // copy of a book the account already has must not be pushed as a second
+  // register.
   for (const local of localBooks) {
-    if (findRemoteTwin(local, remotes)) continue;
+    if (effectiveSyncState(local) !== 'pending') continue;
+    if (findRemoteTwin(local, remotes)) {
+      await markSynced(local.filename);
+      continue;
+    }
     // Phase 1 migration aid: pre-phase-1 PDF IDB rows stored /ID[0] in
     // `contentHash`. Route it to `pdfIdOriginal` so older rows backfill
     // the new column on first sync.

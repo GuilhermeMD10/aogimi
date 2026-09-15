@@ -5,7 +5,7 @@
 // just the first export.
 export { SkyView } from './views/SkyView';
 export { DecksProvider } from './providers/DecksProvider';
-export { getUserDecks, getUserDecksWithCards } from './lib/decksApi';
+export { getUserDecks, getUserDecksWithCards, getUserSkyDecks } from './lib/decksApi';
 export * as decksApi from './lib/decksApi';
 export { deckVisuals } from './lib/deckVisuals';
 // The SRS meter maths, exported for the sky page's word card — one definition,
@@ -31,7 +31,7 @@ export {
   deckQuotaMessage,
   cardQuotaMessage,
 } from './lib/limits';
-export type { DeckRecord, DeckWithCards } from './types';
+export type { DeckRecord, DeckWithCards, SkyCardRecord } from './types';
 // The add-card flow's one shape. Owned here because it describes a card and
 // ends at `createCard`; built by `features/dictionary`, carried by
 // `features/app-shell`, consumed by both add-card forms.

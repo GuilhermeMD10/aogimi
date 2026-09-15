@@ -149,8 +149,8 @@ export class SkyGenerator {
 
   snapshot(): SkySnapshot {
     return {
-      // the stars themselves are copied, not just the array: `count` is mutated in place, and
-      // sharing the objects would let a bump show up inside a snapshot already handed out
+      // the stars themselves are copied, not just the array: `seen` is mutated in place, and
+      // sharing the objects would let a mark show up inside a snapshot already handed out
       stars: this.stars.map((s) => ({ ...s })),
       links: this.segments.map((s): Link => ({ a: s.a.id, b: s.b.id, cid: s.cid, did: s.did })),
       // starIds must be copied too: the generator keeps appending to the live array,
@@ -384,7 +384,7 @@ export class SkyGenerator {
    * placement is drawn from. `did` is only the render-local deck index (layout, indexing, draw
    * grouping); it carries no placement weight, so hosts may number decks differently.
    *
-   * `card` is everything behind the star — faces, rank, review count — from the host's own card.
+   * `card` is what the star draws — front, rank, brightness — from the host's own card.
    * Required: there is no placeholder path, so the sky can only ever show what the host has.
    */
   addStar(args: { bucket: string; key: string; did: number; deckKey: string; card: CardContent }): boolean {
@@ -431,12 +431,10 @@ export class SkyGenerator {
       did,
       key,
       front: card.front,
-      back: card.back,
       mastery: card.mastery,
       // A host that doesn't model decay omits this; fully lit is the honest
       // default there, and it keeps the renderer free of null checks.
       glow: card.glow ?? 1,
-      count: card.count,
       seen: false,
     };
     this.stars.push(star);
@@ -458,16 +456,6 @@ export class SkyGenerator {
     return true;
   }
 
-  /**
-   * Count one more review of this star's card. Returns the new total, or null if no such star,
-   * so the caller reports what actually landed rather than what it assumed.
-   */
-  bumpStar(id: number): number | null {
-    const star = this.byId.get(id);
-    if (!star) return null;
-    star.count += 1;
-    return star.count;
-  }
 
   /**
    * Record that these stars have now been drawn for the reader, so they never pop again. Returns

@@ -74,6 +74,8 @@ export type FoliateBridgeOutbound =
   | {
       type: 'selection';
       text: string;
+      /** The sentence the selection sits in, for a card's context field. */
+      sentence?: string;
       cfi: string;
       pageX: number;
       pageY: number;
@@ -522,6 +524,35 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
         }
       }
 
+      // The sentence around the selection, for a card's context. Best-effort,
+      // mirroring the web's extractSentenceFromSelection: the enclosing
+      // block's text (ruby dropped) cut at Japanese terminators, and the
+      // first piece containing the selected text. A block with no terminator
+      // answers with itself only while it is short enough to be one sentence.
+      var SENTENCE_RE = /[^。！？!?\n]+[。！？!?\n]?/g;
+      function sentenceAround(range, text) {
+        try {
+          var node = range.startContainer;
+          var el = node.nodeType === 1 ? node : node.parentElement;
+          if (!el) return undefined;
+          var block = el.closest('p, div, li, td, h1, h2, h3, h4, h5, h6') || el;
+          var clone = block.cloneNode(true);
+          var ann = clone.querySelectorAll('rt, rp');
+          for (var i = 0; i < ann.length; i++) {
+            if (ann[i].parentNode) ann[i].parentNode.removeChild(ann[i]);
+          }
+          var full = (clone.textContent || '').trim();
+          if (!full) return undefined;
+          var pieces = full.match(SENTENCE_RE) || [];
+          for (var j = 0; j < pieces.length; j++) {
+            if (pieces[j].indexOf(text) !== -1) return pieces[j].trim();
+          }
+          return full.length <= 200 ? full : undefined;
+        } catch (e) {
+          return undefined;
+        }
+      }
+
       // The selection rect, in the WebView's own viewport coordinates.
       //
       // range.getBoundingClientRect() is measured against the *chapter
@@ -578,6 +609,7 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
           post({
             type: 'selection',
             text: text,
+            sentence: sentenceAround(range, text),
             cfi: cfi,
             pageX: (rect.left + rect.right) / 2,
             pageY: rect.top,

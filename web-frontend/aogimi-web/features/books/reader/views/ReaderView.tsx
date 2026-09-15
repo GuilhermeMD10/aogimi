@@ -21,6 +21,7 @@ import { parsePdfPageCfi } from '@/features/books/reader/lib/pdfPosition';
 import { getAllBooks, getBookFile, ensureBackendBook } from '@/features/books/lib/bookStore';
 import { getUserBooks } from '@/features/books/lib/booksApi';
 import { findRemoteTwin } from '@/features/books/lib/pairBooks';
+import { effectiveSyncState } from '@/features/books/lib/sync';
 import { getReaderProgress } from '@/features/books/lib/readerSession';
 import type { BookProgressRecord } from '@/features/books/types';
 import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
@@ -107,11 +108,17 @@ export default function ReaderView({ bookId }: { bookId: string }) {
         // device may hold the file under a different name than the device
         // that registered it, and registering a second row for it would
         // strand the reading position on the first.
+        //
+        // Only a PENDING book (imported offline, never pushed) is registered
+        // here. A synced one with no row was deleted on another device —
+        // registering it would resurrect it; the reconcile pass wipes it.
         let record: BookProgressRecord | undefined;
         try {
           const remote = await getUserBooks(user.id);
           record = findRemoteTwin(local, remote);
-          if (!record) record = await ensureBackendBook(local, user.id);
+          if (!record && effectiveSyncState(local) === 'pending') {
+            record = await ensureBackendBook(local, user.id);
+          }
         } catch {
           /* backend unavailable */
         }

@@ -27,10 +27,52 @@ export interface LastCard {
   created_at: string;
 }
 
-/** One deck with its full card inventory, as `GET /api/decks/user/:userId/cards` returns them —
- *  the same deck row as the list endpoint, plus the same card rows as the per-deck endpoint.
- *  Built for the sky page, which needs every card of every deck in one round trip. */
-export type DeckWithCards = DeckRecord & { cards: CardRecord[] };
+/**
+ * A card as the sky page holds it — `GET /api/decks/user/:userId/cards?view=sky`'s projection of
+ * the row: what a star, a list row and a search hit read, and nothing else. `notes`,
+ * `context_sentence`, `reviewed_times` and the FSRS scheduling columns stay on the server until a
+ * card is opened, when `CardDetailCard` fetches the full `CardRecord` by id.
+ *
+ * `back` is present only where it is the card's sole gloss source — a pre-026 row whose
+ * `meanings` is empty — and `''` everywhere else, since on every other card it is a rendering of
+ * `reading` + `meanings` that would ship twice. Read surfaces already fall back from `meanings`
+ * to `back`, so nothing has to know which era a card is from.
+ */
+export type SkyCardRecord = Pick<
+  CardRecord,
+  | 'id'
+  | 'front'
+  | 'reading'
+  | 'back'
+  | 'state'
+  | 'peak_rank'
+  | 'stability'
+  | 'last_reviewed_at'
+  | 'created_at'
+  | 'jlpt_level'
+  | 'meanings'
+>;
+
+/** The projection the server applies, for a full row the client already holds — a card it just
+ *  created — so it can join the inventory without a refetch. Mirrors `findSkyByDeckIds`. */
+export const toSkyCard = (c: CardRecord): SkyCardRecord => ({
+  id: c.id,
+  front: c.front,
+  reading: c.reading,
+  back: c.meanings.length === 0 ? c.back : '',
+  state: c.state,
+  peak_rank: c.peak_rank,
+  stability: c.stability,
+  last_reviewed_at: c.last_reviewed_at,
+  created_at: c.created_at,
+  jlpt_level: c.jlpt_level,
+  meanings: c.meanings,
+});
+
+/** One deck with its card inventory, as `GET /api/decks/user/:userId/cards?view=sky` returns
+ *  them — the same deck row as the list endpoint, plus the lean projection of each card. Built
+ *  for the sky page, which needs every card of every deck in one round trip. */
+export type DeckWithCards = DeckRecord & { cards: SkyCardRecord[] };
 
 /**
  * The rank ladder, derived from FSRS stability alone — never from difficulty,
