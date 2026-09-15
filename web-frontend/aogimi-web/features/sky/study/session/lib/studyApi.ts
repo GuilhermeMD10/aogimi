@@ -30,5 +30,13 @@ export async function submitReview(
   cardId: string,
   outcome: StudyOutcome,
 ): Promise<CardRecord> {
-  return apiSend<CardRecord>(`/api/decks/cards/${cardId}/review`, 'POST', { outcome });
+  // Same contract mobile's offline queue speaks: the id makes a retried POST a
+  // no-op instead of a second `card_reviews` row, and the time is when the
+  // grade happened — web is online-only, so that's now, but sending it keeps
+  // the server ordering every device's reviews by one rule.
+  return apiSend<CardRecord>(`/api/decks/cards/${cardId}/review`, 'POST', {
+    outcome,
+    clientReviewId: crypto.randomUUID(),
+    reviewedAt: new Date().toISOString(),
+  });
 }

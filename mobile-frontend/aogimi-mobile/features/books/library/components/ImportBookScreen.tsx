@@ -44,7 +44,7 @@ export function ImportBookScreen({ bookId }: Props) {
         // File is on the device now — straight into the reader.
         router.replace(`/reader/${book.id}`);
       } else if (outcome.status === 'rejected') {
-        Alert.alert("Doesn't match", outcome.message);
+        Alert.alert(outcome.title, outcome.message);
       }
       // 'canceled' → user backed out of the picker; do nothing.
     } finally {

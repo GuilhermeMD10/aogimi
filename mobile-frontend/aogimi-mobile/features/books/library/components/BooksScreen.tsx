@@ -9,12 +9,13 @@ import { useT } from '@/lib/i18n/I18nContext';
 import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { BookRecord } from '../../types';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { bookFileExists, renameBookFile } from '../../lib/bookPaths';
+import { bookFileExists } from '../../lib/bookPaths';
 import { importEpub, ImportRejectedError } from '../../lib/bookFiles';
 import { markPending } from '../../lib/bookLocalState';
 import { pendingPayloadFrom, pushOneBook } from '../../lib/bookPush';
+import { adoptRemoteTwin } from '../../lib/adoptRemoteTwin';
 import { useBooks } from '../../hooks/useBooks';
-import { useOnline } from '@/lib/network/network';
+import { isOnlineNow, useOnline } from '@/lib/network/network';
 import { ContinueReadingCard } from './ContinueReadingCard';
 import { BookGridItem } from './BookGridItem';
 import { BookActionsSheet } from './BookActionsSheet';
@@ -107,9 +108,17 @@ export function BooksScreen() {
   }, []);
   const visibleBooks = availableOnly ? books.filter((b) => bookFileExists(b.filename)) : books;
 
+  // Same rule as the web shelf (LibraryShelf.hero): the most recently read
+  // book that is actually in progress and can be opened here. Unstarted,
+  // finished and not-on-this-device books are never "continue reading".
   const hero = useMemo<BookRecord | null>(() => {
-    if (books.length === 0) return null;
-    return [...books].sort((a, b) => new Date(b.last_read_at).getTime() - new Date(a.last_read_at).getTime())[0]!;
+    const candidates = books.filter(
+      (b) => b.progress > 0 && b.progress < 100 && bookFileExists(b.filename),
+    );
+    if (candidates.length === 0) return null;
+    return candidates.sort(
+      (a, b) => new Date(b.last_read_at).getTime() - new Date(a.last_read_at).getTime(),
+    )[0]!;
   }, [books]);
 
   const openBook = (id: string) => {
@@ -167,9 +176,7 @@ export function BooksScreen() {
       if (imported.fileHash) {
         const twin = await findCachedBookByFileHash(imported.fileHash);
         if (twin) {
-          if (twin.filename !== imported.filename) {
-            renameBookFile(imported.filename, twin.filename);
-          }
+          await adoptRemoteTwin(imported.filename, twin, imported.fileHash);
           Alert.alert(
             'Already in your library',
             `"${twin.title}" matches this file. It's now available on this device.`,
@@ -183,8 +190,12 @@ export function BooksScreen() {
 
       // Keep it locally first -- this is the part that must not depend on the
       // network -- then settle its sync state before the library is told.
+      // Offline is already known: don't spend the request deadline (8 s per
+      // call) learning it again -- the book is pending, show it now.
       await markPending(imported.filename, imported.fileHash ?? '', payload);
-      const pushed = await pushOneBook(user.id, imported.filename, payload);
+      const pushed = isOnlineNow()
+        ? await pushOneBook(user.id, imported.filename, payload)
+        : { ok: false as const };
       if (pushed.ok) await silentRefresh();
       await reloadPending();
     } catch (err) {

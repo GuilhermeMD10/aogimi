@@ -25,6 +25,18 @@ export type FullSyncSummary = {
   readerState: ReaderStatePushSummary;
 };
 
+/**
+ * Push pending reader-state writes and clear the session-pending flag for
+ * every book whose push completed cleanly. The flag and the push belong
+ * together — a push that leaves the UNSYNCED pill up is what the
+ * reconnect auto-push used to do — so every caller goes through here.
+ */
+export async function pushReaderStateAndSettle(): Promise<ReaderStatePushSummary> {
+  const readerState = await pushAllReaderState();
+  await Promise.all(readerState.bookIdsClean.map((id) => clearSessionPending(id)));
+  return readerState;
+}
+
 export async function runFullSync(userId: number): Promise<FullSyncSummary> {
   // Pass 1: orphan + stale wipe.
   const reconcile = await reconcileBooks(userId);
@@ -32,10 +44,8 @@ export async function runFullSync(userId: number): Promise<FullSyncSummary> {
   // Pass 2: push pending books.
   const push = await syncPending(userId);
 
-  // Pass 3: push pending reader-state writes. Clear session-pending
-  // for every book whose push completed cleanly.
-  const readerState = await pushAllReaderState();
-  await Promise.all(readerState.bookIdsClean.map((id) => clearSessionPending(id)));
+  // Pass 3: push pending reader-state writes.
+  const readerState = await pushReaderStateAndSettle();
 
   return { reconcile, push, readerState };
 }
@@ -50,6 +60,7 @@ export function fullSyncActivityCount(summary: FullSyncSummary): number {
     reconcile.staleReplaced.length +
     reconcile.removed.length +
     reconcile.syncedUp.length +
+    reconcile.adopted.length +
     push.pushed.length +
     push.failed.length +
     readerState.cfisPushed +
@@ -82,6 +93,11 @@ export function formatFullSyncDetails(summary: FullSyncSummary): string[] {
   }
   if (reconcile.syncedUp.length > 0) {
     parts.push(`${reconcile.syncedUp.length} backfilled with local fingerprint`);
+  }
+  if (reconcile.adopted.length > 0) {
+    parts.push(
+      `${reconcile.adopted.length} matched to a book already on your account`,
+    );
   }
   if (readerState.cfisPushed > 0) {
     parts.push(

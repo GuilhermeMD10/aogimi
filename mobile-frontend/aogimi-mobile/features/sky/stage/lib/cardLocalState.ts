@@ -10,6 +10,8 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { makeAsyncJsonStore } from '@/lib/storage';
+import { isNewer } from '@/features/books/lib/timestamps';
+import { pendingReviewCardIds } from '@/features/sky/study/lib/pendingReviews';
 import type { CardRecord, LocalCard } from '../types';
 
 const KEY = 'card_local_state_v1';
@@ -145,14 +147,22 @@ export async function hydrateFromBackend(
   deckId: string,
   remote: CardRecord[],
 ): Promise<void> {
-  const map = await readMap();
+  const [map, unpushed] = await Promise.all([readMap(), pendingReviewCardIds()]);
   const remoteIds = new Set(remote.map((r) => r.id));
 
   for (const r of remote) {
     const local = map[r.id];
-    if (!local || local.syncState === 'synced') {
+    if (!local) {
       map[r.id] = { ...r, syncState: 'synced', pendingOp: undefined };
+      continue;
     }
+    if (local.syncState !== 'synced') continue;
+    // Newer wins on memory state, same as the books cache. A card graded on
+    // this device and not yet pushed — or pushed but not yet reflected in
+    // the list we were handed — keeps its local state; the backend's older
+    // copy must not paint over a session about to be (or just) synced.
+    if (unpushed.has(r.id) || isNewer(local.last_reviewed_at, r.last_reviewed_at)) continue;
+    map[r.id] = { ...r, syncState: 'synced', pendingOp: undefined };
   }
 
   for (const [id, local] of Object.entries(map)) {

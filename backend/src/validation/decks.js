@@ -113,6 +113,12 @@ const reviewCardSchema = z.object({
   outcome: z.enum(["again", "hard", "good", "easy"], {
     error: "outcome must be 'again', 'hard', 'good', or 'easy'",
   }),
+  // Both optional, both for reviews replayed from a client's offline queue.
+  // `clientReviewId` makes a retried POST a no-op; `reviewedAt` is when the
+  // card was actually graded, so a late replay is scheduled — and ordered
+  // against other devices' reviews — by that moment, not by arrival.
+  clientReviewId: z.uuid().optional(),
+  reviewedAt: z.iso.datetime({ offset: true }).optional(),
 });
 
 module.exports = {

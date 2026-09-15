@@ -12,16 +12,25 @@
 //   5. Card deletes  — DELETE before the deck disappears.
 //   6. Deck deletes  — once the deck has no remaining cards, the
 //                      backend cascade is unambiguous.
+//   7. Reviews       — grades queued offline. Last, so every queued card
+//                      id is a real backend id (creates rewrite them) and
+//                      a grade on a since-deleted card is answered 404 and
+//                      dropped rather than resurrecting anything.
 //
 // Each phase is best-effort. A failure in one phase doesn't stop the
 // next from running. The summary lets the UI report what happened.
 
 import { pushAllPendingDecks, type DeckSyncSummary } from './deckPush';
 import { pushAllPendingCards, type CardSyncSummary } from './cardPush';
+import {
+  pushAllPendingReviews,
+  type ReviewPushSummary,
+} from '@/features/sky/study/lib/reviewPush';
 
 export type DeckSyncAllSummary = {
   decks: DeckSyncSummary;
   cards: CardSyncSummary;
+  reviews: ReviewPushSummary;
 };
 
 export async function syncAllDeckChanges(): Promise<DeckSyncAllSummary> {
@@ -30,5 +39,6 @@ export async function syncAllDeckChanges(): Promise<DeckSyncAllSummary> {
   // `rewriteDeckId` inside `pushDeck`.
   const decks = await pushAllPendingDecks();
   const cards = await pushAllPendingCards();
-  return { decks, cards };
+  const reviews = await pushAllPendingReviews();
+  return { decks, cards, reviews };
 }

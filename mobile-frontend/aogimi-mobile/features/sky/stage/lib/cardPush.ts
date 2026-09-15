@@ -6,6 +6,7 @@ import * as Crypto from 'expo-crypto';
 import { createCard, deleteCard, updateCard } from './decksApi';
 import { cardBack } from './cardBack';
 import { pushAllByOp } from './syncByOp';
+import { rewriteReviewCardId } from '@/features/sky/study/lib/pendingReviews';
 import type { CardDraft, CardState, LocalCard } from '../types';
 import {
   getCard,
@@ -168,6 +169,8 @@ export async function pushCard(card: LocalCard): Promise<CardPushResult> {
         meanings: card.meanings,
       });
       const newId = await markCardSynced(card.id, remote);
+      // Grades queued against the local uuid follow the card to its real id.
+      await rewriteReviewCardId(card.id, newId);
       return { ok: true, cardId: newId };
     }
 

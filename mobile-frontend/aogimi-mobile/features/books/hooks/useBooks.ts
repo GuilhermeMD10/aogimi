@@ -53,17 +53,18 @@ export function useBooks(): BooksState {
   const { pendingBooks, reloadPending } = usePendingBooks(userId, data);
   const { cachedBooks, sessionPendingIds } = useSyncedBookCache(data ?? null);
 
-  // Source priority: backend `data` if fresh from this session,
-  // otherwise the AsyncStorage cache. Optimistic patches from the
+  // The synced source is always the cache, never the raw backend `data`:
+  // `useSyncedBookCache` has already merged `data` into it newer-wins, so
+  // reading `data` here would paint the backend's copy over a local
+  // session that hasn't been pushed yet. Optimistic patches from the
   // reader's back-press layer on top via `applyLocalProgress`. The
   // version ref bumps whenever a patch is set/cleared so the memo
   // re-runs without us listing every patch field as a dep.
   const version = useLocalProgressVersion();
   const books = useMemo(() => {
-    const syncedSource = data ?? cachedBooks;
-    return [...pendingBooks, ...applyLocalProgress(syncedSource)];
+    return [...pendingBooks, ...applyLocalProgress(cachedBooks)];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, cachedBooks, version, pendingBooks]);
+  }, [cachedBooks, version, pendingBooks]);
 
   return {
     books,

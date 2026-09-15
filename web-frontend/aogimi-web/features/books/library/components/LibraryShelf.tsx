@@ -129,7 +129,10 @@ export function LibraryShelf({
     [books],
   );
 
-  const hero = sorted.find((b) => b.lastReadAt && b.progress > 0 && b.progress < 100) ?? null;
+  // Same rule as mobile's BooksScreen.hero: most recently read, actually in
+  // progress, and openable on this device.
+  const hero =
+    sorted.find((b) => b.lastReadAt && b.available && b.progress > 0 && b.progress < 100) ?? null;
 
   const counts = useMemo(
     () =>

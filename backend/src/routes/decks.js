@@ -172,9 +172,18 @@ router.post("/cards/:cardId/review", async (req, res) => {
   const body = parseBody(reviewCardSchema, req, res);
   if (!body) return;
   try {
-    const card = await cardService.reviewCard(req.user.userId, req.params.cardId, body.outcome);
-    return res.json(card);
+    // Answers the card plus `applied` — false when the grade counted for
+    // nothing (not due at that instant, or a replayed duplicate). A client
+    // draining a queue drops the entry either way; only a thrown error keeps it.
+    const result = await cardService.reviewCard(req.user.userId, req.params.cardId, body.outcome, {
+      clientReviewId: body.clientReviewId,
+      reviewedAt: body.reviewedAt,
+    });
+    return res.json(result);
   } catch (err) {
+    if (err instanceof cardService.InvalidReviewTime) {
+      return res.status(400).json({ error: err.message });
+    }
     return res.status(404).json({ error: "Not found" });
   }
 });

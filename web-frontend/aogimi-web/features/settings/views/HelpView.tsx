@@ -82,7 +82,7 @@ export default function HelpView() {
               <SyncLegendRow
                 icon={<CloudAlert aria-hidden size={22} color={SYNC_BLUE} />}
                 title="Not synced"
-                body="Local-only. Either you imported the book offline, or a recent reading-state write didn't make it to the backend yet. Use Sync now to push it."
+                body="Local-only. Either you imported the book offline, or a recent reading-state write didn't make it to the backend yet. It's pushed automatically the next time the library loads with a connection."
               />
               <SyncLegendRow
                 icon={<CloudDownload aria-hidden size={22} color={SYNC_GREY} />}

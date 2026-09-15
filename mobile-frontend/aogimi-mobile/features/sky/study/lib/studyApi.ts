@@ -43,13 +43,23 @@ export function fetchDueCounts(
  * card_reviews. We also apply the algorithm locally for immediate UI
  * feedback; the two computations match by construction.
  *
- * **A review of a card that isn't due returns the card unchanged, with a 200.**
- * `applyOutcome` runs the same check client-side and skips this call entirely
- * in that case, so reaching here normally means the grade counted.
+ * `meta` is what makes the call replayable from the offline queue:
+ * `reviewedAt` is when the grade happened (the server schedules — and orders
+ * against other devices — by it, not by arrival), and `clientReviewId` makes
+ * a repeated POST a no-op.
+ *
+ * **A review that counted for nothing still answers 200**, with
+ * `applied: false` — not due at that moment, or already recorded under this
+ * id. `applyOutcome` runs the same due check client-side and skips this call
+ * entirely in that case, so reaching here normally means the grade counted.
  */
-export function submitReview(cardId: string, outcome: StudyOutcome): Promise<CardRecord> {
-  return request<CardRecord>(`/api/decks/cards/${cardId}/review`, {
+export function submitReview(
+  cardId: string,
+  outcome: StudyOutcome,
+  meta: { clientReviewId: string; reviewedAt: string },
+): Promise<CardRecord & { applied: boolean }> {
+  return request<CardRecord & { applied: boolean }>(`/api/decks/cards/${cardId}/review`, {
     method: 'POST',
-    body: JSON.stringify({ outcome }),
+    body: JSON.stringify({ outcome, ...meta }),
   });
 }

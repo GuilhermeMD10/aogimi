@@ -115,7 +115,7 @@ is **not** PATCHable.
 | POST | `/api/books/match` | `{ books: BookFingerprint[] }` | `(MatchResult \| null)[]` | scoped to caller |
 | GET | `/api/books/user/:userId` | — | `BookProgressRecord[]` | `:userId` ↔ token user |
 | GET | `/api/books/:id` | — | `BookProgressRecord` | `bookOwnedBy(token, id)` |
-| PUT | `/api/books/:id/progress` | `{ cfiPosition, progress, spineIndex, totalSpineItems }` | `BookProgressRecord` | `bookOwnedBy` |
+| PUT | `/api/books/:id/progress` | `{ cfiPosition, progress, spineIndex, totalSpineItems, lastReadAt? }` — with `lastReadAt` (ISO) the row only moves if it's ≥ the stored `last_read_at`; a stale push returns the current row unchanged | `BookProgressRecord` | `bookOwnedBy` |
 | POST | `/api/books/:id/progress` | (same) | (same) | (same) — sendBeacon variant |
 | PATCH | `/api/books/:id` | `{ title }` | `BookProgressRecord` | `bookOwnedBy` |
 | PUT | `/api/books/:id/identity` | `{ ...fingerprints }` | `BookProgressRecord` | `bookOwnedBy` |
@@ -174,7 +174,7 @@ card quota.
 | GET | `/api/decks/:id/cards` | — | `CardRecord[]` | `deckOwnedBy(:id)` |
 | GET | `/api/decks/:id/cards/due/count` | — | `{ count: number }` | `deckOwnedBy(:id)` |
 | PUT | `/api/decks/cards/:cardId` | `{ front?, reading?, back?, notes?, state?, contextSentence?, jlptLevel?, meanings? }` | `CardRecord` | `cardOwnedBy` |
-| POST | `/api/decks/cards/:cardId/review` | `{ outcome: 'again' \| 'hard' \| 'good' \| 'easy' }` | `CardRecord` (with updated SRS columns) | `cardOwnedBy` |
+| POST | `/api/decks/cards/:cardId/review` | `{ outcome: 'again' \| 'hard' \| 'good' \| 'easy', clientReviewId?: uuid, reviewedAt?: ISO }` — `clientReviewId` makes a repeat a no-op; `reviewedAt` (clamped to now, 400 if before the card's `created_at`) is when the grade happened, and an event older than the card's last review re-folds the card's log | `CardRecord & { applied: boolean }` | `cardOwnedBy` |
 | DELETE | `/api/decks/cards/:cardId` | — | `{ message }` | `cardOwnedBy` |
 
 The four outcomes are FSRS grades 1–4. **`good` was added in migration 027** —

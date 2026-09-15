@@ -57,6 +57,9 @@ const VERSION_KEY = 'aogimi_local_schema_version';
 const VERSIONED_KEYS = [
   'deck_local_state_v1',
   'card_local_state_v1',
+  // Grades queued offline reference rows in the card store by id; a wipe of
+  // the cards must take the grades with it.
+  'pending_reviews_v1',
   'study_deck_overrides_v1',
   'study_display_prefs_v1',
 ];

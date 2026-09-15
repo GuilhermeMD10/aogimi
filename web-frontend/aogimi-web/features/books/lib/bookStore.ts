@@ -10,6 +10,7 @@ import type { BookProgressRecord } from '@/features/books/types';
 import { computeEpubIdentity, extractEpubData, type EpubData } from './epubIdentity';
 import { computePdfIdentity, extractPdfData } from './pdfIdentity';
 import { findRemoteTwin } from './pairBooks';
+import { markSynced } from './sync/localState';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -451,6 +452,9 @@ export async function syncLocalBooksToBackend(
         publisher: local.publisher,
       });
       remotes.push(registered);
+      // The row is on the backend now; drop the pending marker so the
+      // reconcile pass stops treating this book as local-only forever.
+      await markSynced(local.filename);
     } catch {
       // Skip this book — will retry next time
     }

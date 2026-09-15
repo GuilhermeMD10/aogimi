@@ -1,4 +1,5 @@
 import { request, API_BASE } from '@/lib/api';
+import { getAccessToken } from '@/lib/tokenStore';
 import type {
   BookIdentityPayload,
   BookMatchCandidate,
@@ -57,21 +58,33 @@ export function updateBookProgress(id: string, update: BookProgressUpdate): Prom
   });
 }
 
-// Fire-and-forget progress save for app-background / shutdown moments
-// where awaiting the response isn't an option. RN has no sendBeacon
-// equivalent; we use fetch with keepalive (Hermes supports it) so the
-// request continues even if JS execution stops. Errors are swallowed —
-// caller's job is just to dispatch.
-export function sendProgressBeacon(id: string, update: BookProgressUpdate): void {
+// Progress save for app-background / shutdown moments where a full
+// `request()` round-trip (401 → refresh → retry) isn't an option. RN has no
+// sendBeacon equivalent; we use fetch with keepalive (Hermes supports it) so
+// the request continues even if JS execution stops. Bypassing `request()`
+// means we must stamp the Bearer token ourselves — /api/books/* sits behind
+// authenticateJWT and a bare fetch is a silent 401.
+//
+// Resolves `true` only on a 2xx, so the caller can record the position as
+// pushed only when the server actually took it. Never rejects.
+export function sendProgressBeacon(id: string, update: BookProgressUpdate): Promise<boolean> {
+  const token = getAccessToken();
+  if (!token) return Promise.resolve(false);
   try {
-    void fetch(`${API_BASE}/api/books/${id}/progress`, {
+    return fetch(`${API_BASE}/api/books/${id}/progress`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(update),
       keepalive: true,
-    }).catch(() => undefined);
+    })
+      .then((res) => res.ok)
+      .catch(() => false);
   } catch {
-    /* best-effort */
+    return Promise.resolve(false);
   }
 }
 

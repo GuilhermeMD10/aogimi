@@ -49,6 +49,7 @@ import type { BookType, EpubTocItem, ReaderThemeStyle } from '../lib/foliateHtml
 import { useReaderLayoutPrefs } from '../lib/readerLayout';
 import { setLocalProgress } from '@/features/books/lib/booksLocalCache';
 import { persistLocalProgress } from '@/features/books/lib/syncedBookCache';
+import { isNewer } from '@/features/books/lib/timestamps';
 
 type Props = { bookId: string };
 
@@ -100,10 +101,22 @@ export function ReaderScreen({ bookId }: Props) {
   const storage = useReaderStorage(book?.filename ?? null);
   const {
     hydrated: storageHydrated,
+    lastCfi: storedCfi,
     lastCfiPushed,
+    lastReadAt: storedReadAt,
     saveLastCfi,
     markCfiPushed,
   } = storage;
+
+  // Restore anchor — newer wins, mirroring web's ReaderView. The per-file
+  // row is written on every page turn on THIS device; the record's
+  // `cfi_position` is whatever the backend (or the cached record) last
+  // heard. Same device → local; switched device → record. A tie (the
+  // back-press writes both with one timestamp) is the same cfi either way.
+  const startCfi =
+    storedCfi && !isNewer(book?.last_read_at, storedReadAt)
+      ? storedCfi
+      : book?.cfi_position ?? null;
 
   // ── Reader prefs: app-level (font / theme / line height / fontFamily) ──
   const { prefs, savePrefs, hydrated: prefsHydrated } = useReaderPrefs();
@@ -445,61 +458,72 @@ export function ReaderScreen({ bookId }: Props) {
     if (!latest) return;
     const last = lastSyncedRef.current;
     if (last && last.cfi === latest.cfi && last.progress === latest.progress) return;
+    // Claim the slot before the round-trip so a background→foreground→
+    // back sequence doesn't send the same snapshot twice.
     lastSyncedRef.current = { cfi: latest.cfi, progress: latest.progress };
-    sendProgressBeacon(book.id, {
+    void sendProgressBeacon(book.id, {
       cfiPosition: latest.cfi,
       progress: latest.progress,
       spineIndex: latest.spineIndex,
       totalSpineItems: latest.totalSpineItems,
+      lastReadAt: new Date().toISOString(),
+    }).then((ok) => {
+      if (ok) {
+        // Only now does the row say "pushed": sync-now uses this to skip
+        // books whose position the server already has, so recording it
+        // for a failed beacon would strand the position on this device.
+        markCfiPushed(latest.cfi);
+      } else if (lastSyncedRef.current?.cfi === latest.cfi) {
+        // Release the slot so the next flush in this session retries.
+        lastSyncedRef.current = null;
+      }
     });
-    // Record the cfi we just pushed so sync-now can skip the beacon
-    // if nothing has changed since. Fire-and-forget — if the persist
-    // fails, sync-now harmlessly re-sends.
-    if (book.filename) markCfiPushed(latest.cfi);
-  }, [book?.id, book?.filename, offlineMode, markCfiPushed]);
+  }, [book?.id, offlineMode, markCfiPushed]);
+
+  // Commit the session's latest position locally. Three writes for the
+  // same patch:
+  //   1. setLocalProgress — in-memory overlay so the current
+  //      library-tab render reflects the session immediately.
+  //   2. persistLocalProgress — writes through to the AsyncStorage
+  //      synced-book cache so on app restart the cached BookRecord
+  //      already carries the latest local state. No-op for pending
+  //      books (their id isn't in the synced cache).
+  //   3. saveProgressSnapshot — writes through to the per-filename
+  //      reader-storage row. This is the path that survives an app
+  //      restart for GUEST and PENDING books: those have no synced
+  //      cache entry, so (2) is a no-op for them. Filename-keyed,
+  //      so it also carries over verbatim through guest→account
+  //      conversion (the file is the same; only the owner changes).
+  // Shared by the back chevron and the AppState "soft close" so a
+  // swipe-away leaves the same state behind as a deliberate exit.
+  const commitSession = useCallback(() => {
+    const latest = latestLocationRef.current;
+    if (!book?.id || !book?.filename || !latest) return;
+    const lastReadAt = new Date().toISOString();
+    const patch = { progress: latest.progress, cfi: latest.cfi, lastReadAt };
+    setLocalProgress(book.id, patch);
+    void persistLocalProgress(book.id, patch);
+    void saveProgressSnapshot(book.filename, latest.progress, lastReadAt);
+  }, [book?.id, book?.filename]);
 
   // AppState background/inactive = "soft close" (mirrors web visibilitychange).
-  // We also flush the per-filename progress snapshot here so a hard kill
-  // (user swipes away the task) doesn't lose the guest's progress — the
-  // beacon path needs a backend round-trip and a real book.id, neither
-  // of which guests have.
+  // Commit locally as well as beaconing so a hard kill (user swipes away
+  // the task) leaves the cached record — the reader's restore anchor —
+  // at the real position, not just the percentage.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'background' && state !== 'inactive') return;
       flushProgress();
-      const latest = latestLocationRef.current;
-      if (book?.filename && latest) {
-        void saveProgressSnapshot(book.filename, latest.progress, new Date().toISOString());
-      }
+      commitSession();
     });
     return () => sub.remove();
-  }, [flushProgress, book?.filename]);
+  }, [flushProgress, commitSession]);
 
   const handleBack = useCallback(() => {
     flushProgress();
-    // Three writes for the same patch:
-    //   1. setLocalProgress — in-memory overlay so the current
-    //      library-tab render reflects the session immediately.
-    //   2. persistLocalProgress — writes through to the AsyncStorage
-    //      synced-book cache so on app restart the cached BookRecord
-    //      already carries the latest local state. No-op for pending
-    //      books (their id isn't in the synced cache).
-    //   3. saveProgressSnapshot — writes through to the per-filename
-    //      reader-storage row. This is the path that survives an app
-    //      restart for GUEST and PENDING books: those have no synced
-    //      cache entry, so (2) is a no-op for them. Filename-keyed,
-    //      so it also carries over verbatim through guest→account
-    //      conversion (the file is the same; only the owner changes).
-    const latest = latestLocationRef.current;
-    if (book?.id && book?.filename && latest) {
-      const lastReadAt = new Date().toISOString();
-      const patch = { progress: latest.progress, cfi: latest.cfi, lastReadAt };
-      setLocalProgress(book.id, patch);
-      void persistLocalProgress(book.id, patch);
-      void saveProgressSnapshot(book.filename, latest.progress, lastReadAt);
-    }
+    commitSession();
     router.back();
-  }, [flushProgress, router, book?.id, book?.filename]);
+  }, [flushProgress, commitSession, router]);
 
   // ── Missing-file recovery ───────────────────────────────────────────
   // Delegates the locate-verify-attach flow to the shared helper so the
@@ -514,13 +538,16 @@ export function ReaderScreen({ bookId }: Props) {
     if (outcome.status === 'attached') {
       setHasFile(true);
     } else if (outcome.status === 'rejected') {
-      Alert.alert("Doesn't match", outcome.message);
+      Alert.alert(outcome.title, outcome.message);
     }
     // 'canceled' → user backed out of the picker; do nothing.
   }, [book, user, setHasFile]);
 
   // ── Render guards ───────────────────────────────────────────────────
-  if (loading) {
+  // `hydrated` is part of the guard because `startCfi` is derived from the
+  // per-file row: the PDF shell reads `initialCfi` once on mount, so it
+  // must not mount before that row has loaded.
+  if (loading || !hydrated) {
     return (
       <View style={[styles.root, { backgroundColor: c.bg }]}>
         <ActivityIndicator color={c.fg} />
@@ -568,7 +595,7 @@ export function ReaderScreen({ bookId }: Props) {
       <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
         <PdfReaderShell
           book={book}
-          initialCfi={book.cfi_position}
+          initialCfi={startCfi}
           onBack={handleBack}
           onPageChange={(snap) => {
             latestLocationRef.current = {
@@ -649,7 +676,7 @@ export function ReaderScreen({ bookId }: Props) {
           <FoliateReader
             ref={epubRef}
             filename={book.filename}
-            startCfi={book.cfi_position}
+            startCfi={startCfi}
             initialStyle={style}
             bgColor={style.bg}
             onReady={handleReady}

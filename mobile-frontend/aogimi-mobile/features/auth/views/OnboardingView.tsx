@@ -70,7 +70,7 @@ export function OnboardingView() {
     if (outcome.status === 'attached') {
       setResolved((prev) => new Set(prev).add(book.id));
     } else if (outcome.status === 'rejected') {
-      Alert.alert("Doesn't match", outcome.message);
+      Alert.alert(outcome.title, outcome.message);
     }
     // 'canceled' → user backed out of the picker; do nothing.
   }, [user]);

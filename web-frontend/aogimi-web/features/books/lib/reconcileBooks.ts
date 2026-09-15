@@ -40,7 +40,6 @@
 
 import {
   deleteBook as deleteLocalBook,
-  ensureBackendBook,
   getAllBooks,
   type BookRecord,
 } from './bookStore';
@@ -57,9 +56,10 @@ export type ReconcileSummary = {
    *  differed from the local fileHash — the user re-uploaded different
    *  bytes under the same filename on another device. */
   staleReplaced: string[];
-  /** Filenames that existed only locally; reconcile successfully re-
-   *  registered them on the backend. */
-  syncedUp: string[];
+  /** Filenames whose local file + state was wiped because the backend no
+   *  longer has the record (deleted on another device). Pending rows are
+   *  never wiped here — they're local-only awaiting a push. */
+  removed: string[];
 };
 
 /**
@@ -76,7 +76,7 @@ export async function reconcileBooks(
 ): Promise<ReconcileSummary> {
   const summary: ReconcileSummary = {
     staleReplaced: [],
-    syncedUp: [],
+    removed: [],
   };
 
   // 1. Fetch backend list. Bail early if the response isn't a usable
@@ -105,7 +105,7 @@ export async function reconcileBooks(
     // were mid-iteration. Aborts here leave any already-completed
     // operations in place; the next reconcile picks up the rest.
     if (signal?.aborted) return summary;
-    let remote = findRemoteTwin(local, remoteBooks);
+    const remote = findRemoteTwin(local, remoteBooks);
     const syncState = effectiveSyncState(local);
 
     // Pending books are intentionally local-only awaiting a manual push
@@ -113,23 +113,16 @@ export async function reconcileBooks(
     // skip every check below.
     if (syncState === 'pending') continue;
 
-    // 2a. Synced book missing from backend — try to re-register before
-    //     deciding it's an orphan. Catches the "local synced fingerprint
-    //     went missing from backend" edge case (rare).
+    // 2a. Synced book missing from backend = deleted on another device
+    //     (the backend list fetched above is authoritative — a network
+    //     blink bailed out before this loop). Wipe local, same as
+    //     mobile's reconcile. Re-registering here instead, as this pass
+    //     once did, resurrected every book the user deleted on the phone.
     if (!remote) {
-      try {
-        remote = await ensureBackendBook(local, userId);
-        summary.syncedUp.push(local.filename);
-      } catch {
-        // Backend unreachable / rejected. Keep local; the next reconcile
-        // will retry. We do NOT wipe on this path because we can't
-        // distinguish "you deleted this on another device" from "your
-        // network just blinked".
-        continue;
-      }
+      await wipeLocalEverything(local.filename);
+      summary.removed.push(local.filename);
+      continue;
     }
-
-    if (!remote) continue;
 
     // 2b. Both sides agree on identity. The only meaningful comparison
     //     is file_hash — every other matcher field can collide between

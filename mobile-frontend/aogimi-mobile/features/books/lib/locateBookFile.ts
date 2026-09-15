@@ -4,6 +4,7 @@ import { matchBooks } from './booksApi';
 import { buildMatchCandidate } from './matchCandidate';
 import { bookFilePath, deleteBookFile } from './bookPaths';
 import { removeEntry, setStoredFileHash } from './bookLocalState';
+import { isOnlineNow } from '@/lib/network/network';
 
 // Shared "locate the file for an existing book register and attach it
 // locally" flow. Used by:
@@ -17,15 +18,29 @@ import { removeEntry, setStoredFileHash } from './bookLocalState';
 // content. Returns a discriminated outcome so each caller can decide
 // how to surface it (alert, navigate, inline message).
 
+// `rejected` carries its own title: the reasons range from "wrong file" to
+// "couldn't check" to "couldn't save", and a caller with one fixed alert
+// title ("Doesn't match") mislabels two of the three.
 export type LocateOutcome =
   | { status: 'attached' }
   | { status: 'canceled' }
-  | { status: 'rejected'; message: string };
+  | { status: 'rejected'; title: string; message: string };
+
+const UNVERIFIED: LocateOutcome = {
+  status: 'rejected',
+  title: "Couldn't verify",
+  message:
+    'The file has to be checked against your account before it can be attached, and the server is unreachable right now. Nothing was imported — try again when you’re online.',
+};
 
 export async function locateBookFile(
   book: { id: string; filename: string; title: string },
   userId: number,
 ): Promise<LocateOutcome> {
+  // Verification is server-side; without a network the picked file would
+  // only be hashed, rejected and deleted. Say so before the picker opens.
+  if (!isOnlineNow()) return UNVERIFIED;
+
   let imported;
   try {
     imported = await importEpub({ expectedFilename: book.filename });
@@ -33,11 +48,13 @@ export async function locateBookFile(
     if (err instanceof ExtensionMismatchError) {
       return {
         status: 'rejected',
+        title: "Doesn't match",
         message: `"${book.title}" is a .${err.expected} file, but you picked a .${err.picked} file. Pick a matching one.`,
       };
     }
     return {
       status: 'rejected',
+      title: "Couldn't read file",
       message: err instanceof Error ? err.message : 'Could not read that file. Try a different one.',
     };
   }
@@ -48,6 +65,7 @@ export async function locateBookFile(
   // the user picked, putting the wrong content "in the slot".
   let matchedId: string | null = null;
   let matchedOtherTitle: string | null = null;
+  let verified = true;
   try {
     const [result] = await matchBooks(userId, [buildMatchCandidate(imported)]);
     // Only file_hash certifies "this IS that book". Weaker match types
@@ -58,18 +76,22 @@ export async function locateBookFile(
       if (matchedId !== book.id) matchedOtherTitle = result.match.title;
     }
   } catch {
-    /* matcher unreachable — treat as no match, reject below */
+    // Matcher unreachable: the file was never checked, which is not the
+    // same as "doesn't match" — tell the user that, below.
+    verified = false;
   }
 
-  if (matchedId !== book.id) {
+  if (!verified || matchedId !== book.id) {
     // Throw away the picked litter — UNLESS the bytes were already on
     // disk under that filename (it's an already-imported book's file
     // sharing the slot). Deleting that would de-import the other book.
     if (!imported.wasAlreadyPresentSameBytes) {
       try { deleteBookFile(imported.filename); } catch { /* best-effort */ }
     }
+    if (!verified) return UNVERIFIED;
     return {
       status: 'rejected',
+      title: "Doesn't match",
       message: matchedOtherTitle
         ? `This file is already in your library as "${matchedOtherTitle}".`
         : `This file doesn't match "${book.title}". The book stays unimported.`,
@@ -92,6 +114,7 @@ export async function locateBookFile(
   } catch (err) {
     return {
       status: 'rejected',
+      title: "Couldn't save file",
       message: err instanceof Error ? err.message : 'Could not save the file. Try again.',
     };
   }

@@ -184,10 +184,15 @@ CREATE TABLE card_reviews (
   stability_after    real          NOT NULL,
   state_before       text          NOT NULL,
   state_after        text          NOT NULL,
-  elapsed_days       real          NOT NULL DEFAULT 0
+  elapsed_days       real          NOT NULL DEFAULT 0,
+  -- 032: client-minted idempotency key for reviews replayed from an offline
+  -- queue. Null for web and legacy rows.
+  client_review_id   uuid
 );
 
 CREATE INDEX idx_card_reviews_user_time ON card_reviews (user_id, reviewed_at);
+CREATE UNIQUE INDEX idx_card_reviews_client_id
+  ON card_reviews (client_review_id) WHERE client_review_id IS NOT NULL;
 CREATE INDEX idx_card_reviews_card      ON card_reviews (card_id, reviewed_at);
 
 -- ── study_days ──────────────────────────────────────────────────────────────

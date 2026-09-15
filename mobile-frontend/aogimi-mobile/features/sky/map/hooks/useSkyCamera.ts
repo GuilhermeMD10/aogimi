@@ -312,6 +312,36 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
   );
 
   /**
+   * **Who owns the camera right now.** A flight sets it; any gesture *starting* clears it, so a finger
+   * can always interrupt a flight in progress.
+   *
+   * This is the fix for the two-frame teleport out of a deck. Leaving is triggered by the pinch itself
+   * (the escape push), so the pinch's own `onEnd` arrived immediately after `flyTo` had started — and
+   * `settle()` then sprang the camera to `clampCamera(livePose, wholeSkyBounds)` with `RUBBER_SPRING`,
+   * a fast critically-damped spring, straight over the top of the flight's tween. Two animations
+   * writing the same three values, one of them very fast: the zoom-out collapsed into a jump.
+   *
+   * So `settle()` and the fling now stand down while a flight owns the camera, and the flight's own
+   * completion stands down if a gesture has taken it back.
+   */
+  const flightActive = useSharedValue(false);
+  const flightT = useSharedValue(1);
+  const flightFrom = useSharedValue<Camera>(camera);
+  /** The destination. Written at take-off and **retargeted mid-flight** by the sync effect below when
+   *  a fit flight's world moves under it, so the landing reads this rather than a captured copy. */
+  const flightTo = useSharedValue<Camera>(camera);
+  /** Whether the flight in progress is chasing `'fit'` — the only kind that may be retargeted, and the
+   *  kind that lands on the intent rather than on a pose. */
+  const fitFlight = useSharedValue(false);
+  /**
+   * The flight's token. Starting a new `withTiming` on `flightT` cancels the previous one, whose
+   * callback then fires with `finished: false` *after* the new flight has already raised `flightActive`
+   * — so without this it would tear the new flight down (clearing `flightActive`, committing a stale
+   * pose) in the same frame it took off. Each flight captures its token and stands down if superseded.
+   */
+  const flightId = useSharedValue(0);
+
+  /**
    * React → live, and the **other half of the flicker fix**.
    *
    * The naive version assigned the committed pose straight into the shared values whenever it changed.
@@ -327,7 +357,9 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
    *
    *   **the world moved** — a tier change, the host's chrome resizing, new zoom limits. Do **nothing**.
    *   The live pose stays exactly where it is and a flight owns the transition, which is the only way
-   *   the two poses travel together instead of one jumping ahead of the other.
+   *   the two poses travel together instead of one jumping ahead of the other. Two exceptions, both
+   *   about a camera that is meant to be *on the fit*: a fit flight in progress is retargeted to the
+   *   new fit, and a camera resting on `'fit'` flies to the new one.
    *
    *   **the pose itself was set** — `fitTo()`, i.e. a deliberate recenter. Fly, don't jump.
    */
@@ -339,6 +371,18 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
       prevWorld.current.ins !== ins ||
       prevWorld.current.limits !== limits;
     prevWorld.current = { bounds, ins, limits };
+
+    /**
+     * A **fit flight chases the fit as it is now.** Leaving a deck is the case: the flight out starts
+     * against the focused tier's chrome, and only a frame later does the dock come back and the outer
+     * bar measure taller — so the target it was resolved against is already wrong before the first
+     * frame lands. Left alone it landed there, half zoomed out, and the locked tier gave the user no
+     * way to correct it. Retargeting (rather than restarting) keeps the one flight and its `onArrive`.
+     */
+    if (worldMoved && flightActive.value && fitFlight.value) {
+      flightTo.value = cameraFitting(bounds, viewport, ins ?? undefined, limits);
+      return;
+    }
 
     if (driving.value) return;
 
@@ -352,10 +396,19 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
       return;
     }
 
-    if (worldMoved) return; // a flight will bring the live pose across
+    if (worldMoved) {
+      // Resting on the fit: the fit follows the world, so chrome resizing under a fitted camera (the
+      // outer ledger appearing, an error banner) cannot strand it a few px off. Anywhere else a flight
+      // owns the transition and the live pose must be left where it is.
+      if (pose === 'fit') flyToRef.current?.('fit');
+      return;
+    }
     if (camX.value === camera.x && camY.value === camera.y && camZoom.value === camera.zoom) return;
     flyToRef.current?.(camera);
-  }, [camera, measured, bounds, ins, limits, camX, camY, camZoom, committedZoom, driving]);
+  }, [
+    camera, pose, measured, viewport, bounds, ins, limits,
+    camX, camY, camZoom, committedZoom, driving, flightActive, fitFlight, flightTo,
+  ]);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -380,24 +433,6 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
    * change that raced it, which is the one behaviour the old hook's per-frame re-resolve bought and
    * this does not.
    */
-  /**
-   * **Who owns the camera right now.** A flight sets it; any gesture *starting* clears it, so a finger
-   * can always interrupt a flight in progress.
-   *
-   * This is the fix for the two-frame teleport out of a deck. Leaving is triggered by the pinch itself
-   * (the escape push), so the pinch's own `onEnd` arrived immediately after `flyTo` had started — and
-   * `settle()` then sprang the camera to `clampCamera(livePose, wholeSkyBounds)` with `RUBBER_SPRING`,
-   * a fast critically-damped spring, straight over the top of the flight's tween. Two animations
-   * writing the same three values, one of them very fast: the zoom-out collapsed into a jump.
-   *
-   * So `settle()` and the fling now stand down while a flight owns the camera, and the flight's own
-   * completion stands down if a gesture has taken it back.
-   */
-  const flightActive = useSharedValue(false);
-  const flightT = useSharedValue(1);
-  const flightFrom = useSharedValue<Camera>(camera);
-  const flightTo = useSharedValue<Camera>(camera);
-
   useAnimatedReaction(
     () => flightT.value,
     (t) => {
@@ -414,8 +449,12 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
   const flyToRef = useRef<((t: Camera | 'fit') => void) | null>(null);
   const arriveRef = useRef<(() => void) | undefined>(undefined);
   const onFlightEnd = useCallback(
-    (finished: boolean, x: number, y: number, zoom: number) => {
-      commit(x, y, zoom);
+    (finished: boolean, fit: boolean, x: number, y: number, zoom: number) => {
+      // A landed fit flight commits the *intent*, not the pose it happened to land on: the committed
+      // camera then keeps re-resolving as the host's chrome settles, and the sync effect keeps the
+      // live pose on it. Committing the pose froze the outer tier at whatever the flight was aimed at.
+      if (finished && fit) setPose('fit');
+      else commit(x, y, zoom);
       if (finished) arriveRef.current?.();
       arriveRef.current = undefined;
     },
@@ -429,6 +468,9 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
           ? cameraFitting(bounds, viewport, ins ?? undefined, limits)
           : clampCamera(target, bounds, viewport, ins ?? undefined, limits);
       arriveRef.current = onArrive;
+      const id = flightId.value + 1;
+      flightId.value = id;
+      fitFlight.value = target === 'fit';
       flightFrom.value = { x: camX.value, y: camY.value, zoom: camZoom.value };
       flightTo.value = to;
       driving.value = true;
@@ -439,25 +481,30 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
         { duration: CAMERA_TWEEN_MS, easing: Easing.out(Easing.cubic) },
         (finished) => {
           'worklet';
+          // Superseded by a newer flight, which owns the camera and the landing now.
+          if (flightId.value !== id) return;
           // A gesture took the camera back mid-flight; it owns the landing now.
           if (!flightActive.value) return;
           flightActive.value = false;
-          // Land exactly on the target rather than on the last tween frame, so a flight's arrival is
-          // the pose that was asked for and not a rounding of it.
+          // Land exactly on the destination rather than on the last tween frame, so a flight's arrival
+          // is the pose that was asked for and not a rounding of it. Read live, not the captured `to`:
+          // a fit flight may have been retargeted while it flew.
           if (finished) {
-            camX.value = to.x;
-            camY.value = to.y;
-            camZoom.value = to.zoom;
+            const land = flightTo.value;
+            camX.value = land.x;
+            camY.value = land.y;
+            camZoom.value = land.zoom;
           }
           driving.value = false;
           committedZoom.value = camZoom.value;
-          runOnJS(onFlightEnd)(!!finished, camX.value, camY.value, camZoom.value);
+          runOnJS(onFlightEnd)(!!finished, fitFlight.value, camX.value, camY.value, camZoom.value);
         },
       );
     },
     [
       bounds, viewport, ins, limits,
-      camX, camY, camZoom, committedZoom, driving, flightActive, flightT, flightFrom, flightTo,
+      camX, camY, camZoom, committedZoom, driving,
+      flightActive, flightT, flightFrom, flightTo, fitFlight, flightId,
       onFlightEnd,
     ],
   );
@@ -608,7 +655,9 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
       .onEnd((e) => {
         'worklet';
         if (lockedSV.value) {
-          driving.value = false;
+          // The pan finger lifting *after* an escape push lands here, with the flight out already
+          // carrying the camera — it owns `driving` until it lands.
+          if (!flightActive.value) driving.value = false;
           return;
         }
         if (flightActive.value) return; // a flight is carrying the camera; do not coast over it
@@ -733,6 +782,10 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
         const l = law.value;
         driving.value = true;
         flightActive.value = true;
+        // Same token as `flyTo`: this flight supersedes whatever was flying, and is not a fit.
+        const id = flightId.value + 1;
+        flightId.value = id;
+        fitFlight.value = false;
         const next = zoomAroundW(
           { x: camX.value, y: camY.value, zoom: camZoom.value },
           { x: e.x, y: e.y }, DOUBLE_TAP_ZOOM,
@@ -746,6 +799,7 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
           { duration: CAMERA_TWEEN_MS, easing: Easing.out(Easing.cubic) },
           () => {
             'worklet';
+            if (flightId.value !== id) return; // superseded by a newer flight
             if (!flightActive.value) return; // interrupted by a gesture
             flightActive.value = false;
             camX.value = next.x;
