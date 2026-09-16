@@ -1,12 +1,11 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
-import Feather from '@expo/vector-icons/Feather';
+import { Card } from '@/shared/components/Card';
+import { Button } from '@/shared/components/Button';
+import { Chip } from '@/shared/components/Chip';
 import type { DeckRecord } from '@/features/sky/stage/types';
-import { deckGlyphFor } from '@/features/sky/stage/lib/deckVisuals';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
-import { Card } from './HomeCard';
+import { spacing, type, type Palette } from '@/theme/tokens';
 
 /**
  * The due-cards card: a count, one chip per deck with something due, and the
@@ -23,13 +22,21 @@ import { Card } from './HomeCard';
  * Each chip carries a deck's own due count, so tapping one opens *that deck's*
  * session rather than the mixed one. Only decks with something due get a chip —
  * `byDeck` omits the zeroes, so the filter and the data agree by construction.
+ *
+ * ── The four SRS tiles are not built ────────────────────────────────────────
+ * The handoff draws an Again / Hard / Good / Easy shelf under the CTA. It is
+ * decorative there — Home has no card in front of the user to grade, and the
+ * intervals it shows belong to a review that has not started. The owner
+ * confirmed they do not belong on this screen. They are the study runner's, and
+ * that screen builds them for real.
  */
 export function StudyCard({
   total,
   decks,
   countFor,
-  dueLabel,
+  dueTitle,
   studyLabel,
+  dueBadge,
   onStudyAll,
   onStudyDeck,
 }: {
@@ -38,9 +45,11 @@ export function StudyCard({
   /** Decks with at least one card due. */
   decks: DeckRecord[];
   countFor: (deckId: string) => number;
-  /** Already pluralised, e.g. "cards due". */
-  dueLabel: string;
+  /** Already interpolated, e.g. `48 Cards Due`. */
+  dueTitle: string;
   studyLabel: string;
+  /** The CTA's trailing count, e.g. `48 DUE`. */
+  dueBadge: string;
   onStudyAll: () => void;
   onStudyDeck: (deckId: string) => void;
 }) {
@@ -49,44 +58,33 @@ export function StudyCard({
   const nothingDue = total === 0;
 
   return (
-    <Card>
-      <View style={styles.head}>
-        <Text style={styles.count}>{total}</Text>
-        <Text style={styles.countLabel}>{dueLabel}</Text>
-      </View>
+    <Card style={styles.card}>
+      <Text style={styles.title}>{dueTitle}</Text>
 
       {decks.length > 0 && (
         <View style={styles.chipRow}>
           {decks.map((d) => (
-            <Touchable
-              surface="glass"
-              radius={radius.xl}
-              minTarget={false}
-              hitSlop={6}
+            <Chip
               key={d.id}
+              label={d.name}
+              count={countFor(d.id)}
+              size="sm"
               onPress={() => onStudyDeck(d.id)}
-              accessibilityRole="button"
-              style={styles.chip}
-            >
-              <Text style={styles.chipLabel}>
-                {deckGlyphFor(d.name)} {d.name} · {countFor(d.id)}
-              </Text>
-            </Touchable>
+            />
           ))}
         </View>
       )}
 
-      <Touchable
-        minTarget={false}
+      <Button
+        label={studyLabel}
+        // No badge when nothing is due: "0 DUE" beside a dead button is two
+        // ways of saying the same thing, and the count reads as a promise.
+        badge={nothingDue ? undefined : dueBadge}
+        icon="star"
         onPress={onStudyAll}
         disabled={nothingDue}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: nothingDue }}
-        style={[styles.button, nothingDue && styles.buttonDisabled]}
-      >
-        <Feather name="star" size={13} color={p.btnInk} />
-        <Text style={styles.buttonLabel}>{studyLabel}</Text>
-      </Touchable>
+        full
+      />
     </Card>
   );
 }
@@ -95,58 +93,9 @@ function useStyles(p: Palette) {
   return useMemo(
     () =>
       StyleSheet.create({
-        head: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
-        count: {
-          fontFamily: fontFamily.ui,
-          fontSize: 30,
-          fontWeight: '700',
-          lineHeight: 32,
-          color: p.ink,
-        },
-        countLabel: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm,
-          fontWeight: '700',
-          color: p.soft,
-        },
-
-        chipRow: {
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          gap: spacing.sm - 1,
-          marginTop: spacing.md - 1,
-        },
-        // `paperTile` on `paper`: the chip is an inset *within* the card, which
-        // is the pair that token is judged against — not against the canvas.
-        // Fill and hairline come from `surface="glass"`; this is geometry only.
-        chip: {
-          paddingVertical: 7,
-          paddingHorizontal: 12,
-        },
-        chipLabel: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.xs + 0.5,
-          fontWeight: '700',
-          color: p.soft,
-        },
-
-        button: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: spacing.sm,
-          height: 44,
-          borderRadius: radius.md,
-          backgroundColor: p.btn,
-          marginTop: spacing.md + 1,
-        },
-        buttonDisabled: { opacity: 0.4 },
-        buttonLabel: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm + 0.5,
-          fontWeight: '700',
-          color: p.btnInk,
-        },
+        card: { gap: spacing.md },
+        title: { ...type.headlineMd, color: p.ink },
+        chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
       }),
     [p],
   );

@@ -67,29 +67,59 @@ export function starTapFeedback(): void {
 }
 
 /**
- * How a grade button feels under the finger, as four distinguishable weights.
- *
- * Named for the feel rather than the grade so this module stays ignorant of the study domain — the
- * mapping from Again/Hard/Good/Easy lives with the grades themselves, in `ResultButtons`, beside
- * the colours that already carry the same meaning.
- *
- * The four are one progression, not four arbitrary picks: `firm` is crisp and abrupt, and each step
- * softens until `soft` is diffuse and barely there. That ordering is the point — a reader grading a
- * long queue learns the row through their thumb, and a set of four that merely *differed* would
- * only be noise. None is Heavy: this fires on every card of every session, and anything with real
- * amplitude turns a study run into a buzz.
+ * The four weights the engine offers, named for how they feel rather than for
+ * Apple's enum, as one progression: `firm` is crisp and abrupt, and each step
+ * softens until `soft` is diffuse and barely there. That ordering is the point
+ * wherever a set of them is used together — a set that merely *differed* would
+ * only be noise. None is Heavy: these fire on hot paths, and anything with real
+ * amplitude turns a session into a buzz.
  */
-export type GradeFeel = 'firm' | 'solid' | 'light' | 'soft';
+export type ImpactFeel = 'firm' | 'solid' | 'light' | 'soft';
 
-const GRADE_STYLE: Record<GradeFeel, Haptics.ImpactFeedbackStyle> = {
+const IMPACT: Record<ImpactFeel, Haptics.ImpactFeedbackStyle> = {
   firm: Haptics.ImpactFeedbackStyle.Rigid,
   solid: Haptics.ImpactFeedbackStyle.Medium,
   light: Haptics.ImpactFeedbackStyle.Light,
   soft: Haptics.ImpactFeedbackStyle.Soft,
 };
 
+/**
+ * One impact, picked by feel.
+ *
+ * The named functions in this file are the app's vocabulary and should stay the
+ * way a feature asks for a haptic — they say what the moment *is*. This is for
+ * code whose whole subject is the feel itself and which therefore has nothing
+ * to name: the dock tuning lab, where three bars exist only to be told apart by
+ * their weight.
+ */
+export function impactFeedback(feel: ImpactFeel): void {
+  run(() => Haptics.impactAsync(IMPACT[feel]));
+}
+
+/**
+ * How a grade button feels under the finger, as four distinguishable weights.
+ *
+ * Its own name rather than `impactFeedback` at the call site so this module
+ * stays ignorant of the study domain — the mapping from Again/Hard/Good/Easy
+ * lives with the grades themselves, in `ResultButtons`, beside the colours that
+ * already carry the same meaning.
+ */
+export type GradeFeel = ImpactFeel;
+
 export function gradeFeedback(feel: GradeFeel): void {
-  run(() => Haptics.impactAsync(GRADE_STYLE[feel]));
+  impactFeedback(feel);
+}
+
+/**
+ * The dock's slide has crossed into the next route.
+ *
+ * `selectionAsync`, like the reader's band: the highlight is clicking through
+ * detents under the finger, and this fires on every crossing while dragging,
+ * so it has to be the lightest thing the engine offers. The tap that enters a
+ * route is `pressFeedback`, as everywhere else.
+ */
+export function dockStepFeedback(): void {
+  run(() => Haptics.selectionAsync());
 }
 
 /** Shared guard: a missing engine or native module is silence, never a throw. */

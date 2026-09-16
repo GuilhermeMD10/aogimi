@@ -1,41 +1,44 @@
 import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
+import { Touchable } from '@/shared/components/Touchable';
+import { Card, InnerPlate } from '@/shared/components/Card';
+import { Chip } from '@/shared/components/Chip';
 import type { RecentLookup } from '@/features/dictionary/lib/dictionaryStorage';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
-import { Card, SectionHead } from './HomeCard';
+import { radius, spacing, type, type Palette } from '@/theme/tokens';
 
-/** How many recent lookups the card shows. The store keeps ten; this is a
- *  glanceable summary, and more than two starts competing with the cards below
- *  it for the same scroll. */
-const VISIBLE = 2;
+/** How many recent lookups fit the chip row before it starts scrolling. Three
+ *  is what the handoff draws and what a 390pt screen holds at this size. */
+const VISIBLE = 3;
 
 /**
- * The dictionary card: a search affordance and the last couple of words looked
- * up, from anywhere in the app.
+ * The dictionary card: a search affordance, and the last few words looked up
+ * from anywhere in the app as chips under it.
  *
- * The "search field" is a `Pressable` styled as an input, not a `TextInput` —
+ * The "search field" is a `Touchable` styled as an input, not a `TextInput` —
  * typing happens on the dictionary tab, which owns the search stack, the
  * deinflector and the result list. A real input here would need all of that or
  * would hand off mid-word.
  *
- * With no lookups yet the card is the field alone. That is the empty state:
- * a first-run user has nothing to show and does not need to be told so.
+ * With no lookups yet the card is the field alone. That is the empty state: a
+ * first-run user has nothing to show and does not need to be told so.
+ *
+ * ── Why the padding is 12 and not 16 ───────────────────────────────────────
+ * DESIGN.md's search field "sits inside a card with 12px padding around it" —
+ * the one documented exception to the 16pt card padding, because a 48pt field
+ * inside 16pt padding makes the card taller than the content it holds.
  */
 export function DictionaryCard({
-  title,
-  viewAllLabel,
   placeholder,
   recents,
+  searchLabel,
   onOpenDictionary,
   onOpenLookup,
 }: {
-  title: string;
-  viewAllLabel: string;
   placeholder: string;
   recents: RecentLookup[];
+  searchLabel: string;
   onOpenDictionary: () => void;
   onOpenLookup: (lookup: RecentLookup) => void;
 }) {
@@ -44,47 +47,42 @@ export function DictionaryCard({
   const shown = recents.slice(0, VISIBLE);
 
   return (
-    <Card>
-      <SectionHead title={title} action={viewAllLabel} onPress={onOpenDictionary} />
-
+    <Card padded={false} style={styles.card}>
       <Touchable
         minTarget={false}
         onPress={onOpenDictionary}
         accessibilityRole="search"
-        style={styles.field}
+        accessibilityLabel={searchLabel}
+        radius={radius.control}
       >
-        <Feather name="search" size={15} color={p.accent} />
-        <Text style={styles.placeholder} numberOfLines={1}>
-          {placeholder}
-        </Text>
+        <InnerPlate style={styles.field}>
+          <Feather name="search" size={16} color={p.faint} />
+          <Text style={styles.placeholder} numberOfLines={1}>
+            {placeholder}
+          </Text>
+        </InnerPlate>
       </Touchable>
 
-      {shown.map((item, i) => (
-        <Touchable
-          minTarget={false}
-          key={item.wordId}
-          onPress={() => onOpenLookup(item)}
-          accessibilityRole="button"
-          style={[
-            styles.row,
-            // Divider between rows only — a trailing rule under the last one
-            // would read as a cut-off card.
-            i < shown.length - 1 && { borderBottomWidth: 1, borderBottomColor: p.paperBd },
-          ]}
+      {shown.length > 0 && (
+        // Horizontal rather than wrapping: a headword can be one character or
+        // six, so a wrapping row changes the card's height as the user looks
+        // words up. Scrolling keeps it a fixed two-line card.
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
         >
-          <Text style={styles.word} numberOfLines={1}>
-            {item.headword}
-          </Text>
-          <View style={styles.gloss}>
-            {item.reading !== '' && <Text style={styles.reading}>{item.reading}</Text>}
-            {item.gloss !== '' && (
-              <Text style={styles.meaning} numberOfLines={1}>
-                {item.gloss}
-              </Text>
-            )}
-          </View>
-        </Touchable>
-      ))}
+          {shown.map((item) => (
+            <Chip
+              key={item.wordId}
+              label={item.headword}
+              japanese
+              size="sm"
+              onPress={() => onOpenLookup(item)}
+            />
+          ))}
+        </ScrollView>
+      )}
     </Card>
   );
 }
@@ -93,54 +91,24 @@ function useStyles(p: Palette) {
   return useMemo(
     () =>
       StyleSheet.create({
-        // 1.5px and `ink` — this is the one control on Home drawn as an
-        // outline rather than a fill, which is what makes it read as "type
-        // here" next to two filled buttons.
+        card: { padding: spacing.md, gap: spacing.sm + 2 },
         field: {
+          height: 44,
           flexDirection: 'row',
           alignItems: 'center',
-          gap: spacing.sm + 1,
-          borderWidth: 1.5,
-          borderColor: p.ink,
-          borderRadius: radius.md,
-          paddingVertical: spacing.md,
+          gap: spacing.sm,
           paddingHorizontal: spacing.md + 2,
-          marginTop: spacing.md,
         },
         placeholder: {
           flex: 1,
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm + 0.5,
+          // The placeholder is Japanese, so it takes the JP face rather than
+          // the UI one — a mixed-script string set in Switzer falls back
+          // per-glyph and the kana end up a different weight to the kanji.
+          fontFamily: type.titleReading.fontFamily,
+          fontSize: 13,
           color: p.faint,
         },
-
-        row: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.md - 1,
-          paddingVertical: spacing.md,
-          paddingHorizontal: 2,
-        },
-        // Fixed width so the glosses of consecutive rows line up regardless of
-        // headword length — a ragged left edge on a two-row list looks broken.
-        word: {
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.xl,
-          fontWeight: '500',
-          color: p.ink,
-          minWidth: 64,
-        },
-        gloss: { flex: 1, minWidth: 0 },
-        reading: {
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.xs - 1,
-          color: p.faint,
-        },
-        meaning: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.xs + 1,
-          color: p.soft,
-        },
+        chips: { flexDirection: 'row', gap: 6 },
       }),
     [p],
   );

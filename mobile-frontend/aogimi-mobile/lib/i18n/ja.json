@@ -63,14 +63,14 @@
     "continueReading": "読書を続ける",
     "importEpub": "EPUBを取り込む",
     "empty": "本がまだありません",
-    "greeting": "こんにちは、{name}",
-    "greetingSub": "おかえりなさい — 空はあなたの場所を覚えています。",
-    "yourSky": "あなたの空 · {count} の星",
-    "cardsDue": "枚が復習待ち",
-    "studyNow": "復習する",
     "resumeReading": "読書を再開",
-    "viewAll": "すべて見る",
-    "daysStudied": "学習日数"
+    "brand": "Aogimi",
+    "streak": "{count}日目",
+    "progressRead": "{pct}% 読了",
+    "cardsDueTitle": "復習カード {count}枚",
+    "startReview": "復習を始める",
+    "dueBadge": "{count} 枚",
+    "searchLabel": "辞書を開く"
   },
   "reader": {
     "define": "意味",

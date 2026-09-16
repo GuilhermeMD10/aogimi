@@ -63,14 +63,14 @@
     "continueReading": "Continuar a leitura",
     "importEpub": "Importar EPUB",
     "empty": "Ainda sem livros",
-    "greeting": "Olá, {name}",
-    "greetingSub": "Bem-vindo de volta — o céu guardou o seu lugar.",
-    "yourSky": "O SEU CÉU · {count} ESTRELAS",
-    "cardsDue": "cartões para revisar",
-    "studyNow": "Estudar agora",
     "resumeReading": "Retomar leitura",
-    "viewAll": "VER TUDO",
-    "daysStudied": "DIAS DE ESTUDO"
+    "brand": "Aogimi",
+    "streak": "{count}日目",
+    "progressRead": "{pct}% lido",
+    "cardsDueTitle": "{count} cartões a rever",
+    "startReview": "Começar revisão",
+    "dueBadge": "{count} A REVER",
+    "searchLabel": "Abrir o dicionário"
   },
   "reader": {
     "define": "Definir",

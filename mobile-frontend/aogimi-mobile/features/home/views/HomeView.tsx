@@ -3,14 +3,13 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useT } from '@/lib/i18n/I18nContext';
-import { usePalette } from '@/theme/ThemeContext';
+import { Screen } from '@/shared/components/Screen';
 import { spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { useBooks } from '@/features/books/hooks/useBooks';
 import { useDecks } from '@/features/sky/stage/hooks/useDecks';
 import { useDueCounts } from '@/features/sky/stage/hooks/useDueCounts';
 import { useStatsActivity } from '@/features/profile/hooks/useStatsActivity';
-import { useStatsCards } from '@/features/profile/hooks/useStatsCards';
 import { kamonFor } from '@/features/profile/lib/kamon';
 import {
   getRecentLookups,
@@ -18,8 +17,6 @@ import {
 } from '@/features/dictionary/lib/dictionaryStorage';
 import { useDockClearance } from '@/features/app-shell/Dock';
 import { HomeTopBar } from '../components/HomeTopBar';
-import { HomeHero } from '../components/HomeHero';
-import { SkyShortcut } from '../components/SkyShortcut';
 import { ContinueReadingCard } from '../components/ContinueReadingCard';
 import { StudyCard } from '../components/StudyCard';
 import { DictionaryCard } from '../components/DictionaryCard';
@@ -32,46 +29,50 @@ import { DictionaryCard } from '../components/DictionaryCard';
  * and because on a phone the header avatar is the only route to Profile.
  *
  * **This file is composition and data only.** Every card is its own component
- * in `../components`; anything visual belongs there. Order: top bar, hero,
- * sky, continue reading, study, dictionary.
+ * in `../components`; anything visual belongs there. Order, top to bottom:
+ * header, dictionary, continue reading, study.
  *
- * ── Two cards deliberately not built ─────────────────────────────────────────
+ * ── What is deliberately not here ───────────────────────────────────────────
  *
+ *  · **The salutation.** A 30px "おかえり, name" was the first thing on the
+ *    screen and the last thing anyone came to Home to read. Removed outright;
+ *    the header carries the identity now.
+ *  · **The sky panel.** `SkyShortcut` still exists and is untouched, but Home
+ *    does not mount it: the sky is being redesigned in its own session and a
+ *    shortcut into a screen that is mid-rebuild would have to be built twice.
+ *    The dock reaches `/sky` in one tap meanwhile.
  *  · **Library.** Its job — browse every book — is the Reader tab, one tap away
- *    in the dock. A three-cover strip on Home would duplicate that tab's top row.
+ *    in the dock. A three-cover strip here would duplicate that tab's top row.
  *  · **Word of the day.** There is no endpoint and no curated list. Picking one
  *    from the bundled SQLite needs a deterministic day→word rule *and* a
  *    definition of "worth showing", which is a feature rather than a card.
  *
  * ── Empty states ────────────────────────────────────────────────────────────
  * No placeholders anywhere. No in-progress book → the card is absent. Nothing
- * due → the study button is disabled (grading early does nothing, so an enabled
- * button would be a lie). No lookups → the dictionary card is its field alone.
- * Signed out, every count is 0 and the page degrades to hero + sky + an empty
- * study card, which is a legitimate first-run screen.
+ * due → the study button is disabled and drops its count badge (grading early
+ * does nothing, so an enabled button would be a lie). No lookups → the
+ * dictionary card is its field alone. Signed out, every count is 0 and the page
+ * degrades to the header, a search field and an empty study card, which is a
+ * legitimate first-run screen.
  */
 export function HomeView() {
   const t = useT();
   const router = useRouter();
   const { user } = useAuth();
-  const p = usePalette();
 
   // The dock floats, so the room it needs is its height plus the safe-area
   // offset — see the hook. Never a hardcoded spacer.
   const dockClearance = useDockClearance();
 
-  // Home draws its own top inset rather than going through `Screen`
-  // (SafeAreaView edges={['top']}), because the canvas should run under the
-  // status bar while the content starts below it. Applied to the scroll
-  // content, not the root, so the page still scrolls up behind the status bar.
-  // Without it the brand row sits under the notch and the avatar — the only
-  // route to Profile — is untappable.
+  // Home takes no safe-area edge from `Screen` and applies the top inset to the
+  // scroll *content* instead, so the sky runs under the status bar while the
+  // header starts below it. Without it the brand row sits under the notch and
+  // the avatar — the only route to Profile — is untappable.
   const insets = useSafeAreaInsets();
 
   const { books } = useBooks();
   const { decks } = useDecks();
   const { counts, countFor } = useDueCounts();
-  const { data: cardStats } = useStatsCards();
   const { data: activity } = useStatsActivity();
 
   // The single most recently opened book that is started but not finished.
@@ -103,7 +104,6 @@ export function HomeView() {
 
   // `kamonFor` wraps its index, so 0 is a valid default for a user without one.
   const avatar = kamonFor(user?.avatar_index ?? 0);
-  const displayName = user?.display_name || user?.username || '';
 
   const openLookup = useCallback(
     (lookup: RecentLookup) => {
@@ -117,38 +117,36 @@ export function HomeView() {
   );
 
   return (
-    <View style={[styles.root, { backgroundColor: p.bg }]}>
+    <Screen edges={[]}>
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: insets.top, paddingBottom: dockClearance },
+          { paddingTop: insets.top + spacing.screenTop, paddingBottom: dockClearance },
         ]}
         showsVerticalScrollIndicator={false}
       >
         <HomeTopBar
+          brandName={t('home.brand')}
           avatarGlyph={avatar.char}
           daysStudied={activity.daysStudied}
-          studiedLabel={t('home.daysStudied')}
+          streakLabel={t('home.streak', { count: activity.daysStudied })}
           profileLabel={t('profile.title')}
           onProfilePress={() => router.push('/profile')}
         />
 
-        <HomeHero
-          greeting={displayName ? t('home.greeting', { name: displayName }) : null}
-          caption={t('home.greetingSub')}
-        />
-
         <View style={styles.stack}>
-          <SkyShortcut
-            caption={t('home.yourSky', { count: cardStats.total })}
-            accessibilityLabel={t('nav.sky')}
-            onPress={() => router.push('/sky')}
+          <DictionaryCard
+            placeholder={t('dict.search')}
+            searchLabel={t('home.searchLabel')}
+            recents={recents}
+            onOpenDictionary={() => router.push('/(tabs)/dictionary')}
+            onOpenLookup={openLookup}
           />
 
           {current && (
             <ContinueReadingCard
               book={current}
-              kicker={t('home.continueReading')}
+              progressLabel={t('home.progressRead', { pct: Math.round(current.progress) })}
               resumeLabel={t('home.resumeReading')}
               onResume={() => router.push(`/reader/${current.id}`)}
             />
@@ -158,33 +156,24 @@ export function HomeView() {
             total={counts.total}
             decks={dueDecks}
             countFor={countFor}
-            dueLabel={t('home.cardsDue')}
-            studyLabel={t('home.studyNow')}
+            dueTitle={t('home.cardsDueTitle', { count: counts.total })}
+            studyLabel={t('home.startReview')}
+            dueBadge={t('home.dueBadge', { count: counts.total })}
             onStudyAll={() => router.push('/sky/study')}
             onStudyDeck={(deckId) => router.push(`/sky/${deckId}/study`)}
           />
-
-          <DictionaryCard
-            title={t('nav.dictionary')}
-            viewAllLabel={t('home.viewAll')}
-            placeholder={t('dict.search')}
-            recents={recents}
-            onOpenDictionary={() => router.push('/(tabs)/dictionary')}
-            onOpenLookup={openLookup}
-          />
         </View>
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   // Both vertical paddings come from the call site: `paddingTop` clears the
   // notch and `paddingBottom` clears the floating dock, and neither is a
   // constant.
-  scroll: { paddingHorizontal: spacing.lg },
+  scroll: { paddingHorizontal: spacing.screenX },
   // One gap rule for the card stack, rather than a `marginTop` on each card —
   // that way a card that renders conditionally cannot leave a double gap.
-  stack: { marginTop: spacing.lg, gap: spacing.md + 2 },
+  stack: { marginTop: spacing.stackGap, gap: spacing.stackGap },
 });

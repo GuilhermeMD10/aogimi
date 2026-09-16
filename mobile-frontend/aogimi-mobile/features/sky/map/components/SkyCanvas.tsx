@@ -16,6 +16,10 @@ import { useDerivedValue } from 'react-native-reanimated';
 
 import { NO_FULCRAL } from '../lib/cluster';
 import {
+  LABEL_BAND,
+  LABEL_MIN_PX,
+  LABEL_WORLD_PX,
+  LABEL_ZOOM,
   LINK_GLOW_ALPHA,
   LINK_GLOW_PX,
   LINK_STRAND_ALPHA,
@@ -33,10 +37,11 @@ import { pickStar } from '../lib/picking';
 import type { DeckDraw, SkyFrame } from '../lib/tiers';
 import type { FocusPath, Point, Star } from '../lib/types';
 import type { SkyCameraController } from '../hooks/useSkyCamera';
+import { COMMIT_ZOOM_RATIO } from '../native/gestureConfig';
 
 import { SkyClouds } from './SkyClouds';
 import { type BeadPaints, beadPaints, glowPaints } from './SkyPaints';
-import { LABEL_FONT_SIZE, SkyStars } from './SkyStars';
+import { LABEL_FONT_SIZE, SkyStars, type StarLabelLive } from './SkyStars';
 import { SkyWash } from './SkyWash';
 
 /**
@@ -53,6 +58,15 @@ import { SkyWash } from './SkyWash';
  * update on the UI thread: no React render, no reconcile, no repaint of anything below. A pinch is the
  * same until the committed zoom drifts far enough that the LOD has to catch up — see
  * `COMMIT_ZOOM_RATIO` in `native/gestureConfig.ts`.
+ *
+ * **Text is sized off the live pose, not the committed one.** Everything else in the picture is
+ * built in world units from the committed camera and rides the matrix between commits — a star
+ * swells a few percent mid-pinch and snaps back, which at 3px is invisible. A 20px word doing the
+ * same is not: it read as the labels pulsing, and their fade-in stepped by a quarter at a time. So
+ * the label scales and the label fade below are derived values on the UI thread, the same place the
+ * camera lives: a word holds its screen size and fades continuously through the whole pinch. It is
+ * the web's per-wheel-event `fontSize={… * u}` / `labelOpAt(zoom)` behaviour, without the render.
+ * What React still decides is whether a label is *mounted* — see `labelsMounted`.
  *
  * ── The gesture tree ────────────────────────────────────────────────────────────────────────────
  * Pan, pinch and double-tap are built by the camera hook and run entirely in worklets. This component
@@ -98,15 +112,14 @@ type DeckLayerProps = {
   dimmed: boolean;
   relZoom: number;
   relZoomMax: number;
-  /** The camera's absolute zoom, which walks a focused deck's stars down to a point as the camera
-   *  pulls back (see `starZoomSize`). A primitive, so the memo above survives it. */
-  zoom: number;
   u: number;
   /** Selected star id, gated to this deck by the parent — a primitive, so the memo survives it. */
   selected: number | null;
-  /** Front-label strength, already zeroed by the parent for every deck but the focused one. */
-  labelOp: number;
+  /** Whether front labels are mounted, already false for every deck but the focused one. */
+  labelled: boolean;
   font: SkFont | null;
+  /** The star labels' live scale and fade — see `SkyStars`. Reference-stable, so the memo survives it. */
+  labels: StarLabelLive;
 };
 
 /**
@@ -123,11 +136,11 @@ const DeckLayer = memo(function DeckLayer({
   dimmed,
   relZoom,
   relZoomMax,
-  zoom,
   u,
   selected,
-  labelOp,
+  labelled,
   font,
+  labels,
 }: DeckLayerProps) {
   /**
    * Each visible link resolved to how it is painted — three cases, exactly as before: same-rank
@@ -240,13 +253,13 @@ const DeckLayer = memo(function DeckLayer({
             focused
             relZoom={relZoom}
             relZoomMax={relZoomMax}
-            zoom={zoom}
             u={u}
             // No ring and no labels in the preview: it exists below the label zoom by construction,
             // and the selected star may not be among its survivors.
             selected={null}
-            labelOp={0}
+            labelled={false}
             font={null}
+            labels={labels}
           />
         </Group>
       )}
@@ -263,11 +276,11 @@ const DeckLayer = memo(function DeckLayer({
           vivid={deck.vivid}
           relZoom={relZoom}
           relZoomMax={relZoomMax}
-          zoom={zoom}
           u={u}
           selected={selected}
-          labelOp={labelOp}
+          labelled={labelled}
           font={font}
+          labels={labels}
         />
       </Group>
     </Group>
@@ -316,7 +329,10 @@ export function SkyCanvas({
   onStarClick,
   onMiss,
 }: Props) {
-  const { camX, camY, camZoom, view, viewport, relZoom, relZoomMax, panZoomGesture, toWorldLive, onLayout, measured } = cam;
+  const {
+    camX, camY, camZoom, liveWorldPerPx, view, viewport, relZoom, relZoomMax,
+    panZoomGesture, toWorldLive, onLayout, measured,
+  } = cam;
 
   // Nothing is drawn until the view has been measured. The first render runs against the camera's
   // fallback viewport, and painting the sky at that scale for one frame is a flicker in its own right —
@@ -325,11 +341,11 @@ export function SkyCanvas({
   const u = view.worldPerPx;
   const focusedDid = focus.length ? focus[0] : null;
   const focusedDeck = frame.decks.find((d) => d.focused) ?? null;
-  // Both are functions of zoom alone, like the layer crossfade — they land on the same commit as
-  // the LOD. `camZoomNow` rather than `camZoom`: that name is already the animated shared value
-  // driving the transform below, and this is the committed number the size ramp reads.
-  const camZoomNow = cam.camera.zoom;
-  const labelOp = labelOpAt(cam.camera.zoom);
+  // Whether the focused deck's labels exist. The fade itself is live (`starLabelOp` below), so this only
+  // has to be true before the live zoom can have faded anything in — and between commits the live
+  // zoom sits within one COMMIT_ZOOM_RATIO of the committed one, so the gate is read that far ahead.
+  // Without the lookahead a label would mount at the next commit already a quarter faded in.
+  const labelsMounted = labelOpAt(cam.camera.zoom * COMMIT_ZOOM_RATIO) > 0;
 
   // Per palette, not per commit: nothing camera-derived reaches either of them.
   const glow = useMemo(() => glowPaints(palette.ranks), [palette]);
@@ -341,6 +357,34 @@ export function SkyCanvas({
   const transform = useDerivedValue(() =>
     worldTransform(viewport.width, viewport.height, camX.value, camY.value, camZoom.value),
   );
+
+  /**
+   * The text's live values — see the header. Each restates a lib function to the letter, because a
+   * worklet cannot call into the lib (the same reason `native/cameraWorklet.ts` mirrors the clamp
+   * rather than importing it):
+   *
+   *   star scale   `labelWorldSize`: max(LABEL_WORLD_PX, LABEL_MIN_PX / zoom) / LABEL_FONT_SIZE —
+   *                the floor holds a readable word where labels appear, the slope grows 1:1 with
+   *                the camera
+   *   star fade    `labelOpAt`: 0 at LABEL_HIDE_ZOOM, 1 at LABEL_ZOOM, log space
+   *   deck names   1 / zoom — a fixed screen size at the chooser and through the flight in or out
+   */
+  const starLabelScale = useDerivedValue<Transforms3d>(() => {
+    const g = Math.max(LABEL_WORLD_PX, LABEL_MIN_PX / camZoom.value) / LABEL_FONT_SIZE;
+    return [{ scaleX: g }, { scaleY: g }];
+  });
+  const starLabelOp = useDerivedValue(() => {
+    const t = Math.log(camZoom.value / LABEL_ZOOM) / Math.log(LABEL_BAND) + 1;
+    return t < 0 ? 0 : t > 1 ? 1 : t;
+  });
+  const starLabels = useMemo<StarLabelLive>(
+    () => ({ scale: starLabelScale, op: starLabelOp }),
+    [starLabelScale, starLabelOp],
+  );
+  const deckLabelScale = useDerivedValue<Transforms3d>(() => [
+    { scaleX: liveWorldPerPx.value },
+    { scaleY: liveWorldPerPx.value },
+  ]);
 
   /**
    * A tap means different things at different tiers, and that is the whole interaction: at the outer
@@ -388,25 +432,25 @@ export function SkyCanvas({
   }, [panZoomGesture, handleTap]);
 
   /** The outer tier's deck names, beneath each constellation. `framed={false}`'s half of the layout's
-   *  two modes; the card frames come with the overlay pass. */
+   *  two modes; the card frames come with the overlay pass. Per layout, not per commit: the anchor
+   *  is the cell's centre in world units and the centring offset is in design px inside the scaled
+   *  group, so nothing here depends on the camera. */
   const deckLabels = useMemo(() => {
     if (focusedDid !== null || !font) return [];
-    const out: { did: number; name: string; x: number; y: number }[] = [];
+    const out: { did: number; name: string; x: number; y: number; halfWidth: number }[] = [];
     for (const [did, place] of layout.places) {
       const name = names.get(did);
       if (!name) continue;
-      const width = font.measureText(name).width;
       out.push({
         did,
         name,
-        // Centred under the deck's own cell, in world units — the font is scaled by `u` below, so the
-        // measured width is in design px and has to be converted the same way.
-        x: (place.frame.minX + place.frame.maxX) / 2 - (width * u) / 2,
+        x: (place.frame.minX + place.frame.maxX) / 2,
         y: place.frame.maxY,
+        halfWidth: font.measureText(name).width / 2,
       });
     }
     return out;
-  }, [focusedDid, font, layout, names, u]);
+  }, [focusedDid, font, layout, names]);
 
   return (
     /* Fills whatever box the host gives it — the camera works off `onLayout`, so the only requirement
@@ -432,22 +476,20 @@ export function SkyCanvas({
                   dimmed={focusedDid !== null && !deck.focused}
                   relZoom={relZoom}
                   relZoomMax={relZoomMax}
-                  zoom={camZoomNow}
                   u={u}
                   selected={deck.focused ? selected : null}
-                  labelOp={deck.focused ? labelOp : 0}
+                  labelled={deck.focused && labelsMounted}
                   font={font}
+                  labels={starLabels}
                 />
               ))}
 
             {!hidden &&
-              deckLabels.map(({ did, name, x, y }) => (
-                <Group
-                  key={did}
-                  opacity={0.7}
-                  transform={[{ translateX: x }, { translateY: y }, { scaleX: u }, { scaleY: u }]}
-                >
-                  <Text x={0} y={0} text={name} font={font} color={STAR_LABEL_COLOR} />
+              deckLabels.map(({ did, name, x, y, halfWidth }) => (
+                <Group key={did} opacity={0.7} transform={[{ translateX: x }, { translateY: y }]}>
+                  <Group transform={deckLabelScale}>
+                    <Text x={-halfWidth} y={0} text={name} font={font} color={STAR_LABEL_COLOR} />
+                  </Group>
                 </Group>
               ))}
           </Group>
