@@ -273,8 +273,8 @@ export function ReaderDock({
 }
 
 /**
- * The pane's wash: fill, hairline, specular rim and the live blur, as an
- * absolutely-positioned layer.
+ * The pane's wash: fill, a uniform hairline and the live blur, as an
+ * absolutely-positioned layer. No specular top edge — see `Glass`.
  *
  * A layer rather than styles on the parent, because the blur has to be clipped
  * to the rounded corners and clipping a parent on iOS also clips its own drop
@@ -292,7 +292,6 @@ function Wash({ chrome, radius: r }: { chrome: ReaderChrome; radius: number }) {
           backgroundColor: chrome.fill,
           borderWidth: 1,
           borderColor: chrome.bd,
-          borderTopColor: chrome.rim,
         },
       ]}
     >

@@ -63,8 +63,25 @@ export const CREDITS: CreditSection[] = [
     ],
   },
   {
+    // Every face the bundle ships, in the role order `theme/tokens.ts` states:
+    // Latin UI, Japanese, reader body. Switzer is redistributed as committed
+    // `.otf` files under `assets/fonts/`, so its licence applies to us the same
+    // way the Google-hosted ones do. Keep this list in sync with the `useFonts`
+    // call in `app/_layout.tsx` and with `theme/switzer.ts`.
     heading: 'Typography',
     entries: [
+      {
+        name: 'Switzer',
+        license: 'ITF Free Font License',
+        owner: 'Indian Type Foundry',
+        url: 'https://www.fontshare.com/fonts/switzer',
+      },
+      {
+        name: 'Noto Sans JP',
+        license: 'SIL Open Font License 1.1',
+        owner: 'Google',
+        url: 'https://fonts.google.com/noto/specimen/Noto+Sans+JP',
+      },
       {
         name: 'Lora',
         license: 'SIL Open Font License 1.1',

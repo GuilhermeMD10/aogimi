@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableBackdrop } from './Touchable';
 import { usePalette, useTheme } from '@/theme/ThemeContext';
 import { glassSheet } from '@/theme/glass';
-import { DECELERATE, SHEET_MS, SURFACE_MS } from '@/theme/motion';
+import { ACCELERATE, DECELERATE, SHEET_MS, SURFACE_MS } from '@/theme/motion';
 import { radius } from '@/theme/tokens';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 
@@ -38,7 +38,8 @@ const SWIPE_CLOSE_DISTANCE_RATIO = 0.3;  // fraction of sheet height
 
 /**
  * **The app's bottom sheet** — DESIGN.md's Tier 4 surface: radius 28 on the top
- * corners, a 40×4 grabber, and a scrim with an 8px blur behind it.
+ * corners, a 40×4 grabber, and a scrim with an 8px blur behind it. No edge of
+ * its own: see `styles.sheet`.
  *
  * ── It brings its own ground ───────────────────────────────────────────────
  * The fill is `glassSheet`, not `glassTier(4)`. Tier 4 is a *white tint* and a
@@ -54,10 +55,15 @@ const SWIPE_CLOSE_DISTANCE_RATIO = 0.3;  // fraction of sheet height
  * so the sheet stood still under the finger and then vanished — which reads as
  * a glitch rather than as a gesture.
  *
- * The **rise** is animated; the **dismissal is not**. Keeping the exit instant
- * is deliberate: several callers reset their form in the same handler that
- * hides the sheet (`FlashcardDrawer`), and an exit animation would play those
- * 260ms over a freshly-cleared form.
+ * ── It leaves the way it arrived ───────────────────────────────────────────
+ * The exit is the entrance played backwards — the same 260ms over `ACCELERATE`,
+ * the time-reverse of the rise's curve — and the `Modal` is held open until it
+ * finishes.
+ *
+ * The children are **frozen** for the length of it. Several callers reset their
+ * form in the same handler that hides the sheet (`FlashcardDrawer`), so the
+ * sheet leaves still showing what was in it rather than playing 260ms over a
+ * freshly-cleared form. That was the reason the exit used to be instant.
  */
 export function BottomSheet({
   visible,
@@ -79,25 +85,57 @@ export function BottomSheet({
   const rise = useRef(new Animated.Value(0)).current;
   const drag = useRef(new Animated.Value(0)).current;
 
+  // The `Modal` outlives `visible` by the length of the exit — a modal whose
+  // children unmount on the frame it is told to close has no exit to play.
+  const [mounted, setMounted] = useState(visible);
+  // Skips the exit on the initial closed render: every sheet in the app mounts
+  // hidden, and without this each one would run a 260ms animation from 0 to 0.
+  const opened = useRef(visible);
+
+  // The children as they stood while the sheet was open. See the header.
+  const frozen = useRef(children);
   useEffect(() => {
-    if (!visible) {
-      // Reset while hidden, so the next open starts from the bottom rather
-      // than from wherever the last drag left it.
-      rise.setValue(0);
+    if (visible) frozen.current = children;
+  });
+
+  useEffect(() => {
+    if (visible) {
+      opened.current = true;
+      setMounted(true);
+      // Reset on the way in, so an open starts from the bottom rather than
+      // from wherever the last drag left it.
       drag.setValue(0);
-      return;
+      if (reduceMotion) {
+        rise.setValue(1);
+        return;
+      }
+      const anim = Animated.timing(rise, {
+        toValue: 1,
+        duration: SHEET_MS,
+        easing: DECELERATE,
+        useNativeDriver: true,
+      });
+      anim.start();
+      return () => anim.stop();
     }
+
+    if (!opened.current) return;
     if (reduceMotion) {
-      rise.setValue(1);
+      rise.setValue(0);
+      setMounted(false);
       return;
     }
+    // `drag` is left where the finger put it: a swipe-dismiss then carries on
+    // downwards from there rather than snapping back to finish the trip.
     const anim = Animated.timing(rise, {
-      toValue: 1,
+      toValue: 0,
       duration: SHEET_MS,
-      easing: DECELERATE,
+      easing: ACCELERATE,
       useNativeDriver: true,
     });
-    anim.start();
+    anim.start(({ finished }) => {
+      if (finished) setMounted(false);
+    });
     return () => anim.stop();
   }, [visible, reduceMotion, rise, drag]);
 
@@ -141,12 +179,14 @@ export function BottomSheet({
   return (
     <Modal
       transparent
-      visible={visible}
+      visible={mounted}
       animationType="none"
       onRequestClose={onDismiss}
       statusBarTranslucent
     >
-      <View style={styles.root}>
+      {/* A leaving sheet is not a target: a tap would land on content that is
+          already on its way out and fire `onDismiss` a second time. */}
+      <View style={styles.root} pointerEvents={visible ? 'auto' : 'none'}>
         {/* The scrim — one value for every sheet and popover, and it fades in
             with the sheet so the page does not snap dark before it arrives. */}
         <Animated.View style={[styles.backdrop, { opacity: rise }]}>
@@ -168,9 +208,6 @@ export function BottomSheet({
             {
               height: sheetHeight,
               backgroundColor: g.fill,
-              borderTopColor: g.rim,
-              borderLeftColor: g.bd,
-              borderRightColor: g.bd,
               transform: [{ translateY }],
             },
             contentStyle,
@@ -186,7 +223,7 @@ export function BottomSheet({
             <View style={[styles.grabber, { backgroundColor: p.bdA }]} />
           </View>
           <SafeAreaView style={styles.content} edges={['bottom']}>
-            {children}
+            {visible ? children : frozen.current}
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -200,13 +237,11 @@ const styles = StyleSheet.create({
   sheet: {
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
-    // The specular rim along the top edge, exactly as `Glass` draws it: a
-    // brighter top border follows the 28pt curve where an absolutely-placed
-    // hairline would cut straight across it. The bottom edge is off-screen, so
-    // only three sides are drawn.
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
+    // No border and no specular rim. A sheet is the one surface that arrives
+    // already separated from what is under it — the scrim does that work — so
+    // the hairline `Glass` draws to lift a card off the canvas only outlines
+    // the sheet's edge here.
+    //
     // Clips the blur to the rounded corners. The sheet sits against a scrim
     // rather than needing to lift off a canvas, so it loses nothing by having
     // its own drop shadow clipped away.

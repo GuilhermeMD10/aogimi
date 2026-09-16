@@ -136,12 +136,21 @@ function useStyles(p: Palette) {
         fieldMultiline: { alignItems: 'flex-start', paddingVertical: spacing.sm },
 
         input: {
-          ...type.bodyMd,
+          // Spread field by field rather than `...type.bodyMd`, to leave the
+          // role's `lineHeight` behind. A single-line input has one line, and
+          // the extra leading is added *above* the glyphs rather than around
+          // them — so the ink sat low in the 44pt plate, visibly below the
+          // numbered circle beside it on an Add-card meaning row. `multiline`
+          // puts a line height back, where it is spacing between real lines.
+          fontFamily: type.bodyMd.fontFamily,
+          fontSize: type.bodyMd.fontSize,
+          fontWeight: type.bodyMd.fontWeight,
           color: p.ink,
           flex: 1,
           // RN gives an input its own vertical padding on Android; the plate
           // already supplies the height, so the input contributes none.
           padding: 0,
+          includeFontPadding: false,
         },
         inputJp: { fontFamily: type.titleReading.fontFamily },
         inputMultiline: { lineHeight: 24, textAlignVertical: 'top' },

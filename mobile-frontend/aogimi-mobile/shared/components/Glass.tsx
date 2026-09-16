@@ -12,13 +12,19 @@ import { radius as radii } from '@/theme/tokens';
  * See `theme/glass.ts` for what the four tiers mean and why only 3 and 4 mount
  * a live blur.
  *
- * ── The rim is the top border, not an inset line ───────────────────────────
- * DESIGN.md draws the specular hairline as `inset 0 1px 0`. RN has no inset
- * shadow, and an absolutely-positioned 1px line cuts straight across a 16px
- * rounded corner. Colouring the **top border edge** brighter than the other
- * three (`borderTopColor`) gives the same lit-from-above read and follows the
- * curve exactly. Day has no rim (DESIGN.md → Daybreak Glow → Glass), and its
- * token is zero-alpha, so the same code produces a uniform edge there.
+ * ── The edge is uniform, and that is deliberate ────────────────────────────
+ * This used to colour the **top** border brighter than the other three
+ * (`borderTopColor: g.rim`) to stand in for DESIGN.md's `inset 0 1px 0`, which
+ * RN cannot draw. It was not the same mark: an inset highlight sits inside the
+ * pane and falls off, while a border edge is a hard 1px line at full strength
+ * that the radius carries around both top corners — a flare across the top of
+ * every card and button rather than light catching an edge. See `RIM` in
+ * `theme/glass.ts`.
+ *
+ * All four sides now take `bd`. Note that zeroing the rim alone is **not** the
+ * fix: with `borderTopColor` still set, a zero-alpha rim leaves a pane with a
+ * hairline on three sides and a gap on the fourth, which reads as a broken
+ * component. The override has to go, not just its colour.
  *
  * ── `overflow: 'hidden'` only when there is a blur ─────────────────────────
  * Clipping is what keeps a `BlurView` inside the rounded corners, but on iOS it
@@ -78,7 +84,6 @@ export function Glass({
           backgroundColor: g.fill,
           borderWidth: 1,
           borderColor: g.bd,
-          borderTopColor: g.rim,
           borderRadius: radius,
         },
         shadow && shadowStyle,

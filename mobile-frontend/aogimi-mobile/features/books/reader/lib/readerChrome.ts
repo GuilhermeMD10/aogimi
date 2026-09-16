@@ -13,8 +13,8 @@ import { READER_THEMES, type ReaderTheme } from './readerStorage';
  * A Tier 3 pane — `rgba(255,255,255,0.12)` — is therefore invisible on a white
  * page and a Tier 3 pane on Day's palette is invisible on a dark one. Which
  * palette column the app is in tells you nothing: a reader can run the app in
- * Night and the page in Light. So the dock's wash, its hairline, its rim and
- * its ink all come from here, keyed on the **reader theme**, and the app
+ * Night and the page in Light. So the dock's wash, its hairline and its ink all
+ * come from here, keyed on the **reader theme**, and the app
  * palette supplies only the one thing DESIGN.md guarantees reads on all three
  * grounds: sakura fill with `#2A1A24` ink, for the dock's primary circle.
  *
@@ -31,9 +31,6 @@ export type ReaderChrome = {
   fillPressed: string;
   /** The 1px hairline. */
   bd: string;
-  /** The specular top edge. Transparent where the wash is already near-opaque
-   *  and has no light to catch. */
-  rim: string;
   /** Ink on the wash. Taken from the page's own foreground, so the dock's
    *  glyphs are the same colour as the text they float over. */
   ink: string;
@@ -59,7 +56,6 @@ export function readerChrome(theme: ReaderTheme): ReaderChrome {
       fill: 'rgba(255, 255, 255, 0.12)',
       fillPressed: 'rgba(255, 255, 255, 0.18)',
       bd: 'rgba(255, 255, 255, 0.14)',
-      rim: 'rgba(255, 255, 255, 0.22)',
       ink,
       inkMuted: 'rgba(255, 255, 255, 0.62)',
       blurTint: 'dark',
@@ -76,7 +72,6 @@ export function readerChrome(theme: ReaderTheme): ReaderChrome {
     fill: warm ? 'rgba(255, 252, 246, 0.88)' : 'rgba(255, 255, 255, 0.85)',
     fillPressed: warm ? 'rgba(255, 252, 246, 0.96)' : 'rgba(255, 255, 255, 0.95)',
     bd: warm ? 'rgba(59, 47, 47, 0.12)' : 'rgba(14, 19, 38, 0.08)',
-    rim: 'rgba(255, 255, 255, 0)',
     ink,
     inkMuted: warm ? 'rgba(59, 47, 47, 0.62)' : 'rgba(14, 19, 38, 0.55)',
     blurTint: 'light',
