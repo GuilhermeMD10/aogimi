@@ -1,13 +1,16 @@
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+
 import { BottomSheet } from '@/shared/components/BottomSheet';
 import { Button } from '@/shared/components/Button';
-import { useColors } from '@/theme/ThemeContext';
+import { TextField } from '@/shared/components/TextField';
+import { usePalette } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import { createDeckLocal } from '../lib/deckPush';
-import type { LocalDeck } from '../types';
+import { spacing, type, type Palette } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/providers/AuthContext';
+import { createDeckLocal } from '../lib/deckPush';
+import { MAX_DECK_DESCRIPTION, MAX_DECK_NAME } from '../lib/limits';
+import type { LocalDeck } from '../types';
 
 type Props = {
   visible: boolean;
@@ -15,9 +18,18 @@ type Props = {
   onCreated: (deck: LocalDeck) => void;
 };
 
+/**
+ * Create a deck. No handoff draws this sheet, so it keeps its layout — a name,
+ * an optional description, save — and takes the new material (D8).
+ *
+ * Local-first: the deck appears immediately under a client-side UUID and the
+ * background push inside `createDeckLocal` flips it to synced, or leaves it
+ * pending for the next sync.
+ */
 export function NewDeckSheet({ visible, onDismiss, onCreated }: Props) {
-  const c = useColors();
+  const p = usePalette();
   const t = useT();
+  const s = useStyles(p);
   const { user } = useAuth();
 
   const [name, setName] = useState('');
@@ -27,17 +39,19 @@ export function NewDeckSheet({ visible, onDismiss, onCreated }: Props) {
 
   const canSave = name.trim().length > 0 && !saving;
 
+  function reset() {
+    setName('');
+    setDescription('');
+    setError(null);
+  }
+
   async function handleSave() {
     if (!canSave || !user) return;
     setSaving(true);
     setError(null);
     try {
-      // Local-first: the deck appears immediately under a client-side
-      // UUID. The background push (inside createDeckLocal) flips it
-      // to 'synced' on success or leaves it 'pending' on failure.
       const deck = await createDeckLocal(user.id, name.trim(), description.trim());
-      setName('');
-      setDescription('');
+      reset();
       onCreated(deck);
       onDismiss();
     } catch (err) {
@@ -48,87 +62,54 @@ export function NewDeckSheet({ visible, onDismiss, onCreated }: Props) {
   }
 
   function handleDismiss() {
-    setName('');
-    setDescription('');
-    setError(null);
+    reset();
     onDismiss();
   }
 
   return (
     <BottomSheet visible={visible} onDismiss={handleDismiss} heightRatio={0.55}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.flex}
-      >
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: c.fg }]}>{t('decks.new')}</Text>
-        </View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.flex}>
+        <View style={s.host}>
+          <Text style={s.title}>{t('decks.new')}</Text>
 
-        <View style={styles.body}>
-          <Field label="Name">
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              style={[styles.input, { color: c.fg, backgroundColor: c.bgSunken, borderColor: c.border }]}
-              placeholder="Kokoro vocabulary"
-              placeholderTextColor={c.fgSubtle}
-            />
-          </Field>
+          <TextField
+            label={t('sky.deckName')}
+            value={name}
+            onChangeText={setName}
+            placeholder={t('sky.deckNamePlaceholder')}
+            japanese
+            maxLength={MAX_DECK_NAME}
+            editable={!saving}
+            returnKeyType="next"
+          />
+          <TextField
+            label={t('sky.deckDescription')}
+            value={description}
+            onChangeText={setDescription}
+            placeholder={t('sky.deckDescriptionPlaceholder')}
+            multiline
+            maxLength={MAX_DECK_DESCRIPTION}
+            editable={!saving}
+          />
 
-          <Field label="Description (optional)">
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              style={[styles.input, { color: c.fg, backgroundColor: c.bgSunken, borderColor: c.border, minHeight: 80 }]}
-              placeholder="Notes about this deck"
-              placeholderTextColor={c.fgSubtle}
-              multiline
-            />
-          </Field>
+          {error && <Text style={s.error}>{error}</Text>}
 
-          {error && <Text style={{ color: c.error, fontSize: fontSize.sm }}>{error}</Text>}
-        </View>
-
-        <View style={[styles.footer, { borderTopColor: c.border }]}>
-          <Button label={t('common.save')} onPress={handleSave} loading={saving} disabled={!canSave} full />
+          <Button label={t('common.save')} onPress={() => void handleSave()} loading={saving} disabled={!canSave} full />
         </View>
       </KeyboardAvoidingView>
     </BottomSheet>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  const c = useColors();
-  return (
-    <View style={{ gap: 6 }}>
-      <Text style={[styles.fieldLabel, { color: c.fgMuted }]}>{label}</Text>
-      {children}
-    </View>
+function useStyles(p: Palette) {
+  return useMemo(
+    () =>
+      StyleSheet.create({
+        flex: { flex: 1 },
+        host: { paddingHorizontal: spacing.screenX, gap: spacing.lg },
+        title: { ...type.headlineMd, color: p.ink },
+        error: { ...type.bodySm, color: p.danger },
+      }),
+    [p],
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  header: { paddingHorizontal: 22, paddingTop: 6, paddingBottom: 10 },
-  title: { fontSize: fontSize.lg, fontWeight: '600' },
-  body: { paddingHorizontal: 22, gap: spacing.md, flex: 1 },
-  fieldLabel: {
-    fontSize: fontSize.xs,
-    fontWeight: '500',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    paddingHorizontal: 2,
-  },
-  input: {
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: fontSize.md,
-    fontFamily: fontFamily.ui,
-  },
-  footer: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    padding: spacing.md,
-  },
-});

@@ -109,6 +109,39 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
 }
 
+/**
+ * **Pin a subtree to one theme**, whatever the user's preference resolves to.
+ *
+ * Built for the sky: stars need night, so `sky1..3` are dark in both columns
+ * and the star map has always been drawn on them — but until now every scrap of
+ * chrome floating over it had to restate its own ink (`nightChrome.ts`), because
+ * `usePalette()` kept answering with the Day column. Re-providing the context
+ * with the Night column means every primitive inside — `Glass`, `Button`,
+ * `BottomSheet`, `Header` — simply *is* Night there, and there is one ink ramp
+ * again.
+ *
+ * `preference` and `setPreference` pass through untouched: a settings control
+ * rendered inside a scope must still edit the real preference, not the pin.
+ * A `Modal` mounted inside the scope is still a React child, so a sheet raised
+ * from a pinned screen stays pinned with it.
+ */
+export function ThemeScope({ name, children }: { name: ThemeName; children: ReactNode }) {
+  const parent = useTheme();
+  const value = useMemo<ThemeContextValue>(() => {
+    const theme = THEMES[name];
+    return {
+      ...parent,
+      theme,
+      colors: theme.colors,
+      fonts: theme.fonts,
+      shape: theme.shape,
+      palette: PALETTES[name],
+      themeName: name,
+    };
+  }, [parent, name]);
+  return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
+}
+
 export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeCtx);
   if (!ctx) throw new Error('useTheme must be inside <ThemeProvider>');

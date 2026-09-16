@@ -335,5 +335,77 @@
     "wordPlaceholder": "言葉",
     "readingPlaceholder": "ことば",
     "meaningPlaceholder": "Meaning {n}"
+  },
+  "sky": {
+    "starsChip": "stars",
+    "sync": "Sync now",
+    "more": "Sky menu",
+    "deckMenu": "Deck menu",
+    "cardMenu": "Card menu",
+    "newDeck": "New deck",
+    "deckLimit": "Deck limit reached",
+    "continueStudying": "Continue Studying",
+    "dueBadge": "{count} DUE",
+    "studyDeck": "Study deck",
+    "list": "List",
+    "back": "Back to the whole sky",
+    "backToDeck": "Back to the deck",
+    "starsDue": "{stars} Stars · {due} Due",
+    "editDeck": "Edit deck",
+    "showStats": "Show stats",
+    "deleteDeck": "Delete deck",
+    "deckName": "Deck name",
+    "deckNamePlaceholder": "Kokoro vocabulary",
+    "deckDescription": "Description (optional)",
+    "deckDescriptionPlaceholder": "Notes about this deck",
+    "deleteCard": "Delete card",
+    "lookUp": "Dictionary",
+    "closeHint": "Tap anywhere outside to close",
+    "reviews": "{count} reviews",
+    "dueNow": "Due now",
+    "rank": {
+      "new": "New",
+      "met": "Met",
+      "learned": "Learned",
+      "mastered": "Mastered"
+    },
+    "signedOut": {
+      "title": "Your sky needs an account",
+      "body": "Every card you save becomes a star, placed by a seed the server issues once and never changes — so the same sky follows you to every device. Sign in to see yours.",
+      "cta": "Go to Profile",
+      "saved": "{count} decks are saved on this device and will be waiting."
+    },
+    "empty": "Your sky is empty — save words from the reader and each one becomes a star.",
+    "loadError": "Couldn’t load your sky — {error}",
+    "confirm": {
+      "deleteDeckTitle": "Delete “{name}”?",
+      "deleteDeckBody": "This deletes the deck and its {count} cards — its constellation leaves your sky. There is no undo.",
+      "deleteCardTitle": "Delete “{front}”?",
+      "deleteCardBody": "This removes the card and its star. There is no undo."
+    },
+    "stats": {
+      "title": "Deck stats",
+      "close": "Close",
+      "retention": "Retention",
+      "retentionMeta": "recent reviews",
+      "avgInterval": "Avg interval",
+      "hours": "hrs",
+      "days": "days",
+      "distribution": "Mastery distribution",
+      "total": "{count} total",
+      "activity": "7-day activity",
+      "activityMeta": "All decks",
+      "activityUnavailable": "Activity needs a connection."
+    },
+    "cards": {
+      "search": "Search cards, kanji, or meaning…",
+      "clear": "Clear search",
+      "all": "All",
+      "due": "Due",
+      "empty": "No cards yet.",
+      "noMatches": "No cards match.",
+      "notFound": "Deck not found",
+      "moreSoon": "More actions (coming soon)"
+    }
   }
 }

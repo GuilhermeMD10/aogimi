@@ -335,5 +335,77 @@
     "wordPlaceholder": "言葉",
     "readingPlaceholder": "ことば",
     "meaningPlaceholder": "Significado {n}"
+  },
+  "sky": {
+    "starsChip": "estrelas",
+    "sync": "Sincronizar agora",
+    "more": "Menu do céu",
+    "deckMenu": "Menu do baralho",
+    "cardMenu": "Menu do cartão",
+    "newDeck": "Novo baralho",
+    "deckLimit": "Limite de baralhos atingido",
+    "continueStudying": "Continuar a estudar",
+    "dueBadge": "{count} A REVER",
+    "studyDeck": "Estudar baralho",
+    "list": "Lista",
+    "back": "Voltar ao céu inteiro",
+    "backToDeck": "Voltar ao baralho",
+    "starsDue": "{stars} Estrelas · {due} A rever",
+    "editDeck": "Editar baralho",
+    "showStats": "Ver estatísticas",
+    "deleteDeck": "Eliminar baralho",
+    "deckName": "Nome do baralho",
+    "deckNamePlaceholder": "Vocabulário de Kokoro",
+    "deckDescription": "Descrição (opcional)",
+    "deckDescriptionPlaceholder": "Notas sobre este baralho",
+    "deleteCard": "Eliminar cartão",
+    "lookUp": "Dicionário",
+    "closeHint": "Toca fora para fechar",
+    "reviews": "{count} revisões",
+    "dueNow": "A rever",
+    "rank": {
+      "new": "Novo",
+      "met": "Visto",
+      "learned": "Aprendido",
+      "mastered": "Dominado"
+    },
+    "signedOut": {
+      "title": "O teu céu precisa de uma conta",
+      "body": "Cada cartão que guardas torna-se uma estrela, colocada por uma semente que o servidor emite uma vez e nunca muda — o mesmo céu segue-te em todos os dispositivos. Inicia sessão para ver o teu.",
+      "cta": "Ir para o perfil",
+      "saved": "{count} baralhos estão guardados neste dispositivo e ficarão à espera."
+    },
+    "empty": "O teu céu está vazio — guarda palavras no leitor e cada uma torna-se uma estrela.",
+    "loadError": "Não foi possível carregar o teu céu — {error}",
+    "confirm": {
+      "deleteDeckTitle": "Eliminar “{name}”?",
+      "deleteDeckBody": "Isto elimina o baralho e os seus {count} cartões — a constelação desaparece do teu céu. Não há como anular.",
+      "deleteCardTitle": "Eliminar “{front}”?",
+      "deleteCardBody": "Isto remove o cartão e a sua estrela. Não há como anular."
+    },
+    "stats": {
+      "title": "Estatísticas do baralho",
+      "close": "Fechar",
+      "retention": "Retenção",
+      "retentionMeta": "revisões recentes",
+      "avgInterval": "Intervalo médio",
+      "hours": "h",
+      "days": "dias",
+      "distribution": "Distribuição de domínio",
+      "total": "{count} no total",
+      "activity": "Atividade de 7 dias",
+      "activityMeta": "Todos os baralhos",
+      "activityUnavailable": "A atividade precisa de ligação."
+    },
+    "cards": {
+      "search": "Procurar cartões, kanji ou significado…",
+      "clear": "Limpar pesquisa",
+      "all": "Todos",
+      "due": "A rever",
+      "empty": "Ainda não há cartões.",
+      "noMatches": "Nenhum cartão corresponde.",
+      "notFound": "Baralho não encontrado",
+      "moreSoon": "Mais ações (em breve)"
+    }
   }
 }

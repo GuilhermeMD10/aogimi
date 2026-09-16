@@ -39,6 +39,7 @@ export function IconButton({
   loading = false,
   tone,
   style,
+  children,
 }: {
   /** One of the two built-in drawn glyphs. Mutually exclusive with `icon`. */
   glyph?: IconButtonGlyph;
@@ -46,8 +47,9 @@ export function IconButton({
   icon?: React.ComponentProps<typeof Feather>['name'];
   onPress: () => void;
   accessibilityLabel: string;
-  /** 44 in a header, 36 in the Sky top bar and the Library title row. */
-  size?: 44 | 36;
+  /** 44 in a header, 36 in the Sky top bar and the Library title row, 40 at
+   *  the end of a dictionary result row (DESIGN.md's "40px circle `+`"). */
+  size?: 44 | 40 | 36;
   tier?: GlassTier;
   /** Accent glass instead of the tier — an active or focused circle. */
   accent?: boolean;
@@ -58,12 +60,17 @@ export function IconButton({
   /** Override the glyph's ink. Defaults to `ink`, or `accent` on accent glass. */
   tone?: string;
   style?: StyleProp<ViewStyle>;
+  /** A drawn glyph of the caller's own — an SVG the icon set does not carry
+   *  (the library's cloud-sync mark). Used only when neither `glyph` nor `icon`
+   *  is given; the caller sizes and colours it. */
+  children?: React.ReactNode;
 }) {
   const p = usePalette();
   const ink = tone ?? (accent ? p.accent : p.ink);
   // 20pt glyph in the 44pt circle, 18pt in the 36pt one — DESIGN.md's figures,
-  // and the ratio that keeps the glyph from crowding the smaller circle.
-  const glyphSize = size === 44 ? 20 : 18;
+  // and the ratio that keeps the glyph from crowding the smaller circle. The
+  // 40pt add circle draws its `+` at 16, as the dictionary compositions do.
+  const glyphSize = size === 44 ? 20 : size === 40 ? 16 : 18;
   const box = useMemo(
     () => ({ width: size, height: size, borderRadius: size / 2 }),
     [size],
@@ -78,11 +85,11 @@ export function IconButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: isDisabled }}
-      // The circle is already at or above the 44pt floor at both sizes once the
-      // 36pt variant's `hitSlop` is counted, and letting the floor apply would
-      // turn the smaller one into a 44pt square.
+      // The circle is already at or above the 44pt floor at every size once
+      // the smaller variants' `hitSlop` is counted, and letting the floor apply
+      // would turn them into 44pt squares.
       minTarget={false}
-      hitSlop={size === 44 ? 0 : 4}
+      hitSlop={(44 - size) / 2}
       style={[box, isDisabled && styles.disabled, style]}
     >
       <Glass
@@ -100,7 +107,9 @@ export function IconButton({
           <MoreDotsIcon color={ink} />
         ) : icon ? (
           <Feather name={icon} size={glyphSize} color={ink} />
-        ) : null}
+        ) : (
+          children ?? null
+        )}
       </View>
     </Touchable>
   );
