@@ -6,7 +6,7 @@ import { interpolateColor } from 'react-native-reanimated';
  *
  * ── The shape ────────────────────────────────────────────────────────────────
  * There is no bar. Four independent marks sit in a row, each a circle of
- * frosted glass and nothing else — no border, no rail joining them:
+ * frosted glass and nothing else — no rail joining them:
  *
  *   · the **current** route, a full circle with the `active` fill over its
  *     glass and its glyph on top;
@@ -16,11 +16,13 @@ import { interpolateColor } from 'react-native-reanimated';
  *     a route is a position, not a destination, and a glyph that small says
  *     less than the dot does.
  *
- * The three sizes differ, so the row is a cluster rather than one regular form
- * running end to end.
+ * The gaps recede the same way the marks do — widest either side of the
+ * current route, tighter every step out — so the row falls away from its
+ * centre instead of marching off it.
  *
- * Open, every route becomes the same filled circle — the one moment the four
- * do line up, because that state is a menu rather than an indicator.
+ * Open, every route becomes the same filled circle at the same gap — the one
+ * moment the four do line up, because that state is a menu rather than an
+ * indicator.
  *
  * `layout()` returns all the geometry for one (current, open) pair;
  * `lerpLayout()` blends two of them, so every state change is a single `t`
@@ -33,19 +35,25 @@ export const SIZES = {
   /** the glyph inside it */
   icon: 26,
   /** diameter of the circle immediately either side of the current route */
-  adjacent: 30,
+  adjacent: 33,
   /** its glyph — half its circle, so it reads as a hint rather than a button */
-  adjacentIcon: 15,
+  adjacentIcon: 16.5,
   /** diameter of the first route with no glyph at all */
   dot: 12,
   /** diameter lost per step beyond that one */
   shrink: 3,
-  gap: 16,
+  /** beside the current route: the widest gap, and the only one open */
+  gap: 12,
+  /** taken off each gap further out … */
+  gapShrink: 2,
+  /** … down to this floor. The hit slop is cut from it, so neighbouring
+   *  targets meet without overlapping. */
+  gapMin: 6,
   /** room around the outermost marks, so their shadows are not cut short */
   padding: 12,
   /** gap between the dock and the bottom edge, before the safe-area inset */
-  bottom: 32,
-  /** a route that is not current recedes slightly */
+  bottom:0,
+  /** how much of itself a route that is not current shows */
   restOpacity: 0.75,
 } as const;
 
@@ -53,16 +61,15 @@ export const SIZES = {
 export const DOCK_HEIGHT = SIZES.item + SIZES.padding * 2;
 
 /** The fills `layout()` bakes into a frame, so `lerpLayout()` can blend them.
- *  Resolved from the palette by the dock, not here. */
+ *  Resolved from the palette by `dockMaterial`, not here. */
 export type DockColors = {
   /** the current route's circle */
   active: string;
   /** a circle that is only a circle because the dock is open */
-  expanded: string;
-  /** a route at rest — fully transparent, and the same hue as `expanded` so
-   *  the blend between them moves alpha rather than passing through a colour
-   *  neither state has. */
-  rest: string;
+  tile: string;
+  /** a route at rest — `tile` at zero alpha, so the blend between the two
+   *  moves alpha alone rather than passing through a colour neither has. */
+  clear: string;
 };
 
 export type DockItemFrame = {
@@ -72,10 +79,12 @@ export type DockItemFrame = {
   size: number;
   /** the glyph's rendered size — 0 for a dot, which has none */
   glyph: number;
-  opacity: number;
-  /** 1 when the circle is painted over its glass, 0 when it is bare glass.
-   *  Drives which of the two shadows is doing the work — see `DockItem`. */
-  fill: number;
+  /** How much of itself the mark is showing: 1 for the current route, less at
+   *  rest. Multiplied into the material's alphas and the glyph — never set as
+   *  `opacity` on the mark, which would put the blur under a translucent
+   *  ancestor and switch it off. See `DockItem`. */
+  rest: number;
+  /** the tint painted over the glass */
   bg: string;
 };
 
@@ -97,6 +106,15 @@ const mix = (a: number, b: number, t: number): number => {
 function stepsOut(index: number, current: number): number {
   'worklet';
   return Math.max(0, Math.abs(index - current) - 1);
+}
+
+/** The gap between `index` and the next, measured by whichever of the two sits
+ *  further out. Open, the row is a menu of peers: one gap for all. */
+function gapAfter(index: number, current: number, open: boolean): number {
+  'worklet';
+  if (open) return SIZES.gap;
+  const out = Math.max(Math.abs(index - current), Math.abs(index + 1 - current));
+  return Math.max(SIZES.gapMin, SIZES.gap - (out - 1) * SIZES.gapShrink);
 }
 
 /**
@@ -137,14 +155,15 @@ export function layout(
       x,
       size,
       glyph,
-      opacity: filled ? 1 : SIZES.restOpacity,
-      fill: filled ? 1 : 0,
-      bg: filled ? (i === current ? colors.active : colors.expanded) : colors.rest,
+      rest: filled ? 1 : SIZES.restOpacity,
+      bg: filled ? (i === current ? colors.active : colors.tile) : colors.clear,
     });
-    x += size + SIZES.gap;
+
+    x += size;
+    if (i < count - 1) x += gapAfter(i, current, open);
   }
 
-  const width = x - SIZES.gap + SIZES.padding;
+  const width = x + SIZES.padding;
   const centre = items[current].x + items[current].size / 2;
 
   return {
@@ -169,8 +188,7 @@ export function lerpLayout(a: DockFrame, b: DockFrame, t: number): DockFrame {
         x: mix(from.x, to.x, t),
         size: mix(from.size, to.size, t),
         glyph: mix(from.glyph, to.glyph, t),
-        opacity: mix(from.opacity, to.opacity, t),
-        fill: mix(from.fill, to.fill, t),
+        rest: mix(from.rest, to.rest, t),
         bg: interpolateColor(t, [0, 1], [from.bg, to.bg]),
       };
     }),

@@ -8,10 +8,11 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { usePalette } from '@/theme/ThemeContext';
+import { usePalette, useTheme } from '@/theme/ThemeContext';
 import { impactFeedback } from '@/lib/haptics';
 import { DockItem, type FeatherName } from './DockItem';
-import { type DockColors, layout, lerpLayout, nearestIndex } from './dockGeometry';
+import { layout, lerpLayout, nearestIndex } from './dockGeometry';
+import { dockMaterial } from './dockMaterial';
 
 /**
  * The dock's bar — every pixel of it, and every gesture, with no idea that a
@@ -50,11 +51,11 @@ import { type DockColors, layout, lerpLayout, nearestIndex } from './dockGeometr
  * `frame`, on the UI thread.
  *
  * ── Material ─────────────────────────────────────────────────────────────────
- * Nothing is drawn but the routes themselves. There is no bar, no panel and no
- * border: the current route is an `active` circle with `activeInk` in it, an
- * open non-current one is `paperTile` with `muted`, and a resting one is
- * `muted` glyph over nothing at all. What separates any of them from the screen
- * is the soft shadow each casts for itself — see `DockItem`.
+ * Nothing is drawn but the routes themselves. There is no bar and no panel:
+ * each mark is its own disc of glass (`dockMaterial`), the current route
+ * painted `active` with `activeInk` in it, an open non-current one a tile with
+ * `muted`, and a resting one bare glass with `ink` on it. Three inks, three
+ * situations; the material itself is one sheet — see `DockItem`.
  */
 
 export type DockSlot = {
@@ -96,13 +97,6 @@ const SLIDE_START = 6;
  *  rather than `theme/motion`'s `DECELERATE`, which is RN's and cannot run as a
  *  worklet — same bezier. */
 const EASING = Easing.bezier(0.4, 0, 0.2, 1);
-/** The same colour at zero alpha. A resting route has no fill, and blending it
- *  to one has to move alpha alone — interpolating from a named `transparent`
- *  drags the mid-frames through black. */
-function fade(hex: string): string {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, 0)`;
-}
 
 export function DockBar({
   slots,
@@ -126,10 +120,9 @@ export function DockBar({
   haptics?: DockHaptics;
 }) {
   const p = usePalette();
-  const colors = useMemo<DockColors>(
-    () => ({ active: p.active, expanded: p.paperTile, rest: fade(p.paperTile) }),
-    [p],
-  );
+  const { themeName } = useTheme();
+  const material = useMemo(() => dockMaterial(p, themeName === 'night'), [p, themeName]);
+  const { colors } = material;
 
   const count = slots.length;
   const [hover, setHover] = useState<number | null>(null);
@@ -240,9 +233,16 @@ export function DockBar({
               key={index}
               index={index}
               frame={frame}
+              material={material}
               icon={slot.icon}
               label={slot.label}
-              ink={index === shown ? p.activeInk : p.muted}
+              ink={
+                index === shown
+                  ? material.ink.active
+                  : !open && Math.abs(index - shown) === 1
+                    ? material.ink.glass
+                    : material.ink.muted
+              }
               isCurrent={index === shown}
               onPressIn={haptics.press}
               onPress={() => press(index)}
