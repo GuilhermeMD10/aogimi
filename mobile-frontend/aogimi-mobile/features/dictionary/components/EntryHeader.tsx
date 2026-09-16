@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { JlptChip } from '@/shared/components/JlptChip';
 import { PitchAccentDiagram } from '@/shared/components/PitchAccentDiagram';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
+import { radius, spacing, type, type Palette } from '@/theme/tokens';
 import type { WordResult } from '../types';
 import { preferredHeadword } from '../lib/headword';
 import { posLabel } from '../lib/posLabel';
@@ -84,56 +84,39 @@ function useStyles(p: Palette) {
   return useMemo(
     () =>
       StyleSheet.create({
-        // 54px sits above the `fontSize` scale's `hero` (42) and is used only
-        // here — the entry's headword is the largest type in the app.
-        headword: {
-          fontFamily: fontFamily.jp,
-          fontSize: 54,
-          lineHeight: 58,
-          color: p.ink,
-        },
-        headwordCompact: { fontSize: 38, lineHeight: 44 },
-        reading: {
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.sm,
-          color: p.muted,
-          marginTop: spacing.sm + 1,
-        },
-        readingCompact: { fontSize: fontSize.xs + 1, marginTop: spacing.xs },
+        /** The largest type in the app — DESIGN.md's display kanji, and its
+         *  phone size in the sheet. */
+        headword: { ...type.displayKanji, color: p.ink },
+        headwordCompact: { ...type.displayKanjiMobile },
+        reading: { ...type.titleReading, color: p.muted, marginTop: spacing.xs },
+        readingCompact: { fontSize: 14, lineHeight: 20 },
         pitch: { marginTop: spacing.sm },
 
         chips: {
           flexDirection: 'row',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 7,
+          gap: 6,
           marginTop: spacing.md,
         },
-        // The kanji-grade chip is the one chip carrying a glyph, so it is a
-        // small square-cornered tile rather than a pill — a pill around a
-        // 13px character reads as a button.
+        /** The kanji-grade chip is the one tag carrying a glyph — `MetaChip`'s
+         *  tile with the character set beside its label. */
         gradeChip: {
           flexDirection: 'row',
           alignItems: 'center',
-          gap: 5,
-          paddingHorizontal: 9,
-          paddingVertical: 3,
-          borderRadius: radius.sm + 2,
-          borderWidth: 1,
-          borderColor: p.paperBd,
-          backgroundColor: p.paper,
+          gap: spacing.xs,
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+          borderRadius: radius.chip,
+          backgroundColor: p.glassStandard,
         },
         gradeGlyph: {
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.sm,
+          fontFamily: type.titleReading.fontFamily,
+          fontSize: 12,
+          lineHeight: 14,
           color: p.ink,
         },
-        gradeLabel: {
-          fontFamily: fontFamily.mono,
-          fontSize: fontSize.xs - 2,
-          letterSpacing: 0.5,
-          color: p.muted,
-        },
+        gradeLabel: { ...type.eyebrow, letterSpacing: 0.6, color: p.faint },
       }),
     [p],
   );

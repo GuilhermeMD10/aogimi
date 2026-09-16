@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
-import { BackButton } from '@/shared/components/BackButton';
+import { IconButton } from '@/shared/components/IconButton';
 import { Screen } from '@/shared/components/Screen';
 import { useDockClearance } from '@/features/app-shell/Dock';
 import { FlashcardDrawer, type FlashcardPrefill } from '@/features/sky/stage/components/FlashcardDrawer';
@@ -13,6 +13,7 @@ import { useDictionaryNav } from '../hooks/useDictionaryNav';
 import { useDictionarySearch } from '../hooks/useDictionarySearch';
 import { useSearchKeyboard } from '../hooks/useSearchKeyboard';
 import { kanjiCardDraft, wordCardDraft } from '../lib/cardDraft';
+import { fetchWordDetails } from '../lib/dictApi';
 import { getRecentLookups, pushRecentLookup, type RecentLookup } from '../lib/dictionaryStorage';
 import { SearchField } from '../components/SearchField';
 import { SearchPane } from '../components/SearchPane';
@@ -21,19 +22,24 @@ import { EntryPane } from '../components/EntryPane';
 /**
  * The dictionary tab.
  *
- * **A page and three panes.** This file is the page: the back control, the one
- * search bar, the frame stack, and the data the panes render. Every pixel below
- * the bar belongs to a pane — `SearchPane` for a search frame, `EntryPane` for
- * an entry, a spinner for the moment between them — and each pane is a
- * component in `../components` reading `usePalette()` with a memoised style
- * factory.
+ * **A page and three panes.** This file is the page: the pinned bar, the frame
+ * stack, and the data the panes render. Every pixel below the bar belongs to a
+ * pane — `SearchPane` for a search frame, `EntryPane` for an entry, a spinner
+ * for the moment between them — and each pane is a component in `../components`
+ * reading `usePalette()` with a memoised style factory.
  *
- * ── One bar, above everything ───────────────────────────────────────────────
- * The field is **outside the frame switch**, so it is the same mounted input in
- * every state: it does not move, re-mount, or lose focus when a result opens,
- * and there is always somewhere to type. It shows the query that led to
- * whatever is on screen — on an entry, that is the search below it — and typing
- * unwinds back to those results. `useDictionaryNav` holds that rule.
+ * ── The bar: a field on search frames, a chevron on the rest ───────────────
+ * On a **search** frame the bar is the search field, with the back circle
+ * beside it once a kanji has been drilled into. On an **entry** the field is
+ * gone — the page is the word, and the way back to the results is the
+ * chevron. `useDictionaryNav` still addresses the nearest search frame's
+ * query, so the field comes back showing what led here, and editing it from
+ * a drilled search still unwinds the frames above.
+ *
+ * The field stays outside `SearchPane` so that it does not move or re-mount as
+ * the pane swaps between the hero and results while the user types. Every
+ * path that leaves a search frame calls `dismiss()` first (see
+ * `useSearchKeyboard`), so the field is blurred before it unmounts.
  *
  * ── Why a stack, not three flat states ──────────────────────────────────────
  * The tab is a **frame stack** (`useDictionaryNav`): tapping a kanji inside an
@@ -120,13 +126,23 @@ export function DictionaryView() {
     [openDetail, dismiss],
   );
 
-  // Adding from a result row needs no round trip: `wordCardDraft` takes the
-  // `WordResult` the list already holds. Only the entry's own button has
-  // example sentences to pass, which is the one thing a row cannot supply.
+  // A row holds a `WordResult`, and example sentences hang off the *entry*, so
+  // the add circle resolves the entry before it builds the draft. Without that
+  // step a card added from the results list saved with no context sentence
+  // while the same word added from its entry saved with one — the sentence is
+  // the one part of a card the user never types, so losing it is silent.
+  //
+  // Not the round trip it reads as: the dictionary is bundled SQLite behind an
+  // LRU cache (`lib/dictApi`), and it is the same read tapping the row itself
+  // would do — usually already cached by the time the circle is pressed.
   const addWord = useCallback(
-    (word: WordResult) => {
+    async (word: WordResult) => {
       dismiss();
-      setPrefill(wordCardDraft(word, query));
+      // A lookup that fails still opens the drawer, just without the context.
+      // The user asked for a card; the sentence is a bonus the entry happened
+      // to carry, not the reason they tapped.
+      const details = await fetchWordDetails(word.id).catch(() => null);
+      setPrefill(wordCardDraft(word, query, details?.sentences));
     },
     [query, dismiss],
   );
@@ -158,25 +174,27 @@ export function DictionaryView() {
 
   return (
     <Screen padded>
-      {/* Pinned above every frame: the chevron out of a drilled-into frame and
-          the one search field. Outside the switch below, so no state change can
-          move either of them. */}
       <View style={styles.pinned}>
-        {canGoBack && (
-          <BackButton
-            label={current.kind === 'detail' ? t('dict.backToResults') : t('dict.back')}
-            onPress={goBack}
-          />
+        {current.kind === 'search' ? (
+          <View style={styles.bar}>
+            {canGoBack && (
+              <IconButton glyph="back" onPress={goBack} accessibilityLabel={t('dict.back')} />
+            )}
+            <SearchField
+              value={query}
+              ref={inputRef}
+              onChangeText={setQuery}
+              placeholder={t('dict.fieldPlaceholder')}
+              onSubmit={dismiss}
+              clearLabel={t('dict.clearSearch')}
+              style={styles.field}
+            />
+          </View>
+        ) : (
+          // An entry, or the moment before one: no search bar, just the way
+          // back to the results that produced it.
+          <IconButton glyph="back" onPress={goBack} accessibilityLabel={t('dict.backToResults')} />
         )}
-        <SearchField
-          value={query}
-          ref={inputRef}
-          onChangeText={setQuery}
-          placeholder={t('dict.fieldPlaceholder')}
-          active={query.trim() !== ''}
-          onSubmit={dismiss}
-          clearLabel={t('dict.clearSearch')}
-        />
       </View>
 
       {current.kind === 'search' && (
@@ -189,10 +207,9 @@ export function DictionaryView() {
           recents={recents}
           detailError={detailError}
           bottomInset={dockClearance}
-          onPickSuggestion={setQuery}
           onOpenWord={(w) => void openWord(w.id, query)}
           onOpenRecent={(lookup) => void openWord(lookup.wordId, lookup.headword)}
-          onAddWord={addWord}
+          onAddWord={(w) => void addWord(w)}
           onAddKanji={addKanji}
           onOpenKanji={openKanji}
           onDismissKeyboard={dismiss}
@@ -225,8 +242,13 @@ export function DictionaryView() {
 }
 
 const styles = StyleSheet.create({
-  // The bar's own block. `paddingBottom` is the gap to whichever pane follows;
-  // the panes supply none of their own, so the bar's position is set here alone.
-  pinned: { paddingBottom: spacing.md },
+  // The bar's own block: DESIGN.md's 16pt below the status bar, and 12pt to
+  // whichever pane follows — the panes supply none of their own, so the bar's
+  // position is set here alone.
+  pinned: { paddingTop: spacing.screenTop, paddingBottom: spacing.md },
+  /** `[44 back] [12] [field]` — the header row's geometry with the field in
+   *  the title's place. */
+  bar: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  field: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

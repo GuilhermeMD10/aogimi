@@ -3,20 +3,20 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
 import { useT } from '@/lib/i18n/I18nContext';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
+import { spacing, type, type Palette } from '@/theme/tokens';
 import type { SearchState } from '../hooks/useDictionarySearch';
 import type { RecentLookup } from '../lib/dictionaryStorage';
 import { resultRows, totalResults } from '../lib/resultSections';
 import type { KanjiInfo, WordResult } from '../types';
 import { DictHero } from './DictHero';
 import { RecentLookupRow } from './RecentLookupRow';
+import { ResultsKicker } from './ResultsKicker';
 import { ResultsList } from './ResultsList';
 import { SectionHeading } from './SectionHeading';
-import { SuggestionChips } from './SuggestionChips';
 
 /**
- * The body of a **search** frame: hero and suggestions with nothing typed,
- * results once something is, recents underneath either way.
+ * The body of a **search** frame: the hero with nothing typed, results once
+ * something is, recents underneath either way.
  *
  * **The search field is not in here.** It belongs to the page — `DictionaryView`
  * pins one bar above whichever pane is showing, so it survives the swap to an
@@ -32,7 +32,6 @@ export function SearchPane({
   recents,
   detailError,
   bottomInset,
-  onPickSuggestion,
   onOpenWord,
   onOpenRecent,
   onAddWord,
@@ -44,16 +43,15 @@ export function SearchPane({
   state: SearchState;
   /** Fetch the next page of results. */
   onLoadMore: () => void;
-  /** Draw the "More results" button — there is at least one more match. */
+  /** Draw the "More results" line — there is at least one more match. */
   canLoadMore: boolean;
-  /** That fetch is in flight. The rows on screen stay; the button spins. */
+  /** That fetch is in flight. The rows on screen stay; the line spins. */
   loadingMore: boolean;
   recents: RecentLookup[];
   /** A failed entry load, reported above the list rather than over it. */
   detailError: string | null;
   /** Dock clearance — the pane scrolls under it. */
   bottomInset: number;
-  onPickSuggestion: (term: string) => void;
   onOpenWord: (word: WordResult) => void;
   onOpenRecent: (lookup: RecentLookup) => void;
   onAddWord: (word: WordResult) => void;
@@ -84,8 +82,7 @@ export function SearchPane({
       onScrollStart={onDismissKeyboard}
       header={
         // Tapping the header's empty space is one of the "outside" gestures
-        // that closes the keyboard; the chips and rows inside it still win
-        // their own taps.
+        // that closes the keyboard; the rows inside it still win their own taps.
         <PressableBackdrop onPress={onDismissKeyboard}>
           {!isSearching && (
             <DictHero
@@ -94,8 +91,6 @@ export function SearchPane({
               caption={t('dict.heroCaption')}
             />
           )}
-
-          {!isSearching && <SuggestionChips onPick={onPickSuggestion} />}
 
           {detailError !== null && <Text style={styles.error}>{detailError}</Text>}
 
@@ -106,21 +101,16 @@ export function SearchPane({
             <Text style={styles.error}>{state.message}</Text>
           )}
           {isSearching && state.kind === 'results' && total > 0 && (
-            <View style={styles.resultsHeading}>
-              <SectionHeading
+            <View style={styles.kicker}>
+              <ResultsKicker
                 label={t('dict.results')}
-                tone="accent"
-                trailing={
-                  <Text style={styles.count}>
-                    {/* "20+" while more pages exist: the count is what has been
-                        loaded, not what matches, and a bare "20" beside a
-                        "More results" button is a contradiction. */}
-                    {t('dict.resultsFor', {
-                      count: state.response.hasMore ? `${total}+` : total,
-                    })}{' '}
-                    <Text style={styles.countQuery}>「{query.trim()}」</Text>
-                  </Text>
-                }
+                // "20+" while more pages exist: the count is what has been
+                // loaded, not what matches, and a bare "20" above a "More
+                // results" line is a contradiction.
+                countLabel={t('dict.resultsFor', {
+                  count: state.response.hasMore ? `${total}+` : total,
+                })}
+                query={query.trim()}
               />
             </View>
           )}
@@ -158,16 +148,15 @@ export function SearchPane({
 }
 
 /**
- * The "More results" button that closes the list.
+ * The line that closes the list — `DictionaryResults.dc.html`'s `4 MORE`
+ * footer: a tracked mono label in `faint`, centred, with a 44pt target under
+ * it. The count of what remains is unknown (`hasMore` is a fact, not a
+ * number), so the label is the action rather than the figure.
  *
- * A button rather than infinite scroll on purpose: a dictionary result list is
+ * A press rather than infinite scroll on purpose: a dictionary result list is
  * something you *read*, and auto-loading moves the ground under a user who is
- * mid-way down comparing entries. It also keeps the paging explicit — you can
- * see that there is more, and choose.
- *
- * It keeps its place while `loading`, showing a spinner instead of the label,
- * because the list below it does not move — swapping the button out for a row
- * of results is the only thing that should shift the layout.
+ * mid-way down comparing entries. It keeps its place while `loading`, showing
+ * a spinner instead of the label, because the list below it does not move.
  */
 function MoreResults({
   label,
@@ -187,12 +176,10 @@ function MoreResults({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: loading }}
-      surface="glass"
-      radius={radius.md}
       style={styles.more}
     >
       {loading ? (
-        <ActivityIndicator color={p.muted} size="small" />
+        <ActivityIndicator color={p.faint} size="small" />
       ) : (
         <Text style={styles.moreLabel}>{label}</Text>
       )}
@@ -202,8 +189,8 @@ function MoreResults({
 
 /**
  * RECENTLY LOOKED UP. Absent entirely when there is nothing in it — a first-run
- * user has no history and does not need to be told so; the hero and the
- * suggestion chips are the empty state.
+ * user has no history and does not need to be told so; the hero is the empty
+ * state.
  */
 function RecentLookups({
   recents,
@@ -219,16 +206,9 @@ function RecentLookups({
   if (recents.length === 0) return null;
   return (
     <View style={styles.recents}>
-      <View style={styles.recentsHeading}>
-        <SectionHeading label={label} />
-      </View>
-      {recents.map((lookup, i) => (
-        <RecentLookupRow
-          key={lookup.wordId}
-          lookup={lookup}
-          divider={i < recents.length - 1}
-          onPress={() => onOpen(lookup)}
-        />
+      <SectionHeading label={label} />
+      {recents.map((lookup) => (
+        <RecentLookupRow key={lookup.wordId} lookup={lookup} onPress={() => onOpen(lookup)} />
       ))}
     </View>
   );
@@ -241,54 +221,34 @@ function useStyles(p: Palette) {
         // Grows into the leftover space below short content — see `footer`.
         dismissTail: { flexGrow: 1, minHeight: 96 },
 
-        more: {
-          marginTop: spacing.lg,
-          alignItems: 'center',
-          justifyContent: 'center',
-          paddingVertical: spacing.md + 1,
-        },
+        more: { marginTop: spacing.md, alignItems: 'center', justifyContent: 'center' },
+        /** The composition's 11px/600 tracked 0.14em, in `faint`. */
         moreLabel: {
-          fontFamily: fontFamily.mono,
-          fontSize: fontSize.xs,
-          letterSpacing: 1.2,
+          ...type.monoMeta,
+          letterSpacing: 1.5,
           textTransform: 'uppercase',
-          color: p.soft,
+          color: p.faint,
         },
         spinner: { marginTop: spacing.xl },
 
-        resultsHeading: { marginTop: spacing.lg, marginBottom: spacing.sm },
-        count: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm - 1,
-          color: p.muted,
-        },
-        countQuery: {
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.sm + 1,
-          color: p.ink,
-        },
+        /** 12pt to the list below; the pinned bar supplies the 12pt above. */
+        kicker: { paddingBottom: spacing.md },
 
         error: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm,
+          ...type.bodySm,
           color: p.danger,
           marginTop: spacing.md,
           textAlign: 'center',
         },
         empty: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm,
+          ...type.bodySm,
           color: p.muted,
           marginTop: spacing.xl,
           textAlign: 'center',
         },
 
-        recents: { marginTop: spacing.xl },
-        recentsHeading: {
-          paddingBottom: spacing.md - 1,
-          borderBottomWidth: 1,
-          borderBottomColor: p.paperBd,
-        },
+        /** The composition stacks its cards 10pt apart under the eyebrow. */
+        recents: { marginTop: spacing.xl, gap: spacing.sm + 2 },
       }),
     [p],
   );

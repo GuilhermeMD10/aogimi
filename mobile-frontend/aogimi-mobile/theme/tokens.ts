@@ -189,16 +189,6 @@ const NIGHT = {
   srsGood: '#4A90E2',
   srsEasy: '#5CB85C',
 
-  /* ── JLPT level badges ────────────────────────────────────────────────────
-     6px chips: fill at 0.16, border at 0.35, label in the level colour. The
-     level *is* the colour's meaning, which is why these are tokens and not a
-     ramp. */
-  jlptN1: '#E8707A',
-  jlptN2: '#E08E45',
-  jlptN3: '#A9D3EA',
-  jlptN4: '#8FC7A0',
-  jlptN5: 'rgba(255, 255, 255, 0.35)',
-
   /* ── Tints + border weights ───────────────────────────────────────────────
      Neutral washes that layer over covers and images. `bdA` is the strong edge
      (a pane against the canvas), `bdB` the weak one (a divider inside one). */
@@ -379,14 +369,6 @@ const DAY: Palette = {
   srsGood: '#2F6FB8',
   srsEasy: '#3E8B3E',
 
-  /** N1 and N3 are the Day dictionary composition's; N2 and N4 take the Day SRS
-   *  values, which are the same two hues darkened by the same rule. */
-  jlptN1: '#B23B37',
-  jlptN2: '#B56A2E',
-  jlptN3: '#2F6FB8',
-  jlptN4: '#3E8B3E',
-  jlptN5: 'rgba(14, 19, 38, 0.35)',
-
   tintA: 'rgba(14, 19, 38, 0.06)',
   tintB: 'rgba(14, 19, 38, 0.03)',
   bdA: 'rgba(14, 19, 38, 0.14)',
@@ -429,6 +411,25 @@ const DAY: Palette = {
 export const PALETTES = { day: DAY, night: NIGHT } as const;
 
 export type ThemeName = keyof typeof PALETTES;
+
+/**
+ * **The JLPT chip colours — fixed, in both themes, by the owner's ruling
+ * (2026-09-16).** N5 blue · N4 green · N3 yellow · N2 orange · N1 red, each as
+ * two opaque tones: `inner` is the chip's fill, `outer` its border and label.
+ *
+ * Deliberately **not** in the palette columns: the level *is* what the colour
+ * means, and a learner should meet the same five chips on every screen and in
+ * either theme. Opaque rather than alpha-tinted so the pair reads identically
+ * on the night sky and the day canvas. The handoff's per-theme values are
+ * superseded — do not re-add `jlptN*` to `Palette`.
+ */
+export const JLPT_CHIP: Record<1 | 2 | 3 | 4 | 5, { inner: string; outer: string }> = {
+  1: { inner: '#FADCDC', outer: '#CF4A4A' },
+  2: { inner: '#FCE6D2', outer: '#D97A2B' },
+  3: { inner: '#FBF1CC', outer: '#C99A1E' },
+  4: { inner: '#DDF3E4', outer: '#3E9B5F' },
+  5: { inner: '#DCEBFA', outer: '#3B82C4' },
+};
 
 /**
  * **Deprecated — the Night column as a static value.**

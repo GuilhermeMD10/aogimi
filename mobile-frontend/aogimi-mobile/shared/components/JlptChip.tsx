@@ -1,5 +1,5 @@
 import { StyleSheet, type ViewStyle } from 'react-native';
-import { usePalette } from '@/theme/ThemeContext';
+import { JLPT_CHIP } from '@/theme/tokens';
 import { Tag } from './Chip';
 
 export type JlptChipProps = {
@@ -11,35 +11,33 @@ export type JlptChipProps = {
 };
 
 /**
- * The JLPT level badge — a 6px `Tag` in the level's own colour.
+ * The JLPT level badge — a 6px `Tag` in the level's own two tones.
  *
- * **The level→hue mapping is the one standing exception to "semantic colour
- * only"**: the level *is* what the colour means, so the five hues are palette
- * tokens (`jlptN1`…`jlptN5`) rather than a ramp. They come from DESIGN.md for
- * Night and from the Day dictionary composition for Day, where every one is
- * darkened to stay readable on the light canvas.
+ * **The colours are fixed and theme-independent** (`JLPT_CHIP` in
+ * `theme/tokens.ts`, by the owner's ruling): N5 blue, N4 green, N3 yellow, N2
+ * orange, N1 red, each an opaque `inner` fill with an `outer` border and label.
+ * The level *is* what the colour means, so the same five chips appear on every
+ * screen in either theme — this component does not read the palette at all.
  *
- * `jlptN5` is the only level whose token is already an `rgba()` — it is "white
- * at 35%", a non-colour for the level that has none. `Tag`'s re-alpha leaves it
- * as-is, so N5 renders as a plain pale chip, which is the intent.
+ * An out-of-range level renders nothing: there is no sixth colour to invent.
  */
 export function JlptChip({ level, compact, style }: JlptChipProps) {
-  const p = usePalette();
-  const tone =
-    level === 1 ? p.jlptN1
-    : level === 2 ? p.jlptN2
-    : level === 3 ? p.jlptN3
-    : level === 4 ? p.jlptN4
-    : level === 5 ? p.jlptN5
-    : p.muted;
+  const pair = isLevel(level) ? JLPT_CHIP[level] : null;
+  if (pair === null) return null;
 
   return (
     <Tag
       label={`N${level}`}
-      tone={tone}
+      tone={pair.outer}
+      fill={pair.inner}
+      border={pair.outer}
       style={StyleSheet.flatten([compact && styles.compact, style])}
     />
   );
+}
+
+function isLevel(n: number): n is 1 | 2 | 3 | 4 | 5 {
+  return n === 1 || n === 2 || n === 3 || n === 4 || n === 5;
 }
 
 const styles = StyleSheet.create({

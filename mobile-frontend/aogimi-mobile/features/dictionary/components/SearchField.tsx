@@ -1,29 +1,24 @@
 import { forwardRef, useCallback, useMemo, useRef } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, type StyleProp, type ViewStyle } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
+import { InnerPlate } from '@/shared/components/Card';
 import { Touchable } from '@/shared/components/Touchable';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
+import { spacing, type, type Palette } from '@/theme/tokens';
 
-/** The bar's vertical padding, needed twice: once as padding, once negated so
- *  the clear segment can span the full height. */
-const PAD_V = spacing.md + 3;
-const PAD_V_COMPACT = spacing.sm + 2;
+/** DESIGN.md's search field: a 48pt control. */
+const FIELD_H = 48;
 
 /**
- * The one search input, shared by the dictionary tab and the reader's drawer.
+ * The dictionary's search input, shared by the tab and the reader's drawer.
  *
- * Two looks, as the handoff draws them: at rest a `paperBd` hairline on the card
- * fill, and **once there is a query, an `ink` border** — the field is the page's
- * subject while results are showing, so it gains weight rather than losing it.
- * The handoff also blinks a vermillion caret in the resting state; that is a
- * prototype standing in for a real cursor, and a live `TextInput` already draws
- * one (tinted `accent` here).
+ * DESIGN.md's field — 48pt, radius 12, Tier 1 glass, a 16px search glyph in
+ * `faint`, the JP face for the text — with **the clear segment and the keyboard
+ * rule kept exactly as they were**, which is why this is not
+ * `shared/components/SearchField`:
  *
  * ── The clear control is part of the bar, not a button floating in it ───────
- * It was a 20×20 pill with `hitSlop` — a 40pt target inside a 52pt bar, and
- * invisible slop meant people still aimed at the 20px they could see. It is now
- * a **full-height segment** at the trailing edge with its own hairline divider:
+ * A **full-height segment** at the trailing edge with its own hairline divider:
  * the bar's own height *is* the target, and the divider says the segment is a
  * separate control rather than an icon sitting in the text.
  *
@@ -37,17 +32,12 @@ export const SearchField = forwardRef<TextInput, {
   value: string;
   onChangeText: (v: string) => void;
   placeholder: string;
-  /** Draw the `ink` border. Callers pass "there is a query". */
-  active?: boolean;
-  compact?: boolean;
   /** Return key. The parent dismisses; RN's own blur-on-submit is not relied on. */
   onSubmit?: () => void;
   /** Accessibility label for the clear segment. */
   clearLabel: string;
-}>(function SearchField(
-  { value, onChangeText, placeholder, active = false, compact = false, onSubmit, clearLabel },
-  ref,
-) {
+  style?: StyleProp<ViewStyle>;
+}>(function SearchField({ value, onChangeText, placeholder, onSubmit, clearLabel, style }, ref) {
   const p = usePalette();
   const styles = useStyles(p);
 
@@ -65,23 +55,15 @@ export const SearchField = forwardRef<TextInput, {
   );
 
   return (
-    <View
-      style={[
-        styles.field,
-        compact && styles.fieldCompact,
-        active ? styles.fieldActive : styles.fieldResting,
-      ]}
-    >
-      <Feather name="search" size={compact ? 16 : 18} color={p.accent} />
+    <InnerPlate style={[styles.field, style]}>
+      <Feather name="search" size={16} color={p.faint} />
       <TextInput
         ref={attachRef}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={p.faint}
-        // The query is Japanese far more often than not, and a Latin face would
-        // fall back mid-string on a mixed query. `jp` renders both.
-        style={[styles.input, compact && styles.inputCompact]}
+        style={styles.input}
         selectionColor={p.accent}
         autoCapitalize="none"
         autoCorrect={false}
@@ -101,12 +83,12 @@ export const SearchField = forwardRef<TextInput, {
           // width it does not need; `minWidth` still applies through the padding.
           minTarget={false}
           nudge={false}
-          style={[styles.clear, compact && styles.clearCompact]}
+          style={styles.clear}
         >
-          <Feather name="x" size={compact ? 14 : 16} color={p.soft} />
+          <Feather name="x" size={16} color={p.muted} />
         </Touchable>
       )}
-    </View>
+    </InnerPlate>
   );
 });
 
@@ -115,51 +97,34 @@ function useStyles(p: Palette) {
     () =>
       StyleSheet.create({
         field: {
+          height: FIELD_H,
           flexDirection: 'row',
           alignItems: 'center',
-          gap: spacing.sm + 3,
-          backgroundColor: p.paper,
-          borderRadius: radius.lg,
-          borderWidth: 1.5,
-          paddingLeft: spacing.lg + 1,
-          // No right padding: the clear segment reaches the trailing edge, and
-          // supplies its own. `overflow` keeps it inside the rounded corner.
-          paddingVertical: PAD_V,
-          overflow: 'hidden',
+          gap: spacing.sm + 2,
+          paddingLeft: spacing.lg,
+          // No right padding: the clear segment reaches the trailing edge and
+          // supplies its own.
         },
-        fieldCompact: {
-          gap: spacing.sm,
-          borderRadius: radius.md,
-          paddingLeft: spacing.md,
-          paddingVertical: PAD_V_COMPACT,
-        },
-        fieldResting: { borderColor: p.paperBd },
-        fieldActive: { borderColor: p.ink },
         input: {
-          flex: 1,
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.md,
+          ...type.bodyMd,
+          // Queries are Japanese far more often than not; the JP face renders
+          // both scripts where a Latin face falls back mid-string.
+          fontFamily: type.titleReading.fontFamily,
           color: p.ink,
+          flex: 1,
           // RN gives an input its own vertical padding on Android; zeroing it
-          // keeps the field the height the paddings above say it is.
+          // keeps the field the height the plate says it is.
           padding: 0,
         },
-        inputCompact: { fontSize: fontSize.sm + 1 },
-
         clear: {
           alignItems: 'center',
           justifyContent: 'center',
+          // Runs the full height of the plate — the whole point of moving it
+          // out of the text run.
           alignSelf: 'stretch',
           paddingHorizontal: spacing.md + 2,
-          // Cancels the bar's vertical padding so the segment runs the full
-          // height — the whole point of moving it out of the text run.
-          marginVertical: -PAD_V,
           borderLeftWidth: 1,
-          borderLeftColor: p.paperBd,
-        },
-        clearCompact: {
-          paddingHorizontal: spacing.md,
-          marginVertical: -PAD_V_COMPACT,
+          borderLeftColor: p.glassBorder,
         },
       }),
     [p],

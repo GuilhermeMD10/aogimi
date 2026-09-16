@@ -1,36 +1,26 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, radius, type Palette } from '@/theme/tokens';
+import { radius, type, type Palette } from '@/theme/tokens';
 
 /**
- * The outline metadata pill — POS, kanji school grade, a name's type.
+ * The colourless metadata tag — POS, kanji school grade, a name's type.
+ *
+ * DESIGN.md's 6px tag shape, as the dictionary compositions draw the POS chip:
+ * a Tier 2 fill with no border, 10px tracked uppercase in `faint`.
  *
  * **Not** the JLPT chip: that one is `shared/components/JlptChip`, whose
- * per-level hues are the tier's meaning rather than decoration and are a
- * standing exception to the palette. The two sit side by side, so this one is
- * deliberately colourless.
- *
- * `fontFamily.mono` is the micro-label role (Switzer Medium, not monospaced —
- * see `theme/tokens.ts`). Latin only: anything Japanese passes `jp`.
+ * per-level hues are the tier's meaning rather than decoration. The two sit
+ * side by side, so this one is deliberately without a hue — which is also why
+ * it is not `shared`'s `Tag`, whose whole design is one colour at three
+ * strengths.
  */
-export function MetaChip({
-  label,
-  jp = false,
-  strong = false,
-}: {
-  label: string;
-  /** The label is Japanese — switches the face and drops the uppercasing,
-   *  which does nothing to kana and breaks nothing but is noise to apply. */
-  jp?: boolean;
-  /** Filled variant, for a chip that carries a glyph beside its label. */
-  strong?: boolean;
-}) {
+export function MetaChip({ label }: { label: string }) {
   const p = usePalette();
   const styles = useStyles(p);
   return (
-    <View style={[styles.chip, strong && styles.strong]}>
-      <Text style={[styles.label, jp ? styles.jpLabel : styles.latinLabel]} numberOfLines={1}>
+    <View style={styles.chip}>
+      <Text style={styles.label} numberOfLines={1}>
         {label}
       </Text>
     </View>
@@ -42,27 +32,20 @@ function useStyles(p: Palette) {
     () =>
       StyleSheet.create({
         chip: {
-          borderRadius: radius.pill,
-          borderWidth: 1,
-          borderColor: p.paperBd,
-          paddingHorizontal: 8,
+          borderRadius: radius.chip,
+          // The composition's `rgba(255,255,255,0.06)` with no border — the
+          // Tier 2 fill read directly, as `MeaningRow`'s index circle does.
+          backgroundColor: p.glassStandard,
+          paddingHorizontal: 6,
           paddingVertical: 2,
           maxWidth: 150,
         },
-        strong: { backgroundColor: p.paperTile },
+        /** 10px/600 tracked 0.06em → the eyebrow role's cut, looser tracking. */
         label: {
-          fontSize: 8.5,
-          fontWeight: '500',
-          color: p.muted,
-        },
-        latinLabel: {
-          fontFamily: fontFamily.mono,
-          letterSpacing: 0.5,
+          ...type.eyebrow,
+          letterSpacing: 0.6,
           textTransform: 'uppercase',
-        },
-        jpLabel: {
-          fontFamily: fontFamily.jp,
-          fontSize: 10,
+          color: p.faint,
         },
       }),
     [p],

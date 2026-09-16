@@ -13,17 +13,17 @@ import { KanjiResultCard, NameResultCard } from './CharResultCard';
  *
  * Takes pre-flattened rows from `lib/resultSections` — words, kanji entries and
  * names in one sequence with their group headings already decided — so the list
- * itself only maps a row to a card.
+ * itself only maps a row to a card. The compositions draw the drawer's list at
+ * the tab's size, so there is one scale.
  *
- * `header` stays mounted across every state (the search field lives in it), so
- * the field never moves as the body swaps between the empty state and results.
- * `empty` therefore does double duty: the idle recents block *and* the
- * no-matches line, whichever the caller passes.
+ * `header` stays mounted across every state (the drawer's search field lives
+ * in it), so the field never moves as the body swaps between the empty state
+ * and results. `empty` therefore does double duty: the idle recents block *and*
+ * the no-matches line, whichever the caller passes.
  */
 export function ResultsList({
   rows,
   query,
-  compact = false,
   header,
   empty,
   footer,
@@ -36,7 +36,6 @@ export function ResultsList({
 }: {
   rows: ResultRow[];
   query: string;
-  compact?: boolean;
   header?: React.ReactElement;
   empty?: React.ReactElement;
   footer?: React.ReactElement;
@@ -69,9 +68,8 @@ export function ResultsList({
             <ResultCard
               word={item.word}
               query={query}
-              // The top word is the ranked answer; the rest are alternates.
-              elevated={item.index === 0}
-              compact={compact}
+              // The top word is the ranked answer; its add circle is the accent one.
+              leading={item.index === 0}
               addLabel={t('dict.addToDeck')}
               onPress={() => onOpenWord(item.word)}
               onAdd={() => onAddWord(item.word)}
@@ -81,17 +79,16 @@ export function ResultsList({
           return (
             <KanjiResultCard
               kanji={item.kanji}
-              compact={compact}
               addLabel={t('dict.addToDeck')}
               onPress={onOpenKanji ? () => onOpenKanji(item.kanji.literal) : undefined}
               onAdd={() => onAddKanji(item.kanji)}
             />
           );
         case 'name':
-          return <NameResultCard name={item.name} compact={compact} />;
+          return <NameResultCard name={item.name} />;
       }
     },
-    [t, query, compact, onOpenWord, onAddWord, onAddKanji, onOpenKanji],
+    [t, query, onOpenWord, onAddWord, onAddKanji, onOpenKanji],
   );
 
   return (
@@ -131,6 +128,7 @@ const styles = StyleSheet.create({
   // So a footer can flex into the space a short list leaves — the callers put
   // their keyboard-dismiss tail there.
   content: { flexGrow: 1 },
-  separator: { height: spacing.xs + 1 },
+  /** The compositions stack rows 10pt apart. */
+  separator: { height: spacing.sm + 2 },
   section: { paddingTop: spacing.md, paddingBottom: spacing.xs },
 });

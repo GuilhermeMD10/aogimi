@@ -93,23 +93,35 @@ export function Chip({
  * from `RANK_COLORS`) and gets the chip for free, instead of five near-copies
  * of this component with their own alphas.
  *
- * `tone` must be a hex; an `rgba()` token cannot be re-alpha'd. `jlptN5` is the
- * one palette value that is already alpha, and `JlptChip` handles it.
+ * `tone` must be a hex; an `rgba()` token cannot be re-alpha'd.
+ *
+ * `fill` and `border` override the two derived strengths with explicit tones —
+ * the JLPT chip's fixed two-colour pairs (`JLPT_CHIP`) are the case: an opaque
+ * inner and outer colour that must not follow the theme.
  */
 export function Tag({
   label,
   tone,
+  fill,
+  border,
   style,
 }: {
   label: string;
+  /** The label's ink, and the hue the fill and border derive from. */
   tone: string;
+  fill?: string;
+  border?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const p = usePalette();
   const s = useStyles(p);
   return (
     <View
-      style={[s.tag, { backgroundColor: alpha(tone, 0.16), borderColor: alpha(tone, 0.35) }, style]}
+      style={[
+        s.tag,
+        { backgroundColor: fill ?? alpha(tone, 0.16), borderColor: border ?? alpha(tone, 0.35) },
+        style,
+      ]}
     >
       <Text allowFontScaling={false} style={[s.tagLabel, { color: tone }]}>
         {label}
@@ -144,12 +156,14 @@ function useStyles(p: Palette) {
         sm: { height: 28 },
         md: { height: 32 },
         /** A non-pressable chip cannot use `Touchable`'s glass wash, so it
-         *  draws the Tier 1 recipe itself. */
+         *  draws the Tier 1 recipe itself — minus the specular top rim, which
+         *  is retired app-wide (`RIM` in `theme/glass.ts`). This was the one
+         *  surface reading `p.glassRim` directly instead of through the recipe,
+         *  so it would have kept the flare after every other one lost it. */
         passive: {
           backgroundColor: p.glassSubtle,
           borderWidth: 1,
           borderColor: p.glassBorder,
-          borderTopColor: p.glassRim,
         },
         active: { backgroundColor: p.btn },
 
