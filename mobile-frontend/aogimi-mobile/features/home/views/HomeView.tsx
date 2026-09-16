@@ -16,8 +16,8 @@ import {
   type RecentLookup,
 } from '@/features/dictionary/lib/dictionaryStorage';
 import { useDockClearance } from '@/features/app-shell/Dock';
+import { ContinueReadingCard } from '@/features/books/library/components/ContinueReadingCard';
 import { HomeTopBar } from '../components/HomeTopBar';
-import { ContinueReadingCard } from '../components/ContinueReadingCard';
 import { StudyCard } from '../components/StudyCard';
 import { DictionaryCard } from '../components/DictionaryCard';
 
@@ -28,9 +28,13 @@ import { DictionaryCard } from '../components/DictionaryCard';
  * has no dashboard. This exists because the dock is four tabs with Home first,
  * and because on a phone the header avatar is the only route to Profile.
  *
- * **This file is composition and data only.** Every card is its own component
- * in `../components`; anything visual belongs there. Order, top to bottom:
- * header, dictionary, continue reading, study.
+ * **This file is composition and data only.** Every card is its own component;
+ * anything visual belongs there. Order, top to bottom: header, dictionary,
+ * continue reading, study.
+ *
+ * `ContinueReadingCard` is the **shelf's**, imported from `books/library` — the
+ * same component this screen already borrows `BookCover` from. Home had its own
+ * copy until the two had drifted apart; there is one now.
  *
  * ── What is deliberately not here ───────────────────────────────────────────
  *
@@ -143,12 +147,14 @@ export function HomeView() {
             onOpenLookup={openLookup}
           />
 
+          {/* The shelf's card, not a second one — it owns its own copy, so
+              nothing is passed but the book and how loud its CTA should be.
+              `secondary`, because `StudyCard` below it carries the primary. */}
           {current && (
             <ContinueReadingCard
               book={current}
-              progressLabel={t('home.progressRead', { pct: Math.round(current.progress) })}
-              resumeLabel={t('home.resumeReading')}
-              onResume={() => router.push(`/reader/${current.id}`)}
+              cta="secondary"
+              onPress={() => router.push(`/reader/${current.id}`)}
             />
           )}
 

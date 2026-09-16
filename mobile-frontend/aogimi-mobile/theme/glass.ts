@@ -119,6 +119,31 @@ export function glassAccent(p: Palette, isNight: boolean): GlassRecipe {
   };
 }
 
+/**
+ * **Tier 4 for a pane that is not over the canvas** — the bottom sheet.
+ *
+ * `glassTier(p, 4)` is the documented Tier 4 *tint*, and a tint needs the sky
+ * behind it to read. A sheet is a `Modal`: it can be raised over the reader's
+ * page (white, sepia or near-black, the reader's choice), over a deck, over a
+ * cover image. So it brings its own ground — `p.sheet` — and keeps the rest of
+ * the Tier 4 recipe: the hairline, the specular rim, the 40px blur.
+ *
+ * Same shape as a tier, so `Glass` can take either without branching.
+ */
+export function glassSheet(p: Palette, isNight: boolean): GlassRecipe {
+  return {
+    fill: p.sheet,
+    // A sheet is not pressable as a whole; its rows are, and they are Tier 1.
+    fillPressed: p.sheet,
+    bd: p.glassBorder,
+    rim: isNight ? p.glassRim : 'rgba(255, 255, 255, 0)',
+    rimEdge: 'rgba(255, 255, 255, 0)',
+    mountBlur: true,
+    blurIntensity: BLUR_BY_TIER[4],
+    blurTint: isNight ? 'dark' : 'light',
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Legacy
 // ─────────────────────────────────────────────────────────────────────────────

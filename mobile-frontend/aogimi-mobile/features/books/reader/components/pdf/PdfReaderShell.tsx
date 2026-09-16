@@ -1,12 +1,12 @@
 import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import Pdf, { type PdfRef } from 'react-native-pdf';
-import { useColors } from '@/theme/ThemeContext';
-import { fontFamily } from '@/theme/tokens';
+import { usePalette, useTheme } from '@/theme/ThemeContext';
+import { spacing, type } from '@/theme/tokens';
 import type { BookRecord } from '@/features/books/types';
 import { bookFilePath } from '@/features/books/lib/bookPaths';
 import { ReaderTopBar } from '../ReaderTopBar';
-import { PdfDock } from './PdfDock';
+import { ReaderDock } from '../ReaderDock';
 
 type ProgressSnapshot = {
   cfi: string;
@@ -16,12 +16,25 @@ type ProgressSnapshot = {
 };
 
 /**
- * Native PDF reader. Renders the file with react-native-pdf, reuses the
- * standard ReaderTopBar for the back chevron, and pins a PdfDock at the
- * bottom for title + page count + prev/next + a DICT action.
+ * Native PDF reader. Renders the file with react-native-pdf and takes the two
+ * pieces of shared reader chrome: `ReaderTopBar` for the title, the percentage
+ * and the way out, and `ReaderDock` for the dictionary.
+ *
+ * ── It has the same dock as every other reader now ─────────────────────────
+ * PDFs used to have `PdfDock`, a near-copy of the old reader dock with its own
+ * pill, its own swipe-to-close and its own toolbar carrying the title, a page
+ * counter and prev/next chevrons. All four are gone: the title and the
+ * percentage live in the top bar, the redesign drops page-turn buttons from
+ * every reader, and what is left — open the dictionary — is one shortcut in the
+ * shared dock. So the second implementation went with it.
+ *
+ * The dock's material follows the *page*, and a PDF has no reader theme of its
+ * own: it renders on the app canvas. So it is handed the app's polarity rather
+ * than a stored preference, which is the one case `ReaderDock.theme` is not
+ * literally the book's theme.
  *
  * The native renderer surfaces no text selection, so there is no tap-a-word
- * path here. The dock's DICT action instead opens the reader's lookup sheet
+ * path here and the dock is never in its selected state. The dictionary opens
  * with an empty query — the user types the word, and adding to a deck runs
  * through the same drawer the EPUB reader uses.
  *
@@ -41,7 +54,8 @@ export function PdfReaderShell({
   onPageChange: (snapshot: ProgressSnapshot) => void;
   onOpenDictionary: () => void;
 }) {
-  const c = useColors();
+  const p = usePalette();
+  const { themeName } = useTheme();
   const pdfRef = useRef<PdfRef>(null);
   const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(0);
@@ -88,17 +102,6 @@ export function PdfReaderShell({
     [onPageChange],
   );
 
-  const goToPage = useCallback(
-    (target: number) => {
-      if (totalPages <= 0) return;
-      const clamped = Math.max(1, Math.min(totalPages, target));
-      pdfRef.current?.setPage(clamped);
-    },
-    [totalPages],
-  );
-
-  const visiblePage = currentPage || initialPage;
-
   // Mirror the EPUB structure: ReaderTopBar / body / dock are *siblings*
   // of the outer SafeAreaView in ReaderScreen, not nested inside an extra
   // View. The extra wrapper was blocking touch propagation through the
@@ -111,12 +114,10 @@ export function PdfReaderShell({
         onBack={onBack}
       />
 
-      <View style={[styles.body, { backgroundColor: c.bg }]}>
+      <View style={[styles.body, { backgroundColor: p.bg }]}>
         {error ? (
           <View style={styles.errorWrap}>
-            <Text style={[styles.errorText, { color: c.fg, fontFamily: fontFamily.ui }]}>
-              {error}
-            </Text>
+            <Text style={[styles.errorText, { color: p.ink }]}>{error}</Text>
           </View>
         ) : (
           <Pdf
@@ -134,18 +135,14 @@ export function PdfReaderShell({
               const msg = e instanceof Error ? e.message : String(e);
               setError(msg || 'Failed to load PDF');
             }}
-            style={[styles.pdf, { backgroundColor: c.bgSunken }]}
-            renderActivityIndicator={() => <ActivityIndicator color={c.fg} />}
+            style={[styles.pdf, { backgroundColor: p.paperTile }]}
+            renderActivityIndicator={() => <ActivityIndicator color={p.muted} />}
           />
         )}
       </View>
 
-      <PdfDock
-        title={book.title}
-        page={visiblePage}
-        totalPages={totalPages}
-        onPrev={() => goToPage(visiblePage - 1)}
-        onNext={() => goToPage(visiblePage + 1)}
+      <ReaderDock
+        theme={themeName === 'night' ? 'dark' : 'light'}
         onOpenDictionary={onOpenDictionary}
       />
     </Fragment>
@@ -159,10 +156,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: spacing.xxl,
   },
-  errorText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
+  errorText: { ...type.bodySm, textAlign: 'center' },
 });

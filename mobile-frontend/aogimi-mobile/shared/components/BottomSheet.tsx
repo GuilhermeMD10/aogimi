@@ -1,5 +1,6 @@
-import { useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
+  Animated,
   Dimensions,
   Modal,
   PanResponder,
@@ -7,10 +8,14 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableBackdrop } from './Touchable';
-import { useColors } from '@/theme/ThemeContext';
-import { palette } from '@/theme/tokens';
+import { usePalette, useTheme } from '@/theme/ThemeContext';
+import { glassSheet } from '@/theme/glass';
+import { DECELERATE, SHEET_MS, SURFACE_MS } from '@/theme/motion';
+import { radius } from '@/theme/tokens';
+import { useReduceMotion } from '@/lib/useReduceMotion';
 
 type Props = {
   visible: boolean;
@@ -22,21 +27,37 @@ type Props = {
 
 const SCREEN_H = Dimensions.get('window').height;
 
+/** DESIGN.md's grabber: 40 × 4, `rgba(255,255,255,0.25)` — `bdA`. */
+const GRABBER_W = 40;
+const GRABBER_H = 4;
+
 // Swipe-to-dismiss tuning. Below the velocity threshold a drag only closes
 // when the user has pulled the sheet down past the distance threshold.
 const SWIPE_CLOSE_VELOCITY = 0.6;        // px/ms
 const SWIPE_CLOSE_DISTANCE_RATIO = 0.3;  // fraction of sheet height
 
 /**
- * The app's bottom sheet.
+ * **The app's bottom sheet** — DESIGN.md's Tier 4 surface: radius 28 on the top
+ * corners, a 40×4 grabber, and a scrim with an 8px blur behind it.
  *
- * No entrance/exit motion: the sheet simply appears and disappears, and the
- * backdrop is a flat scrim.
+ * ── It brings its own ground ───────────────────────────────────────────────
+ * The fill is `glassSheet`, not `glassTier(4)`. Tier 4 is a *white tint* and a
+ * tint needs the sky behind it; a sheet is a `Modal` and can be raised over
+ * anything — most sharply over the reader's page, which is white, sepia or
+ * near-black at the reader's own choosing. The sheet used to take `bgElev`
+ * (a 7% white film), so over the scrim it read as a slightly milkier scrim
+ * rather than as a surface. See `theme/glass.ts`.
  *
- * **Swipe-to-dismiss works**: a downward drag on the handle past either
- * threshold closes the sheet. It does not follow the finger on the way — a
- * follow-drag would be a single `Animated.Value` on `translateY` if motion is
- * added later.
+ * ── It tracks the finger ───────────────────────────────────────────────────
+ * A downward drag on the grabber moves the sheet with the hand and releases to
+ * either close or spring back. Previously the drag was measured but not drawn,
+ * so the sheet stood still under the finger and then vanished — which reads as
+ * a glitch rather than as a gesture.
+ *
+ * The **rise** is animated; the **dismissal is not**. Keeping the exit instant
+ * is deliberate: several callers reset their form in the same handler that
+ * hides the sheet (`FlashcardDrawer`), and an exit animation would play those
+ * 260ms over a freshly-cleared form.
  */
 export function BottomSheet({
   visible,
@@ -45,23 +66,77 @@ export function BottomSheet({
   children,
   contentStyle,
 }: Props) {
-  const c = useColors();
+  const p = usePalette();
+  const { themeName } = useTheme();
+  const reduceMotion = useReduceMotion();
+  const g = useMemo(() => glassSheet(p, themeName === 'night'), [p, themeName]);
   const sheetHeight = Math.round(SCREEN_H * heightRatio);
 
-  // ── Swipe-down on the handle ─────────────────────────────────────────
-  // The handle wrapper claims downward drags; upward overdrag is ignored.
-  // Release past distance OR velocity threshold dismisses.
-  const panResponder = useRef(
+  // Two values on one transform: `rise` is the entrance (0 closed → 1 open),
+  // `drag` is the finger's offset in points. Added rather than multiplexed so
+  // a drag that snaps back cannot disturb the entrance, and both stay on the
+  // native driver.
+  const rise = useRef(new Animated.Value(0)).current;
+  const drag = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!visible) {
+      // Reset while hidden, so the next open starts from the bottom rather
+      // than from wherever the last drag left it.
+      rise.setValue(0);
+      drag.setValue(0);
+      return;
+    }
+    if (reduceMotion) {
+      rise.setValue(1);
+      return;
+    }
+    const anim = Animated.timing(rise, {
+      toValue: 1,
+      duration: SHEET_MS,
+      easing: DECELERATE,
+      useNativeDriver: true,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [visible, reduceMotion, rise, drag]);
+
+  // ── Swipe-down on the grabber ────────────────────────────────────────
+  // Claims downward drags only; upward overdrag is ignored so the sheet cannot
+  // be pulled above its own top edge. Release past distance OR velocity
+  // dismisses; anything shorter springs back.
+  const pan = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 4 && gs.dy > 0,
+      onMoveShouldSetPanResponder: (_, gs) => gs.dy > 4 && Math.abs(gs.dy) > Math.abs(gs.dx),
+      onPanResponderMove: (_, gs) => drag.setValue(Math.max(0, gs.dy)),
       onPanResponderRelease: (_, gs) => {
         const shouldClose =
-          gs.vy > SWIPE_CLOSE_VELOCITY ||
-          gs.dy > sheetHeight * SWIPE_CLOSE_DISTANCE_RATIO;
-        if (shouldClose) onDismiss();
+          gs.vy > SWIPE_CLOSE_VELOCITY || gs.dy > sheetHeight * SWIPE_CLOSE_DISTANCE_RATIO;
+        if (shouldClose) {
+          onDismiss();
+          return;
+        }
+        Animated.timing(drag, {
+          toValue: 0,
+          duration: SURFACE_MS,
+          easing: DECELERATE,
+          useNativeDriver: true,
+        }).start();
       },
     }),
   ).current;
+
+  // Memoised because `Animated.add` builds a node in the native animation
+  // graph: a fresh one per render would add a node per render and leave the
+  // previous one attached.
+  const translateY = useMemo(
+    () =>
+      Animated.add(
+        rise.interpolate({ inputRange: [0, 1], outputRange: [sheetHeight, 0] }),
+        drag,
+      ),
+    [rise, drag, sheetHeight],
+  );
 
   return (
     <Modal
@@ -72,27 +147,48 @@ export function BottomSheet({
       statusBarTranslucent
     >
       <View style={styles.root}>
-        <View style={styles.backdrop}>
-          {/* The scrim: no nudge, no haptic — dismissing by tapping away is not
-              contact with a control, and a tick here would fire on every stray
-              tap outside a sheet. */}
+        {/* The scrim — one value for every sheet and popover, and it fades in
+            with the sheet so the page does not snap dark before it arrives. */}
+        <Animated.View style={[styles.backdrop, { opacity: rise }]}>
+          <BlurView
+            intensity={8}
+            tint={g.blurTint}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: p.scrim }]} />
+          {/* No nudge, no haptic — dismissing by tapping away is not contact
+              with a control, and a tick here would fire on every stray tap. */}
           <PressableBackdrop style={StyleSheet.absoluteFill} onPress={onDismiss} />
-        </View>
+        </Animated.View>
 
-        <View
+        <Animated.View
           style={[
             styles.sheet,
-            { height: sheetHeight, backgroundColor: c.bgElev },
+            {
+              height: sheetHeight,
+              backgroundColor: g.fill,
+              borderTopColor: g.rim,
+              borderLeftColor: g.bd,
+              borderRightColor: g.bd,
+              transform: [{ translateY }],
+            },
             contentStyle,
           ]}
         >
-          <View style={styles.handleWrap} {...panResponder.panHandlers}>
-            <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
+          <BlurView
+            intensity={g.blurIntensity}
+            tint={g.blurTint}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.grabberWrap} {...pan.panHandlers}>
+            <View style={[styles.grabber, { backgroundColor: p.bdA }]} />
           </View>
           <SafeAreaView style={styles.content} edges={['bottom']}>
             {children}
           </SafeAreaView>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -100,26 +196,31 @@ export function BottomSheet({
 
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    // `palette.scrim` — one scrim value for every sheet and popover, and it stays
-    // a dark wash whichever way the palette runs.
-    backgroundColor: palette.scrim,
-  },
+  backdrop: StyleSheet.absoluteFillObject,
   sheet: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+    // The specular rim along the top edge, exactly as `Glass` draws it: a
+    // brighter top border follows the 28pt curve where an absolutely-placed
+    // hairline would cut straight across it. The bottom edge is off-screen, so
+    // only three sides are drawn.
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    // Clips the blur to the rounded corners. The sheet sits against a scrim
+    // rather than needing to lift off a canvas, so it loses nothing by having
+    // its own drop shadow clipped away.
     overflow: 'hidden',
   },
-  handleWrap: {
-    paddingTop: 10,
-    paddingBottom: 4,
+  grabberWrap: {
+    paddingTop: 12,
+    paddingBottom: 6,
     alignItems: 'center',
   },
-  handle: {
-    width: 40,
-    height: 5,
-    borderRadius: 99,
+  grabber: {
+    width: GRABBER_W,
+    height: GRABBER_H,
+    borderRadius: GRABBER_H,
   },
   content: { flex: 1 },
 });

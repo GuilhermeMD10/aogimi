@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { Button } from '@/shared/components/Button';
+import { Chip } from '@/shared/components/Chip';
+import { IconButton } from '@/shared/components/IconButton';
 import { Screen } from '@/shared/components/Screen';
-import { useColors } from '@/theme/ThemeContext';
+import { usePalette } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
+import { spacing, type, type Palette } from '@/theme/tokens';
 import type { BookRecord } from '../../types';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { bookFileExists } from '../../lib/bookPaths';
@@ -21,13 +23,20 @@ import { BookGridItem } from './BookGridItem';
 import { BookActionsSheet } from './BookActionsSheet';
 import { runFullSync, fullSyncActivityCount, formatFullSyncDetails } from '../../lib/runFullSync';
 import { findCachedBookByFileHash } from '../../lib/syncedBookCache';
-import { CloudSyncIcon } from '@/shared/icons/sync-icons';
 import { useDockClearance } from '@/features/app-shell/Dock';
 
 const AVAILABLE_ONLY_KEY = 'books_filter_available_only_v1';
 
+/** The shelf grid. `Library.dc.html` runs the two columns tight together and
+ *  gives each tile its own text block underneath, so the vertical gap has to be
+ *  the larger of the two — the horizontal gutter separates covers, the vertical
+ *  one separates a title from the cover below it. */
+const COL_GAP = spacing.sm;
+const ROW_GAP = spacing.lg;
+
 export function BooksScreen() {
-  const c = useColors();
+  const p = usePalette();
+  const s = useStyles(p);
   const t = useT();
   const router = useRouter();
   // The dock floats, so the room it needs is its height plus the safe-area offset — see the hook.
@@ -211,100 +220,89 @@ export function BooksScreen() {
 
   return (
     <Screen padded>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: c.fg }]}>{t('home.title')}</Text>
-        <View style={styles.headerActions}>
+      {/* The title row. `Add Book` is the shelf's one primary action, so it is
+          the one sakura fill on the screen — `Library.dc.html` draws it green,
+          which the design system does not have (D10: DESIGN.md wins over any
+          composition). Sync sits beside it as a 36pt glass circle: it is a
+          maintenance action, not something a reader comes here to do. */}
+      <View style={s.header}>
+        <Text style={s.title}>{t('library.title')}</Text>
+        <View style={s.headerActions}>
           {/* Sync-now is meaningless for guests (no account to push to).
               Hidden entirely; user gets the action by converting to a
               real account from the Profile page. */}
           {!cannotSync && (
-            <Touchable
-              surface="glass"
-              radius={radius.pill}
-              minTarget={false}
-              onPress={online ? handleSyncNow : () => Alert.alert('Offline', 'Connect to the internet to sync.')}
-              disabled={syncing || importing}
-              style={[
-                styles.importBtn,
-                {
-                  opacity: syncing || importing || !online ? 0.55 : 1,
-                },
-              ]}
-              accessibilityLabel={online ? 'Sync library' : 'Sync library (offline)'}
-            >
-              {syncing ? <ActivityIndicator size="small" color={c.fg} /> : <CloudSyncIcon size={18} color="#2E9F58" />}
-            </Touchable>
+            <IconButton
+              icon="repeat"
+              size={36}
+              loading={syncing}
+              disabled={importing}
+              onPress={
+                online
+                  ? handleSyncNow
+                  : () => Alert.alert(t('library.offlineTitle'), t('library.offlineBody'))
+              }
+              accessibilityLabel={online ? t('library.sync') : t('library.syncOffline')}
+              style={online ? undefined : s.dimmed}
+            />
           )}
-          <Touchable
-            surface="glass"
-            radius={radius.pill}
-            minTarget={false}
+          <Button
+            label={t('library.addBook')}
+            icon="plus"
+            size="small"
             onPress={handleImport}
-            disabled={importing || syncing}
-            style={[styles.importBtn, { opacity: importing || syncing ? 0.55 : 1 }]}
-            accessibilityLabel={t('home.importEpub')}
-          >
-            {importing ? (
-              <ActivityIndicator size="small" color={c.fg} />
-            ) : (
-              <Text style={[styles.plus, { color: c.fg }]}>+</Text>
-            )}
-          </Touchable>
+            loading={importing}
+            disabled={syncing}
+          />
         </View>
       </View>
 
       {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={c.fg} />
+        <View style={s.centered}>
+          <ActivityIndicator color={p.muted} />
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingBottom: dockClearance }]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.fg} />}
+          contentContainerStyle={[s.scroll, { paddingBottom: dockClearance }]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={p.muted} />
+          }
           showsVerticalScrollIndicator={false}
         >
           {error && (
-            <Text style={[styles.error, { color: c.error }]} accessibilityRole="alert">
+            <Text style={s.error} accessibilityRole="alert">
               {error}
             </Text>
           )}
 
           {hero && (
-            <View style={{ marginBottom: spacing.xl }}>
-              <ContinueReadingCard
-                book={hero}
-                hasFile={bookFileExists(hero.filename)}
-                onPress={() => openBook(hero.id)}
-              />
-            </View>
+            <ContinueReadingCard
+              book={hero}
+              hasFile={bookFileExists(hero.filename)}
+              onPress={() => openBook(hero.id)}
+            />
           )}
 
           {books.length > 0 && (
             <>
-              <View style={styles.sectionRow}>
-                <Text style={[styles.section, { color: c.fgMuted }]}>Your books</Text>
-                <Touchable
-                  minTarget={false}
-                  hitSlop={6}
+              {/* Our own filter bar, not the composition's two-chip row: one
+                  control that names the state it will move to is the shelf's
+                  existing behaviour, and it keeps the persisted preference a
+                  single boolean. Only the material is new. */}
+              <View style={s.sectionRow}>
+                <Text style={s.section}>{t('library.yourBooks')}</Text>
+                <Chip
+                  label={availableOnly ? t('library.availableOnly') : t('library.allBooks')}
+                  active={availableOnly}
+                  size="sm"
                   onPress={toggleAvailableOnly}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor: availableOnly ? c.fg : c.border,
-                      backgroundColor: availableOnly ? c.bgElev : 'transparent',
-                    },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Toggle available-only filter"
-                >
-                  <Text style={[styles.filterChipText, { color: availableOnly ? c.fg : c.fgMuted }]}>
-                    {availableOnly ? 'Available only ✓' : 'All books'}
-                  </Text>
-                </Touchable>
+                  accessibilityLabel={t('library.filterLabel')}
+                />
               </View>
-              <View style={styles.grid}>
+
+              <View style={s.grid}>
                 {visibleBooks.map((b) => (
-                  <View key={b.id} style={styles.gridItem}>
+                  <View key={b.id} style={s.gridItem}>
                     <BookGridItem
                       book={b}
                       hasFile={bookFileExists(b.filename)}
@@ -315,8 +313,8 @@ export function BooksScreen() {
                   </View>
                 ))}
                 {visibleBooks.length === 0 && (
-                  <View style={styles.emptyWrap}>
-                    <Text style={[styles.empty, { color: c.fgMuted }]}>No books available on this device.</Text>
+                  <View style={s.emptyWrap}>
+                    <Text style={s.empty}>{t('library.noneAvailable')}</Text>
                   </View>
                 )}
               </View>
@@ -324,8 +322,8 @@ export function BooksScreen() {
           )}
 
           {books.length === 0 && !error && (
-            <View style={styles.emptyWrap}>
-              <Text style={[styles.empty, { color: c.fgMuted }]}>{t('home.empty')}</Text>
+            <View style={s.emptyWrap}>
+              <Text style={s.empty}>{t('library.empty')}</Text>
             </View>
           )}
         </ScrollView>
@@ -336,80 +334,51 @@ export function BooksScreen() {
   );
 }
 
-const GRID_GAP = 14;
+function useStyles(p: Palette) {
+  return useMemo(
+    () =>
+      StyleSheet.create({
+        header: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingTop: spacing.sm,
+          paddingBottom: spacing.lg,
+          gap: spacing.md,
+        },
+        title: { ...type.screenTitle, color: p.ink, flexShrink: 1 },
+        headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+        dimmed: { opacity: 0.55 },
 
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
-  },
-  title: {
-    fontFamily: fontFamily.displayBold,
-    fontSize: 34,
-    letterSpacing: -0.5,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  // Fill and hairline come from `surface="glass"`.
-  importBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  plus: { fontSize: 22, lineHeight: 24, fontWeight: '400' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  // paddingBottom comes from useDockClearance() at the call site — the dock floats, so the figure
-  // depends on the safe-area inset and can't be a constant here.
-  scroll: {},
-  error: {
-    fontSize: fontSize.sm,
-    marginBottom: spacing.md,
-  },
-  sectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  filterChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-  },
-  section: {
-    fontSize: fontSize.xs,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    paddingHorizontal: spacing.xs,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -GRID_GAP / 2,
-  },
-  gridItem: {
-    width: '50%',
-    paddingHorizontal: GRID_GAP / 2,
-    marginBottom: spacing.lg,
-  },
-  emptyWrap: {
-    paddingVertical: spacing.xxl * 2,
-    alignItems: 'center',
-  },
-  empty: { fontSize: fontSize.md },
-});
+        centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+        // `paddingBottom` comes from `useDockClearance()` at the call site — the
+        // dock floats, so the figure depends on the safe-area inset and cannot
+        // be a constant here. One gap rule for the whole stack.
+        scroll: { gap: spacing.stackGap },
+        error: { ...type.bodySm, color: p.danger },
+
+        sectionRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: spacing.md,
+        },
+        section: {
+          ...type.eyebrow,
+          color: p.faint,
+          textTransform: 'uppercase',
+          flexShrink: 1,
+        },
+
+        // Negative margins rather than `gap`, so the two columns' outer edges
+        // stay flush with the screen gutter while the gutter between them is
+        // shared by the two tiles.
+        grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -COL_GAP / 2 },
+        gridItem: { width: '50%', paddingHorizontal: COL_GAP / 2, marginBottom: ROW_GAP },
+
+        emptyWrap: { width: '100%', paddingVertical: spacing.xxl * 2, alignItems: 'center' },
+        empty: { ...type.bodyMd, color: p.muted, textAlign: 'center' },
+      }),
+    [p],
+  );
+}

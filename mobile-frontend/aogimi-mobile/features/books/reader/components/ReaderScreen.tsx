@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, AppState, StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
-import { useColors } from '@/theme/ThemeContext';
+import { usePalette } from '@/theme/ThemeContext';
+import { useT } from '@/lib/i18n/I18nContext';
 import { sendProgressBeacon } from '@/features/books/lib/booksApi';
 import { useBookRecord } from '@/features/books/hooks/useBookRecord';
 import type { KanjiInfo, WordDetails } from '@/features/dictionary/types';
@@ -24,12 +24,15 @@ import { useReaderPrefs } from '../lib/readerPrefs';
 import { LookupDrawers } from '@/features/dictionary/components/LookupDrawers';
 import { kanjiCardDraft, plainCardDraft, wordCardDraft } from '@/features/dictionary/lib/cardDraft';
 import { Button } from '@/shared/components/Button';
+import { IconButton } from '@/shared/components/IconButton';
+import { spacing, type, type Palette } from '@/theme/tokens';
 import { ReaderTopBar } from './ReaderTopBar';
+import { ReaderDock } from './ReaderDock';
 import { BookCover } from '../../library/components/BookCover';
 import { DECELERATE } from '@/theme/motion';
 import { useReduceMotion } from '@/lib/useReduceMotion';
-import { MangaScrollView, type MangaScrollViewHandle } from './manga/MangaScrollView';
-import { MangaPagedView, type MangaPagedViewHandle } from './manga/MangaPagedView';
+import { MangaScrollView } from './manga/MangaScrollView';
+import { MangaPagedView } from './manga/MangaPagedView';
 import { useMangaSpine } from './manga/useMangaSpine';
 import { useReaderModals } from '../hooks/useReaderModals';
 import { PdfReaderShell } from './pdf/PdfReaderShell';
@@ -41,10 +44,6 @@ import {
   type RelocatedPayload,
   type SelectionPayload,
 } from './novel/FoliateReader';
-import { TextReader } from './novel/TextReader';
-import { NovelReader } from './novel/NovelReader';
-import { MangaReader } from './manga/MangaReader';
-import { NativeSelectionMenu, type NativeMenuKey } from '../lib/native-selection';
 import type { BookType, EpubTocItem, ReaderThemeStyle } from '../lib/foliateHtml';
 import { useReaderLayoutPrefs } from '../lib/readerLayout';
 import { setLocalProgress } from '@/features/books/lib/booksLocalCache';
@@ -81,7 +80,9 @@ const ENTER_MS = 460;
 const PLACING_TIMEOUT_MS = 6000;
 
 export function ReaderScreen({ bookId }: Props) {
-  const c = useColors();
+  const p = usePalette();
+  const t = useT();
+  const styles = useStyles(p);
   const router = useRouter();
   // The Android nav bar is hidden globally from app/_layout.tsx, so no
   // per-screen call is needed here. iOS is unaffected.
@@ -191,9 +192,20 @@ export function ReaderScreen({ bookId }: Props) {
     progress: 0,
     page: 0,
     totalPages: 0,
-    chapterLabel: '',
+    /** Which TOC entry the visible page belongs to, so the TOC sheet can mark
+     *  it. Foliate reports it on every relocate.
+     *
+     *  Its sibling `chapterLabel` is deliberately **not** kept: the relocate
+     *  payload carries one, but the only thing that would render it is the
+     *  chapter eyebrow above the prose — and the prose is drawn inside the
+     *  WebView by foliate, so that eyebrow is engine work rather than chrome.
+     *  Storing it meanwhile would be state nothing reads. */
+    chapterHref: '',
   });
-  const { cfi: currentCfi, progress, page, totalPages, chapterLabel } = location;
+  // `page` / `totalPages` are written by the relocate handler and read by the
+  // manga spine handler that derives progress from them; nothing renders them
+  // any more (the top bar shows the percentage), so they are not destructured.
+  const { progress, chapterHref } = location;
   // Manga prep (handle + error + isManga). The hook owns the detection
   // and spine-prepare effect; the page derives bookType + totalPages + ready
   // from the returned state.
@@ -216,17 +228,15 @@ export function ReaderScreen({ bookId }: Props) {
   // Current spine index as reported by whichever reader is active. Used
   // for the toolbar's page-count and to persist scroll position.
   const currentSpineRef = useRef<number>(0);
-  const mangaScrollViewRef = useRef<MangaScrollViewHandle | null>(null);
-  const mangaPagedViewRef = useRef<MangaPagedViewHandle | null>(null);
   // Manga mode + page direction now live in useReaderLayoutPrefs so they
   // persist across sessions. The toggle handlers below proxy to the hook so
   // the local API stays unchanged for existing consumers.
 
   // ── Selection / menus ───────────────────────────────────────────────
+  // The live text selection, or null. The **only** thing the dock is told is
+  // whether this is set (`selected`); the payload stays here, with the
+  // callbacks that consume it.
   const [selection, setSelection] = useState<SelectionPayload | null>(null);
-  // FoliateReader's frame size, used to clamp the custom selection menu so
-  // it doesn't extend below the dock or off the screen.
-  const [readerViewport, setReaderViewport] = useState<{ width: number; height: number } | null>(null);
   const {
     dictTerm,
     dictSentence,
@@ -299,7 +309,7 @@ export function ReaderScreen({ bookId }: Props) {
         progress: loc.progress,
         page: loc.page,
         totalPages: loc.totalPages,
-        chapterLabel: loc.chapterLabel ?? '',
+        chapterHref: loc.chapterHref ?? '',
       });
       // For manga (FXL) the spineIndex is one-to-one with the visible page.
       // Track it so toggling into scroll mode lands at the same page.
@@ -356,6 +366,32 @@ export function ReaderScreen({ bookId }: Props) {
     // path.
     [selection, openDict, setFlashcardPrefill],
   );
+
+  /** Drop the band in the WebView and the payload here, together — they are
+   *  one selection and a half-cleared one leaves the dock in its selected
+   *  state with nothing selected. */
+  const clearSelection = useCallback(() => {
+    epubRef.current?.clearSelection();
+    setSelection(null);
+  }, []);
+
+  /** Run one of the three selection actions and clear the selection. The dock
+   *  supplies the key; the payload comes from here, which is what keeps the
+   *  dock free of any knowledge of what is selected. */
+  const runSelectionAction = useCallback(
+    (key: CustomMenuEvent['key']) => {
+      if (!selection) return;
+      handleCustomMenu({ key, selectedText: selection.text, sentence: selection.sentence });
+      clearSelection();
+    },
+    [selection, handleCustomMenu, clearSelection],
+  );
+
+  /** Jump to a TOC href. Named because the dock takes it as a callback rather
+   *  than reaching into the reader's ref. */
+  const jumpToHref = useCallback((href: string) => {
+    epubRef.current?.goTo(href);
+  }, []);
 
   // A kanji result in the lookup sheet. The sheet reports the character and
   // this builds the draft, so the reader stays the one owner of what a card
@@ -557,22 +593,22 @@ export function ReaderScreen({ bookId }: Props) {
   // must not mount before that row has loaded.
   if (loading || !hydrated) {
     return (
-      <View style={[styles.root, { backgroundColor: c.bg }]}>
-        <ActivityIndicator color={c.fg} />
+      <View style={styles.root}>
+        <ActivityIndicator color={p.muted} />
       </View>
     );
   }
 
   if (error || !book) {
     return (
-      <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
+      <SafeAreaView style={styles.root} edges={['top']}>
+        {/* The same 44pt glass circle the reader's own top bar carries, so the
+            way out is in the same place whether the book opened or not. */}
+        <View style={styles.errorBar}>
+          <IconButton glyph="back" onPress={() => router.back()} accessibilityLabel={t('reader.back')} />
+        </View>
         <View style={styles.errorWrap}>
-          <Text style={[styles.errorTitle, { color: c.fg }]}>{error ?? 'Book not found'}</Text>
-          <Touchable
-            minTarget={false}
-            hitSlop={10} onPress={() => router.back()}>
-            <Text style={[styles.back, { color: c.fgMuted }]}>‹ Back</Text>
-          </Touchable>
+          <Text style={styles.errorTitle}>{error ?? t('reader.notFound')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -587,20 +623,14 @@ export function ReaderScreen({ bookId }: Props) {
   if (book.filename.toLowerCase().endsWith('.pdf')) {
     if (!hasFile) {
       return (
-        <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
+        <SafeAreaView style={styles.root} edges={['top']}>
           <ReaderTopBar title={book.title} progress={progress} onBack={handleBack} />
-          <View style={styles.missingWrap}>
-            <Text style={[styles.missingTitle, { color: c.fg }]}>File not on this device</Text>
-            <Text style={[styles.missingBody, { color: c.fgMuted }]}>
-              This book is on your account from another device. Import the PDF file here to start reading.
-            </Text>
-            <Button label="Import PDF" onPress={handleImportMissingFile} />
-          </View>
+          <MissingFile onImport={handleImportMissingFile} styles={styles} t={t} />
         </SafeAreaView>
       );
     }
     return (
-      <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top']}>
+      <SafeAreaView style={styles.root} edges={['top']}>
         <PdfReaderShell
           book={book}
           initialCfi={startCfi}
@@ -632,21 +662,9 @@ export function ReaderScreen({ bookId }: Props) {
 
   const ready = hasFile && hydrated;
 
-  // Common props for the text/novel overlays
-  const sharedTextProps = {
-    toc,
-    prefs,
-    onChangePrefs: savePrefs,
-    onPrev: () => epubRef.current?.prev(),
-    onNext: () => epubRef.current?.next(),
-    onJumpHref: (href: string) => epubRef.current?.goTo(href),
-    onJumpCfi: (cfi: string) => epubRef.current?.goTo(cfi),
-  };
-
   // Match the safe-area inset bg to the body for manga so there's no seam
-  // between the inset (where the floating chevron sits) and the rounded
-  // frame below it.
-  const safeBg = isManga ? style.bg : c.bg;
+  // between the inset (where the top bar sits) and the rounded frame below it.
+  const safeBg = isManga ? style.bg : p.bg;
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: safeBg }]} edges={['top']}>
@@ -660,7 +678,6 @@ export function ReaderScreen({ bookId }: Props) {
         {isManga ? (
           mangaMode === 'pages' ? (
             <MangaPagedView
-              ref={mangaPagedViewRef}
               handle={mangaHandle}
               loading={!mangaHandle && !mangaError}
               error={mangaError}
@@ -671,7 +688,6 @@ export function ReaderScreen({ bookId }: Props) {
             />
           ) : (
             <MangaScrollView
-              ref={mangaScrollViewRef}
               handle={mangaHandle}
               loading={!mangaHandle && !mangaError}
               error={mangaError}
@@ -692,20 +708,13 @@ export function ReaderScreen({ bookId }: Props) {
             onSelection={handleSelection}
             onHaptic={handleHaptic}
             onCustomMenu={handleCustomMenu}
-            onViewportLayout={setReaderViewport}
             onError={handleEpubError}
           />
         ) : !hasFile ? (
-          <View style={styles.missingWrap}>
-            <Text style={[styles.missingTitle, { color: c.fg }]}>File not on this device</Text>
-            <Text style={[styles.missingBody, { color: c.fgMuted }]}>
-              This book is on your account from another device. Import the EPUB file here to start reading.
-            </Text>
-            <Button label="Import EPUB" onPress={handleImportMissingFile} />
-          </View>
+          <MissingFile onImport={handleImportMissingFile} styles={styles} t={t} />
         ) : (
           <View style={styles.missingWrap}>
-            <ActivityIndicator color={c.fg} />
+            <ActivityIndicator color={p.muted} />
           </View>
         )}
 
@@ -748,54 +757,56 @@ export function ReaderScreen({ bookId }: Props) {
               />
             </Animated.View>
             <Animated.View style={{ opacity: spinnerOpacity }}>
-              <ActivityIndicator color={c.fgMuted} />
+              <ActivityIndicator color={p.muted} />
             </Animated.View>
           </View>
         )}
-
-        {/* Custom selection menu over the selection. Positioned with the
-            same coordinate system as the WebView so it lines up with the
-            text. Adjustment handles live INSIDE the WebView (DOM divs in
-            webviewInjections) attached to the selection band itself. */}
-        {selection && readerViewport && !isManga && (
-          <NativeSelectionMenu
-            selectionRect={selection.rect}
-            viewport={readerViewport}
-            onAction={(key: NativeMenuKey) => {
-              handleCustomMenu({ key, selectedText: selection.text, sentence: selection.sentence });
-              epubRef.current?.clearSelection();
-              setSelection(null);
-            }}
-            onDismiss={() => {
-              epubRef.current?.clearSelection();
-              setSelection(null);
-            }}
-          />
-        )}
       </View>
 
-      {/* Type-specific overlay */}
-      {ready && bookType === 'text' && <TextReader {...sharedTextProps} />}
-      {ready && bookType === 'novel' && <NovelReader {...sharedTextProps} />}
-      {isManga && (
-        <MangaReader
-          page={page}
-          totalPages={totalPages}
-          toc={toc}
-          prefs={prefs}
-          mode={mangaMode}
-          onToggleMode={toggleMangaMode}
-          pageDir={mangaPageDir}
-          onTogglePageDir={toggleMangaPageDir}
-          // Chevrons route to whichever view is mounted. The other ref
-          // is null; both are safe to no-op on.
-          onJumpSpine={(idx) => {
-            if (mangaMode === 'pages') {
-              mangaPagedViewRef.current?.scrollToSpine(idx, true);
-            } else {
-              mangaScrollViewRef.current?.scrollToSpine(idx, true);
-            }
+      {/* The dock — one cluster for every renderer, and the only chrome the
+          reader has besides the top bar.
+
+          The selection actions are *its* word-selected state rather than a menu
+          floating over the text: the reader's thumb is already at the bottom of
+          the screen, and a popover that tracked the selection covered the
+          sentence it came from. Positioning is gone with it; what is left is
+          the `selected` boolean.
+
+          Which shortcuts appear is decided by what is handed over — a TOC only
+          when the book has one, Configs only where there is something to
+          configure — so no renderer needs a variant flag. One dock serves text,
+          vertical novel and manga; `TextReader`, `NovelReader` and
+          `MangaReader` were three wrappers around three variants of the old one
+          and are gone.
+
+          Gated on `bookType` as well as the file, so the cluster does not sit
+          on top of the cover while the book is still being placed. */}
+      {ready && bookType !== null && (
+        <ReaderDock
+          theme={prefs.theme}
+          selected={selection !== null}
+          onDismissSelection={clearSelection}
+          onAddCard={() => runSelectionAction('card')}
+          onLookUp={() => runSelectionAction('dict')}
+          onCopy={() => runSelectionAction('copy')}
+          toc={{ items: toc, currentHref: chapterHref || undefined, onNavigate: jumpToHref }}
+          configs={{
+            prefs,
+            onChange: savePrefs,
+            manga: isManga
+              ? {
+                  mode: mangaMode,
+                  onToggleMode: toggleMangaMode,
+                  pageDir: mangaPageDir,
+                  onTogglePageDir: toggleMangaPageDir,
+                }
+              : undefined,
           }}
+          // Empty string, not null: `null` is the closed state, `''` opens the
+          // sheet on its search stage with nothing queried yet. This is what
+          // makes the dictionary reachable from **every** reader rather than
+          // only from a selection or only from the PDF dock.
+          onOpenDictionary={() => openDict('')}
         />
       )}
 
@@ -811,47 +822,77 @@ export function ReaderScreen({ bookId }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1 },
-  body: { flex: 1 },
-  // Absolute overlay for the manga scroll view. Last child of the body
-  // View so natural render order puts it above the FoliateReader. The
-  // MangaReader dock is a *sibling* of body (rendered later) so it stays
-  // on top of this overlay -- the toolbar pill keeps tracking scroll
-  // position while the page stack is visible.
-  scrollOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  errorWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  errorTitle: { fontSize: 16 },
-  back: { fontSize: 15, fontWeight: '500' },
-  missingWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-    padding: 32,
-  },
-  // Sits over the reader body, not the chrome: the top bar stays readable so
-  // the book's title and the way out are there the whole time.
-  //
-  // Centring and nothing else. No offsets, no absolute placement of the
-  // children -- whatever this lands on is what plain centring gives, which is
-  // the baseline to judge the rest against.
-  placing: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  missingTitle: { fontSize: 18, fontWeight: '600' },
-  missingBody: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
-});
+/**
+ * The cross-device case: the record is on the account, the file is not on this
+ * phone. One message and one way to fix it.
+ *
+ * Extracted because it is rendered from three branches — the PDF short-circuit,
+ * the EPUB body, and the EPUB body's own guard — which used to be three copies
+ * of the same three elements with the format name swapped. The name is not
+ * swapped any more: the picker accepts whatever the book is, so the copy says
+ * "file" and stops claiming to know.
+ */
+function MissingFile({
+  onImport,
+  styles,
+  t,
+}: {
+  onImport: () => void;
+  styles: ReturnType<typeof useStyles>;
+  t: (key: string) => string;
+}) {
+  return (
+    <View style={styles.missingWrap}>
+      <Text style={styles.missingTitle}>{t('reader.missingTitle')}</Text>
+      <Text style={styles.missingBody}>{t('reader.missingBody')}</Text>
+      <Button label={t('reader.importFile')} icon="download" onPress={onImport} />
+    </View>
+  );
+}
+
+function useStyles(p: Palette) {
+  return useMemo(
+    () =>
+      StyleSheet.create({
+        root: { flex: 1, backgroundColor: p.bg },
+        body: { flex: 1 },
+
+        /** The way out, when there is no book to put a top bar on. */
+        errorBar: {
+          height: 60,
+          justifyContent: 'center',
+          paddingHorizontal: spacing.screenX,
+        },
+        errorWrap: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: spacing.xxl,
+        },
+        errorTitle: { ...type.bodyMd, color: p.ink, textAlign: 'center' },
+
+        missingWrap: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: spacing.lg,
+          paddingHorizontal: spacing.xxl,
+        },
+        missingTitle: { ...type.headlineMd, color: p.ink, textAlign: 'center' },
+        missingBody: { ...type.bodySm, color: p.muted, textAlign: 'center' },
+
+        // Sits over the reader body, not the chrome: the top bar stays readable
+        // so the book's title and the way out are there the whole time.
+        //
+        // Centring and nothing else. No offsets, no absolute placement of the
+        // children -- whatever this lands on is what plain centring gives,
+        // which is the baseline to judge the rest against.
+        placing: {
+          ...StyleSheet.absoluteFillObject,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+      }),
+    [p],
+  );
+}

@@ -224,6 +224,17 @@ const NIGHT = {
   /** Sheet / popover backdrop, paired with an 8px blur. */
   scrim: 'rgba(15, 14, 30, 0.55)',
 
+  /** **Tier 4's fill when the pane is NOT over the canvas.**
+   *
+   *  `glassIntense` is a white *tint*: it only reads because Night's sky is
+   *  behind it. A bottom sheet is a `Modal` and can be raised over anything —
+   *  the reader's page is white, sepia or near-black by the reader's own
+   *  choice — and an 18%-white film over a white page is nothing at all, which
+   *  is why every sheet in the app used to read as a slightly milky scrim.
+   *  This is the sheet's own ground, dense enough to be a surface wherever it
+   *  lands, and it is the value the Reader compositions draw. */
+  sheet: 'rgba(22, 19, 42, 0.78)',
+
   /* ── Book + deck covers ───────────────────────────────────────────────────
      Unchanged by the redesign: four tints keyed off the stored `cover_color`,
      which is shared data the web renders too. Only `covtrack` is alpha, since
@@ -387,7 +398,14 @@ const DAY: Palette = {
 
   cardBorderOn: 'rgba(14, 19, 38, 0.14)',
 
-  scrim: 'rgba(15, 14, 30, 0.55)',
+  /** Lighter than Night's: the Day compositions dim to `rgba(14,19,38,0.25)`
+   *  behind a sheet, because a 55% wash over the warm canvas reads as the
+   *  lights going out rather than as content stepping back. */
+  scrim: 'rgba(14, 19, 38, 0.25)',
+
+  /** The Day compositions' sheet ground — near-opaque white rather than the
+   *  0.92 tint, for the same reason Night's is (see `sheet` above). */
+  sheet: 'rgba(255, 255, 255, 0.96)',
 
   cover1: '#21385c',
   cover1Ink: '#e7dcc2',
@@ -690,7 +708,22 @@ export const type = {
     lineHeight: 44,
     letterSpacing: 0.76,
   },
-  /** 22px — a screen's own title (`Library`, `Look up a word.`). 600 → 700. */
+  /** 26px — a **root screen's** own title (`Library`).
+   *
+   *  [from the compositions] DESIGN.md's largest UI role is `headline-lg` at
+   *  22px, but every root screen in the handoff sets its title larger and
+   *  heavier than that — Library at 26/800, Dictionary at 30/800 — and at 22px
+   *  a screen title reads as a section heading. 800 resolves to 700, our
+   *  heaviest cut. A data point for the owner: the two compositions disagree
+   *  on the size, and this role takes Library's. */
+  screenTitle: {
+    fontFamily: ui('bold'),
+    fontSize: 26,
+    fontWeight: '700',
+    lineHeight: 32,
+    letterSpacing: -0.26,
+  },
+  /** 22px — a pushed screen's own title, a sheet's title. 600 → 700. */
   headlineLg: {
     fontFamily: ui('bold'),
     fontSize: 22,
