@@ -49,6 +49,14 @@ export const EASE = Easing.inOut(Easing.quad);
 export const DECELERATE = Easing.bezier(0.4, 0, 0.2, 1);
 
 /**
+ * `DECELERATE` run backwards — `bezier(1 - x2, 1 - y2, 1 - x1, 1 - y1)`, the
+ * exact time-reverse of the curve above. It is what a surface *leaves* on, so
+ * an exit is the entrance played in reverse rather than a second, unrelated
+ * motion: slow where the arrival ended, fast where the arrival began.
+ */
+export const ACCELERATE = Easing.bezier(0.8, 0, 0.6, 1);
+
+/**
  * `.glass-press:active` → `transform: translateY(1px) scale(0.985)`.
  *
  * Both halves matter: the translate is the contact and the scale is the give.

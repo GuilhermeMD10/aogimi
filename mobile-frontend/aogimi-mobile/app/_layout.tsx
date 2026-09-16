@@ -7,8 +7,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
   Lora_400Regular,
-  Lora_600SemiBold,
-  Lora_700Bold,
   Lora_400Regular_Italic,
 } from '@expo-google-fonts/lora';
 import {
@@ -48,10 +46,12 @@ export default function RootLayout() {
   // Three families, three roles: Switzer is the app's Latin UI face
   // (registered in `theme/switzer.ts`), Noto Sans JP carries every Japanese
   // glyph in the app, and Lora is the reader's body face only.
+  //
+  // Only the cuts a role actually names are loaded. Lora's roles are `reader`
+  // and `readerItalic` (`theme/tokens.ts`), which is Regular + Regular Italic —
+  // its 600 and 700 cuts were being downloaded at every cold start for nothing.
   const [fontsLoaded, fontsError] = useFonts({
     Lora_400Regular,
-    Lora_600SemiBold,
-    Lora_700Bold,
     Lora_400Regular_Italic,
     NotoSansJP_400Regular,
     NotoSansJP_500Medium,

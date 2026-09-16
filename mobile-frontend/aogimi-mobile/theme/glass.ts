@@ -10,27 +10,27 @@
 //   Tier 3 · Frosted  popovers, floating hint pills, a *pressed* Tier 2
 //   Tier 4 · Intense  bottom sheets and modals
 //
-// A tier is a fill, a 1px border, a specular top rim (Night only) and — for
-// Tiers 3 and 4 — a live blur. Nothing reads the `glass*` palette keys
-// directly; they come through `glassTier` so the recipe stays in one place.
+// A tier is a fill, a 1px border and — for Tiers 3 and 4 — a live blur. The
+// specular top rim is retired and zero-alpha everywhere; see `RIM` below.
+// Nothing reads the `glass*` palette keys directly; they come through
+// `glassTier` so the recipe stays in one place.
 //
 // ── Blur is a performance rule, not taste ──────────────────────────────────
 // The redesign brief (§2) fixes it: **real `BlurView` only on Tier 3/4** —
 // popovers, sheets, modals, the study flashcard — **and the dock.** Tier 1/2
-// are tinted fill + border + rim and no blur at all. A phone Home draws a
-// dozen Tier 1/2 panes; a dozen live backdrop filters is a dropped frame per
-// scroll, and at card size the blur contributes almost nothing over the fill
-// and the rim. `mountBlur` is the flag that encodes this, so a caller cannot
-// get it wrong by reaching past the recipe.
+// are tinted fill + border and no blur at all. A phone Home draws a dozen Tier
+// 1/2 panes; a dozen live backdrop filters is a dropped frame per scroll, and
+// at card size the blur contributes almost nothing over the fill.
+// `mountBlur` is the flag that encodes this, so a caller cannot get it wrong by
+// reaching past the recipe.
 //
 // ── It inverts with the theme ──────────────────────────────────────────────
 // A translucent film only reads if it darkens or lightens what scrolls under
 // it. On Night's indigo canvas that means a **white** wash that brightens with
 // the tier; on Day's warm white canvas it means **opaque white** that grows
-// denser with the tier, and no specular rim at all (DESIGN.md → Daybreak Glow
-// → Glass). Both directions are already in the palette's two columns, which is
-// why this file has no `isNight` branch for the fills — only for the things
-// that are structurally absent in Day.
+// denser with the tier. Both directions are already in the palette's two
+// columns, which is why this file has no `isNight` branch for the fills — only
+// for the one thing that is structurally different in Day, the blur's tint.
 //
 // **The dock keeps its own material** in `features/app-shell/**`: it is one
 // always-on-screen element with its own tweak pass and must stay
@@ -49,7 +49,7 @@ export type GlassRecipe = {
    *  lightening step. Tier 4 has nowhere to climb and presses to itself. */
   fillPressed: string;
   bd: string;
-  /** Specular inset hairline along the top edge. Transparent on Day. */
+  /** The top edge. Zero-alpha in every recipe — see `RIM`. */
   rim: string;
   /** Zero-alpha form of `rim`'s channel, for the sheen gradient's ends. Never
    *  `transparent`, which is zero-alpha *black* and casts grey through a white
@@ -83,19 +83,44 @@ function fillFor(p: Palette, tier: GlassTier): string {
 const BLUR_BY_TIER: Record<GlassTier, number> = { 1: 12, 2: 24, 3: 34, 4: 46 };
 
 /**
+ * **The specular rim, retired.** Zero-alpha in both themes, for every recipe.
+ *
+ * DESIGN.md lights a pane along its top edge (`inset 0 1px 0`), and with no
+ * inset shadow in RN the only way to draw it was a brighter `borderTopColor`.
+ * That is not the same mark: an inset highlight sits *inside* the pane and
+ * falls off, while a coloured border edge is a hard 1px line at full strength
+ * that the corner radius then carries around the top two corners. At Night's
+ * 0.22 white it read as a flare across the top of every card, button, chip and
+ * input rather than as light catching an edge.
+ *
+ * **Zeroing it here is only half the retirement**, and on its own it produces a
+ * worse bug than the flare: a surface that still sets `borderTopColor` to a
+ * zero-alpha rim has a hairline on three sides and a gap on the fourth, which
+ * reads as a broken component rather than a quiet one. So `Glass` and the
+ * reader's dock stopped overriding the top edge at all, and every side takes
+ * `bd`. Restoring the highlight means restoring both — this value *and* the
+ * `borderTopColor` line in `shared/components/Glass.tsx`.
+ *
+ * `rim` survives in the recipe because the legacy `glassWash` still maps it
+ * onto `Sheens` for pressable glass, where it is an overlay rather than a
+ * border and so goes quiet on its own. `bd` is untouched throughout — the
+ * neutral hairline is what gives a pane its outline, and it never flared.
+ */
+const RIM = 'rgba(255, 255, 255, 0)';
+
+/**
  * The full recipe for one tier of the active palette.
  *
- * `isNight` rather than reading the palette, because the two things that differ
- * are *structural* (is there a rim to catch; which way does a blur tint) rather
- * than a colour the columns already carry.
+ * `isNight` rather than reading the palette, because the one thing that differs
+ * is *structural* (which way a blur tints) rather than a colour the columns
+ * already carry.
  */
 export function glassTier(p: Palette, tier: GlassTier, isNight: boolean): GlassRecipe {
-  const rim = isNight ? p.glassRim : 'rgba(255, 255, 255, 0)';
   return {
     fill: fillFor(p, tier),
     fillPressed: fillFor(p, tier === 4 ? 4 : ((tier + 1) as GlassTier)),
     bd: p.glassBorder,
-    rim,
+    rim: RIM,
     rimEdge: 'rgba(255, 255, 255, 0)',
     mountBlur: tier >= 3,
     blurIntensity: BLUR_BY_TIER[tier],
@@ -111,7 +136,7 @@ export function glassAccent(p: Palette, isNight: boolean): GlassRecipe {
     fill: p.glassAccent,
     fillPressed: p.glassAccentBd,
     bd: p.glassAccentBd,
-    rim: isNight ? 'rgba(255, 255, 255, 0.30)' : 'rgba(255, 255, 255, 0)',
+    rim: RIM,
     rimEdge: 'rgba(255, 255, 255, 0)',
     mountBlur: false,
     blurIntensity: BLUR_BY_TIER[2],
@@ -125,8 +150,13 @@ export function glassAccent(p: Palette, isNight: boolean): GlassRecipe {
  * `glassTier(p, 4)` is the documented Tier 4 *tint*, and a tint needs the sky
  * behind it to read. A sheet is a `Modal`: it can be raised over the reader's
  * page (white, sepia or near-black, the reader's choice), over a deck, over a
- * cover image. So it brings its own ground — `p.sheet` — and keeps the rest of
- * the Tier 4 recipe: the hairline, the specular rim, the 40px blur.
+ * cover image. So it brings its own ground — `p.sheet` — and keeps the Tier 4
+ * 40px blur.
+ *
+ * `bd` and `rim` are carried for the shape's sake only: both sheet shells
+ * (`BottomSheet`, `CardInspectorSheet`) draw no border. A hairline is what
+ * lifts a pane off the canvas, and a sheet arrives over a scrim already
+ * separated from what is under it.
  *
  * Same shape as a tier, so `Glass` can take either without branching.
  */
@@ -136,7 +166,7 @@ export function glassSheet(p: Palette, isNight: boolean): GlassRecipe {
     // A sheet is not pressable as a whole; its rows are, and they are Tier 1.
     fillPressed: p.sheet,
     bd: p.glassBorder,
-    rim: isNight ? p.glassRim : 'rgba(255, 255, 255, 0)',
+    rim: RIM,
     rimEdge: 'rgba(255, 255, 255, 0)',
     mountBlur: true,
     blurIntensity: BLUR_BY_TIER[4],
@@ -164,8 +194,11 @@ export type GlassWash = {
  * remaining caller (`Touchable`'s `surface="glass"`) picks up the new material
  * without a rewrite. New code takes `glassTier` and the `Glass` primitive.
  *
- * The two sheens collapse onto the tier's single rim: DESIGN.md lights a pane
- * along its top edge only, where the old recipe lit both edges.
+ * The two sheens collapse onto the tier's single rim, which is now zero-alpha
+ * (see `RIM`) — so `Sheens` renders, but draws nothing. Left wired rather than
+ * cut out of `Touchable`: a sheen is an overlay, not a border, so it costs a
+ * pane nothing to keep and it is the one place a highlight could come back
+ * without reintroducing the missing-top-edge bug.
  */
 export function glassWash(p: Palette, isNight: boolean): GlassWash {
   const g = glassTier(p, 2, isNight);
