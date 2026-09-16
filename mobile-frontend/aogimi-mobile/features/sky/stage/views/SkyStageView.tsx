@@ -41,6 +41,7 @@ import { deckColorFor, deckGlyphFor } from '../lib/deckVisuals';
 import { deleteDeckLocal } from '../lib/deckPush';
 import { syncAllDeckChanges } from '../lib/decksSyncAll';
 import { MAX_DECKS } from '../lib/limits';
+import type { LocalCard } from '../types';
 
 /**
  * The Sky tab — every deck a constellation, on the app's own night. The decks
@@ -183,6 +184,20 @@ function SkyStage() {
   }, []);
 
   const selectCard = useCallback((cardId: string | null) => setSelectedCardId(cardId), []);
+
+  /**
+   * The card the inspector sheet is showing — which **outlives the selection by
+   * one exit animation.** The sheet is mount-gated by this host rather than by a
+   * `Modal`, so when the selection clears it has to stay mounted with
+   * `visible={false}` until it reports `onExited`, or the pane would vanish
+   * instead of leaving. A selection made mid-exit simply becomes the new card.
+   */
+  const [sheetCard, setSheetCard] = useState<LocalCard | null>(null);
+  useEffect(() => {
+    // Syncing from the selection into the sheet's own lifetime.
+    if (selectedCard) setSheetCard(selectedCard);
+  }, [selectedCard]);
+  const onSheetExited = useCallback(() => setSheetCard(null), []);
 
   /* ---------- one level up: card → deck → sky. Android back is its key. ---------- */
 
@@ -410,13 +425,15 @@ function SkyStage() {
       </View>
 
       {/* ── the ringed star's card, grown out of the bottom edge ── */}
-      {selectedCard && (
+      {sheetCard && (
         <View style={s.cardDock} onLayout={measure(setCardSheetH)} pointerEvents="box-none">
           <CardInspectorSheet
-            card={selectedCard}
+            card={sheetCard}
+            visible={selectedCard !== null}
+            onExited={onSheetExited}
             onClose={() => setSelectedCardId(null)}
             onMore={() => setCardMenuOpen(true)}
-            onLookUp={() => lookup.open(selectedCard.front)}
+            onLookUp={() => lookup.open(sheetCard.front)}
           />
         </View>
       )}
