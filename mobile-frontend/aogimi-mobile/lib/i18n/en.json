@@ -82,6 +82,45 @@
       "font": "Font",
       "margin": "Margin",
       "vertical": "Vertical"
+    },
+    "back": "Back to library",
+    "notFound": "Book not found",
+    "missingTitle": "File not on this device",
+    "missingBody": "This book is on your account from another device. Import the file here to start reading.",
+    "importFile": "Import file",
+    "dock": {
+      "open": "Reader controls",
+      "toc": "TOC",
+      "configs": "Configs",
+      "dictionary": "Dictionary"
+    },
+    "selection": {
+      "addCard": "Add card",
+      "lookUp": "Dictionary",
+      "copy": "Copy",
+      "dismiss": "Dismiss selection"
+    },
+    "toc": {
+      "eyebrow": "Contents",
+      "title": "目次",
+      "empty": "No table of contents"
+    },
+    "configs": {
+      "eyebrow": "Reader settings",
+      "title": "表示設定",
+      "font": "Font",
+      "fontSize": "Font size",
+      "lineSpacing": "Line spacing",
+      "theme": "Theme",
+      "themeLight": "Light",
+      "themeSepia": "Sepia",
+      "themeDark": "Dark",
+      "layout": "Layout",
+      "layoutScroll": "Scroll",
+      "layoutPages": "Pages",
+      "direction": "Direction",
+      "directionRtl": "Right to left",
+      "directionLtr": "Left to right"
     }
   },
   "dict": {
@@ -252,5 +291,49 @@
     "yellow": "Yellow",
     "pink": "Pink",
     "grey": "Grey"
+  },
+  "library": {
+    "title": "Library",
+    "addBook": "Add Book",
+    "sync": "Sync library",
+    "syncOffline": "Sync library (offline)",
+    "offlineTitle": "Offline",
+    "offlineBody": "Connect to the internet to sync.",
+    "yourBooks": "Your books",
+    "allBooks": "All books",
+    "availableOnly": "Available only",
+    "filterLabel": "Toggle available-only filter",
+    "continueReading": "Continue Reading",
+    "progress": "Progress",
+    "resume": "Resume Reading",
+    "notOnDevice": "Not on this device",
+    "notOnDeviceHint": "Not on this device — tap to import",
+    "noneAvailable": "No books available on this device.",
+    "empty": "No books yet",
+    "moreActions": "More actions for {title}",
+    "actions": {
+      "syncNow": "Sync now",
+      "rename": "Rename",
+      "delete": "Delete",
+      "titlePlaceholder": "Book title"
+    }
+  },
+  "card": {
+    "eyebrow": "New star",
+    "title": "Add card",
+    "front": "Front",
+    "back": "Back",
+    "word": "Word",
+    "reading": "Reading",
+    "meanings": "Meanings",
+    "context": "Context · JP",
+    "deck": "Deck",
+    "newDeck": "New deck",
+    "deckName": "Deck name",
+    "pickExisting": "Pick an existing deck",
+    "submit": "Add to sky",
+    "wordPlaceholder": "言葉",
+    "readingPlaceholder": "ことば",
+    "meaningPlaceholder": "Meaning {n}"
   }
 }

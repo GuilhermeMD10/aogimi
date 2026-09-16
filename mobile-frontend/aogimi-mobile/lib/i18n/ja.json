@@ -82,6 +82,45 @@
       "font": "フォント",
       "margin": "余白",
       "vertical": "縦書き"
+    },
+    "back": "ライブラリに戻る",
+    "notFound": "本が見つかりません",
+    "missingTitle": "この端末にファイルがありません",
+    "missingBody": "この本は別の端末からアカウントに登録されています。読むにはファイルを取り込んでください。",
+    "importFile": "ファイルを取り込む",
+    "dock": {
+      "open": "リーダー操作",
+      "toc": "目次",
+      "configs": "設定",
+      "dictionary": "辞書"
+    },
+    "selection": {
+      "addCard": "カードを追加",
+      "lookUp": "辞書",
+      "copy": "コピー",
+      "dismiss": "選択を解除"
+    },
+    "toc": {
+      "eyebrow": "目次",
+      "title": "目次",
+      "empty": "目次がありません"
+    },
+    "configs": {
+      "eyebrow": "表示設定",
+      "title": "表示設定",
+      "font": "フォント",
+      "fontSize": "文字サイズ",
+      "lineSpacing": "行間",
+      "theme": "テーマ",
+      "themeLight": "ライト",
+      "themeSepia": "セピア",
+      "themeDark": "ダーク",
+      "layout": "レイアウト",
+      "layoutScroll": "スクロール",
+      "layoutPages": "ページ",
+      "direction": "読む方向",
+      "directionRtl": "右から左",
+      "directionLtr": "左から右"
     }
   },
   "dict": {
@@ -252,5 +291,49 @@
     "yellow": "イエロー",
     "pink": "ピンク",
     "grey": "グレー"
+  },
+  "library": {
+    "title": "ライブラリ",
+    "addBook": "本を追加",
+    "sync": "ライブラリを同期",
+    "syncOffline": "ライブラリを同期（オフライン）",
+    "offlineTitle": "オフライン",
+    "offlineBody": "同期するにはインターネットに接続してください。",
+    "yourBooks": "あなたの本",
+    "allBooks": "すべての本",
+    "availableOnly": "端末にある本のみ",
+    "filterLabel": "端末にある本のみ表示を切り替える",
+    "continueReading": "読書を続ける",
+    "progress": "進捗",
+    "resume": "読書を再開",
+    "notOnDevice": "この端末にはありません",
+    "notOnDeviceHint": "この端末にはありません — タップして取り込む",
+    "noneAvailable": "この端末に読める本がありません。",
+    "empty": "本がまだありません",
+    "moreActions": "{title} の操作",
+    "actions": {
+      "syncNow": "今すぐ同期",
+      "rename": "名前を変更",
+      "delete": "削除",
+      "titlePlaceholder": "本のタイトル"
+    }
+  },
+  "card": {
+    "eyebrow": "新しい星",
+    "title": "カードを追加",
+    "front": "表",
+    "back": "裏",
+    "word": "言葉",
+    "reading": "読み",
+    "meanings": "意味",
+    "context": "例文 · 日本語",
+    "deck": "デッキ",
+    "newDeck": "新しいデッキ",
+    "deckName": "デッキ名",
+    "pickExisting": "既存のデッキを選ぶ",
+    "submit": "空に追加",
+    "wordPlaceholder": "言葉",
+    "readingPlaceholder": "ことば",
+    "meaningPlaceholder": "意味 {n}"
   }
 }

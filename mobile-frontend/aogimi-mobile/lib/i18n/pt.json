@@ -82,6 +82,45 @@
       "font": "Tipo de letra",
       "margin": "Margem",
       "vertical": "Vertical"
+    },
+    "back": "Voltar à biblioteca",
+    "notFound": "Livro não encontrado",
+    "missingTitle": "Ficheiro não está neste dispositivo",
+    "missingBody": "Este livro está na tua conta a partir de outro dispositivo. Importa o ficheiro aqui para começar a ler.",
+    "importFile": "Importar ficheiro",
+    "dock": {
+      "open": "Controlos do leitor",
+      "toc": "Índice",
+      "configs": "Ajustes",
+      "dictionary": "Dicionário"
+    },
+    "selection": {
+      "addCard": "Adicionar cartão",
+      "lookUp": "Dicionário",
+      "copy": "Copiar",
+      "dismiss": "Cancelar seleção"
+    },
+    "toc": {
+      "eyebrow": "Índice",
+      "title": "目次",
+      "empty": "Sem índice"
+    },
+    "configs": {
+      "eyebrow": "Ajustes de leitura",
+      "title": "表示設定",
+      "font": "Tipo de letra",
+      "fontSize": "Tamanho do texto",
+      "lineSpacing": "Espaçamento",
+      "theme": "Tema",
+      "themeLight": "Claro",
+      "themeSepia": "Sépia",
+      "themeDark": "Escuro",
+      "layout": "Disposição",
+      "layoutScroll": "Rolar",
+      "layoutPages": "Páginas",
+      "direction": "Direção",
+      "directionRtl": "Direita para a esquerda",
+      "directionLtr": "Esquerda para a direita"
     }
   },
   "dict": {
@@ -252,5 +291,49 @@
     "yellow": "Amarelo",
     "pink": "Rosa",
     "grey": "Cinza"
+  },
+  "library": {
+    "title": "Biblioteca",
+    "addBook": "Adicionar livro",
+    "sync": "Sincronizar biblioteca",
+    "syncOffline": "Sincronizar biblioteca (offline)",
+    "offlineTitle": "Offline",
+    "offlineBody": "Liga-te à internet para sincronizar.",
+    "yourBooks": "Os teus livros",
+    "allBooks": "Todos os livros",
+    "availableOnly": "Só disponíveis",
+    "filterLabel": "Alternar filtro de livros disponíveis",
+    "continueReading": "Continuar a leitura",
+    "progress": "Progresso",
+    "resume": "Retomar leitura",
+    "notOnDevice": "Não está neste dispositivo",
+    "notOnDeviceHint": "Não está neste dispositivo — toca para importar",
+    "noneAvailable": "Nenhum livro disponível neste dispositivo.",
+    "empty": "Ainda sem livros",
+    "moreActions": "Mais ações para {title}",
+    "actions": {
+      "syncNow": "Sincronizar agora",
+      "rename": "Mudar o nome",
+      "delete": "Eliminar",
+      "titlePlaceholder": "Título do livro"
+    }
+  },
+  "card": {
+    "eyebrow": "Nova estrela",
+    "title": "Adicionar cartão",
+    "front": "Frente",
+    "back": "Verso",
+    "word": "Palavra",
+    "reading": "Leitura",
+    "meanings": "Significados",
+    "context": "Contexto · JP",
+    "deck": "Baralho",
+    "newDeck": "Novo baralho",
+    "deckName": "Nome do baralho",
+    "pickExisting": "Escolher um baralho existente",
+    "submit": "Adicionar ao céu",
+    "wordPlaceholder": "言葉",
+    "readingPlaceholder": "ことば",
+    "meaningPlaceholder": "Significado {n}"
   }
 }

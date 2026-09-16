@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { usePalette, useTheme } from '@/theme/ThemeContext';
-import { glassAccent, glassTier, type GlassTier } from '@/theme/glass';
+import { glassAccent, glassSheet, glassTier, type GlassTier } from '@/theme/glass';
 import { radius as radii } from '@/theme/tokens';
 
 /**
@@ -27,20 +27,33 @@ import { radius as radii } from '@/theme/tokens';
  * which sit against a scrim rather than needing to lift off the canvas. A
  * caller that needs a Tier 1/2 pane to clip its children passes `clip`.
  */
+/**
+ * Which recipe the pane takes.
+ *
+ *   · `tier`   the four elevations, picked by `tier` — the default.
+ *   · `accent` the focused deck node, a selected row, an accent icon plate.
+ *              Reserved by DESIGN.md; a card never takes it.
+ *   · `sheet`  Tier 4 with its own ground, for a pane raised over content that
+ *              is not the canvas. See `glassSheet`.
+ *
+ * One prop rather than a boolean each, because they are mutually exclusive:
+ * two flags would have a meaningless fourth state and a rule about which wins.
+ */
+export type GlassMaterial = 'tier' | 'accent' | 'sheet';
+
 export function Glass({
   children,
   tier = 2,
-  accent = false,
+  material = 'tier',
   radius = radii.card,
   shadow = true,
   clip = false,
   style,
 }: {
   children?: React.ReactNode;
+  /** Ignored unless `material` is `tier`. */
   tier?: GlassTier;
-  /** Accent glass — the focused deck node, a selected row, an icon plate.
-   *  Reserved by DESIGN.md; a card never takes it. */
-  accent?: boolean;
+  material?: GlassMaterial;
   radius?: number;
   /** Off for a nested plate: DESIGN.md's Tier 1 inside a card drops the outer
    *  drop shadow, or the card reads as two stacked objects. */
@@ -51,10 +64,11 @@ export function Glass({
   const p = usePalette();
   const { themeName } = useTheme();
   const isNight = themeName === 'night';
-  const g = useMemo(
-    () => (accent ? glassAccent(p, isNight) : glassTier(p, tier, isNight)),
-    [p, tier, accent, isNight],
-  );
+  const g = useMemo(() => {
+    if (material === 'accent') return glassAccent(p, isNight);
+    if (material === 'sheet') return glassSheet(p, isNight);
+    return glassTier(p, tier, isNight);
+  }, [p, tier, material, isNight]);
   const shadowStyle = useShadow();
 
   return (

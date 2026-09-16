@@ -38,6 +38,13 @@ export const SURFACE_MS = 180;
  *  decelerate curve, used by the dock's sliding pill. */
 export const SLIDE_MS = 280;
 
+/**
+ * The bottom sheet's rise. Longer than any of the four above because it is a
+ * surface arriving, not a control changing state — and short enough that the
+ * content is reachable before the reader has decided to reach for it.
+ */
+export const SHEET_MS = 260;
+
 export const EASE = Easing.inOut(Easing.quad);
 export const DECELERATE = Easing.bezier(0.4, 0, 0.2, 1);
 

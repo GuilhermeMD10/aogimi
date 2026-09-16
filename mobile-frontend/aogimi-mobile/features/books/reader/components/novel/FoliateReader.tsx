@@ -55,8 +55,8 @@ export type SelectionPayload = {
 export type CustomMenuKey = 'dict' | 'card' | 'copy';
 export type CustomMenuEvent = { key: CustomMenuKey; selectedText: string; sentence?: string };
 
-// OS selection bubble is replaced by NativeSelectionMenu (rendered by the
-// reader screen). On Android we pass `menuItems: []`, which leaves the
+// The OS selection bubble is replaced by the reader dock's word-selected state
+// (see `ReaderDock`). On Android we pass `menuItems: []`, which leaves the
 // action-mode bubble with nothing to draw, and exhaustively suppress every
 // stock action.
 //
@@ -100,10 +100,6 @@ type Props = {
   // in a static rounded frame in RN — native pinch-zoom then only scales
   // the page art inside, not the frame itself.
   manga?: boolean;
-  // Fires whenever the WebView frame's measured size changes. The selection
-  // rect emitted by foliate is in this frame's coordinate space, so the
-  // parent screen needs the same size to clamp the custom selection menu.
-  onViewportLayout?: (size: { width: number; height: number }) => void;
   onReady?: (payload: ReadyPayload) => void;
   onRelocated?: (payload: RelocatedPayload) => void;
   onSelection?: (payload: SelectionPayload) => void;
@@ -122,7 +118,6 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
     initialStyle,
     bgColor,
     manga,
-    onViewportLayout,
     onReady,
     onRelocated,
     onSelection,
@@ -143,11 +138,10 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
       if (width <= 0 || height <= 0) return;
       setViewport((prev) => {
         if (prev && prev.width === width && prev.height === height) return prev;
-        onViewportLayout?.({ width, height });
         return { width, height };
       });
     },
-    [onViewportLayout],
+    [],
   );
 
   const post = useCallback((msg: FoliateBridgeInbound) => {
@@ -271,11 +265,16 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
   );
 });
 
-// The floating ReaderBottomDock (pill at rest) occupies ~y=22..60 from the
-// device bottom. Reserve a bit above that so the last line of text doesn't
-// slide under the pill. The WebView fills the frame View, so shrinking the
-// frame shrinks foliate's pagination viewport accordingly.
-const DOCK_CLEARANCE = 72;
+// The floating `ReaderDock` sits `safe-area inset + 12` from the device bottom
+// and is 40pt tall at rest, so on a phone with a home indicator its top edge is
+// around y=86. Reserve above that so the last line of text does not slide under
+// it — the composition reserves an 80pt spacer plus the home-indicator row for
+// exactly this. The WebView fills the frame View, so shrinking the frame shrinks
+// foliate's pagination viewport accordingly.
+//
+// The dock's *expanded* row is 64pt tall and does overlap the text, which is
+// fine: it is transient and sits behind its own dismiss backdrop.
+const DOCK_CLEARANCE = 96;
 const MANGA_GUTTER = 5;
 const MANGA_RADIUS = 50;
 

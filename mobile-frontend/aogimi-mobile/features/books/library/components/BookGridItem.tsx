@@ -1,11 +1,21 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
-import { useColors } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius } from '@/theme/tokens';
+import { MoreDotsIcon } from '@/shared/icons/dots';
+import { usePalette } from '@/theme/ThemeContext';
+import { useT } from '@/lib/i18n/I18nContext';
+import { radius, type, type Palette } from '@/theme/tokens';
 import type { BookRecord } from '../../types';
 import { isPendingBookId } from '../../lib/bookPush';
 import { SyncPill, type SyncPillState } from './SyncPill';
 import { BookCover } from './BookCover';
+
+/** The three overlays on a cover, all 6pt in from their corner so the badges
+ *  line up with each other however tall the artwork turns out to be. */
+const OVERLAY_INSET = 6;
+/** `Library.dc.html`'s more-button: a 24pt circle with three 2.5pt dots. */
+const MORE = 24;
+const MORE_DOT = 2.5;
 
 function deriveSyncState(
   book: BookRecord,
@@ -22,6 +32,25 @@ function deriveSyncState(
   return 'synced';
 }
 
+/**
+ * One tile on the shelf: cover, title, author and percentage.
+ *
+ * ── Three things sit on the cover, and each corner means something ─────────
+ * `…` **top-left**, sync badge top-right, format chip bottom-left — the
+ * arrangement `Library.dc.html` draws. The more-button used to sit in the meta
+ * row under the title, where it competed with the author line for width and
+ * pushed the percentage around; on the cover it is out of the text's way and
+ * the same distance from the corner as the badge opposite it. Its ground is the
+ * scrim rather than glass, because it lands on artwork whose colours are the
+ * publisher's, not the palette's — white dots on a dark wash is the one pairing
+ * that reads over every cover.
+ *
+ * The **sync badge and the format chip are unchanged** by the redesign: the
+ * badge is the app's sync vocabulary (and taps to explain itself) and the chip
+ * is how a reader tells a PDF from an EPUB before opening it, which matters
+ * most for the cross-device records that show a glyph placeholder instead of
+ * artwork.
+ */
 export function BookGridItem({
   book,
   hasFile = true,
@@ -37,132 +66,127 @@ export function BookGridItem({
   onPress?: () => void;
   onMore?: () => void;
 }) {
-  const c = useColors();
+  const p = usePalette();
+  const t = useT();
+  const s = useStyles(p);
   const isPdf = book.filename.toLowerCase().endsWith('.pdf');
   const syncState = deriveSyncState(book, hasFile, sessionPending);
+
   return (
-    <Touchable
-      minTarget={false}
-      onPress={onPress}
-      style={styles.root}
-    >
-      <View style={styles.coverWrap}>
+    <Touchable minTarget={false} onPress={onPress} style={s.root}>
+      <View style={s.coverWrap}>
         <BookCover
           title={book.title}
           coverColor={book.cover_color}
           filename={hasFile ? book.filename : undefined}
           aspectRatio={3 / 4}
-          cornerRadius={radius.md}
-          style={{ ...styles.cover, opacity: hasFile ? 1 : 0.45 }}
+          cornerRadius={radius.control}
+          style={{ ...s.cover, opacity: hasFile ? 1 : 0.45 }}
         />
-        <View style={styles.syncPillSlot}>
+
+        {onMore && (
+          <Touchable
+            minTarget={false}
+            hitSlop={8}
+            onPress={onMore}
+            accessibilityRole="button"
+            accessibilityLabel={t('library.moreActions', { title: book.title })}
+            style={s.more}
+          >
+            <MoreDotsIcon size={MORE_DOT} gap={2} color="#FFFFFF" />
+          </Touchable>
+        )}
+
+        <View style={s.syncSlot}>
           <SyncPill state={syncState} />
         </View>
-        {/* Small format chip in the bottom-left corner of the cover so
-            users can tell PDF from EPUB at a glance, especially for
-            cross-device records that show the swatch placeholder. */}
-        <View
-          style={[
-            styles.formatChip,
-            { backgroundColor: c.bgElev, borderColor: c.borderStrong },
-          ]}
-        >
-          <Text style={[styles.formatChipText, { color: c.fgMuted }]}>
+
+        <View style={s.formatChip}>
+          <Text allowFontScaling={false} style={s.formatChipText}>
             {isPdf ? 'PDF' : 'EPUB'}
           </Text>
         </View>
       </View>
-      <Text style={[styles.title, { color: c.fg }]} numberOfLines={2}>
+
+      <Text style={s.title} numberOfLines={2}>
         {book.title}
       </Text>
-      <View style={styles.metaRow}>
-        <Text style={[styles.meta, { color: c.fgMuted }]} numberOfLines={1}>
-          {book.author ? `${book.author} · ` : ''}{book.progress}%
+
+      <View style={s.metaRow}>
+        <Text style={s.author} numberOfLines={1}>
+          {book.author || '—'}
         </Text>
-        {onMore && (
-          <Touchable
-            surface="glass"
-            radius={11}
-            minTarget={false}
-            hitSlop={10}
-            onPress={onMore}
-            accessibilityRole="button"
-            accessibilityLabel={`More actions for ${book.title}`}
-            style={styles.moreBtn}
-          >
-            <Text style={[styles.moreGlyph, { color: c.fgMuted }]}>⋯</Text>
-          </Touchable>
-        )}
+        <Text style={s.pct}>{`${Math.round(book.progress)}%`}</Text>
       </View>
+
       {!hasFile && (
-        <Text style={[styles.missing, { color: c.fgSubtle }]} numberOfLines={1}>
-          Not on this device
+        <Text style={s.missing} numberOfLines={1}>
+          {t('library.notOnDevice')}
         </Text>
       )}
     </Touchable>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1 },
-  coverWrap: { position: 'relative' },
-  cover: {
-    width: '100%',
-  },
-  syncPillSlot: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-  },
-  formatChip: {
-    position: 'absolute',
-    bottom: 6,
-    left: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  formatChipText: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  title: {
-    fontFamily: fontFamily.jp,
-    fontSize: fontSize.sm + 1,
-    fontWeight: '500',
-    marginTop: 8,
-    lineHeight: 18,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
-    gap: 6,
-  },
-  meta: {
-    flexShrink: 1,
-    fontSize: fontSize.xs,
-  },
-  // Fill and hairline come from `surface="glass"`.
-  moreBtn: {
-    width: 26,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moreGlyph: {
-    fontSize: 14,
-    lineHeight: 14,
-    fontWeight: '600',
-    marginTop: -3,
-  },
-  missing: {
-    fontSize: fontSize.xs - 1,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
-});
+function useStyles(p: Palette) {
+  return useMemo(
+    () =>
+      StyleSheet.create({
+        root: { flex: 1, gap: 6 },
+        coverWrap: { position: 'relative' },
+        cover: { width: '100%', borderWidth: 1, borderColor: p.tintA },
+
+        more: {
+          position: 'absolute',
+          top: OVERLAY_INSET,
+          left: OVERLAY_INSET,
+          width: MORE,
+          height: MORE,
+          // A circle, by definition — half its own box, not a token radius.
+          borderRadius: MORE / 2,
+          // The scrim, not glass: this lands on the publisher's artwork.
+          backgroundColor: p.scrim,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        syncSlot: { position: 'absolute', top: OVERLAY_INSET, right: OVERLAY_INSET },
+
+        formatChip: {
+          position: 'absolute',
+          bottom: OVERLAY_INSET,
+          left: OVERLAY_INSET,
+          paddingHorizontal: 6,
+          paddingVertical: 1,
+          borderRadius: radius.chip,
+          backgroundColor: p.scrim,
+        },
+        formatChipText: {
+          fontFamily: type.eyebrow.fontFamily,
+          fontSize: 9,
+          fontWeight: '500',
+          lineHeight: 13,
+          letterSpacing: 0.6,
+          // Same reason as the more-button's dots: it sits on artwork.
+          color: '#FFFFFF',
+        },
+
+        title: {
+          fontFamily: type.titleKanji.fontFamily,
+          fontSize: 13,
+          fontWeight: '700',
+          lineHeight: 18,
+          color: p.ink,
+        },
+        metaRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 6,
+        },
+        author: { ...type.monoMeta, fontFamily: type.bodySm.fontFamily, color: p.faint, flexShrink: 1 },
+        pct: { ...type.monoMeta, fontFamily: type.headlineMd.fontFamily, color: p.accent },
+        missing: { ...type.labelInterval, color: p.faint, fontStyle: 'italic' },
+      }),
+    [p],
+  );
+}

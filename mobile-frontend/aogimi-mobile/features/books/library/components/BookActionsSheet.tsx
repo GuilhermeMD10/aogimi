@@ -1,16 +1,14 @@
-import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
 import { Touchable } from '@/shared/components/Touchable';
 import { BottomSheet } from '@/shared/components/BottomSheet';
-import { useColors } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
+import { Button } from '@/shared/components/Button';
+import { Glass } from '@/shared/components/Glass';
+import { TextField } from '@/shared/components/TextField';
+import { usePalette } from '@/theme/ThemeContext';
+import { useT } from '@/lib/i18n/I18nContext';
+import { spacing, type, type Palette } from '@/theme/tokens';
 import { deleteBook, updateBookTitle } from '../../lib/booksApi';
 import { deleteBookFile } from '../../lib/bookPaths';
 import { evictBookCache } from '../../lib/mangaPages';
@@ -27,15 +25,29 @@ type Props = {
   onChanged: () => void;
 };
 
+/** DESIGN.md's "Menu row (popover)": 56pt tall with a 40pt circular icon
+ *  plate, rows separated by a hairline. */
+const ROW_H = 56;
+const PLATE = 40;
+
 /**
- * Per-book actions menu shown from the `…` button on each library tile.
- * Two affordances: rename (PATCH /api/books/{id}) and delete (DELETE /api
- * /books/{id} + local file cleanup). The sheet has two visual modes — a
- * row of action buttons, and an inline rename form — to avoid stacking
- * nested modals.
+ * Per-book actions, shown from the `…` button on a shelf tile: sync now,
+ * rename, delete.
+ *
+ * Two modes in one sheet — a menu and an inline rename form — rather than a
+ * second sheet over the first, because `BottomSheet` is a `Modal` and iOS
+ * presents one modal per view controller (see `DictDrawer`). Swapping the
+ * sheet's contents is the arrangement that works.
+ *
+ * Styled as DESIGN.md's popover menu: 56pt rows, a 40pt Tier 1 icon plate per
+ * row, and a hairline between them. The destructive row colours its glyph and
+ * its label with `danger` and nothing else does, so "delete" is legible before
+ * it is read.
  */
 export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
-  const c = useColors();
+  const p = usePalette();
+  const s = useStyles(p);
+  const t = useT();
   const { user, status } = useAuth();
   const cannotSync = status !== 'signed-in';
   const [mode, setMode] = useState<'menu' | 'rename'>('menu');
@@ -150,88 +162,70 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
   };
 
   return (
-    <BottomSheet visible={visible} onDismiss={onDismiss} heightRatio={0.4}>
-      <View style={styles.host}>
-        <Text
-          style={[styles.title, { color: c.fg }]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
-          {book?.title ?? ''}
-        </Text>
+    <BottomSheet visible={visible} onDismiss={onDismiss} heightRatio={0.42}>
+      <View style={s.host}>
+        <View style={s.header}>
+          <Text style={s.eyebrow}>{t('library.yourBooks')}</Text>
+          <Text style={s.title} numberOfLines={1} ellipsizeMode="tail">
+            {book?.title ?? ''}
+          </Text>
+        </View>
 
-        {mode === 'menu' && (
-          <View style={styles.menu}>
+        {mode === 'menu' ? (
+          <View>
             {/* Sync-now is hidden for guests — no account to push to. */}
             {!cannotSync && (
-              <ActionRow
-                label="Sync now"
+              <MenuRow
+                icon="repeat"
+                label={t('library.actions.syncNow')}
                 onPress={handleSync}
-                tint={c.fg}
-                border={c.border}
                 disabled={busy}
               />
             )}
-            <ActionRow
-              label="Rename"
+            <MenuRow
+              icon="edit-2"
+              label={t('library.actions.rename')}
               onPress={() => setMode('rename')}
-              tint={c.fg}
-              border={c.border}
               disabled={busy}
+              divided={!cannotSync}
             />
-            <ActionRow
-              label="Delete"
+            <MenuRow
+              icon="trash-2"
+              label={t('library.actions.delete')}
               onPress={handleDelete}
-              tint={c.error ?? '#C53030'}
-              border={c.border}
               disabled={busy}
+              destructive
+              divided
             />
           </View>
-        )}
-
-        {mode === 'rename' && (
-          <View style={styles.renameWrap}>
-            <TextInput
+        ) : (
+          <View style={s.rename}>
+            <TextField
+              label={t('library.actions.rename')}
               value={draftTitle}
               onChangeText={setDraftTitle}
+              placeholder={t('library.actions.titlePlaceholder')}
+              japanese
               autoFocus
-              placeholder="Book title"
-              placeholderTextColor={c.fgSubtle}
-              style={[
-                styles.input,
-                { color: c.fg, borderColor: c.border, backgroundColor: c.bgElev },
-              ]}
+              editable={!busy}
               returnKeyType="done"
               onSubmitEditing={handleRenameSubmit}
-              editable={!busy}
             />
-            <View style={styles.row}>
-              <Touchable
-                minTarget={false}
+            <View style={s.renameActions}>
+              <Button
+                label={t('common.cancel')}
+                variant="secondary"
                 onPress={() => setMode('menu')}
                 disabled={busy}
-                style={[
-                  styles.btnGhost,
-                  { borderColor: c.border, opacity: busy ? 0.55 : 1 },
-                ]}
-              >
-                <Text style={[styles.btnGhostText, { color: c.fgMuted }]}>Cancel</Text>
-              </Touchable>
-              <Touchable
-                minTarget={false}
+                style={s.flex}
+              />
+              <Button
+                label={t('common.save')}
                 onPress={handleRenameSubmit}
-                disabled={busy || draftTitle.trim().length === 0}
-                style={[
-                  styles.btnPrimary,
-                  { backgroundColor: c.fg, opacity: busy ? 0.55 : 1 },
-                ]}
-              >
-                {busy ? (
-                  <ActivityIndicator size="small" color={c.bg} />
-                ) : (
-                  <Text style={[styles.btnPrimaryText, { color: c.bg }]}>Save</Text>
-                )}
-              </Touchable>
+                loading={busy}
+                disabled={draftTitle.trim().length === 0}
+                style={s.flex}
+              />
             </View>
           </View>
         )}
@@ -240,79 +234,73 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
   );
 }
 
-function ActionRow({
+function MenuRow({
+  icon,
   label,
   onPress,
-  tint,
-  border,
   disabled,
+  destructive,
+  divided,
 }: {
+  icon: React.ComponentProps<typeof Feather>['name'];
   label: string;
   onPress: () => void;
-  tint: string;
-  border: string;
   disabled?: boolean;
+  /** Colours the glyph and the label with `danger` together — that pairing is
+   *  the whole signal, which is why it is one flag rather than a colour prop. */
+  destructive?: boolean;
+  /** Hairline above. Off for the first row, so the list has no leading rule. */
+  divided?: boolean;
 }) {
+  const p = usePalette();
+  const s = useStyles(p);
+  const tint = destructive ? p.danger : p.ink;
   return (
     <Touchable
-      minTarget={false}
       onPress={onPress}
       disabled={disabled}
-      style={[styles.actionRow, { borderColor: border, opacity: disabled ? 0.55 : 1 }]}
+      minTarget={false}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={[s.row, divided && s.rowDivided, disabled && s.rowDisabled]}
     >
-      <Text style={[styles.actionText, { color: tint }]}>{label}</Text>
+      <Glass tier={1} radius={PLATE / 2} shadow={false} style={s.plate}>
+        <Feather name={icon} size={18} color={tint} />
+      </Glass>
+      <Text style={[s.rowLabel, { color: tint }]}>{label}</Text>
     </Touchable>
   );
 }
 
-const styles = StyleSheet.create({
-  host: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    gap: spacing.md,
-  },
-  title: {
-    fontFamily: fontFamily.jp,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-  },
-  menu: { gap: 8 },
-  actionRow: {
-    paddingVertical: 14,
-    paddingHorizontal: spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: radius.md,
-    alignItems: 'flex-start',
-  },
-  actionText: {
-    fontFamily: fontFamily.ui,
-    fontSize: fontSize.md,
-    fontWeight: '500',
-  },
-  renameWrap: { gap: spacing.md },
-  input: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: radius.md,
-    fontFamily: fontFamily.jp,
-    fontSize: fontSize.md,
-  },
-  row: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
-  btnGhost: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: radius.md,
-  },
-  btnGhostText: { fontSize: fontSize.sm, fontWeight: '500' },
-  btnPrimary: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: radius.md,
-    minWidth: 84,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnPrimaryText: { fontSize: fontSize.sm, fontWeight: '600' },
-});
+function useStyles(p: Palette) {
+  return useMemo(
+    () =>
+      StyleSheet.create({
+        host: { paddingHorizontal: spacing.xl, gap: spacing.md },
+        header: { gap: spacing.xs },
+        eyebrow: { ...type.eyebrow, color: p.faint, textTransform: 'uppercase' },
+        title: { ...type.titleKanji, fontSize: 18, lineHeight: 26, color: p.ink },
+
+        row: {
+          height: ROW_H,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.md,
+        },
+        rowDivided: { borderTopWidth: 1, borderTopColor: p.bdB },
+        rowDisabled: { opacity: 0.55 },
+        plate: {
+          width: PLATE,
+          height: PLATE,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        rowLabel: { ...type.bodyMd, fontFamily: type.headerTitle.fontFamily },
+
+        rename: { gap: spacing.lg },
+        renameActions: { flexDirection: 'row', gap: spacing.sm + 2 },
+        flex: { flex: 1 },
+      }),
+    [p],
+  );
+}
