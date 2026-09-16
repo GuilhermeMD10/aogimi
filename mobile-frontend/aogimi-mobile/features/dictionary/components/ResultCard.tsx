@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Glass } from '@/shared/components/Glass';
 import { Touchable } from '@/shared/components/Touchable';
 import { JlptChip } from '@/shared/components/JlptChip';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
+import { radius, spacing, type, type Palette } from '@/theme/tokens';
 import type { WordResult } from '../types';
 import { isEnglish, preferredHeadword } from '../lib/headword';
 import { posLabel } from '../lib/posLabel';
@@ -11,12 +12,14 @@ import { MetaChip } from './MetaChip';
 import { AddButton } from './AddButton';
 
 /**
- * A word in the results list.
+ * A word in the results list — DESIGN.md's "Dictionary result row": Tier 2
+ * glass, radius 12, padding 14 × 16; 24/700 JP headword with the reading
+ * beside it, the gloss, the JLPT and POS tags, and the 40px add circle.
  *
- * **Only the first card is a card.** The top result is filled and outlined,
- * the rest are bare rows on the canvas — the list reads as one answer with
- * alternates under it, which is what a ranked dictionary result set is.
- * `elevated` carries that, and also tints the headword `accent`.
+ * Every row is the same pane. What marks the ranked answer is `leading`: the
+ * compositions draw the **first row's add circle in accent glass** and the
+ * rest in Tier 1, so the list reads as one answer with alternates under it
+ * without the rows themselves differing.
  *
  * Glosses join with "; " rather than stacking as a numbered list. A result row
  * answers "is this the word?", and the numbered breakdown belongs on the
@@ -25,17 +28,15 @@ import { AddButton } from './AddButton';
 export function ResultCard({
   word,
   query,
-  elevated = false,
-  compact = false,
+  leading = false,
   addLabel,
   onPress,
   onAdd,
 }: {
   word: WordResult;
   query: string;
-  elevated?: boolean;
-  /** The reader drawer's step-down. */
-  compact?: boolean;
+  /** The top-ranked result — its add circle takes accent glass. */
+  leading?: boolean;
   addLabel: string;
   onPress: () => void;
   onAdd: () => void;
@@ -55,118 +56,87 @@ export function ResultCard({
   const pos = posLabel(word.meanings[0]?.pos);
 
   return (
-    <Touchable
-      onPress={onPress}
-      accessibilityRole="button"
-      // Already far taller than the 44pt floor, and a card is a paper surface —
-      // the glass wash belongs to controls, not to the list they sit in.
-      minTarget={false}
-      style={[styles.card, compact && styles.cardCompact, elevated && styles.elevated]}
-    >
-      <View style={styles.body}>
-        <View style={styles.headRow}>
-          <Text
-            style={[
-              styles.headword,
-              compact && styles.headwordCompact,
-              elevated && styles.headwordElevated,
-            ]}
-            numberOfLines={1}
-          >
-            {headword}
-          </Text>
-          {reading !== null && (
-            <Text style={styles.reading} numberOfLines={1}>
-              {reading}
+    // The row is far taller than the 44pt floor, and the pane draws the
+    // surface — the press nudge is all `Touchable` adds here.
+    <Touchable onPress={onPress} accessibilityRole="button" minTarget={false}>
+      <Glass tier={2} radius={radius.control} style={styles.row}>
+        <View style={styles.body}>
+          <View style={styles.headRow}>
+            <Text style={styles.headword} numberOfLines={1}>
+              {headword}
+            </Text>
+            {reading !== null && (
+              <Text style={styles.reading} numberOfLines={1}>
+                {reading}
+              </Text>
+            )}
+            {word.is_common && <View style={styles.commonDot} accessibilityLabel="Common word" />}
+          </View>
+
+          {gloss !== '' && (
+            <Text style={styles.gloss} numberOfLines={2}>
+              {gloss}
             </Text>
           )}
-          {word.is_common && <View style={styles.commonDot} accessibilityLabel="Common word" />}
+
+          {(word.jlpt_level != null || pos !== null) && (
+            <View style={styles.chips}>
+              {word.jlpt_level != null && <JlptChip level={word.jlpt_level} compact />}
+              {pos !== null && <MetaChip label={pos} />}
+            </View>
+          )}
         </View>
 
-        {gloss !== '' && (
-          <Text style={styles.gloss} numberOfLines={compact ? 1 : 2}>
-            {gloss}
-          </Text>
-        )}
-
-        {(word.jlpt_level != null || pos !== null) && (
-          <View style={styles.chips}>
-            {word.jlpt_level != null && <JlptChip level={word.jlpt_level} compact />}
-            {pos !== null && <MetaChip label={pos} />}
-          </View>
-        )}
-      </View>
-
-      <AddButton onPress={onAdd} accessibilityLabel={addLabel} size={compact ? 30 : 32} />
+        <AddButton onPress={onAdd} accessibilityLabel={addLabel} accent={leading} />
+      </Glass>
     </Touchable>
   );
 }
+
+/** The composition's status dot beside a common word. A dot, by definition —
+ *  half its own box, not a token radius. */
+const DOT = 5;
 
 function useStyles(p: Palette) {
   return useMemo(
     () =>
       StyleSheet.create({
-        card: {
+        row: {
           flexDirection: 'row',
           alignItems: 'flex-start',
-          gap: spacing.md - 2,
-          padding: spacing.md + 1,
-          borderRadius: radius.md,
-          // Transparent by default: the plain rows have no fill and no edge, so
-          // a border here would draw a box the design does not have.
-          borderWidth: 1,
-          borderColor: 'transparent',
+          justifyContent: 'space-between',
+          gap: spacing.md,
+          paddingVertical: spacing.md + 2,
+          paddingHorizontal: spacing.lg,
         },
-        cardCompact: { padding: spacing.sm + 2, gap: spacing.sm },
-        elevated: {
-          backgroundColor: p.paper,
-          borderColor: p.bdA,
-        },
-
-        body: { flex: 1, minWidth: 0 },
+        body: { flex: 1, minWidth: 0, gap: spacing.xs },
         headRow: {
           flexDirection: 'row',
           alignItems: 'baseline',
           gap: spacing.sm,
         },
-        headword: {
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.xl,
-          fontWeight: '500',
-          color: p.ink,
-          flexShrink: 1,
-        },
-        headwordCompact: { fontSize: fontSize.lg + 1 },
-        headwordElevated: { color: p.accent },
-        // The mono face is Switzer, which has no Japanese glyphs and would
-        // fall back mid-string, so readings take `jp` at the size the mono
-        // label would have occupied.
+        headword: { ...type.titleKanji, color: p.ink, flexShrink: 1 },
+        /** 14px JP in `muted` — the row's reading, per DESIGN.md. */
         reading: {
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.xs,
+          fontFamily: type.titleReading.fontFamily,
+          fontSize: 14,
+          lineHeight: 20,
           color: p.muted,
           flexShrink: 1,
         },
         commonDot: {
-          width: 5,
-          height: 5,
-          borderRadius: radius.pill,
+          width: DOT,
+          height: DOT,
+          borderRadius: DOT / 2,
           backgroundColor: p.accent,
         },
-
-        gloss: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm - 1,
-          lineHeight: 17,
-          color: p.soft,
-          marginTop: spacing.xs,
-        },
+        gloss: { ...type.bodySm, color: p.ink },
         chips: {
           flexDirection: 'row',
           flexWrap: 'wrap',
           alignItems: 'center',
           gap: 6,
-          marginTop: spacing.sm,
+          marginTop: 2,
         },
       }),
     [p],

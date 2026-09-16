@@ -1,14 +1,17 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Card } from '@/shared/components/Card';
 import { Touchable } from '@/shared/components/Touchable';
 import { JlptChip } from '@/shared/components/JlptChip';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
+import { spacing, type, type Palette } from '@/theme/tokens';
 import type { RecentLookup } from '../lib/dictionaryStorage';
 import { relativeAge } from '../lib/relativeAge';
 
 /**
- * One row of RECENTLY LOOKED UP.
+ * One card of RECENTLY LOOKED UP — `DictionarySearch.dc.html`'s row: a Tier 2
+ * card, 20/700 JP headword with the reading and JLPT chip beside it, the gloss
+ * under, and the time-ago at the trailing edge.
  *
  * Reads a **snapshot**, not an entry — the store copies headword, reading,
  * gloss and tier in at write time so this list costs no SQLite reads. Tapping
@@ -16,22 +19,20 @@ import { relativeAge } from '../lib/relativeAge';
  * the word the user actually saw rather than on whatever a re-run search would
  * rank first today.
  *
- * **No add button**, unlike a result card: the snapshot has no meanings array,
- * so building a `CardDraft` here would need a lookup first, and an affordance
- * that sometimes stalls is worse than one that isn't there. Adding happens on
- * the entry, one tap away.
+ * **No add circle**, although the composition draws one: the snapshot has no
+ * meanings array, so building a `CardDraft` here would need a lookup first,
+ * and an affordance that sometimes stalls is worse than one that isn't there.
+ * Adding happens on the entry, one tap away. The slot carries the age instead,
+ * which DESIGN.md's row puts there.
  *
  * `jlptLevel` predates nothing — rows written before the field existed arrive
  * `undefined` and simply draw no chip.
  */
 export function RecentLookupRow({
   lookup,
-  divider,
   onPress,
 }: {
   lookup: RecentLookup;
-  /** Hairline under the row. The list suppresses it on the last one. */
-  divider: boolean;
   onPress: () => void;
 }) {
   const p = usePalette();
@@ -40,32 +41,29 @@ export function RecentLookupRow({
   const level = lookup.jlptLevel ?? null;
 
   return (
-    <Touchable
-      onPress={onPress}
-      accessibilityRole="button"
-      minTarget={false}
-      style={[styles.row, divider && styles.divider]}
-    >
-      <View style={styles.body}>
-        <View style={styles.headRow}>
-          <Text style={styles.headword} numberOfLines={1}>
-            {lookup.headword}
-          </Text>
-          {lookup.reading !== '' && (
-            <Text style={styles.reading} numberOfLines={1}>
-              {lookup.reading}
+    <Touchable onPress={onPress} accessibilityRole="button" minTarget={false}>
+      <Card padded={false} style={styles.row}>
+        <View style={styles.body}>
+          <View style={styles.headRow}>
+            <Text style={styles.headword} numberOfLines={1}>
+              {lookup.headword}
+            </Text>
+            {lookup.reading !== '' && (
+              <Text style={styles.reading} numberOfLines={1}>
+                {lookup.reading}
+              </Text>
+            )}
+            {level !== null && <JlptChip level={level} compact />}
+          </View>
+          {lookup.gloss !== '' && (
+            <Text style={styles.gloss} numberOfLines={1}>
+              {lookup.gloss}
             </Text>
           )}
-          {level !== null && <JlptChip level={level} compact />}
         </View>
-        {lookup.gloss !== '' && (
-          <Text style={styles.gloss} numberOfLines={1}>
-            {lookup.gloss}
-          </Text>
-        )}
-      </View>
 
-      {age !== '' && <Text style={styles.age}>{age}</Text>}
+        {age !== '' && <Text style={styles.age}>{age}</Text>}
+      </Card>
     </Touchable>
   );
 }
@@ -74,47 +72,41 @@ function useStyles(p: Palette) {
   return useMemo(
     () =>
       StyleSheet.create({
+        /** The composition's 14 × 16, tighter than the card's default 16. */
         row: {
           flexDirection: 'row',
-          alignItems: 'flex-start',
-          gap: spacing.sm + 2,
-          paddingVertical: spacing.md + 1,
-          paddingHorizontal: 2,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: spacing.md,
+          paddingVertical: spacing.md + 2,
+          paddingHorizontal: spacing.lg,
         },
-        divider: { borderBottomWidth: 1, borderBottomColor: p.paperBd },
-
-        body: { flex: 1, minWidth: 0 },
+        body: { flex: 1, minWidth: 0, gap: 5 },
         headRow: {
           flexDirection: 'row',
-          alignItems: 'baseline',
+          alignItems: 'center',
           gap: spacing.sm,
         },
+        /** 20/700 JP — between `titleKanji` (24) and the reading; the bold cut
+         *  is borrowed from the former. */
         headword: {
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.lg + 1,
+          fontFamily: type.titleKanji.fontFamily,
+          fontSize: 20,
+          fontWeight: '700',
+          lineHeight: 26,
           color: p.ink,
           flexShrink: 1,
         },
-        // The mono face is Latin-only, so readings take `jp` at the size the
-        // mono label would have occupied.
         reading: {
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.xs - 1,
-          color: p.muted,
+          fontFamily: type.titleReading.fontFamily,
+          fontSize: 13,
+          lineHeight: 18,
+          color: p.faint,
           flexShrink: 1,
         },
-        gloss: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm - 1,
-          color: p.soft,
-          marginTop: 3,
-        },
-        age: {
-          fontFamily: fontFamily.mono,
-          fontSize: fontSize.xs - 1.5,
-          color: p.faint,
-          marginTop: 4,
-        },
+        gloss: { ...type.bodySm, color: p.muted },
+        /** DESIGN.md's row: "time-ago 13px ink-muted". */
+        age: { ...type.bodySm, color: p.muted },
       }),
     [p],
   );

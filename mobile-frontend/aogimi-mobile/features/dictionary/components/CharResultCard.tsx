@@ -1,24 +1,25 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Glass } from '@/shared/components/Glass';
 import { Touchable } from '@/shared/components/Touchable';
 import { JlptChip } from '@/shared/components/JlptChip';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
+import { radius, spacing, type, type Palette } from '@/theme/tokens';
 import type { KanjiInfo, NameResult } from '../types';
 import { MetaChip } from './MetaChip';
 import { AddButton } from './AddButton';
 
 /**
- * The results list's second card shape — one glyph on the left, its data on the
+ * The results list's second row shape — one glyph on the left, its data on the
  * right. Kanji entries and name entries both use it: `searchLocal` returns
  * `{ kanji, words, names }` for a single-kanji query and `{ words, names,
  * kanjis }` for a kana one, and rendering `words` alone would mean searching 辞
  * shows every word containing it and never the character itself.
  *
  * It is deliberately a *variation* of `ResultCard` rather than a second design:
- * same padding, radius, chip row and add affordance, with the headword moved
- * into a left column so a 34px glyph does not push the gloss off the row. It
- * also echoes the entry screen's kanji card, which is the same idea one level
+ * the same Tier 2 pane, radius, padding, chip row and add circle, with the
+ * headword moved into a left column so a 34px glyph does not push the gloss
+ * off the row. It also echoes the entry's kanji card, the same idea one level
  * down.
  */
 function CharResultCard({
@@ -26,16 +27,14 @@ function CharResultCard({
   sub,
   gloss,
   chips,
-  compact = false,
   onPress,
   add,
 }: {
   glyph: string;
-  /** Readings line, under the glyph's data — Japanese, so it takes the `jp` face. */
+  /** Readings line, under the glyph's data — Japanese, so it takes the JP face. */
   sub?: string | null;
   gloss?: string | null;
   chips?: React.ReactNode;
-  compact?: boolean;
   onPress?: () => void;
   /** Omitted entirely for names — see `NameResultCard`. */
   add?: { label: string; onPress: () => void };
@@ -43,15 +42,15 @@ function CharResultCard({
   const p = usePalette();
   const styles = useStyles(p);
 
-  const content = (
-    <>
-      <Text style={[styles.glyph, compact && styles.glyphCompact]} numberOfLines={1}>
+  const pane = (
+    <Glass tier={2} radius={radius.control} style={styles.row}>
+      <Text style={styles.glyph} numberOfLines={1}>
         {glyph}
       </Text>
 
       <View style={styles.body}>
         {gloss != null && gloss !== '' && (
-          <Text style={styles.gloss} numberOfLines={compact ? 1 : 2}>
+          <Text style={styles.gloss} numberOfLines={2}>
             {gloss}
           </Text>
         )}
@@ -63,27 +62,16 @@ function CharResultCard({
         {chips !== undefined && <View style={styles.chips}>{chips}</View>}
       </View>
 
-      {add !== undefined && (
-        <AddButton
-          onPress={add.onPress}
-          accessibilityLabel={add.label}
-          size={compact ? 30 : 32}
-        />
-      )}
-    </>
+      {add !== undefined && <AddButton onPress={add.onPress} accessibilityLabel={add.label} />}
+    </Glass>
   );
 
-  if (onPress === undefined) {
-    return <View style={[styles.card, compact && styles.cardCompact]}>{content}</View>;
-  }
+  // A row without `onPress` is a display row — wrapping it in a pressable
+  // would announce it as a button to a screen reader.
+  if (onPress === undefined) return pane;
   return (
-    <Touchable
-      onPress={onPress}
-      accessibilityRole="button"
-      minTarget={false}
-      style={[styles.card, compact && styles.cardCompact]}
-    >
-      {content}
+    <Touchable onPress={onPress} accessibilityRole="button" minTarget={false}>
+      {pane}
     </Touchable>
   );
 }
@@ -94,13 +82,11 @@ function CharResultCard({
  */
 export function KanjiResultCard({
   kanji,
-  compact,
   addLabel,
   onPress,
   onAdd,
 }: {
   kanji: KanjiInfo;
-  compact?: boolean;
   addLabel: string;
   onPress?: () => void;
   onAdd: () => void;
@@ -117,7 +103,6 @@ export function KanjiResultCard({
       glyph={kanji.literal}
       gloss={kanji.meanings.slice(0, 4).join(', ')}
       sub={readings}
-      compact={compact}
       onPress={onPress}
       add={{ label: addLabel, onPress: onAdd }}
       chips={
@@ -132,21 +117,20 @@ export function KanjiResultCard({
 }
 
 /**
- * A JMnedict name. Same card, **no add affordance**: `cardDraft.ts` builds word
+ * A JMnedict name. Same row, **no add affordance**: `cardDraft.ts` builds word
  * and kanji drafts only, and a name has no gloss list or JLPT tier to fill one
  * with. Writing `nameCardDraft` would be a feature, not part of this redesign.
  *
  * Not pressable either — there is no name detail screen, and every field the
- * entry would show is already on this card.
+ * entry would show is already on this row.
  */
-export function NameResultCard({ name, compact }: { name: NameResult; compact?: boolean }) {
+export function NameResultCard({ name }: { name: NameResult }) {
   return (
     <CharResultCard
       glyph={name.kanji ?? name.kana}
       // Only when the glyph is the kanji form; otherwise this would repeat it.
       sub={name.kanji !== null ? name.kana : null}
       gloss={name.translations.join('; ')}
-      compact={compact}
       chips={name.name_type.map((type) => (
         <MetaChip key={type} label={type} />
       ))}
@@ -158,46 +142,37 @@ function useStyles(p: Palette) {
   return useMemo(
     () =>
       StyleSheet.create({
-        card: {
+        row: {
           flexDirection: 'row',
           alignItems: 'flex-start',
           gap: spacing.md,
-          padding: spacing.md + 1,
-          borderRadius: radius.md,
-          backgroundColor: p.paper,
-          borderWidth: 1,
-          borderColor: p.paperBd,
+          paddingVertical: spacing.md + 2,
+          paddingHorizontal: spacing.lg,
         },
-        cardCompact: { padding: spacing.sm + 2, gap: spacing.sm + 2 },
-
+        /** One character, large — the Medium JP cut `displayKanji` names, a
+         *  step under the entry's own kanji card. */
         glyph: {
-          fontFamily: fontFamily.jp,
+          fontFamily: type.displayKanjiMobile.fontFamily,
           fontSize: 34,
+          fontWeight: '500',
           lineHeight: 40,
           color: p.ink,
           minWidth: 40,
         },
-        glyphCompact: { fontSize: 28, lineHeight: 34, minWidth: 32 },
-
-        body: { flex: 1, minWidth: 0, paddingTop: 2 },
-        gloss: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm - 1,
-          lineHeight: 17,
-          color: p.soft,
-        },
+        body: { flex: 1, minWidth: 0, paddingTop: 2, gap: spacing.xs },
+        gloss: { ...type.bodySm, color: p.ink },
         sub: {
-          fontFamily: fontFamily.jp,
-          fontSize: fontSize.xs,
+          fontFamily: type.titleReading.fontFamily,
+          fontSize: 13,
+          lineHeight: 18,
           color: p.muted,
-          marginTop: 3,
         },
         chips: {
           flexDirection: 'row',
           flexWrap: 'wrap',
           alignItems: 'center',
           gap: 6,
-          marginTop: spacing.sm,
+          marginTop: 2,
         },
       }),
     [p],

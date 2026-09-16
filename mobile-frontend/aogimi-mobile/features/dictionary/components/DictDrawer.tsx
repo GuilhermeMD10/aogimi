@@ -1,33 +1,38 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BackButton } from '@/shared/components/BackButton';
 import { BottomSheet } from '@/shared/components/BottomSheet';
+import { IconButton } from '@/shared/components/IconButton';
 import { PressableBackdrop } from '@/shared/components/Touchable';
 import { useT } from '@/lib/i18n/I18nContext';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
+import { spacing, type, type Palette } from '@/theme/tokens';
 import { fetchWordDetails } from '../lib/dictApi';
 import { pushRecentLookup } from '../lib/dictionaryStorage';
-import { resultRows } from '../lib/resultSections';
+import { resultRows, totalResults } from '../lib/resultSections';
 import { useDictionarySearch } from '../hooks/useDictionarySearch';
 import { useSearchKeyboard } from '../hooks/useSearchKeyboard';
 import type { KanjiInfo, WordDetails, WordResult } from '../types';
 import { SearchField } from './SearchField';
+import { ResultsKicker } from './ResultsKicker';
 import { ResultsList } from './ResultsList';
 import { EntryView } from './EntryView';
 
+/** `Reader.dc.html`'s dictionary pop-up: 60% of the screen. */
+const HEIGHT_RATIO = 0.6;
+
 /**
- * The reader's lookup sheet — the dictionary at `compact` scale.
+ * The lookup sheet raised over the reader, the study card and the star map —
+ * `Reader.dc.html`'s "Dictionary pop-up": the search field, the RESULTS kicker
+ * and the same result rows as the tab, inside the Tier 4 sheet.
  *
  * **Built from the tab's components, not a copy of them**, the way the web's
  * `dict-sidebar` and `reader-bubble` are built from `features/dictionary`'s
- * exports. `SearchField`, `ResultsList` and `EntryView` each take a `compact`
- * flag carrying the type and spacing step-down; this file supplies the box —
- * the sheet, its padding and its scroll — and the components supply none of it.
+ * exports. This file supplies the box — the sheet, its padding and its scroll
+ * — and the components supply none of it.
  *
  * Two states, not the tab's three: search and entry. There is no hero (the
  * sheet opens with the tapped word already queried) and no drill-down stack
- * (a 65% sheet is the wrong place to lose your way back to the book), so
+ * (a 60% sheet is the wrong place to lose your way back to the book), so
  * `onOpenKanji` is deliberately not passed.
  */
 export function DictDrawer({
@@ -42,7 +47,7 @@ export function DictDrawer({
   term: string;
   onDismiss: () => void;
   onAddFlashcard: (details: WordDetails) => void;
-  /** A kanji result's add button. The reader owns the draft builders it uses,
+  /** A kanji result's add button. The host owns the draft builders it uses,
    *  so the sheet reports the character rather than building the card. */
   onAddKanji: (kanji: KanjiInfo) => void;
   /**
@@ -59,7 +64,7 @@ export function DictDrawer({
   children?: React.ReactNode;
 }) {
   return (
-    <BottomSheet visible={visible} onDismiss={onDismiss} heightRatio={0.65}>
+    <BottomSheet visible={visible} onDismiss={onDismiss} heightRatio={HEIGHT_RATIO}>
       {/* Keyed on `term` so re-opening with a different selection remounts the
           inner stack — query, stage and search results all reseed cleanly
           without per-prop reset effects. */}
@@ -97,7 +102,7 @@ function DictDrawerInner({
   const [stage, setStage] = useState<Stage>({ kind: 'search' });
   const [error, setError] = useState<string | null>(null);
 
-  // Only the state: the sheet stays on page one. A 65% overlay over a book is
+  // Only the state: the sheet stays on page one. A 60% overlay over a book is
   // the wrong place to grow an unbounded list — the tab is where you go to
   // work through every match. Wiring `loadMore` here is a one-line change if
   // that judgement turns out wrong.
@@ -106,11 +111,12 @@ function DictDrawerInner({
     () => (searchState.kind === 'results' ? resultRows(searchState.response) : []),
     [searchState],
   );
+  const total = searchState.kind === 'results' ? totalResults(searchState.response) : 0;
 
   const openWord = useCallback(
     (word: WordResult) => {
       // Same rule as the tab: anything that navigates closes the keyboard, and
-      // the sheet is only 65% of the screen, so a keyboard left up over it hides
+      // the sheet is only 60% of the screen, so a keyboard left up over it hides
       // the entry the tap just opened.
       dismiss();
       setError(null);
@@ -132,15 +138,32 @@ function DictDrawerInner({
     [query, t, dismiss],
   );
 
+  // A result row holds a `WordResult`, and example sentences hang off the
+  // *entry*, so the add circle resolves the entry before handing it up. It used
+  // to synthesise `{ word, kanjis: [], sentences: [] }`, which meant a card
+  // added from the list saved with no context sentence while the same word
+  // added from its entry saved with one.
+  //
+  // Not the round trip it reads as: the dictionary is bundled SQLite behind an
+  // LRU cache (`lib/dictApi`), the same read `openWord` does — and in the
+  // reader this only supplies the *fallback* anyway, since a selection the user
+  // tapped in the book already carries its own sentence, which wins.
+  const addWordFromRow = useCallback(
+    async (word: WordResult) => {
+      // A lookup that fails still adds the card, just without the context.
+      const details = await fetchWordDetails(word.id).catch(() => null);
+      onAddFlashcard(details ?? { word, kanjis: [], sentences: [] });
+    },
+    [onAddFlashcard],
+  );
+
   if (stage.kind === 'detail') {
     return (
       <View style={styles.flex}>
         <View style={styles.header}>
-          {/* Smaller chevron than a page's — the sheet is at `compact` scale —
-              but the same 44pt square underneath it. */}
-          <BackButton
-            label={t('dict.backToResults')}
-            size={20}
+          <IconButton
+            glyph="back"
+            accessibilityLabel={t('dict.backToResults')}
             onPress={() => {
               dismiss();
               setStage({ kind: 'search' });
@@ -169,12 +192,11 @@ function DictDrawerInner({
         <ResultsList
           rows={rows}
           query={query}
-          compact
           contentStyle={styles.scroll}
           onOpenWord={openWord}
           onAddWord={(word) => {
             dismiss();
-            onAddFlashcard({ word, kanjis: [], sentences: [] });
+            void addWordFromRow(word);
           }}
           onAddKanji={(kanji) => {
             dismiss();
@@ -188,12 +210,21 @@ function DictDrawerInner({
                 value={query}
                 onChangeText={setQuery}
                 placeholder={t('dict.fieldPlaceholder')}
-                active={query.trim() !== ''}
-                compact
                 onSubmit={dismiss}
                 clearLabel={t('dict.clearSearch')}
               />
               {error !== null && <Text style={styles.error}>{error}</Text>}
+              {total > 0 && (
+                <ResultsKicker
+                  label={t('dict.results')}
+                  countLabel={t('dict.resultsFor', {
+                    count: searchState.kind === 'results' && searchState.response.hasMore
+                      ? `${total}+`
+                      : total,
+                  })}
+                  query={query.trim()}
+                />
+              )}
             </PressableBackdrop>
           }
           empty={
@@ -202,7 +233,7 @@ function DictDrawerInner({
             ) : searchState.kind === 'loading' ? (
               <ActivityIndicator color={p.muted} style={styles.spinner} />
             ) : searchState.kind === 'error' ? (
-              <Text style={styles.error}>{searchState.message}</Text>
+              <Text style={[styles.error, styles.centeredText]}>{searchState.message}</Text>
             ) : (
               <Text style={styles.hint}>{t('dict.noResults', { query: query.trim() })}</Text>
             )
@@ -219,20 +250,21 @@ function useStyles(p: Palette) {
       StyleSheet.create({
         flex: { flex: 1 },
         // The sheet supplies the horizontal inset for everything inside it,
-        // including the list — the components carry none.
-        header: { paddingHorizontal: spacing.xl - 2, paddingBottom: spacing.md },
-        scroll: { paddingHorizontal: spacing.xl - 2, paddingBottom: spacing.xl },
-        centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-        spinner: { marginTop: spacing.lg },
-        error: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm,
-          color: p.danger,
-          marginTop: spacing.sm,
+        // including the list — the components carry none. The composition
+        // stacks grabber, field, kicker and rows 14pt apart.
+        header: {
+          paddingTop: spacing.sm,
+          paddingHorizontal: spacing.screenX,
+          paddingBottom: spacing.stackGap,
+          gap: spacing.stackGap,
         },
+        scroll: { paddingHorizontal: spacing.screenX, paddingBottom: spacing.xl },
+        centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+        centeredText: { textAlign: 'center', paddingHorizontal: spacing.screenX },
+        spinner: { marginTop: spacing.lg },
+        error: { ...type.bodySm, color: p.danger },
         hint: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm,
+          ...type.bodySm,
           color: p.muted,
           textAlign: 'center',
           marginTop: spacing.xl,

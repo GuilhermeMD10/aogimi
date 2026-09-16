@@ -1,10 +1,8 @@
-import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
-import Feather from '@expo/vector-icons/Feather';
+import { StyleSheet, View } from 'react-native';
+import { Button } from '@/shared/components/Button';
+import { MeaningRow } from '@/shared/components/MeaningRow';
 import { useT } from '@/lib/i18n/I18nContext';
-import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import type { WordDetails } from '../types';
 import { isEnglish } from '../lib/headword';
 import { posLabel } from '../lib/posLabel';
@@ -21,10 +19,14 @@ const MAX_MEANINGS = 12;
  * A word entry — the tab's detail frame and the reader drawer's detail page,
  * one component at two scales.
  *
- * `compact` is the drawer's step-down (`scale="compact"` on the web): smaller
- * headword, tighter blocks, one example. It owns **no** width, fill, edge,
- * scroll or padding — the surface around it supplies the box, which is what
- * lets a 65%-height sheet and a full page share this file.
+ * No handoff draws it, so this is the previous layout re-skinned onto the
+ * primitives: the primary `Button`, `MeaningRow` plates for the senses, `Card`s
+ * for the kanji, hairlined examples.
+ *
+ * `compact` is the drawer's step-down: smaller headword, one example. It owns
+ * **no** width, fill, edge, scroll or padding — the surface around it supplies
+ * the box, which is what lets a 60%-height sheet and a full page share this
+ * file.
  */
 export function EntryView({
   details,
@@ -42,13 +44,11 @@ export function EntryView({
   onKanjiPress?: (literal: string) => void;
 }) {
   const t = useT();
-  const p = usePalette();
-  const styles = useStyles(p);
 
   const { word, kanjis, sentences } = details;
   const meanings = word.meanings.filter((m) => isEnglish(m.lang)).slice(0, MAX_MEANINGS);
   const primaryPos = posLabel(word.meanings[0]?.pos);
-  // The drawer is a 65% sheet over the reader — five sentences there would bury
+  // The drawer is a 60% sheet over the reader — five sentences there would bury
   // the meanings the user opened it for.
   const examples = compact ? sentences.slice(0, 1) : sentences;
 
@@ -56,45 +56,37 @@ export function EntryView({
     <View style={styles.root}>
       <EntryHeader word={word} query={query} compact={compact} />
 
-      {/* Solid `btn` fill rather than glass: this is the page's one primary
-          action and glass is for the secondary controls around it. */}
-      <Touchable
-        onPress={onAddToDeck}
-        accessibilityRole="button"
-        minTarget={false}
-        style={[styles.addButton, compact && styles.addButtonCompact]}
-      >
-        <Feather name="plus" size={16} color={p.btnInk} />
-        <Text style={styles.addLabel}>{t('dict.addToDeck')}</Text>
-      </Touchable>
+      {/* The page's one primary action. Inline rather than floating: a FAB has
+          to be positioned above the dock by hand and covers the last line of
+          the entry; a button in the flow needs neither. */}
+      <Button label={t('dict.addToDeck')} icon="plus" full onPress={onAddToDeck} />
 
       {meanings.length > 0 && (
         <View style={styles.block}>
-          <SectionHeading label={t('dict.meanings')} gloss="意味" />
-          {meanings.map((m, i) => {
-            const rowPos = posLabel(m.pos);
-            return (
-              <View key={i} style={styles.meaningRow}>
-                <Text style={styles.meaningNum}>{i + 1}</Text>
-                <View style={styles.meaningBody}>
-                  <Text style={styles.meaningText}>{m.meaning}</Text>
-                  {/* Only when this sense's part of speech differs from the
-                      entry's — otherwise it repeats the header's chip on
-                      every line. */}
-                  {rowPos !== null && rowPos !== primaryPos && (
-                    <Text style={styles.meaningPos}>{rowPos}</Text>
-                  )}
-                </View>
-              </View>
-            );
-          })}
+          <SectionHeading label={t('dict.meanings')} />
+          <View style={styles.rows}>
+            {meanings.map((m, i) => {
+              const rowPos = posLabel(m.pos);
+              return (
+                <MeaningRow
+                  key={i}
+                  index={i + 1}
+                  text={m.meaning}
+                  // Only when this sense's part of speech differs from the
+                  // entry's — otherwise it repeats the header's chip on every
+                  // line.
+                  meta={rowPos !== null && rowPos !== primaryPos ? rowPos : undefined}
+                />
+              );
+            })}
+          </View>
         </View>
       )}
 
       {kanjis.length > 0 && (
         <View style={styles.block}>
-          <SectionHeading label={t('dict.kanjiInWord')} gloss="漢字" />
-          <View style={styles.kanjiStack}>
+          <SectionHeading label={t('dict.kanjiInWord')} />
+          <View style={styles.rows}>
             {kanjis.map((k) => (
               <KanjiBreakdownCard
                 key={k.literal}
@@ -109,75 +101,22 @@ export function EntryView({
 
       {examples.length > 0 && (
         <View style={styles.block}>
-          <SectionHeading label={t('dict.examples')} gloss="例文" />
-          {examples.map((s, i) => (
-            <ExampleBlock key={s.id} sentence={s} divider={i > 0} compact={compact} />
-          ))}
+          <SectionHeading label={t('dict.examples')} />
+          <View>
+            {examples.map((s, i) => (
+              <ExampleBlock key={s.id} sentence={s} divider={i > 0} compact={compact} />
+            ))}
+          </View>
         </View>
       )}
     </View>
   );
 }
 
-function useStyles(p: Palette) {
-  return useMemo(
-    () =>
-      StyleSheet.create({
-        root: { gap: spacing.lg },
-
-        addButton: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: spacing.sm + 1,
-          height: 50,
-          borderRadius: radius.md,
-          backgroundColor: p.btn,
-        },
-        // An inline button rather than a floating action button: a FAB has to
-        // be positioned above the dock by hand and covers the last line of the
-        // entry; an inline button sits in the flow and needs neither.
-        addButtonCompact: { height: 44 },
-        addLabel: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm + 1,
-          fontWeight: '700',
-          color: p.btnInk,
-        },
-
-        block: { gap: spacing.xs },
-
-        meaningRow: {
-          flexDirection: 'row',
-          gap: spacing.md,
-          paddingVertical: spacing.md - 1,
-          borderTopWidth: 1,
-          borderTopColor: p.paperBd,
-        },
-        meaningNum: {
-          fontFamily: fontFamily.mono,
-          fontSize: fontSize.xs,
-          color: p.accent,
-          minWidth: 12,
-          paddingTop: 2,
-        },
-        meaningBody: { flex: 1, gap: 2 },
-        meaningText: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm + 1,
-          lineHeight: 21,
-          color: p.ink,
-        },
-        meaningPos: {
-          fontFamily: fontFamily.mono,
-          fontSize: fontSize.xs - 2,
-          letterSpacing: 1,
-          textTransform: 'uppercase',
-          color: p.muted,
-        },
-
-        kanjiStack: { gap: spacing.sm, marginTop: spacing.sm },
-      }),
-    [p],
-  );
-}
+// Layout only — every colour is inside the primitives, so this can be a
+// module-scope sheet.
+const styles = StyleSheet.create({
+  root: { gap: spacing.xl },
+  block: { gap: spacing.sm + 2 },
+  rows: { gap: spacing.sm },
+});

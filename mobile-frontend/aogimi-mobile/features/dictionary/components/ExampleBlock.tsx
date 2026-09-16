@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { RubyText } from '@/shared/components/RubyText';
 import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
+import { spacing, type, type Palette } from '@/theme/tokens';
 import type { ExampleSentence } from '../types';
 
 /**
@@ -45,19 +45,12 @@ function useStyles(p: Palette) {
   return useMemo(
     () =>
       StyleSheet.create({
-        block: { paddingVertical: spacing.md - 1 },
-        divider: { borderTopWidth: 1, borderTopColor: p.paperBd },
-        translation: {
-          fontFamily: fontFamily.ui,
-          fontSize: fontSize.sm - 1,
-          lineHeight: 17,
-          color: p.soft,
-          marginTop: spacing.xs,
-        },
+        block: { paddingVertical: spacing.md },
+        /** `bdB` — the weak edge, a divider inside one surface. */
+        divider: { borderTopWidth: 1, borderTopColor: p.bdB },
+        translation: { ...type.bodySm, color: p.muted, marginTop: spacing.xs },
         grade: {
-          fontFamily: fontFamily.mono,
-          fontSize: fontSize.xs - 2,
-          letterSpacing: 1,
+          ...type.monoMeta,
           textTransform: 'uppercase',
           color: p.faint,
           marginTop: spacing.xs,
