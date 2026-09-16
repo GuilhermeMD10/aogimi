@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Circle, Group, Path, Skia, Text, type SkFont } from '@shopify/react-native-skia';
+import { Circle, Group, Path, Skia, Text, type SkFont, type Transforms3d } from '@shopify/react-native-skia';
+import type { SharedValue } from 'react-native-reanimated';
 
 import { clip } from '../lib/cards';
 import {
@@ -32,7 +33,6 @@ import {
   orbitOf,
   ringRadii,
   ringWidth,
-  labelWorldSize,
   starRadiusPx,
 } from '../lib/star';
 import type { Star } from '../lib/types';
@@ -49,6 +49,14 @@ import { type BeadPaints } from './SkyPaints';
  * same size on screen while the world scales underneath it. `u` comes from the *committed* camera, so
  * between commits a pinch scales these with the matrix and each commit snaps them back — see
  * `hooks/useSkyCamera.ts` for why that trade is the design and `COMMIT_ZOOM_RATIO` for the knob.
+ *
+ * **The labels are the one exception.** Text is where that snap is most visible — a 20px word
+ * swelling 8% and jumping back reads as a glitch where a 3px star doing the same does not — so the
+ * label's glyph scale and its fade-in both ride the **live** zoom as shared values (`labels`, built
+ * once in `SkyCanvas`), and the word holds its screen size and fades continuously through the whole
+ * pinch exactly as the web's per-wheel-event `fontSize={labelWorldSize(zoom)}` and `labelOpAt(zoom)`
+ * do. Its anchor beside the star still goes through `u`, deliberately: the star's edge rides the
+ * matrix between commits, and a label pinned to the live pose would slide off that edge.
  *
  * `SkyWash.tsx`'s header states the four SVG→Skia translation rules. Two more apply only here:
  *
@@ -164,17 +172,25 @@ type Props = {
   /** Zoom relative to this tier's fitted view. Drives the sublinear swell. */
   relZoom: number;
   relZoomMax?: number;
-  /** The camera's absolute zoom. Sizes the labels (`labelWorldSize`) and nothing else — the star
-   *  radius is a function of `relZoom` alone, so that it can only ever grow as you zoom in. */
-  zoom: number;
   /** World units per screen px, from the committed camera. */
   u: number;
   /** The open card's star: ringed and its glow amplified, so the panel and the sky agree. */
   selected: number | null;
-  /** How strongly the front-text labels are faded up — `labelOpAt(zoom)`, 0 outside a focused deck. */
-  labelOp: number;
+  /** Whether the front-text labels exist at all — the canvas's mount gate, false outside a focused
+   *  deck. How *visible* they are is `labels.op`, live. */
+  labelled: boolean;
   /** The label face. Null until it loads, in which case labels are simply not drawn. */
   font: SkFont | null;
+  /** The labels' live values, one set for every label on the canvas — see the header. */
+  labels: StarLabelLive;
+};
+
+/** What a label reads off the UI thread: its glyph scale (`labelWorldSize(zoom) / LABEL_FONT_PX` as
+ *  a transform) and its fade (`labelOpAt(zoom)`), both against the live zoom. Built once in
+ *  `SkyCanvas`; reference-stable, so the deck layer's memo survives it. */
+export type StarLabelLive = {
+  scale: SharedValue<Transforms3d>;
+  op: SharedValue<number>;
 };
 
 export function SkyStars({
@@ -188,16 +204,13 @@ export function SkyStars({
   vivid = false,
   relZoom,
   relZoomMax,
-  zoom,
   u,
   selected,
-  labelOp,
+  labelled,
   font,
+  labels,
 }: Props) {
-  const labelled = focused && labelOp > 0.01 && font !== null;
-  // Once per render, not per star. Constant above the floor's crossover, so a zoomed-in reader is
-  // back to a fixed world size and the camera does the scaling — see labelWorldSize.
-  const labelGlyphScale = labelWorldSize(zoom) / LABEL_FONT_PX;
+  const drawLabels = labelled && focused && font !== null;
 
   return (
     <Group>
@@ -353,18 +366,21 @@ export function SkyStars({
             {/* 7 · the front text, right and slightly below, once the zoom has bought it room.
                 Clipped hard — the label is a glance and the card detail lives in the host's chrome.
                 Skia sizes text through the font object, not a prop, so the canvas hands down a font
-                already built at LABEL_FONT_PX and the group scales it by a constant. */}
-            {labelled && (
+                already built at LABEL_FONT_PX and a group scales it. Two groups rather than one:
+                the outer carries the per-star plain values (anchor, selection emphasis), the inner
+                the shared live ones (glyph scale, fade) — Skia takes each prop as either plain or
+                shared, and group opacities multiply. */}
+            {drawLabels && (
               <Group
-                opacity={(isSelected ? 1 : 0.85) * labelOp}
+                opacity={isSelected ? 1 : 0.85}
                 transform={[
                   { translateX: s.x + r + LABEL_OFFSET_X_PX * u },
                   { translateY: s.y + LABEL_OFFSET_Y_PX * u },
-                  { scaleX: labelGlyphScale },
-                  { scaleY: labelGlyphScale },
                 ]}
               >
-                <Text x={0} y={0} text={clip(s.front, LABEL_MAX_CHARS)} font={font} color={STAR_LABEL_COLOR} />
+                <Group opacity={labels.op} transform={labels.scale}>
+                  <Text x={0} y={0} text={clip(s.front, LABEL_MAX_CHARS)} font={font} color={STAR_LABEL_COLOR} />
+                </Group>
               </Group>
             )}
           </Group>
@@ -374,7 +390,7 @@ export function SkyStars({
   );
 }
 
-/** The size the label font must be built at. The renderer scales it by `LABEL_GLYPH_SCALE`, so the
- *  font itself is created once at the design size rather than rebuilt per zoom — a Skia font is a real object and
- *  re-making one per frame is the mistake this constant exists to prevent. */
+/** The size the label font must be built at. The renderer scales it by `labels.scale`, so the font
+ *  itself is created once at the design size rather than rebuilt per zoom — a Skia font is a real
+ *  object and re-making one per frame is the mistake this constant exists to prevent. */
 export const LABEL_FONT_SIZE = LABEL_FONT_PX;

@@ -1,21 +1,15 @@
-import { useMemo } from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
-import { usePalette } from '@/theme/ThemeContext';
-import { radius, spacing, type Palette } from '@/theme/tokens';
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { radius, spacing } from '@/theme/tokens';
+import { Glass } from './Glass';
 
 /**
- * The app's card surface — `paper` fill, 1px `paperBd` hairline, radius 16,
- * **no shadow**. Separation comes from the fill and the edge, which is what
- * lets one component work on Night's charcoal and Day's white alike.
- *
- * Promoted out of `features/home/` once Profile and Settings wanted the same
- * box — the house rule is that a primitive earns `shared/components/` on its
- * second caller.
+ * The app's card — **Tier 2 glass, radius 16, padding 16, with the drop
+ * shadow.** DESIGN.md's "Cards": a pane that floats over the sky.
  *
  * `padded={false}` for a card whose children run edge to edge: a divided row
- * group needs its hairlines to touch both sides, so it supplies its own
- * per-row padding instead. Such a card should also carry `overflow: 'hidden'`
- * via `clip`, or square row corners will poke past the rounded edge.
+ * group needs its hairlines to touch both sides, so it supplies its own per-row
+ * padding instead. Such a card should also carry `clip`, or square row corners
+ * will poke past the rounded edge.
  */
 export function Card({
   children,
@@ -26,30 +20,38 @@ export function Card({
   children: React.ReactNode;
   padded?: boolean;
   clip?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }) {
-  const p = usePalette();
-  const styles = useStyles(p);
   return (
-    <View style={[styles.card, padded && styles.padded, clip && styles.clip, style]}>
+    <Glass tier={2} radius={radius.card} clip={clip} style={[padded && styles.padded, style]}>
       {children}
-    </View>
+    </Glass>
   );
 }
 
-function useStyles(p: Palette) {
-  return useMemo(
-    () =>
-      StyleSheet.create({
-        card: {
-          backgroundColor: p.paper,
-          borderWidth: 1,
-          borderColor: p.paperBd,
-          borderRadius: radius.lg,
-        },
-        padded: { padding: spacing.lg },
-        clip: { overflow: 'hidden' },
-      }),
-    [p],
+/**
+ * A **Tier 1 plate nested inside a card** — an input at rest, a well, a passive
+ * chip's ground. Radius 12 and **no drop shadow**: DESIGN.md is explicit that a
+ * nested plate drops the outer shadow, because two shadows one inside the other
+ * read as two separate objects rather than one card with a well in it.
+ *
+ * This is the other half of the "glass never sits on glass of the same tier"
+ * rule — a card is Tier 2, so everything inside it is Tier 1.
+ */
+export function InnerPlate({
+  children,
+  style,
+}: {
+  children?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <Glass tier={1} radius={radius.control} shadow={false} style={style}>
+      {children}
+    </Glass>
   );
 }
+
+const styles = StyleSheet.create({
+  padded: { padding: spacing.cardPad },
+});

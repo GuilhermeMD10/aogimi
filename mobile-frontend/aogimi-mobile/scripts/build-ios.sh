@@ -53,6 +53,7 @@ case "$VARIANT" in
       echo "error: set DEV_API_URL in this script (or AOGIMI_DEV_API_URL) to the hosted dev backend" >&2
       exit 1
     fi
+    export EXPO_PUBLIC_DEV_TOOLS=1
     ;;
   *)
     echo "usage: $0 prod|dev [--install]" >&2

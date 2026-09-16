@@ -1,157 +1,233 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// THE PALETTE — Day ("Ink on paper") + Night ("Midnight")
+// THE PALETTE — Night ("Sakura Yozora") + Day ("Daybreak Glow")
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// Two columns, one set of keys. `PALETTES.day` / `PALETTES.night` are the
-// whole of it, and `ThemeContext` picks one per render. A key present in one
-// column and missing from the other is a **compile error**, which is the point
-// of the `Palette` type — nothing else forces the columns to agree. Role names
-// match the web's tokens, so a role stays greppable across web and mobile.
+// Two columns, one set of keys. `PALETTES.day` / `PALETTES.night` are the whole
+// of it, and `ThemeContext` picks one per render. A key present in one column
+// and missing from the other is a **compile error**, which is the point of the
+// `Palette` type — nothing else forces the columns to agree.
+//
+// Values come from `design-handoff/2026-09-16-foundations/DESIGN.md` verbatim
+// wherever it states one. Where it states a Night value and no Day counterpart,
+// the Day column takes the value drawn in the corresponding `*.dc.html`
+// composition; where neither exists the key is marked `[derived]` at its
+// definition and is a data point for the owner, not a licence to invent more.
 //
 // ── The surface contract (read this before recolouring) ────────────────────
-// The rule is about **role**, not lightness — the two columns order themselves
-// differently (Day is `paper` > `bg` > `paperTile`, Night is `paper` >
-// `paperTile` > `bg`):
+// The app is **liquid glass over a sky gradient**. Nothing is an opaque panel
+// any more:
 //
-//   · `paper` is the RAISED CARD. It must separate from `bg`, and in both
-//     columns it is the lightest of the three — a card sits *above* the
-//     canvas.
-//   · `paperTile` is an INSET WITHIN A CARD — a chip, a well, a badge. It must
-//     contrast against `paper`, **not** against `bg`. Checking it against the
-//     canvas is the mistake this paragraph exists to prevent.
-//   · `bg` is the canvas and nothing sits directly on it but cards and ink.
-//   · `ink` → `soft` → `muted` → `faint` is a monotonic ramp, most-contrast
-//     first; `faint` must stay readable on `paper`.
+//   · `bg` + `canvasTop/canvasBottom` + `nebula/aurora/bloom` are the canvas.
+//     Only `shared/components/Screen` paints them. No screen paints its own.
+//   · `glassSubtle/Standard/Frosted/Intense` are the four elevation tiers. A
+//     surface picks a tier, adds `glassBorder`, and — Night only — the
+//     `glassRim` inset top hairline. **Glass never sits on glass of the same
+//     tier**: a card is Tier 2, the plates inside it are Tier 1.
+//   · `ink` → `muted` → `faint` is the whole ink ramp. DESIGN.md has three
+//     steps, not four; `soft` is kept as an **alias of `muted`** so the ~49
+//     legacy `useColors()` screens keep compiling, and is not a distinct step.
 //   · Anything named `*Ink` is the ink that sits ON the same-named fill, so the
 //     pair contrasts with each other rather than with the canvas.
-//   · Semantic hues (`accent` `danger` `warn` `gold`) double as *text*, so each
-//     column's value has to read against that column's `paper`.
+//   · `btn` is the primary action (sakura in both columns). `accent` is the
+//     *emphasis* hue — text links, active icons — and is the one that differs:
+//     sakura on Night, deep rose on Day, because pale sakura text is illegible
+//     on a light canvas.
 //
 // ── Alpha values ────────────────────────────────────────────────────────────
-// `tintA`/`tintB`, `bdA`/`bdB` and the `*Bg`/`*Bd` washes are alpha. A single
-// shared set of alphas tuned against a lit canvas would disappear against a
-// dark one; with two columns each carries its own, so that failure mode is
-// gone. `paperBd` stays **opaque** in both: a hairline on a filled card is the
-// one edge that has to survive whatever is behind it.
+// Nearly everything here is alpha, because glass is alpha. The two columns
+// carry their own: a white wash reads on Night's indigo and disappears on Day's
+// warm white, where the wash has to run the other way (opaque white over the
+// canvas rather than white-on-dark).
 //
 // ── What is deliberately NOT here ──────────────────────────────────────────
 //   · **The mastery ladder.** Rank colours live in `features/sky/map/lib/
 //     palette.ts` (`RANK_COLORS` / `SKY_PALETTES`) and are the single copy —
-//     `verify:sky` asserts that module is bit-identical to the web's. Do not
-//     re-declare the four hexes here.
-//   · **The dock's material.** Mobile uses the web's glass, and
-//     `features/app-shell/Dock.tsx` records why. So there is no `dock*` group.
-//   · **Per-book spine colours.** `cover1..4` below is the whole of it: four
-//     tints keyed off the stored `cover_color`.
+//     `verify:sky` asserts that module matches the web's. The redesign brief
+//     (§2) keeps our star colours over the handoff's, so do not re-declare the
+//     four hexes here and do not point chrome at DESIGN.md's ladder.
+//   · **The dock's material.** `features/app-shell/**` owns it and records why.
+//   · **Per-book spine colours.** `cover1..4` is the whole of it: four tints
+//     keyed off the stored `cover_color`, unchanged by the redesign.
 //
 // ── The sky stays night in both columns ────────────────────────────────────
 // `sky1..3` and `deckSky` are dark in Day too, because stars are drawn on them.
-// Chrome floating over that sky therefore cannot take its fills from this file
-// — see `features/sky/stage/lib/nightChrome.ts`.
+// They are now the canvas gradient's own stops, so a sky panel reads as a
+// window onto the same sky the app sits on.
+//
+// ── One deviation from the redesign brief's §3.2 ───────────────────────────
+// The brief names the glass/glow/srs/jlpt groups as nested objects
+// (`glass.subtle`). They are **flat** here (`glassSubtle`) because `Palette` is
+// a mapped type over `string` values, and that mapping is what makes a missing
+// key in one column a compile error. Flat keys keep that guarantee; nesting
+// would trade it for prettier names.
 
 import { Platform } from 'react-native';
 import { SWITZER_AVAILABLE } from './switzer';
 
 /**
  * The colour contract. Both columns implement it exactly; `Palette` is derived
- * from Day so adding a key there forces Night to follow.
+ * from Night so adding a key there forces Day to follow.
  *
- * Mapped over `typeof DAY` rather than aliasing it, so the **keys** are pinned
- * while the **values** widen to `string` — a straight alias would make Day's
- * literal hexes the type and reject every Night value as "not assignable to
- * '#f3f2ef'".
+ * Mapped over `typeof NIGHT` rather than aliasing it, so the **keys** are
+ * pinned while the **values** widen to `string` — a straight alias would make
+ * Night's literal hexes the type and reject every Day value.
  */
-export type Palette = { readonly [K in keyof typeof DAY]: string };
+export type Palette = { readonly [K in keyof typeof NIGHT]: string };
 
 /**
- * **Day — "Ink on paper."** Warm off-white canvas, white cards above it,
- * vermillion accent, black filled buttons.
+ * **Night — "Sakura Yozora."** The default. Deep indigo sky, a magenta nebula
+ * above and a blue aurora below, white-tint glass floating over it, and sakura
+ * pink as the single luminous accent.
  */
-const DAY = {
-  /** Page canvas. Warm off-white — cards are the white thing, not this. */
-  bg: '#f3f2ef',
+const NIGHT = {
+  /* ── Canvas ────────────────────────────────────────────────────────────────
+     `bg` is the flat fallback (overscroll, a view that has not mounted
+     `Screen` yet); the gradient and the two radials are the real thing. */
+  bg: '#0F0E1E',
+  canvasTop: '#1A1633',
+  canvasBottom: '#0F0E1E',
+  /** Magenta radial, top. Dialled well down from DESIGN.md's 0.28 — the
+   *  handoff wash read as a colour cast over the whole screen on device. */
+  nebula: 'rgba(190, 90, 160, 0.10)',
+  /** Blue radial, bottom. Likewise down from the handoff's 0.26. */
+  aurora: 'rgba(90, 120, 200, 0.09)',
+  /** Third radial — Day only (leaf, bottom centre). Transparent on Night,
+   *  which is a two-radial canvas. */
+  bloom: 'rgba(90, 120, 200, 0)',
 
-  /* ── Ink ramp — four steps, most-contrast first ────────────────────────────
-     `faint` is the floor and must stay readable on `paper`. */
-  ink: '#141414',
-  soft: '#4a4a48',
-  muted: '#8b8a86',
-  faint: '#b0afa9',
+  /* ── Ink — three steps, most-contrast first ───────────────────────────────
+     `soft` is an alias of `muted`, not a fourth step. See the header. */
+  ink: '#F4EFF5',
+  soft: 'rgba(244, 239, 245, 0.62)',
+  muted: 'rgba(244, 239, 245, 0.62)',
+  faint: 'rgba(244, 239, 245, 0.50)',
 
-  /* ── Filled primary action ─────────────────────────────────────────────────
-     Near-black face, white ink. Note this is one of the few tokens that does
-     NOT keep its polarity in Night, where the primary action is gold. */
-  btn: '#141414',
-  btnInk: '#ffffff',
+  /* ── Primary action — sakura in both columns ──────────────────────────────
+     The one fill that does not flip: `#F2B8C6` with `#2A1A24` ink reads on
+     either canvas, which is why the handoff uses it for the CTA in both. */
+  btn: '#F2B8C6',
+  btnInk: '#2A1A24',
 
-  /* ── Accent — the brand vermillion ─────────────────────────────────────────
-     Used for the 仰 tile, the search glyph, emphasis ink. `accentInk` is a
-     cream, the ink drawn on the brand tile — not white, which would be flat
-     against the vermillion. */
-  accent: '#c2452c',
-  accentInk: '#f6ead0',
+  /* ── Accent — emphasis, not fill ──────────────────────────────────────────
+     Text links, active icons, card eyebrows, progress fills. `accentInk` is
+     the ink drawn ON an accent fill. */
+  accent: '#F2B8C6',
+  accentInk: '#2A1A24',
 
-  /* ── Selection ─────────────────────────────────────────────────────────────
-     "This is the selected one" — a separate role from `accent`, which is
-     emphasis. It currently tracks the accent; kept as its own token so the
-     two can diverge. */
-  active: '#c2452c',
-  activeInk: '#f6ead0',
+  /** "This is the selected one" — a separate role from `accent`, which is
+   *  emphasis. Tracks it today; kept apart so the two can diverge. */
+  active: '#F2B8C6',
+  activeInk: '#2A1A24',
 
-  /* ── Progress ──────────────────────────────────────────────────────────────
-     A track visible while empty, and a fill unmistakably full. */
-  track: '#e8e6e0',
-  fill: '#141414',
+  /* ── Supporting accents ───────────────────────────────────────────────────
+     Due badges and count bubbles (`accentDeep`), deck sub-labels and
+     learned/mastered states (`accentSky`, `accentLeaf`), the avatar gradient's
+     far end (`accentTrunk`). */
+  accentDeep: '#D97A93',
+  accentSky: '#A9D3EA',
+  accentLeaf: '#8FC7A0',
+  accentTrunk: '#6B4A3A',
 
-  avatar: '#141414',
-  avatarInk: '#ffffff',
+  /* ── Glass tiers — the four elevations ────────────────────────────────────
+     1 inputs and nested plates · 2 cards, rows, icon and secondary buttons ·
+     3 popovers and pressed Tier 2 · 4 sheets and modals. `theme/glass.ts`
+     turns a tier into a full recipe; nothing should read these directly. */
+  glassSubtle: 'rgba(255, 255, 255, 0.04)',
+  glassStandard: 'rgba(255, 255, 255, 0.07)',
+  glassFrosted: 'rgba(255, 255, 255, 0.12)',
+  glassIntense: 'rgba(255, 255, 255, 0.18)',
+  glassBorder: 'rgba(255, 255, 255, 0.14)',
+  /** The specular inset hairline along a pane's top edge. Night only — Day's
+   *  glass is opaque white and has no rim to catch. */
+  glassRim: 'rgba(255, 255, 255, 0.22)',
+  /** Accent glass — the focused deck node, a selected row, the sky icon
+   *  plate. Reserved; a card never takes it. */
+  glassAccent: 'rgba(242, 184, 198, 0.12)',
+  glassAccentBd: 'rgba(242, 184, 198, 0.30)',
 
-  /* ── Destructive ───────────────────────────────────────────────────────────
-     `danger` doubles as text; `dangerBg`/`dangerBd` are the wash and edge it
-     sits on. Alpha is fine here — see the header. */
-  danger: '#c2452c',
-  dangerBg: 'rgba(194, 69, 44, 0.08)',
-  dangerBd: 'rgba(194, 69, 44, 0.28)',
+  /* ── Glows ────────────────────────────────────────────────────────────────
+     Shadow colours, not fills. RN takes one shadow per view, so these are
+     spent on the primary CTA and the progress fill's leading edge. */
+  glowPrimary: 'rgba(242, 184, 198, 0.28)',
+  glowProgress: 'rgba(242, 184, 198, 0.60)',
+  glowNode: 'rgba(242, 184, 198, 0.35)',
 
-  /* ── Caution ───────────────────────────────────────────────────────────────
-     A dark amber, because this value has to work as text on `paper`. */
-  warn: '#a87d22',
-  warnBg: 'rgba(168, 129, 31, 0.12)',
-  warnBd: 'rgba(181, 134, 46, 0.30)',
+  /* ── Progress ─────────────────────────────────────────────────────────────
+     A track visible while empty; the fill is the primary sakura. */
+  track: 'rgba(255, 255, 255, 0.12)',
+  fill: '#F2B8C6',
 
-  /** Mastery / highlight ink. Dark amber in Day for the same reason as `warn`;
-   *  Night can afford the bright one. Not the SRS ladder's top rank, which is
-   *  the sky's business (see the header). */
-  gold: '#a8811f',
+  /** The avatar is a `accentDeep → accentTrunk` gradient; this is its start
+   *  stop, kept as its own key because a flat fallback still needs one. */
+  avatar: '#D97A93',
+  avatarInk: '#F4EFF5',
 
-  /* ── Tints + border weights ────────────────────────────────────────────────
+  /* ── Destructive ──────────────────────────────────────────────────────────
+     `danger` doubles as text; the other two are the wash and edge under it. */
+  danger: '#E8707A',
+  dangerBg: 'rgba(232, 112, 122, 0.12)',
+  dangerBd: 'rgba(232, 112, 122, 0.35)',
+
+  /* ── Caution ──────────────────────────────────────────────────────────────
+     The SRS "Hard" hue, which is the only amber the system has. */
+  warn: '#E08E45',
+  warnBg: 'rgba(224, 142, 69, 0.18)',
+  warnBd: 'rgba(224, 142, 69, 0.45)',
+
+  /** Legacy "mastery / highlight ink". `legacyColors().success` resolves here,
+   *  and every one of those call sites means "high rank", so it takes the
+   *  mastered green rather than the old gold. Redesigned screens read
+   *  `RANK_COLORS` instead and this key retires with the bridge. */
+  gold: '#8FC7A0',
+
+  /* ── SRS grades — semantic, fixed across themes ───────────────────────────
+     Rendered as tinted tiles, never solid: fill at 0.18, border at 0.45, label
+     in the grade colour. `srsGood` is FSRS's third grade; the old `Medium`
+     name is the handoff's and does not survive. */
+  srsAgain: '#D9534F',
+  srsHard: '#E08E45',
+  srsGood: '#4A90E2',
+  srsEasy: '#5CB85C',
+
+  /* ── JLPT level badges ────────────────────────────────────────────────────
+     6px chips: fill at 0.16, border at 0.35, label in the level colour. The
+     level *is* the colour's meaning, which is why these are tokens and not a
+     ramp. */
+  jlptN1: '#E8707A',
+  jlptN2: '#E08E45',
+  jlptN3: '#A9D3EA',
+  jlptN4: '#8FC7A0',
+  jlptN5: 'rgba(255, 255, 255, 0.35)',
+
+  /* ── Tints + border weights ───────────────────────────────────────────────
      Neutral washes that layer over covers and images. `bdA` is the strong edge
-     (a panel against the canvas), `bdB` the weak one (a divider inside a card). */
-  tintA: 'rgba(20, 20, 20, 0.10)',
-  tintB: 'rgba(20, 20, 20, 0.04)',
-  bdA: 'rgba(20, 20, 20, 0.22)',
-  bdB: 'rgba(20, 20, 20, 0.09)',
+     (a pane against the canvas), `bdB` the weak one (a divider inside one). */
+  tintA: 'rgba(255, 255, 255, 0.12)',
+  tintB: 'rgba(255, 255, 255, 0.04)',
+  bdA: 'rgba(255, 255, 255, 0.22)',
+  bdB: 'rgba(255, 255, 255, 0.08)',
 
-  /* ── Surface ladder — see the header's role contract ───────────────────────
-     `paper` is the raised card, `paperTile` the inset inside it. */
-  /** Cards, rows, sheets. The raised step, above the canvas. */
-  paper: '#ffffff',
-  /** Chips, wells, badges — an inset *within* a card, judged against `paper`. */
-  paperTile: '#f7f6f3',
-  /** The hairline edge of a filled surface. Opaque in both columns. */
-  paperBd: '#e8e6e0',
+  /* ── Legacy surface ladder → the glass tiers ──────────────────────────────
+     These three were the opaque card/inset/hairline set. They now alias Tier 2
+     / Tier 1 / the glass border so every unmigrated screen picks up the new
+     material for free. A redesigned screen uses `Glass` or `Card`, not these. */
+  /** Cards, rows, sheets — Tier 2. */
+  paper: 'rgba(255, 255, 255, 0.07)',
+  /** Chips, wells, badges — Tier 1, an inset *within* a card. */
+  paperTile: 'rgba(255, 255, 255, 0.04)',
+  /** The hairline edge of any glass pane. */
+  paperBd: 'rgba(255, 255, 255, 0.14)',
 
-  /** Edge that appears on a card only once something needs to be seen. */
-  cardBorderOn: 'rgba(20, 20, 20, 0.22)',
+  /** Edge that appears on a pane only once something needs to be seen. */
+  cardBorderOn: 'rgba(255, 255, 255, 0.22)',
 
-  /** Sheet / popover backdrop. A dark scrim in both columns — its job is to
-   *  push the page back, which reads the same whichever way the palette runs. */
-  scrim: 'rgba(0, 0, 0, 0.45)',
+  /** Sheet / popover backdrop, paired with an 8px blur. */
+  scrim: 'rgba(15, 14, 30, 0.55)',
 
-  /* ── Book + deck covers ────────────────────────────────────────────────────
-     Four unmistakably different tints, keyed off the stored `cover_color`
-     rather than painted from it (that hex is shared data the web renders too —
-     see `bookPush`). Only `covtrack` is alpha, since it sits ON the cover. */
+  /* ── Book + deck covers ───────────────────────────────────────────────────
+     Unchanged by the redesign: four tints keyed off the stored `cover_color`,
+     which is shared data the web renders too. Only `covtrack` is alpha, since
+     it sits ON the cover. */
   cover1: '#21385c',
   cover1Ink: '#e7dcc2',
   cover2: '#6b2a5e',
@@ -162,85 +238,157 @@ const DAY = {
   cover4Ink: '#f4e9d4',
   covtrack: 'rgba(255, 255, 255, 0.16)',
 
-  /* ── Night sky, top → base ─────────────────────────────────────────────────
-     **Dark in Day as well** — stars need night. Three gradient stops; `sky3`
-     is the outermost so it stays the darkest — it is the fill behind
+  /* ── Night sky, top → base ────────────────────────────────────────────────
+     **Dark in Day as well** — stars need night. These are now the canvas
+     gradient's own stops, so a sky panel reads as a window onto the same sky
+     the rest of the app floats on. `sky3` is the darkest; it is the fill behind
      overscroll. */
-  sky1: '#1c2c47',
-  sky2: '#16233c',
-  sky3: '#0d1526',
+  sky1: '#1A1633',
+  sky2: '#151229',
+  sky3: '#0F0E1E',
 
   /** The deck card's own sky panel — the card's frame, not the star map. */
-  deckSky: '#1c2c47',
+  deckSky: '#1A1633',
 } as const;
 
 /**
- * **Night — "Midnight."** Near-black canvas, raised charcoal cards, warm gold
- * primary action.
+ * **Day — "Daybreak Glow."** The same sky at dawn: a warm sakura-white canvas
+ * washed with sakura, sky-blue and leaf, opaque white glass over it, and deep
+ * rose where sakura would be too pale to read.
  *
- * Two reversals worth knowing before reading values off this column: the
- * primary action is **gold with dark ink** (Day's is black with white ink), and
- * `paperTile` sits *above* `bg` rather than below it. Both are correct — see
- * the header's role contract.
+ * Two reversals worth knowing before reading values off this column: `accent`
+ * is **deep rose**, not sakura (the fill stays sakura — see `btn`), and the
+ * glass tiers run *opaque white over the canvas* rather than white-on-dark, so
+ * a higher tier is more opaque rather than brighter.
  */
-const NIGHT: Palette = {
-  bg: '#0b0b0d',
+const DAY: Palette = {
+  /** **Daybreak Glow's canvas.** A near-uniform sakura tint, broken up by three
+   *  soft white washes.
+   *
+   *  **The ramp** carries the colour, so the tint is spread across the whole
+   *  page rather than pooling anywhere: sakura `#F2B8C6` blended over the
+   *  porcelain cream `#FAF6F4` at 10% at the top easing to 5% at the bottom.
+   *  Pre-multiplied to opaque hexes — the ramp is the bottom layer, so there is
+   *  nothing under it for alpha to reveal. To re-tune, recompute
+   *  `base + (sakura - base) × a` per channel.
+   *
+   *  **The three washes are white**, not coloured. They lighten the ramp in a
+   *  few places so it does not read as a flat fill, and that is all they do —
+   *  every earlier attempt at *colouring* the canvas in patches read as blobs
+   *  under the content. Lifting instead of tinting keeps the hue single and the
+   *  variation structural.
+   *
+   *  They fade to **white at zero alpha**, never the keyword `transparent`
+   *  (= zero-alpha *black*), which would drag a grey cast through the ramp on
+   *  the way out. `Screen` fades each stop to its own colour; do not
+   *  "simplify" that to a transparent stop.
+   *
+   *  Geometry and per-wash falloff are in `CANVAS.day`. */
+  /** The bottom stop — also the flat fill behind overscroll, matching Night. */
+  bg: '#FAF3F2',
+  /** Sakura at 10% over the cream. */
+  canvasTop: '#F9F0EF',
+  /** Sakura at 5% over the cream. */
+  canvasBottom: '#FAF3F2',
+  /** Upper left — the broadest of the three. */
+  nebula: 'rgba(255, 255, 255, 0.50)',
+  /** Right, above centre. */
+  aurora: 'rgba(255, 255, 255, 0.40)',
+  /** Lower left. */
+  bloom: 'rgba(255, 255, 255, 0.30)',
 
-  ink: '#f2f1ee',
-  soft: '#c9c8c4',
-  muted: '#9b9aa2',
-  faint: '#7a7982',
+  ink: '#0E1326',
+  soft: '#4D5875',
+  muted: '#4D5875',
+  faint: 'rgba(14, 19, 38, 0.50)',
 
-  /** Gold, not black — a near-black button would vanish into a near-black
-   *  canvas. `btnInk` flips with it. */
-  btn: '#ffe085',
-  btnInk: '#141414',
+  btn: '#F2B8C6',
+  btnInk: '#2A1A24',
 
-  /** The vermillion lifted for a dark ground; `accentInk` stays the cream so
-   *  the brand tile is one mark in both columns. */
-  accent: '#e0715a',
-  accentInk: '#f6ead0',
+  /** Deep rose, not sakura: `#F2B8C6` as *text* on a white canvas is unreadable.
+   *  The sakura fill lives on in `btn`, which is what the CTA uses. */
+  accent: '#B84D67',
+  accentInk: '#FFF9F7',
 
-  active: '#e0715a',
-  activeInk: '#f6ead0',
+  active: '#B84D67',
+  activeInk: '#FFF9F7',
 
-  track: '#1f2024',
-  fill: '#f2f1ee',
+  /** [derived for Day] DESIGN.md states these four for Night only, and the Day
+   *  compositions reuse the same hexes as washes. Kept verbatim rather than
+   *  darkened — they read as fills and sub-labels here, and as *text* on the
+   *  light canvas `accentSky` and `accentLeaf` are weak. Flagged to the owner. */
+  accentDeep: '#B84D67',
+  accentSky: '#A9D3EA',
+  accentLeaf: '#8FC7A0',
+  accentTrunk: '#6B4A3A',
 
-  avatar: '#f2f1ee',
-  avatarInk: '#141414',
+  /** Tier 1 is the composition's flat white inset; Tier 2 is DESIGN.md's Day
+   *  glass. [derived] Tiers 3 and 4 have no documented Day value — DESIGN.md
+   *  states one Day glass — and are stepped toward opaque, because a sheet that
+   *  is no denser than the card behind it cannot be read over scrolling
+   *  content. Flagged to the owner. */
+  glassSubtle: '#FFFFFF',
+  glassStandard: 'rgba(255, 255, 255, 0.72)',
+  glassFrosted: 'rgba(255, 255, 255, 0.82)',
+  glassIntense: 'rgba(255, 255, 255, 0.92)',
+  glassBorder: 'rgba(14, 19, 38, 0.08)',
+  /** Zero-alpha: "No specular rim" (DESIGN.md → Daybreak Glow → Glass). Kept
+   *  as a transparent value rather than removed so the tier recipe stays one
+   *  shape across the columns. */
+  glassRim: 'rgba(255, 255, 255, 0)',
+  glassAccent: 'rgba(184, 77, 103, 0.10)',
+  glassAccentBd: 'rgba(184, 77, 103, 0.30)',
 
-  danger: '#e0715a',
-  dangerBg: 'rgba(224, 113, 90, 0.14)',
-  dangerBd: 'rgba(224, 113, 90, 0.34)',
+  /** The CTA glow survives into Day — the Day composition draws the same
+   *  `rgba(242,184,198,0.28)` under `Start Review`. */
+  glowPrimary: 'rgba(242, 184, 198, 0.28)',
+  glowProgress: 'rgba(242, 184, 198, 0.60)',
+  glowNode: 'rgba(184, 77, 103, 0.25)',
 
-  warn: '#e0b85a',
-  warnBg: 'rgba(224, 184, 90, 0.14)',
-  warnBd: 'rgba(224, 184, 90, 0.34)',
+  track: 'rgba(14, 19, 38, 0.08)',
+  fill: '#F2B8C6',
 
-  /** The bright gold Day cannot use, because here it sits on charcoal. */
-  gold: '#ffe085',
+  avatar: '#D97A93',
+  avatarInk: '#FFF9F7',
 
-  tintA: 'rgba(255, 255, 255, 0.14)',
-  tintB: 'rgba(255, 255, 255, 0.06)',
-  bdA: 'rgba(255, 255, 255, 0.26)',
-  bdB: 'rgba(255, 255, 255, 0.12)',
+  danger: '#E8707A',
+  dangerBg: 'rgba(232, 112, 122, 0.12)',
+  dangerBd: 'rgba(232, 112, 122, 0.35)',
 
-  /** Raised above the canvas, as in Day — the direction is what is shared, not
-   *  the lightness. */
-  paper: '#31333a',
-  /** Inset within a card. Darker than `paper` here and lighter than it in Day;
-   *  what matters is that it separates from `paper`, not where it lands
-   *  relative to `bg`. */
-  paperTile: '#1f2024',
-  paperBd: '#3f424a',
+  warn: '#B56A2E',
+  warnBg: 'rgba(181, 106, 46, 0.12)',
+  warnBd: 'rgba(181, 106, 46, 0.40)',
 
-  cardBorderOn: 'rgba(255, 255, 255, 0.26)',
+  gold: '#3E8B3E',
 
-  scrim: 'rgba(0, 0, 0, 0.45)',
+  /** Each grade darkened ~20% for the light canvas — the four values the Day
+   *  compositions draw. */
+  srsAgain: '#B23B37',
+  srsHard: '#B56A2E',
+  srsGood: '#2F6FB8',
+  srsEasy: '#3E8B3E',
 
-  /** Cover fills are shared with Day: they are keyed off backend data and are
-   *  already dark saturated grounds with pale ink, which reads in both. */
+  /** N1 and N3 are the Day dictionary composition's; N2 and N4 take the Day SRS
+   *  values, which are the same two hues darkened by the same rule. */
+  jlptN1: '#B23B37',
+  jlptN2: '#B56A2E',
+  jlptN3: '#2F6FB8',
+  jlptN4: '#3E8B3E',
+  jlptN5: 'rgba(14, 19, 38, 0.35)',
+
+  tintA: 'rgba(14, 19, 38, 0.06)',
+  tintB: 'rgba(14, 19, 38, 0.03)',
+  bdA: 'rgba(14, 19, 38, 0.14)',
+  bdB: 'rgba(14, 19, 38, 0.06)',
+
+  paper: 'rgba(255, 255, 255, 0.72)',
+  paperTile: '#FFFFFF',
+  paperBd: 'rgba(14, 19, 38, 0.08)',
+
+  cardBorderOn: 'rgba(14, 19, 38, 0.14)',
+
+  scrim: 'rgba(15, 14, 30, 0.55)',
+
   cover1: '#21385c',
   cover1Ink: '#e7dcc2',
   cover2: '#6b2a5e',
@@ -251,13 +399,12 @@ const NIGHT: Palette = {
   cover4Ink: '#f4e9d4',
   covtrack: 'rgba(255, 255, 255, 0.16)',
 
-  /** A step darker than Day's sky, so the panel still separates from a
-   *  near-black canvas instead of merging into it. */
-  sky1: '#16223c',
-  sky2: '#0d1526',
-  sky3: '#05070f',
+  /** Night in Day too — stars need night. Same three stops as Night's. */
+  sky1: '#1A1633',
+  sky2: '#151229',
+  sky3: '#0F0E1E',
 
-  deckSky: '#16223c',
+  deckSky: '#1A1633',
 };
 
 /** The two columns. `ThemeContext` resolves one; nothing else should index this. */
@@ -266,19 +413,70 @@ export const PALETTES = { day: DAY, night: NIGHT } as const;
 export type ThemeName = keyof typeof PALETTES;
 
 /**
- * **Deprecated — the Day column as a static value.**
+ * **Deprecated — the Night column as a static value.**
  *
- * Colour is per-theme now, so the correct way to read it is `usePalette()`.
- * This alias exists only because ~21 modules read `palette.*` inside a
- * module-scope `StyleSheet.create`, which cannot call a hook; rewriting all of
- * them at once would be churn on screens slated for redesign. Those screens
- * are therefore **Day-locked**: they will look wrong in Night until each is
- * migrated, as with `useColors()` below.
+ * Colour is per-theme, so the correct way to read it is `usePalette()`. This
+ * alias exists only because ~25 modules read `palette.*` inside a module-scope
+ * `StyleSheet.create`, which cannot call a hook. Those screens are therefore
+ * **Night-locked** — it points at Night now rather than Day, because Night is
+ * the default theme and locking to the non-default column was the worse of the
+ * two failures.
  *
  * Do not add call sites. A screen being redesigned drops this for `usePalette()`
  * and builds its styles inside the component.
  */
-export const palette = DAY;
+export const palette = NIGHT;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The canvas
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Where the canvas's radial washes sit, per column.
+ *
+ * The **colours** are palette tokens (`nebula` / `aurora` / `bloom`); this is
+ * the **geometry**, which genuinely differs between the two skies: Night is two
+ * radials on the vertical axis (nebula above, aurora below), Day is three
+ * scattered washes. Keeping the geometry here rather than in `Screen` means one
+ * renderer draws both, and re-aiming a wash is a token edit.
+ *
+ * All of these are fractions of the screen box: `rx`/`ry` are the ellipse's
+ * radii, `cx`/`cy` its centre. They map straight onto SVG's `RadialGradient`
+ * in object bounding-box units.
+ *
+ * `stop` is where the wash reaches zero — CSS's `transparent 70%`. It is
+ * per-wash rather than a constant because the source specs set it per gradient,
+ * and a wash that fades at 75% instead of 70% is a visibly softer edge.
+ */
+export type CanvasWash = {
+  rx: number;
+  ry: number;
+  cx: number;
+  cy: number;
+  stop: number;
+};
+export type CanvasSpec = { nebula: CanvasWash; aurora: CanvasWash; bloom: CanvasWash };
+
+export const CANVAS: Record<ThemeName, CanvasSpec> = {
+  night: {
+    nebula: { rx: 0.8, ry: 0.5, cx: 0.5, cy: -0.1, stop: 0.7 },
+    aurora: { rx: 0.7, ry: 0.5, cx: 0.5, cy: 1.1, stop: 0.7 },
+    // Transparent on Night (see `bloom` in the palette); the geometry is inert
+    // but has to be *something*, and a degenerate ellipse is cheapest.
+    bloom: { rx: 0.0001, ry: 0.0001, cx: 0.5, cy: 0.5, stop: 0.7 },
+  },
+  day: {
+    // Three white lifts, spread so no two overlap much — the point is to break
+    // the ramp's uniformity, not to build a second gradient out of them.
+    nebula: { rx: 0.6, ry: 0.45, cx: 0.25, cy: 0.15, stop: 0.7 },
+    aurora: { rx: 0.55, ry: 0.5, cx: 0.9, cy: 0.45, stop: 0.7 },
+    bloom: { rx: 0.65, ry: 0.45, cx: 0.35, cy: 0.9, stop: 0.75 },
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The legacy bridge
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type ThemeColors = {
   bg: string;
@@ -309,34 +507,29 @@ export type ThemeColors = {
 /**
  * The legacy key → `Palette` mapping, in one place.
  *
- * **Why a bridge instead of a rename.** ~61 components do `const c = useColors()`
+ * **Why a bridge instead of a rename.** ~49 components do `const c = useColors()`
  * and read these keys ~600 times. Those screens are being rewritten one at a
- * time, so renaming all 600 call sites now would be churn on code that is about
- * to be replaced — and a half-finished rename is two vocabularies with no rule
- * for which to use. Each screen drops `useColors()` for `usePalette()` as it is
- * redesigned; when the last one has, this function and `ThemeColors` go with it.
+ * time by the 2026-09 redesign, so renaming all 600 call sites now would be
+ * churn on code that is about to be replaced — and a half-finished rename is
+ * two vocabularies with no rule for which to use. Each screen drops
+ * `useColors()` for `usePalette()` as it is redesigned; when the last one has,
+ * this function and `ThemeColors` go with it.
  *
- * It is **derived, never a second set of literals**, so the two cannot drift.
- *
- * **It takes the palette as an argument** rather than closing over a module
- * constant, which is what makes every one of those screens theme-aware for
- * free: `useColors()` calls this with whichever column is live. (What it cannot
- * fix is a screen with a *hardcoded* `#FFFFFF` — those will read wrong in Night
- * until the redesign reaches them.)
+ * It is **derived, never a second set of literals**, so the two cannot drift,
+ * and it takes the palette as an argument rather than closing over a module
+ * constant — which is what makes every one of those screens theme-aware for
+ * free. What it cannot fix is a screen with a *hardcoded* `#FFFFFF`; those read
+ * wrong until the redesign reaches them.
  *
  * ── Three mappings that are not 1:1 ─────────────────────────────────────────
- * The legacy vocabulary has three ink steps against the palette's four, and
- * folds two distinct roles into `accentFg`. Recorded here rather than
- * discovered later:
+ *  · `fgMuted` → `soft` and `fgSubtle` → `muted`. Since the palette moved to
+ *    DESIGN.md's three ink steps these are the **same value**; the legacy
+ *    vocabulary's four-step ramp no longer exists to map onto.
  *
- *  · `fgMuted` → `soft` and `fgSubtle` → `muted`. Three steps onto the top
- *    three of four; `faint` has no legacy name and is only reachable via
- *    `usePalette()`.
- *
- *  · `accent` → `accent`. Its 15 call sites are all emphasis (the results
- *    kicker, meaning numbers, a chip label, the common-word dot), which is what
- *    `accent` means. A site that wanted "filled button" got `accentFg` and is
- *    handled below.
+ *  · `bgElev` → `paper` (Tier 2) and `bgSunken` → `paperTile` (Tier 1). Both
+ *    are translucent now, so a legacy screen that stacked a card on a card gets
+ *    a doubled wash rather than a flat panel. That is visible, not broken, and
+ *    resolves when the screen is redesigned onto `Glass`.
  *
  *  · `success` / `warning` are **semantically wrong at their call sites and are
  *    not fixed here.** Both are used for SRS rank labels — `mastered` and
@@ -349,11 +542,7 @@ export type ThemeColors = {
 export function legacyColors(p: Palette): ThemeColors {
   return {
     bg: p.bg,
-    /** Card, row and sheet fills. */
     bgElev: p.paper,
-    /** Badges, tracks and bars. `paperTile` and `track` are separate roles (a
-     *  track has to be visible while empty, a badge does not), so a call site
-     *  that means "progress track" should move to `track`. */
     bgSunken: p.paperTile,
 
     fg: p.ink,
@@ -366,32 +555,66 @@ export function legacyColors(p: Palette): ThemeColors {
     accent: p.accent,
     accentSoft: p.tintB,
     /** "Ink that sits on a filled or selected surface" — the primary button's
-     *  label, a selected chip, the avatar glyph. `BrandGlyph` was the one site
-     *  that meant ink-on-*accent* and reads `accentInk` directly. */
+     *  label, a selected chip, the avatar glyph. */
     accentFg: p.btnInk,
 
-    highlight: p.gold,
+    highlight: p.accent,
 
     success: p.gold,
     warning: p.warn,
     error: p.danger,
 
     backdrop: p.scrim,
-    shadow: 'rgba(0, 0, 0, 0.45)',
+    shadow: 'rgba(0, 0, 0, 0.35)',
   };
 }
 
-/** What's left of the old per-palette metadata: the two fields something
- *  actually reads. `name` and `label` existed only for the theme picker. */
-export type ThemeMeta = {
-  /** The brand glyph — `BrandGlyph` draws it. */
-  glyph: string;
-  /** Drives status-bar and nav-bar ink. **Derived from the active theme now** —
-   *  it was a constant while there was one palette. `app/_layout.tsx` turns it
-   *  into the status-bar ink, so getting it wrong paints white text on a white
-   *  page (or the reverse). */
-  isDark: boolean;
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// Font stacks
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// The app's faces are **Switzer** (Latin UI, and the mono role) + **Noto Sans
+// JP** (Japanese) + **Lora** (reader body). The redesign brief (§2) keeps all
+// three: the handoff's Sora / Zen Kaku Gothic New are **not** adopted, and what
+// is taken from it is the *sizes, line-heights and tracking* — see `type` below.
+//
+// **Neither UI family ships a 600 cut.** DESIGN.md asks for 600 in nine roles;
+// the brief's rule resolves every one of them: **600 → 700 at 15px and above,
+// 600 → 500 below 15px.** Applied once, in `type`, so no screen has to
+// remember it.
+//
+// **Weight is selected by family, not by `fontWeight`.** Noto's cuts are
+// registered as separate families, and so are Switzer's, so `fontWeight: '700'`
+// on a family that is already the Regular cut gets *synthesised* — a smeared
+// fake bold. Every `type` role therefore names its cut in `fontFamily`, and
+// carries `fontWeight` only so the platform fallback (if `SWITZER_AVAILABLE`
+// ever flips false) still renders at roughly the right weight.
+
+/** Latin UI face. Three cuts, matching the web's 400/500/700. */
+const SWITZER = {
+  regular: 'Switzer-Regular',
+  medium: 'Switzer-Medium',
+  bold: 'Switzer-Bold',
+} as const;
+
+/** Japanese face, from `@expo-google-fonts/noto-sans-jp` — the export names are
+ *  also the registered family names, so the cuts are separate families rather
+ *  than weights of one. `fontWeight` does nothing to these; pick the family. */
+const NOTO_JP = {
+  regular: 'NotoSansJP_400Regular',
+  medium: 'NotoSansJP_500Medium',
+  bold: 'NotoSansJP_700Bold',
+} as const;
+
+const SYSTEM_SANS = Platform.select({
+  ios: 'System',
+  android: 'Roboto',
+  default: 'System',
+}) as string;
+
+/** Resolve a Switzer cut, falling back to the platform sans as one unit — so a
+ *  missing font never leaves a dangling family name on a text node. */
+const ui = (cut: keyof typeof SWITZER) => (SWITZER_AVAILABLE ? SWITZER[cut] : SYSTEM_SANS);
 
 export type ThemeFonts = {
   ui: string;
@@ -401,20 +624,267 @@ export type ThemeFonts = {
   readerItalic: string;
   jp: string;
   jpSans: string;
-  /** Monospace face — caps + tabular metadata. Themes may override. */
+  /** Monospace *role* — caps + tabular metadata. Not an actual monospaced face:
+   *  the web resolves `--face-mono` to Switzer for exactly this. */
   mono: string;
 };
+
+const DEFAULT_FONTS: ThemeFonts = {
+  ui: ui('regular'),
+  display: ui('bold'),
+  displayBold: ui('bold'),
+  /** The reader's body text — Lora stays. It is a *reading* face, chosen for
+   *  long-form prose, and is not one of the UI roles the rule above covers. */
+  reader: 'Lora_400Regular',
+  readerItalic: 'Lora_400Regular_Italic',
+  jp: NOTO_JP.regular,
+  jpSans: NOTO_JP.regular,
+  mono: ui('medium'),
+};
+
+/** The registered family names, for call sites that need a specific cut — the
+ *  Japanese ones especially, since Noto's weights are separate families. */
+export const FONT_FAMILIES = { switzer: SWITZER, notoJp: NOTO_JP } as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Type roles
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * One typographic role, ready to spread into a `Text` style.
+ *
+ * `letterSpacing` is in **points**, not ems — RN has no em unit — so DESIGN.md's
+ * tracking is multiplied through by the role's own size at definition time.
+ */
+export type TypeRole = {
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: '400' | '500' | '700';
+  lineHeight: number;
+  letterSpacing?: number;
+};
+
+/**
+ * **DESIGN.md's type scale, with our faces.** A redesigned screen spreads a
+ * role — `style={[styles.title, type.headlineMd]}` — and stops picking
+ * `fontSize.*` and `fontFamily.*` by hand.
+ *
+ * Roles whose content is Japanese (`displayKanji`, `titleKanji`,
+ * `titleReading`) take Noto; the rest take Switzer. The 600 rule is already
+ * applied — no role below carries a weight our faces cannot draw.
+ */
+export const type = {
+  /** 46px JP — the study card's headword at full size. */
+  displayKanji: {
+    fontFamily: NOTO_JP.medium,
+    fontSize: 46,
+    fontWeight: '500',
+    lineHeight: 52,
+    letterSpacing: 0.92,
+  },
+  /** 38px JP — the same headword on a phone, and the sky inspector's. */
+  displayKanjiMobile: {
+    fontFamily: NOTO_JP.medium,
+    fontSize: 38,
+    fontWeight: '500',
+    lineHeight: 44,
+    letterSpacing: 0.76,
+  },
+  /** 22px — a screen's own title (`Library`, `Look up a word.`). 600 → 700. */
+  headlineLg: {
+    fontFamily: ui('bold'),
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 28,
+    letterSpacing: -0.22,
+  },
+  /** 18px — a card's title (`48 Cards Due`). 600 → 700. */
+  headlineMd: {
+    fontFamily: ui('bold'),
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  /** 24px JP — a dictionary result's headword, a book title in a row. */
+  titleKanji: {
+    fontFamily: NOTO_JP.bold,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
+  },
+  /** 16px JP — the kana reading under a headword. */
+  titleReading: {
+    fontFamily: NOTO_JP.regular,
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 24,
+  },
+  /** 18px — an entry's meaning, set to read rather than to label. */
+  titleMeaning: {
+    fontFamily: ui('regular'),
+    fontSize: 18,
+    fontWeight: '400',
+    lineHeight: 26,
+  },
+  /** 15px — the `Header` primitive's centred title. */
+  headerTitle: {
+    fontFamily: ui('medium'),
+    fontSize: 15,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  bodyMd: {
+    fontFamily: ui('regular'),
+    fontSize: 15,
+    fontWeight: '400',
+    lineHeight: 22,
+  },
+  bodySm: {
+    fontFamily: ui('regular'),
+    fontSize: 13,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+  /** 14px — every button label. 600 → **500**, because 14 is below the 15px
+   *  line in the brief's rule; 700 at this size reads as a shout. */
+  labelButton: {
+    fontFamily: ui('medium'),
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  /** 11px — the interval under an SRS grade (`1m · 10m · 1d · 4d`). */
+  labelInterval: {
+    fontFamily: ui('regular'),
+    fontSize: 11,
+    fontWeight: '400',
+    lineHeight: 14,
+  },
+  /** 10px uppercase, tracked 0.16em — section and card eyebrows. 600 → 500. */
+  eyebrow: {
+    fontFamily: ui('medium'),
+    fontSize: 10,
+    fontWeight: '500',
+    lineHeight: 12,
+    letterSpacing: 1.6,
+  },
+  caption: {
+    fontFamily: ui('regular'),
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 16,
+  },
+  /** 11px tracked 0.04em — machine metadata: counts, intervals, `340 stars ·
+   *  28 due`. Always in `muted` or `faint`; uppercase when it labels a
+   *  section. A *role*, not a face — see `ThemeFonts.mono`. */
+  monoMeta: {
+    fontFamily: ui('medium'),
+    fontSize: 11,
+    fontWeight: '500',
+    lineHeight: 14,
+    letterSpacing: 0.44,
+  },
+} as const satisfies Record<string, TypeRole>;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Geometry
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Corner radii, named by role. DESIGN.md's shape rule is that **controls are
+ * 12px rectangles** — buttons, inputs, filter chips, list rows, menu rows, stat
+ * tiles — and that circles are reserved for icon buttons, avatars, deck nodes
+ * and stars. There are no 999px pills on controls any more.
+ *
+ * The legacy names are kept as aliases so ~25 unmigrated screens keep
+ * compiling: `sm` → `chip`, `md` → `control`, `lg` → `card`. The old `xl: 20`
+ * is **gone** — it had two call sites and neither meant a distinct step.
+ */
+export const radius = {
+  /** JLPT / POS / state tags, count badges inside a CTA. */
+  chip: 6,
+  /** Every button, input, search field, filter chip, list row, stat tile. */
+  control: 12,
+  /** Cards and popover menus. */
+  card: 16,
+  /** Bottom sheets (top corners) and full modals. */
+  sheet: 28,
+  /** The study flashcard, and nothing else. */
+  studyCard: 36,
+  /** Kept **only** for the dock and progress tracks, per the brief. */
+  pill: 999,
+
+  /** @deprecated alias of `chip` — for screens the redesign has not reached. */
+  sm: 6,
+  /** @deprecated alias of `control`. */
+  md: 12,
+  /** @deprecated alias of `card`. */
+  lg: 16,
+} as const;
+
+/**
+ * The spacing scale: **4 / 8 / 12 / 16 / 20 / 36, and nothing between.**
+ * Retuned in place to DESIGN.md — `xl` moved 24 → 20 and `xxl` 32 → 36, so
+ * every existing call site shifts a few points. That is what a token is for.
+ */
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 36,
+
+  /* ── Screen frame ─────────────────────────────────────────────────────────
+     The safe padding DESIGN.md specifies. `screenBottom` is the gap above the
+     home indicator and is **not** the dock clearance — that is
+     `useDockClearance()`, which no constant can replace. */
+  screenX: 20,
+  screenTop: 16,
+  screenBottom: 12,
+
+  /** Padding inside a Tier 2 card. */
+  cardPad: 16,
+  /** The gap between stacked cards. */
+  stackGap: 14,
+} as const;
+
+/**
+ * @deprecated The old size ramp. Redesigned screens spread a `type` role
+ * instead; this stays for the screens that have not been rewritten yet and
+ * retires with the last of them.
+ */
+export const fontSize = {
+  xs: 11,
+  sm: 13,
+  md: 15,
+  lg: 17,
+  xl: 20,
+  xxl: 24,
+  display: 32,
+  hero: 42,
+} as const;
+
+/**
+ * Static font lookup. Fonts do not vary per theme, so this equals what the
+ * hook returns — kept because `StyleSheet.create` blocks can't call hooks.
+ */
+export const fontFamily = DEFAULT_FONTS;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shape recipes
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type SurfaceShape = {
   borderColor: string;
   borderWidth: number;
   radius: number;
-  /** Hard offset shadow recipe (RN). Set offset {0,0} + opacity 0 to disable. */
+  /** Drop-shadow recipe (RN). Set opacity 0 to disable. */
   shadowOffset: { width: number; height: number };
   shadowColor: string;
   shadowOpacity: number;
   shadowRadius: number;
-  /** Android elevation; 0 keeps the look hard-edged. */
+  /** Android elevation; 0 keeps the look flat. */
   elevation: number;
 };
 
@@ -450,12 +920,20 @@ export type ButtonShape = {
 export type ThemeShape = {
   /** Default surface for cards, sheets, popovers. */
   surface: SurfaceShape;
-  /** Inline tag / chip pill. */
+  /** Inline tag / chip. */
   chip: ChipShape;
   /** Action button face. */
   button: ButtonShape;
-  /** Section label color + tracking + weight. */
+  /** Section label colour + tracking + weight. */
   sectionLabel: { color: string; letterSpacing: number; fontWeight: '400' | '500' | '700' };
+};
+
+export type ThemeMeta = {
+  /** The brand glyph — `BrandGlyph` draws it. */
+  glyph: string;
+  /** Drives status-bar and nav-bar ink. `app/_layout.tsx` turns it into the
+   *  status-bar ink, so getting it wrong paints white text on a white page. */
+  isDark: boolean;
 };
 
 export type Theme = {
@@ -465,122 +943,56 @@ export type Theme = {
   shape: ThemeShape;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Font stacks
-// ─────────────────────────────────────────────────────────────────────────────
-//
-// The app's faces are **Switzer** (Latin UI, and the mono role) + **Noto Sans
-// JP** (Japanese), matching the web's `--face-ui` / `--face-mono` /
-// `--face-jp`. Families are substituted here, at the token layer, so no call
-// site ever names a family.
-//
-// **Neither family ships a 600 cut** — the same trap the web documents. Use
-// '500' or '700'; a `fontWeight: '600'` gets synthesised and looks wrong.
-//
-// Switzer is registered in `theme/switzer.ts` (the web's `.woff2` set cannot
-// be reused — React Native has no woff2 support, hence the parallel `.otf`
-// set). If a cut is ever removed, `SWITZER_AVAILABLE` flips false and the two
-// Latin roles fall back to the platform sans rather than dangling a font
-// reference.
-
-/** Latin UI face. Three cuts, matching the web's 400/500/700. */
-const SWITZER = {
-  regular: 'Switzer-Regular',
-  medium: 'Switzer-Medium',
-  bold: 'Switzer-Bold',
-} as const;
-
-/** Japanese face, from `@expo-google-fonts/noto-sans-jp` — the export names are
- *  also the registered family names, so the cuts are separate families rather
- *  than weights of one. `fontWeight` does nothing to these; pick the family. */
-const NOTO_JP = {
-  regular: 'NotoSansJP_400Regular',
-  medium: 'NotoSansJP_500Medium',
-  bold: 'NotoSansJP_700Bold',
-} as const;
-
-const SYSTEM_SANS = Platform.select({
-  ios: 'System',
-  android: 'Roboto',
-  default: 'System',
-}) as string;
-
-const DEFAULT_FONTS: ThemeFonts = {
-  ui: SWITZER_AVAILABLE ? SWITZER.regular : SYSTEM_SANS,
-  display: SWITZER_AVAILABLE ? SWITZER.bold : SYSTEM_SANS,
-  displayBold: SWITZER_AVAILABLE ? SWITZER.bold : SYSTEM_SANS,
-  /** The reader's body text — Lora stays. It is a *reading* face, chosen for
-   *  long-form prose, and is not one of the UI roles the rule above covers. */
-  reader: 'Lora_400Regular',
-  readerItalic: 'Lora_400Regular_Italic',
-  jp: NOTO_JP.regular,
-  jpSans: NOTO_JP.regular,
-  /** Switzer doubles as the mono role, as on the web. It is **not** monospaced:
-   *  the role means "caps, tracked-out micro-labels and tabular metadata", and
-   *  the web resolves `--face-mono` to Switzer for exactly that. */
-  mono: SWITZER_AVAILABLE ? SWITZER.medium : SYSTEM_SANS,
-};
-
-/** The registered family names, for call sites that need a specific cut — the
- *  Japanese ones especially, since Noto's weights are separate families. */
-export const FONT_FAMILIES = { switzer: SWITZER, notoJp: NOTO_JP } as const;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shape recipes
-// ─────────────────────────────────────────────────────────────────────────────
-
 /**
- * The filled card surface.
+ * The Tier 2 card surface, as a recipe.
  *
- * **No shadow.** Card separation comes from the opaque `paper` fill and the
- * solid border, which is all a flat baseline needs. The shadow fields stay on
- * `SurfaceShape` (zeroed) rather than being deleted, so a design that wants
- * elevation sets four numbers here instead of re-threading the type through
- * every consumer.
+ * **It has a shadow again.** DESIGN.md gives every glass tier
+ * `0 8px 32px rgba(0,0,0,0.35)`, and on a translucent pane that shadow is what
+ * separates it from the canvas — the old flat baseline could lean on an opaque
+ * fill and a solid border instead, and this one cannot.
  */
-function softSurface(colors: ThemeColors): SurfaceShape {
+function glassSurface(p: Palette): SurfaceShape {
   return {
-    borderColor: colors.border,
+    borderColor: p.glassBorder,
     borderWidth: 1,
-    radius: 16,
-    shadowOffset: { width: 0, height: 0 },
+    radius: radius.card,
+    shadowOffset: { width: 0, height: 8 },
     shadowColor: '#000',
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
+    shadowOpacity: 0.35,
+    shadowRadius: 32,
+    elevation: 6,
   };
 }
 
-function softChip(colors: ThemeColors): ChipShape {
+/** A 6px tag — JLPT, part of speech, state. Not the 32px filter chip, which is
+ *  a control and takes `radius.control`. */
+function tagChip(p: Palette): ChipShape {
   return {
-    bg: colors.bgSunken,
-    fg: colors.fgMuted,
-    borderColor: colors.border,
-    // 1, not 0: a sunken chip sitting on the canvas has almost no fill contrast
-    // to give, so the edge is what makes it a distinct object. Drop back to 0
-    // once the redesign gives chips a fill that separates on its own.
+    bg: p.glassSubtle,
+    fg: p.muted,
+    borderColor: p.glassBorder,
     borderWidth: 1,
-    radius: 999,
-    paddingV: 4,
-    paddingH: 10,
-    fontSize: 11,
+    radius: radius.chip,
+    paddingV: 2,
+    paddingH: 6,
+    fontSize: 10,
     letterSpacing: 0.2,
     textTransform: 'none',
-    fontWeight: '500',
+    fontWeight: '700',
   };
 }
 
-function softButton(colors: ThemeColors): ButtonShape {
+function controlButton(p: Palette): ButtonShape {
   return {
-    borderColor: colors.borderStrong,
+    borderColor: p.glassBorder,
     borderWidth: 0,
-    radius: 999,
-    shadowOffset: { width: 0, height: 0 },
-    shadowColor: '#000',
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
-    letterSpacing: -0.1,
+    radius: radius.control,
+    shadowOffset: { width: 0, height: 8 },
+    shadowColor: p.glowPrimary,
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 4,
+    letterSpacing: 0,
     textTransform: 'none',
   };
 }
@@ -589,28 +1001,26 @@ function softButton(colors: ThemeColors): ButtonShape {
 // The theme
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** `仰` — the brand glyph, from 仰ぎ見る ("to look up"). */
+/** `仰` — the brand glyph, from 仰ぎ見る ("to look up at"). */
 const GLYPH = '仰';
 
 /**
  * Assemble a full `Theme` from one palette column.
  *
- * Shape is derived from the colours rather than written out, so re-tinting the
+ * Shape is derived from the palette rather than written out, so re-tinting the
  * app stays a palette edit. `isDark` is derived too — it is the one place the
- * polarity is stated, and `app/_layout.tsx` turns it into the status-bar ink,
- * so a stale constant here paints white status text on a white page.
+ * polarity is stated.
  */
 function buildTheme(p: Palette, isDark: boolean): Theme {
-  const colors = legacyColors(p);
   return {
     meta: { glyph: GLYPH, isDark },
-    colors,
+    colors: legacyColors(p),
     fonts: DEFAULT_FONTS,
     shape: {
-      surface: softSurface(colors),
-      chip: softChip(colors),
-      button: softButton(colors),
-      sectionLabel: { color: colors.fgMuted, letterSpacing: 1.5, fontWeight: '500' },
+      surface: glassSurface(p),
+      chip: tagChip(p),
+      button: controlButton(p),
+      sectionLabel: { color: p.faint, letterSpacing: 1.6, fontWeight: '500' },
     },
   };
 }
@@ -628,50 +1038,7 @@ export const THEMES: Record<ThemeName, Theme> = {
 };
 
 /**
- * **Deprecated — the Day theme as a static value**, the counterpart to the
+ * **Deprecated — the Night theme as a static value**, the counterpart to the
  * `palette` alias above and there for the same reason. Read `useTheme()`.
  */
-export const theme: Theme = THEMES.day;
-
-/**
- * Corner radii. Named by role rather than value: every `radius.lg` call site
- * means "the card radius", so re-valuing a step retunes the whole app in one
- * line.
- */
-export const radius = {
-  /** Book and deck spines. */
-  sm: 6,
-  /** Buttons. */
-  md: 12,
-  /** Cards, sheets, panels. */
-  lg: 16,
-  /** Chips and pills — full-round at the sizes they are used. */
-  xl: 20,
-  pill: 999,
-} as const;
-
-export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  xxl: 32,
-} as const;
-
-export const fontSize = {
-  xs: 11,
-  sm: 13,
-  md: 15,
-  lg: 17,
-  xl: 20,
-  xxl: 24,
-  display: 32,
-  hero: 42,
-} as const;
-
-/**
- * Static font lookup. Fonts do not vary per theme, so this equals what the
- * hook returns — kept because `StyleSheet.create` blocks can't call hooks.
- */
-export const fontFamily = DEFAULT_FONTS;
+export const theme: Theme = THEMES.night;

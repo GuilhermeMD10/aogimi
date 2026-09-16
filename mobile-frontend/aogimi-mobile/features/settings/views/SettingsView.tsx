@@ -98,6 +98,24 @@ export function SettingsView() {
           />
         </RowGroup>
 
+        {/* Dev-only. Tuning screens for chrome that is still being decided; not
+            drawn in a release build. __DEV__ is false in a Release build even
+            for the "dev" bundle id, so this checks the build-time flag the
+            build script sets instead (same mechanism as EXPO_PUBLIC_API_URL). */}
+        {(__DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1') && (
+          <>
+            <SectionLabel>DEVELOPER</SectionLabel>
+            <RowGroup>
+              <Row
+                label="Dock lab"
+                description="Three docks at different timings and haptics"
+                chevron
+                onPress={() => router.push('/profile/settings/dock-lab')}
+              />
+            </RowGroup>
+          </>
+        )}
+
         {isSignedIn && (
           <View>
             <DangerButton label={t('profile.signOut')} onPress={handleSignOut} />

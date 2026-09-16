@@ -9,7 +9,12 @@ module.exports = defineConfig([
     // `types/router.d.ts` opens with a blanket `/* eslint-disable */` that this
     // config reports as unused — and since expo-router rewrites the file, the
     // only durable fix is to not lint it.
-    ignores: ["dist/*", ".expo/*"],
+    // `design-handoff/**` is the designer's bundle, copied in verbatim: static
+    // compositions plus their own vendored runtime (`support.js`, ~1.6k lines
+    // of pre-ES6 JS). It is reference material, not app source — nothing
+    // imports it and Metro never bundles it — so linting it only reports 39
+    // errors about someone else's `var`.
+    ignores: ["dist/*", ".expo/*", "design-handoff/**"],
   },
   {
     // Layer rule, mirroring `eslint.config.mjs` in the web app. Three layers,

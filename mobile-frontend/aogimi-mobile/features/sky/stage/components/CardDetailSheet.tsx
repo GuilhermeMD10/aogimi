@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     backgroundColor: NIGHT.panel,
     borderColor: palette.bdB,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: radius.xl,
+    borderRadius: radius.card,
     padding: spacing.lg,
     gap: spacing.md,
   },

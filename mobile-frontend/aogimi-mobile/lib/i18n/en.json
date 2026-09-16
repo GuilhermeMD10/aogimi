@@ -63,14 +63,14 @@
     "continueReading": "Continue reading",
     "importEpub": "Import EPUB",
     "empty": "No books yet",
-    "greeting": "Hello, {name}",
-    "greetingSub": "Welcome back — the sky kept your place.",
-    "yourSky": "YOUR SKY · {count} STARS",
-    "cardsDue": "cards due",
-    "studyNow": "Study now",
     "resumeReading": "Resume reading",
-    "viewAll": "VIEW ALL",
-    "daysStudied": "DAYS STUDIED"
+    "brand": "Aogimi",
+    "streak": "{count}日目",
+    "progressRead": "{pct}% read",
+    "cardsDueTitle": "{count} Cards Due",
+    "startReview": "Start Review",
+    "dueBadge": "{count} DUE",
+    "searchLabel": "Open the dictionary"
   },
   "reader": {
     "define": "Define",
