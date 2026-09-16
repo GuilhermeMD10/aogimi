@@ -30,7 +30,7 @@ import {
   UNFOCUSED_DECK_OPACITY,
 } from '../lib/config';
 import { deckAt, type SkyLayout } from '../lib/layout';
-import { starTapFeedback } from '@/lib/haptics';
+import { selectionStartFeedback, starTapFeedback } from '@/lib/haptics';
 import { labelOpAt } from '../lib/lod';
 import { STAR_LABEL_COLOR, type SkyPalette, lerpHex, rankOf, strandRamps } from '../lib/palette';
 import { pickStar } from '../lib/picking';
@@ -70,9 +70,10 @@ import { SkyWash } from './SkyWash';
  *
  * ── The gesture tree ────────────────────────────────────────────────────────────────────────────
  * Pan, pinch and double-tap are built by the camera hook and run entirely in worklets. This component
- * adds only the **tap**, because a tap means picking and picking is JS-side: it walks the frame's stars
- * through the quadtree. `Gesture.Race` puts the tap behind the pan/pinch pair, so a drag never also
- * selects.
+ * adds only the **tap** and the **long press**, because both mean picking and picking is JS-side: it
+ * walks the frame's stars through the quadtree. `Gesture.Race` puts them behind the pan/pinch pair, so
+ * a drag never also selects. The long press is the outer tier's deck menu — a finger held still on a
+ * constellation — and is disabled inside a deck, where a hold-then-drag has to stay a pan.
  *
  * Picking resolves against the **live** pose (`toWorldLive`), not the committed one — a tap landing
  * mid-fling must hit what is under the finger, not what was under it at the last commit.
@@ -309,7 +310,13 @@ type Props = {
   onStarClick: (star: Star) => void;
   /** A tap inside a focused deck that hit no star — the host reads it as "clear the selection". */
   onMiss?: () => void;
+  /** A finger held on a deck at the outer view — the host opens that deck's menu. */
+  onLongPressDeck?: (did: number) => void;
 };
+
+/** How long a still finger has to rest before it is a deep press rather than a slow tap. Under the
+ *  tap recogniser's 500ms ceiling, so the two can never both fire for one touch. */
+const LONG_PRESS_MS = 420;
 
 /** The label face. Japanese card fronts, so Noto Sans JP — the same `.ttf` `expo-font` already
  *  registers for the RN text layer, required straight from the package rather than copied into
@@ -328,6 +335,7 @@ export function SkyCanvas({
   onEnterDeck,
   onStarClick,
   onMiss,
+  onLongPressDeck,
 }: Props) {
   const {
     camX, camY, camZoom, liveWorldPerPx, view, viewport, relZoom, relZoomMax,
@@ -420,6 +428,19 @@ export function SkyCanvas({
     [hidden, focusedDid, focusedDeck, layout, toWorldLive, cam.camera.zoom, onEnterDeck, onStarClick, onMiss],
   );
 
+  /** The outer tier's deep press: the deck under a still finger, or nothing. */
+  const handleLongPress = useCallback(
+    (at: Point) => {
+      if (hidden || focusedDid !== null || !onLongPressDeck) return;
+      const did = deckAt(layout, toWorldLive(at));
+      if (did === null) return;
+      // A mode change rather than a tap — the same weight the reader's selection uses.
+      selectionStartFeedback();
+      onLongPressDeck(did);
+    },
+    [hidden, focusedDid, layout, toWorldLive, onLongPressDeck],
+  );
+
   const gesture = useMemo(() => {
     const tap = Gesture.Tap()
       .numberOfTaps(1)
@@ -428,8 +449,15 @@ export function SkyCanvas({
       })
       // Picking is JS-side, so this one recogniser genuinely needs the thread hop the others avoid.
       .runOnJS(true);
-    return Gesture.Race(panZoomGesture, tap);
-  }, [panZoomGesture, handleTap]);
+    const longPress = Gesture.LongPress()
+      .minDuration(LONG_PRESS_MS)
+      // Only where it means something: inside a deck a finger that rests and then moves is a pan,
+      // and a recogniser that had already claimed the touch would cancel it.
+      .enabled(focusedDid === null && onLongPressDeck !== undefined)
+      .onStart((e) => handleLongPress({ x: e.x, y: e.y }))
+      .runOnJS(true);
+    return Gesture.Race(panZoomGesture, tap, longPress);
+  }, [panZoomGesture, handleTap, handleLongPress, focusedDid, onLongPressDeck]);
 
   /** The outer tier's deck names, beneath each constellation. `framed={false}`'s half of the layout's
    *  two modes; the card frames come with the overlay pass. Per layout, not per commit: the anchor

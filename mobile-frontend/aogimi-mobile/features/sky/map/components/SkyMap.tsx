@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { useSkyCamera } from '../hooks/useSkyCamera';
 import { useSkyDraw, useSkyStage } from '../hooks/useSkyFrame';
@@ -7,6 +8,7 @@ import { openConstellationOf } from '../lib/generator';
 import { DEFAULT_SKY_HUE, SKY_PALETTES, type SkyHue } from '../lib/palette';
 import type { FocusPath, Insets, Star } from '../lib/types';
 import { SkyCanvas } from './SkyCanvas';
+import { SkyDeckBadges } from './SkyDeckBadges';
 
 /**
  * The whole sky — every deck at once. The native port of the web's `SkyMap.tsx`, and the only
@@ -67,15 +69,16 @@ type Props = {
   selectedCardId: string | null;
   onFocusDeck: (deckKey: string | null) => void;
   onSelectCard: (cardId: string | null) => void;
+  /** A finger held on a deck at the outer view — the host opens that deck's menu. */
+  onLongPressDeck?: (deckKey: string) => void;
   /** The flight into (or out of) the current focus has landed. */
   onSettled?: () => void;
   /**
    * Frame display data by deck uuid — due count, cover tile, subtitle.
    *
-   * **Deliberately accepted and not yet consumed.** The outer tier draws bare constellations with
-   * their names in this pass (see `SkyCanvas`'s header); the card frames come back as an RN overlay
-   * above the canvas, and that overlay is what reads this. Keeping the prop on the contract now means
-   * the host's call site does not change when it lands.
+   * **Only `dueCount` is drawn so far**, by `SkyDeckBadges`: the RN overlay above the canvas that
+   * the card frames were always going to be (see `SkyCanvas`'s header). The rest of the shape is kept
+   * on the contract so the host's call site does not change when the frames land.
    */
   frameMeta?: ReadonlyMap<string, SkyFrameMeta>;
   /** How much of each viewport edge the host's overlays cover, in px. Applied to every camera fit
@@ -92,7 +95,9 @@ export function SkyMap({
   selectedCardId,
   onFocusDeck,
   onSelectCard,
+  onLongPressDeck,
   onSettled,
+  frameMeta,
   insets,
   hue = DEFAULT_SKY_HUE,
 }: Props) {
@@ -168,20 +173,39 @@ export function SkyMap({
   );
   const starClick = useCallback((star: Star) => onSelectCard(star.key), [onSelectCard]);
   const miss = useCallback(() => onSelectCard(null), [onSelectCard]);
+  const longPressDeck = useCallback(
+    (did: number) => {
+      const key = decks[did]?.key;
+      if (key !== undefined) onLongPressDeck?.(key);
+    },
+    [decks, onLongPressDeck],
+  );
 
   return (
-    <SkyCanvas
-      frame={frame}
-      layout={stage.layout}
-      palette={palette}
-      focus={focus}
-      cam={cam}
-      names={stage.index.names}
-      selected={selectedStarId}
-      openTip={openTip}
-      onEnterDeck={enterDeck}
-      onStarClick={starClick}
-      onMiss={miss}
-    />
+    <View style={StyleSheet.absoluteFill}>
+      <SkyCanvas
+        frame={frame}
+        layout={stage.layout}
+        palette={palette}
+        focus={focus}
+        cam={cam}
+        names={stage.index.names}
+        selected={selectedStarId}
+        openTip={openTip}
+        onEnterDeck={enterDeck}
+        onStarClick={starClick}
+        onMiss={miss}
+        onLongPressDeck={onLongPressDeck ? longPressDeck : undefined}
+      />
+      {frameMeta && (
+        <SkyDeckBadges
+          layout={stage.layout}
+          cam={cam}
+          decks={decks}
+          frameMeta={frameMeta}
+          visible={focusedDid === null}
+        />
+      )}
+    </View>
   );
 }

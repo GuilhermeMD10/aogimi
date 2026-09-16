@@ -335,5 +335,77 @@
     "wordPlaceholder": "言葉",
     "readingPlaceholder": "ことば",
     "meaningPlaceholder": "意味 {n}"
+  },
+  "sky": {
+    "starsChip": "個の星",
+    "sync": "今すぐ同期",
+    "more": "空のメニュー",
+    "deckMenu": "デッキのメニュー",
+    "cardMenu": "カードのメニュー",
+    "newDeck": "新しいデッキ",
+    "deckLimit": "デッキ数の上限です",
+    "continueStudying": "学習を続ける",
+    "dueBadge": "{count} 件",
+    "studyDeck": "このデッキを学習",
+    "list": "一覧",
+    "back": "空全体に戻る",
+    "backToDeck": "デッキに戻る",
+    "starsDue": "星 {stars} · 復習 {due}",
+    "editDeck": "デッキを編集",
+    "showStats": "統計を見る",
+    "deleteDeck": "デッキを削除",
+    "deckName": "デッキ名",
+    "deckNamePlaceholder": "こころ 語彙",
+    "deckDescription": "説明（任意）",
+    "deckDescriptionPlaceholder": "このデッキについてのメモ",
+    "deleteCard": "カードを削除",
+    "lookUp": "辞書",
+    "closeHint": "外側をタップして閉じる",
+    "reviews": "{count} 回復習",
+    "dueNow": "復習期限",
+    "rank": {
+      "new": "新規",
+      "met": "習得中",
+      "learned": "習得",
+      "mastered": "定着"
+    },
+    "signedOut": {
+      "title": "空を見るにはアカウントが必要です",
+      "body": "保存したカードは星になり、サーバーが一度だけ発行する種によって配置されます。どの端末でも同じ空が見られます。サインインして自分の空を見ましょう。",
+      "cta": "プロフィールへ",
+      "saved": "この端末に {count} 個のデッキが保存されています。"
+    },
+    "empty": "空はまだ空っぽです。リーダーで言葉を保存すると、ひとつひとつが星になります。",
+    "loadError": "空を読み込めませんでした — {error}",
+    "confirm": {
+      "deleteDeckTitle": "「{name}」を削除しますか？",
+      "deleteDeckBody": "デッキと {count} 枚のカードを削除します。星座は空から消えます。元に戻せません。",
+      "deleteCardTitle": "「{front}」を削除しますか？",
+      "deleteCardBody": "カードとその星を削除します。元に戻せません。"
+    },
+    "stats": {
+      "title": "デッキの統計",
+      "close": "閉じる",
+      "retention": "定着率",
+      "retentionMeta": "最近の復習",
+      "avgInterval": "平均間隔",
+      "hours": "時間",
+      "days": "日",
+      "distribution": "習得度の分布",
+      "total": "合計 {count}",
+      "activity": "7日間の学習",
+      "activityMeta": "全デッキ",
+      "activityUnavailable": "学習記録の表示には接続が必要です。"
+    },
+    "cards": {
+      "search": "カード・漢字・意味を検索…",
+      "clear": "検索をクリア",
+      "all": "すべて",
+      "due": "復習",
+      "empty": "カードはまだありません。",
+      "noMatches": "一致するカードがありません。",
+      "notFound": "デッキが見つかりません",
+      "moreSoon": "その他の操作（近日公開）"
+    }
   }
 }
