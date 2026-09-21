@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { StudyScreen } from '@/features/sky/study/components/StudyScreen';
+import { Screen } from '@/shared/components/Screen';
 import { getDeck } from '@/features/sky/stage/lib/deckLocalState';
 import { useDeckOverrides } from '@/features/sky/study/hooks/useDeckOverrides';
-import { useColors } from '@/theme/ThemeContext';
+import { usePalette } from '@/theme/ThemeContext';
 import type { StudySessionConfig } from '@/features/sky/study/types';
 
 // Per-deck study route. Builds a session spec from the deck's saved
@@ -14,7 +15,7 @@ import type { StudySessionConfig } from '@/features/sky/study/types';
 export default function StudyRoute() {
   const { deckId: rawDeckId } = useLocalSearchParams<{ deckId: string }>();
   const deckId = String(rawDeckId);
-  const c = useColors();
+  const p = usePalette();
   const { loading, getFor } = useDeckOverrides();
   const [deckName, setDeckName] = useState('');
 
@@ -27,11 +28,16 @@ export default function StudyRoute() {
     return () => { cancelled = true; };
   }, [deckId]);
 
+  // The overrides read is local and near-instant, but it gates the spec, so
+  // the canvas is drawn behind the spinner rather than a flat fill flashing
+  // before the session's own `Screen` mounts under it.
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={c.fg} />
-      </View>
+      <Screen>
+        <View style={styles.centred}>
+          <ActivityIndicator color={p.accent} />
+        </View>
+      </Screen>
     );
   }
 
@@ -49,3 +55,7 @@ export default function StudyRoute() {
 
   return <StudyScreen sessionSpec={spec} title={deckName} />;
 }
+
+const styles = StyleSheet.create({
+  centred: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+});

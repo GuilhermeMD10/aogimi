@@ -145,6 +145,17 @@ const NIGHT = {
   glassAccent: 'rgba(242, 184, 198, 0.12)',
   glassAccentBd: 'rgba(242, 184, 198, 0.30)',
 
+  /** **The target word lit inside an example sentence.** DESIGN.md gives it
+   *  by name and by value in the star-inspector spec — `rgba(242,184,198,0.18)`
+   *  — and the study card's back draws the same mark on the same sentence.
+   *
+   *  Distinct from `glassAccent` despite the shared hue: that one is a
+   *  *surface* (a selected row's fill, an active icon plate) and this one is a
+   *  mark on running text, which has to carry at a much smaller area and so
+   *  sits half again denser. Day lifts it further, to 0.35, because the same
+   *  wash over a white card is nearly invisible at Night's alpha. */
+  highlight: 'rgba(242, 184, 198, 0.18)',
+
   /* ── Glows ────────────────────────────────────────────────────────────────
      Shadow colours, not fills. RN takes one shadow per view, so these are
      spent on the primary CTA and the progress fill's leading edge. */
@@ -188,6 +199,21 @@ const NIGHT = {
   srsHard: '#E08E45',
   srsGood: '#4A90E2',
   srsEasy: '#5CB85C',
+
+  /** **The session summary's "correct" figure** — DESIGN.md's "Summary
+   *  semantics", the one role in the handoff that no other token spans.
+   *
+   *  Night wants `accentLeaf` (#8FC7A0) and Day wants its own `srsEasy`
+   *  (#3E8B3E), and the two columns disagree about which family it belongs
+   *  to: `accentLeaf` is the same weak mint in both columns — the previous
+   *  session already flagged it as unreadable on a light card — and `srsEasy`
+   *  is a *grade*, which the correct count is not (it folds Good in too).
+   *  Reaching for one token in Night and a different one in Day at the call
+   *  site is exactly what a token exists to prevent, so the pair gets a name.
+   *
+   *  Its opposite number is `srsAgain`, which already carries the missed
+   *  figure's `#D9534F` / `#B23B37` in both columns and needs no twin. */
+  correct: '#8FC7A0',
 
   /* ── Tints + border weights ───────────────────────────────────────────────
      Neutral washes that layer over covers and images. `bdA` is the strong edge
@@ -340,6 +366,10 @@ const DAY: Palette = {
   glassAccent: 'rgba(184, 77, 103, 0.10)',
   glassAccentBd: 'rgba(184, 77, 103, 0.30)',
 
+  /** See Night. Sakura rather than the column's deep rose, and denser, so
+   *  the mark still reads over a white card. */
+  highlight: 'rgba(242, 184, 198, 0.35)',
+
   /** The CTA glow survives into Day — the Day composition draws the same
    *  `rgba(242,184,198,0.28)` under `Start Review`. */
   glowPrimary: 'rgba(242, 184, 198, 0.28)',
@@ -368,6 +398,9 @@ const DAY: Palette = {
   srsHard: '#B56A2E',
   srsGood: '#2F6FB8',
   srsEasy: '#3E8B3E',
+
+  /** See Night. The Day compositions' correct-count green. */
+  correct: '#3E8B3E',
 
   tintA: 'rgba(14, 19, 38, 0.06)',
   tintB: 'rgba(14, 19, 38, 0.03)',

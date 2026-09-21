@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
-import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { Screen } from '@/shared/components/Screen';
 import { BackBar } from '@/shared/components/BackBar';
@@ -19,7 +18,6 @@ const SYNC_GREY = '#6B6661';
 
 export function HelpView() {
   const c = useColors();
-  const router = useRouter();
 
   return (
     <Screen padded>

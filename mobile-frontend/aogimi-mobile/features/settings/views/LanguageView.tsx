@@ -5,7 +5,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { Screen } from '@/shared/components/Screen';
 import { BackBar } from '@/shared/components/BackBar';
 import { useColors } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing } from '@/theme/tokens';
+import { fontSize, spacing } from '@/theme/tokens';
 import { LOCALES, useI18n, useT, type Locale } from '@/lib/i18n/I18nContext';
 
 // Language picker. Renders the LOCALES list as a flat list of rows with

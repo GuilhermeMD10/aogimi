@@ -172,7 +172,20 @@
     "finish": {
       "cardsReviewed": "枚復習",
       "progression": "進捗",
-      "hardest": "今回の難しいカード"
+      "hardest": "苦手なカード",
+      "title": "セッション完了",
+      "minutes": "{n} 分",
+      "reviewed": "{n} 枚を復習",
+      "correct": "正解",
+      "correctMeta": "{pct}%・GOOD/EASY",
+      "missed": "不正解",
+      "missedMeta": "AGAIN・{n} 枚",
+      "thisSession": "今回",
+      "miss": "1 回ミス",
+      "misses": "{n} 回ミス",
+      "upgrades": "ランクアップ",
+      "upgradesMeta": "{n} 件上昇",
+      "more": "他 {n} 件"
     },
     "changes": {
       "firstReviewed": "{n}枚 初レビュー",
@@ -199,7 +212,12 @@
       "by_creation": "作成日順"
     },
     "dueCount": "{n} 件が復習時期です",
-    "nothingDue": "復習待ちはありません"
+    "nothingDue": "復習待ちはありません",
+    "allDecks": "すべてのデッキ",
+    "progress": "{done} / {total}・残り {left}",
+    "revealCard": "答えを見る",
+    "revealHint": "タップして裏面を表示",
+    "showFront": "表面を表示"
   },
   "sessionConfig": {
     "title": "セッション設定",
@@ -360,7 +378,6 @@
     "deckDescriptionPlaceholder": "このデッキについてのメモ",
     "deleteCard": "カードを削除",
     "lookUp": "辞書",
-    "closeHint": "外側をタップして閉じる",
     "reviews": "{count} 回復習",
     "dueNow": "復習期限",
     "rank": {

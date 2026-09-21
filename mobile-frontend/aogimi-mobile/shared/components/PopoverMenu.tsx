@@ -52,13 +52,11 @@ export function PopoverMenu({
   onDismiss,
   items,
   header,
-  caption,
 }: {
   visible: boolean;
   onDismiss: () => void;
   items: PopoverMenuItem[];
   header?: React.ReactNode;
-  caption?: string;
 }) {
   const p = usePalette();
   const { themeName } = useTheme();
@@ -138,30 +136,19 @@ export function PopoverMenu({
                     style={[s.row, item.disabled && s.rowDisabled]}
                   >
                     <View
-                      style={[
-                        s.plate,
-                        item.destructive
-                          ? s.plateDanger
-                          : item.accent
-                            ? s.plateAccent
-                            : s.plateTier,
-                      ]}
+                      style={[s.plate, item.destructive ? s.plateDanger : item.accent ? s.plateAccent : s.plateTier]}
                     >
                       <Feather name={item.icon} size={18} color={tone} />
                     </View>
                     <Text style={[s.label, { color: tone }]} numberOfLines={1}>
                       {item.label}
                     </Text>
-                    {item.meta !== undefined && (
-                      <Text style={[s.meta, item.accent && s.metaAccent]}>{item.meta}</Text>
-                    )}
+                    {item.meta !== undefined && <Text style={[s.meta, item.accent && s.metaAccent]}>{item.meta}</Text>}
                   </Touchable>
                 </View>
               );
             })}
           </Glass>
-
-          {caption !== undefined && <Text style={s.caption}>{caption}</Text>}
         </View>
       </Animated.View>
     </Modal>

@@ -82,7 +82,14 @@ function CardsList({ deckId }: { deckId: string }) {
   const dueIds = useMemo(() => new Set(cards.filter((c) => isDue(c, now)).map((c) => c.id)), [cards, now]);
 
   const countsByFilter = useMemo(() => {
-    const out: Record<Filter, number> = { all: cards.length, due: dueIds.size, new: 0, met: 0, learned: 0, mastered: 0 };
+    const out: Record<Filter, number> = {
+      all: cards.length,
+      due: dueIds.size,
+      new: 0,
+      met: 0,
+      learned: 0,
+      mastered: 0,
+    };
     for (const c of cards) out[shownRank(c)]++;
     return out;
   }, [cards, dueIds]);
@@ -202,8 +209,9 @@ function CardsList({ deckId }: { deckId: string }) {
       <PopoverMenu
         visible={menuCard !== null}
         onDismiss={() => setMenuCard(null)}
-        caption={t('sky.closeHint')}
-        items={[{ key: 'delete', label: t('sky.deleteCard'), icon: 'trash-2', destructive: true, onPress: confirmDelete }]}
+        items={[
+          { key: 'delete', label: t('sky.deleteCard'), icon: 'trash-2', destructive: true, onPress: confirmDelete },
+        ]}
       />
 
       <LookupDrawers {...lookup.drawers} />

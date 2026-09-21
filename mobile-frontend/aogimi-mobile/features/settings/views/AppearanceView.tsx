@@ -1,11 +1,10 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
-import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { Screen } from '@/shared/components/Screen';
 import { BackBar } from '@/shared/components/BackBar';
 import { useColors, useTheme, type ThemePreference } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing } from '@/theme/tokens';
+import { fontSize, spacing } from '@/theme/tokens';
 import { useT } from '@/lib/i18n/I18nContext';
 
 // Theme picker — Day / Night / System. Deliberately the same shape as
@@ -26,7 +25,6 @@ const OPTIONS: { value: ThemePreference; labelKey: string; subKey: string }[] = 
 export function AppearanceView() {
   const c = useColors();
   const t = useT();
-  const router = useRouter();
   const { preference, setPreference } = useTheme();
 
   return (

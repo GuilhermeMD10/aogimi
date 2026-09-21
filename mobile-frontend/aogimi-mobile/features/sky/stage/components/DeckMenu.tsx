@@ -49,7 +49,6 @@ export function DeckMenu({
     <PopoverMenu
       visible={deck !== null}
       onDismiss={onDismiss}
-      caption={t('sky.closeHint')}
       header={
         deck && (
           <View style={s.header}>

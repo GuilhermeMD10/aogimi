@@ -172,7 +172,20 @@
     "finish": {
       "cardsReviewed": "cards reviewed",
       "progression": "Progression",
-      "hardest": "Hardest this session"
+      "hardest": "Hardest cards",
+      "title": "Session complete",
+      "minutes": "{n} MIN",
+      "reviewed": "{n} cards reviewed",
+      "correct": "Correct",
+      "correctMeta": "{pct}% · GOOD/EASY",
+      "missed": "Missed",
+      "missedMeta": "AGAIN · {n} CARDS",
+      "thisSession": "This session",
+      "miss": "1 MISS",
+      "misses": "{n} MISSES",
+      "upgrades": "Tier upgrades",
+      "upgradesMeta": "{n} ADVANCED",
+      "more": "{n} more"
     },
     "changes": {
       "firstReviewed": "{n} first reviewed",
@@ -199,7 +212,12 @@
       "by_creation": "By creation date"
     },
     "dueCount": "{n} due now",
-    "nothingDue": "Nothing due — all caught up"
+    "nothingDue": "Nothing due — all caught up",
+    "allDecks": "All decks",
+    "progress": "{done} / {total} · {left} left",
+    "revealCard": "Reveal card",
+    "revealHint": "Tap reveal to see the back",
+    "showFront": "Show the front"
   },
   "sessionConfig": {
     "title": "Session settings",
@@ -360,7 +378,6 @@
     "deckDescriptionPlaceholder": "Notes about this deck",
     "deleteCard": "Delete card",
     "lookUp": "Dictionary",
-    "closeHint": "Tap anywhere outside to close",
     "reviews": "{count} reviews",
     "dueNow": "Due now",
     "rank": {
