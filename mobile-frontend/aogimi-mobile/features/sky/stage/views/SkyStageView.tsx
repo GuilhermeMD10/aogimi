@@ -308,12 +308,7 @@ function SkyStage() {
       // carries its own safe-area padding), else the home indicator — the dock
       // is hidden in here. Gated on what is *mounted* rather than on the last
       // measured height, because an unmounting view never reports a closing 0.
-      bottom:
-        focusedDeck === null
-          ? dockClearance
-          : selectedCard
-            ? cardSheetH + GUTTER
-            : safeArea.bottom + GUTTER,
+      bottom: focusedDeck === null ? dockClearance : selectedCard ? cardSheetH + GUTTER : safeArea.bottom + GUTTER,
       left: GUTTER,
       right: GUTTER,
     }),
@@ -404,7 +399,9 @@ function SkyStage() {
               <Button
                 label={t('sky.continueStudying')}
                 icon="star"
-                badge={dueLoading || nothingDue ? undefined : t('sky.dueBadge', { count: counts.total.toLocaleString() })}
+                badge={
+                  dueLoading || nothingDue ? undefined : t('sky.dueBadge', { count: counts.total.toLocaleString() })
+                }
                 disabled={nothingDue}
                 onPress={() => router.push('/sky/study')}
                 full
@@ -442,7 +439,6 @@ function SkyStage() {
       <PopoverMenu
         visible={stageMenuOpen}
         onDismiss={() => setStageMenuOpen(false)}
-        caption={t('sky.closeHint')}
         items={[
           {
             key: 'new',
@@ -469,7 +465,6 @@ function SkyStage() {
       <PopoverMenu
         visible={cardMenuOpen}
         onDismiss={() => setCardMenuOpen(false)}
-        caption={t('sky.closeHint')}
         items={[
           { key: 'delete', label: t('sky.deleteCard'), icon: 'trash-2', destructive: true, onPress: confirmDeleteCard },
         ]}

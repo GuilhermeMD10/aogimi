@@ -54,6 +54,7 @@ export function Glass({
   radius = radii.card,
   shadow = true,
   clip = false,
+  blur,
   style,
 }: {
   children?: React.ReactNode;
@@ -61,6 +62,22 @@ export function Glass({
   tier?: GlassTier;
   material?: GlassMaterial;
   radius?: number;
+  /** Force the live `BlurView` on or off, overriding what the tier decides.
+   *
+   *  **The study flashcard is the reason this exists** and, for now, its only
+   *  caller. DESIGN.md draws it as `surface` — Tier 2's fill, to the hundredth
+   *  — with `blur(24px)` behind it, which is also exactly `BLUR_BY_TIER[2]`;
+   *  and the redesign brief lists it alongside the popovers and sheets as one
+   *  of the few surfaces that earns a real blur. Tier 3 would buy the blur at
+   *  the cost of a fill half again too bright, so the tier stays 2 and the
+   *  blur is asked for by name.
+   *
+   *  It is an override and not a new tier because it is not a new elevation:
+   *  the card sits where a card sits. It is one pane, filling the screen, with
+   *  nothing else beside it — which is the whole reason it can afford what a
+   *  dozen cards in a list cannot. Do not reach for it to make an ordinary
+   *  card prettier; that is the frame-rate rule in `theme/glass.ts`. */
+  blur?: boolean;
   /** Off for a nested plate: DESIGN.md's Tier 1 inside a card drops the outer
    *  drop shadow, or the card reads as two stacked objects. */
   shadow?: boolean;
@@ -76,6 +93,7 @@ export function Glass({
     return glassTier(p, tier, isNight);
   }, [p, tier, material, isNight]);
   const shadowStyle = useShadow();
+  const mountBlur = blur ?? g.mountBlur;
 
   return (
     <View
@@ -87,11 +105,11 @@ export function Glass({
           borderRadius: radius,
         },
         shadow && shadowStyle,
-        (clip || g.mountBlur) && styles.clip,
+        (clip || mountBlur) && styles.clip,
         style,
       ]}
     >
-      {g.mountBlur && (
+      {mountBlur && (
         <BlurView
           intensity={g.blurIntensity}
           tint={g.blurTint}

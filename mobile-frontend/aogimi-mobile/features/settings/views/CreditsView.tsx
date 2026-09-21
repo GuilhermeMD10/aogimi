@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
-import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { Screen } from '@/shared/components/Screen';
 import { BackBar } from '@/shared/components/BackBar';
@@ -15,7 +14,6 @@ import { CREDITS, type CreditEntry, type CreditSection } from '@/features/settin
 
 export function CreditsView() {
   const c = useColors();
-  const router = useRouter();
   return (
     <Screen padded>
       <BackBar title="Credits" />

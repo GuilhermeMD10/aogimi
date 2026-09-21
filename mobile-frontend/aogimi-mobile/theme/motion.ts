@@ -45,6 +45,20 @@ export const SLIDE_MS = 280;
  */
 export const SHEET_MS = 260;
 
+/**
+ * The study card turning over. Longer than `SHEET_MS` because the card is not
+ * arriving — it is the *same* object showing its other face, and a turn read as
+ * a turn needs time the eye can follow. DESIGN.md's figure, and the one the
+ * redesign brief names for this surface.
+ *
+ * Mobile plays it as a crossfade rather than a 3D rotation. The back of a card
+ * is taller than its front — meanings, a sentence, a source line — so a
+ * rotation would have to resize mid-spin, and a card that changes shape while
+ * edge-on reads as a glitch rather than as a flip. The fade changes one
+ * property and lets the height settle behind it.
+ */
+export const FLIP_MS = 300;
+
 export const EASE = Easing.inOut(Easing.quad);
 export const DECELERATE = Easing.bezier(0.4, 0, 0.2, 1);
 

@@ -101,7 +101,7 @@ export function impactFeedback(feel: ImpactFeel): void {
  *
  * Its own name rather than `impactFeedback` at the call site so this module
  * stays ignorant of the study domain — the mapping from Again/Hard/Good/Easy
- * lives with the grades themselves, in `ResultButtons`, beside the colours that
+ * lives with the grades themselves, in `GradeShelf`, beside the colours that
  * already carry the same meaning.
  */
 export type GradeFeel = ImpactFeel;

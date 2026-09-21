@@ -31,14 +31,14 @@ export function CardRow({
   onToggle,
   onMore,
   onLookUp,
-}: {
+}: Readonly<{
   card: LocalCard;
   due: boolean;
   expanded: boolean;
   onToggle: () => void;
   onMore: () => void;
   onLookUp: () => void;
-}) {
+}>) {
   const p = usePalette();
   const t = useT();
   const s = useStyles(p);

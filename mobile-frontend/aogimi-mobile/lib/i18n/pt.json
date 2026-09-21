@@ -172,7 +172,20 @@
     "finish": {
       "cardsReviewed": "cartões revistos",
       "progression": "Progressão",
-      "hardest": "Mais difíceis desta sessão"
+      "hardest": "Cartas mais difíceis",
+      "title": "Sessão concluída",
+      "minutes": "{n} MIN",
+      "reviewed": "{n} cartas revistas",
+      "correct": "Certas",
+      "correctMeta": "{pct}% · GOOD/EASY",
+      "missed": "Falhadas",
+      "missedMeta": "AGAIN · {n} CARTAS",
+      "thisSession": "Esta sessão",
+      "miss": "1 FALHA",
+      "misses": "{n} FALHAS",
+      "upgrades": "Subidas de nível",
+      "upgradesMeta": "{n} SUBIRAM",
+      "more": "mais {n}"
     },
     "changes": {
       "firstReviewed": "{n} revistos pela primeira vez",
@@ -199,7 +212,12 @@
       "by_creation": "Por data de criação"
     },
     "dueCount": "{n} para rever agora",
-    "nothingDue": "Nada pendente — tudo em dia"
+    "nothingDue": "Nada pendente — tudo em dia",
+    "allDecks": "Todos os baralhos",
+    "progress": "{done} / {total} · faltam {left}",
+    "revealCard": "Revelar carta",
+    "revealHint": "Toca para ver o verso",
+    "showFront": "Mostrar a frente"
   },
   "sessionConfig": {
     "title": "Definições da sessão",
@@ -360,7 +378,6 @@
     "deckDescriptionPlaceholder": "Notas sobre este baralho",
     "deleteCard": "Eliminar cartão",
     "lookUp": "Dicionário",
-    "closeHint": "Toca fora para fechar",
     "reviews": "{count} revisões",
     "dueNow": "A rever",
     "rank": {

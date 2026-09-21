@@ -42,6 +42,10 @@ export type StudyState = {
   side: StudySide;
   reviewed: number;
   totalAtStart: number;
+  /** `Date.now()` at the moment the queue was handed over, for the summary's
+   *  duration line. Re-stamped by `restart`, so studying again times the new
+   *  sitting rather than both of them. */
+  startedAt: number;
   finished: boolean;
   canUndo: boolean;
   summary: SessionSummary;
@@ -119,6 +123,11 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // Stamped when the cards arrive rather than when the hook mounts: the fetch
+  // is a round trip the user spent looking at a spinner, not at a card, and
+  // counting it would inflate every online session's reported minutes by
+  // however long the network took.
+  const [startedAt, setStartedAt] = useState(() => Date.now());
 
   // Per-card session entries, keyed by card id. Plain object instead of
   // Map for cheap shallow copies and dependency stability. Cleared on
@@ -156,6 +165,7 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
         setReviewed(0);
         setSide('front');
         setPerCard(EMPTY_SUMMARY_MAP);
+        setStartedAt(Date.now());
       } catch (err: unknown) {
         if (cancelled) return;
         if ((err as { name?: string })?.name === 'AbortError') return;
@@ -355,6 +365,7 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
       side,
       reviewed,
       totalAtStart,
+      startedAt,
       finished,
       canUndo,
       summary,
@@ -365,6 +376,6 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
       restart,
       finishEarly,
     }),
-    [loading, error, queue, current, side, reviewed, totalAtStart, finished, canUndo, summary, reveal, flip, submit, undo, restart, finishEarly],
+    [loading, error, queue, current, side, reviewed, totalAtStart, startedAt, finished, canUndo, summary, reveal, flip, submit, undo, restart, finishEarly],
   );
 }

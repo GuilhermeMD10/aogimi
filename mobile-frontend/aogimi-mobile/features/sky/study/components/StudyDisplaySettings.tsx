@@ -3,7 +3,7 @@ import { Screen } from '@/shared/components/Screen';
 import { BackBar } from '@/shared/components/BackBar';
 import { useColors } from '@/theme/ThemeContext';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, spacing } from '@/theme/tokens';
+import { fontSize, spacing } from '@/theme/tokens';
 import { useStudyDisplayPrefs } from '../hooks/useStudyDisplayPrefs';
 import { PresetPicker } from './PresetPicker';
 import type { BackPrefs, FrontPrefs } from '../types';
