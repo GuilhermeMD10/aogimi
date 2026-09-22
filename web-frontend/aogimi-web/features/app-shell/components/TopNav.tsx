@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, User } from 'lucide-react';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
-import { ACTIVE, Kbd, PANE_NAV, PRESS } from '@/shared/components';
+import { ACTIVE, Brand, Kbd, PANE_NAV, PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { NAV_ITEMS, type NavSection } from '../lib/frameForRoute';
 
@@ -57,15 +57,9 @@ export function TopNav({ section }: Props) {
       <Link
         href="/"
         aria-label="Aogimi — library"
-        className="flex items-center gap-3 transition-opacity duration-120 ease-[ease] hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
+        className="flex items-center rounded-full transition-opacity duration-120 ease-[ease] hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
       >
-        <span
-          aria-hidden
-          className="flex size-[38px] items-center justify-center rounded-full bg-[rgb(var(--accent-soft-rgb)/0.5)] font-[family-name:var(--face-jp)] text-[17px] font-bold text-(--accent)"
-        >
-          仰
-        </span>
-        <span className="text-[21px] font-bold tracking-[-0.01em]">Aogimi</span>
+        <Brand />
       </Link>
 
       {/* Section pill */}

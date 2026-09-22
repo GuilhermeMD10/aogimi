@@ -14,6 +14,7 @@
 
 // ── Shell ───────────────────────────────────────────────────────────────────
 export { StarField } from './StarField';
+export { Brand } from './Brand';
 export { Modal } from './Modal';
 
 // ── Controls ────────────────────────────────────────────────────────────────

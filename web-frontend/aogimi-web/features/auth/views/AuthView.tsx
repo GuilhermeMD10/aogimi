@@ -2,12 +2,20 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
+import { PANE } from '@/shared/components';
+import { cn } from '@/lib/util/cn';
 import { AuthForm } from '../components/AuthForm';
-import { SkyPanel } from '../components/SkyPanel';
+import { AuthTopBar } from '../components/AuthTopBar';
+import { BrandPanel } from '../components/BrandPanel';
 import type { AuthMode } from '../types';
 
 /**
- * `/authenticate` — the split screen: night panel left, form right.
+ * `/authenticate` (the 2026-09-22 auth handoff): the bar → a centred auth
+ * card on the canvas — brand panel left (400px), form right — in the nav's
+ * column. Below `lg` the card is one column and the panel a short strip. No
+ * footer (D11). The card is a `.pane` at the modal radius with the hero
+ * shadow; it does not blur (BRIEF §7 trap 3 — only nav, modals and the
+ * reader's toolbar do).
  *
  * `mode` is local state, not a route and not a search param. The app has one
  * auth route and `AppShell` gates on `pathname === '/authenticate'` exactly,
@@ -100,21 +108,35 @@ export default function AuthView() {
   };
 
   return (
-    <div className="grid h-full min-h-full grid-cols-1 lg:grid-cols-[1.15fr_1fr]">
-      <SkyPanel />
-      <AuthForm
-        mode={mode}
-        onModeChange={changeMode}
-        username={username}
-        email={email}
-        password={password}
-        onUsernameChange={setUsername}
-        onEmailChange={setEmail}
-        onPasswordChange={setPassword}
-        onSubmit={handleSubmit}
-        submitting={submitting}
-        error={error}
-      />
+    <div className="flex min-h-full flex-col">
+      <div className="mx-auto w-full max-w-[1280px] shrink-0 px-10 pt-5">
+        <AuthTopBar mode={mode} onModeChange={changeMode} />
+      </div>
+
+      <div className="grid flex-1 place-items-center px-6 py-8 lg:px-24 lg:pt-11 lg:pb-10">
+        <div
+          className={cn(
+            PANE,
+            'grid w-full max-w-[1000px] overflow-hidden rounded-(--radius-modal) shadow-(--shadow-hero)',
+            'lg:grid-cols-[400px_minmax(0,1fr)]',
+          )}
+        >
+          <BrandPanel mode={mode} />
+          <AuthForm
+            mode={mode}
+            onModeChange={changeMode}
+            username={username}
+            email={email}
+            password={password}
+            onUsernameChange={setUsername}
+            onEmailChange={setEmail}
+            onPasswordChange={setPassword}
+            onSubmit={handleSubmit}
+            submitting={submitting}
+            error={error}
+          />
+        </div>
+      </div>
     </div>
   );
 }
