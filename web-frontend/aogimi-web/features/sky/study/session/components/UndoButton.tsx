@@ -23,7 +23,7 @@ export function UndoButton({ onPress, disabled }: Props) {
       onClick={onPress}
       disabled={disabled}
       title="Undo the last grade (Z)"
-      className="inline-flex h-10 items-center gap-2 rounded-(--radius-button) border border-(--bd-a) px-3 font-[family-name:var(--face-mono)] text-[11px] tracking-[0.08em] whitespace-nowrap text-(--muted) transition-colors duration-120 ease-[ease] hover:bg-(--tint-b) hover:text-(--ink) disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
+      className="inline-flex h-10 items-center gap-2 rounded-(--radius-control) border border-[rgb(var(--line-rgb)/0.22)] px-3 font-[family-name:var(--face-mono)] text-[11px] tracking-[0.08em] whitespace-nowrap text-(--ink-3) transition-colors duration-120 ease-[ease] hover:bg-[rgb(var(--line-rgb)/0.04)] hover:text-(--ink) disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
     >
       <Undo2 size={14} strokeWidth={1.8} aria-hidden />
       UNDO

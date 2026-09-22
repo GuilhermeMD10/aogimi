@@ -1,7 +1,6 @@
 'use client';
 
-import { TopBar } from '@/features/app-shell/TopBar';
-import { GLASS_BUTTON, GLASS_PRESS } from '@/shared/components';
+import { PANE, PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { SearchField } from './SearchField';
 import { useRecentSearches } from '../hooks/useRecentSearches';
@@ -22,8 +21,8 @@ const RECENT_ROWS = 5;
  *
  * ── Glass ──────────────────────────────────────────────────────────────────
  * Everything you can touch here is the library's glass, at the same values as
- * the dock: the field is a `GLASS_SURFACE` (see SearchField) and the chips are
- * `GLASS_BUTTON` + `GLASS_PRESS`. Hover means one thing here and everywhere:
+ * the dock: the field is a `PANE` (see SearchField) and the chips are
+ * `PANE` + `PRESS`. Hover means one thing here and everywhere:
  * the fill brightens.
  */
 export function BeforeSearch({
@@ -43,8 +42,7 @@ export function BeforeSearch({
 
   return (
     <div className="h-full w-full overflow-y-auto font-(family-name:--face-ui) font-medium">
-      <div className="mx-auto flex min-h-full w-full max-w-325 flex-col px-11 pt-8.5 pb-35">
-        <TopBar />
+      <div className="mx-auto flex min-h-full w-full max-w-325 flex-col px-11 pt-8.5">
 
         <div className="flex flex-1 flex-col items-center justify-center">
           <div className="flex w-full max-w-235 flex-col items-center">
@@ -84,12 +82,12 @@ export function BeforeSearch({
                     type="button"
                     onClick={() => onRun(item.query)}
                     className={cn(
-                      GLASS_BUTTON,
-                      GLASS_PRESS,
-                      'rounded-(--radius-chip) px-3.5 py-[7px]',
-                      // `--soft`, not the old `--muted`: it is the library filter
+                      PANE,
+                      PRESS,
+                      'rounded-full px-3.5 py-[7px]',
+                      // `--ink-2`, not the old `--ink-3`: it is the library filter
                       // chip's idle ink, and one glass wants one ink.
-                      'font-[family-name:var(--face-mono)] text-[11px] tracking-[0.05em] text-(--soft)',
+                      'font-[family-name:var(--face-mono)] text-[11px] tracking-[0.05em] text-(--ink-2)',
                       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
                     )}
                   >

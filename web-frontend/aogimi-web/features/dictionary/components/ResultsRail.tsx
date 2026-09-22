@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { SearchField } from './SearchField';
 import { RailList } from './RailList';
@@ -63,11 +62,11 @@ export function ResultsRail({
     <aside
       ref={railRef}
       className={cn(
-        'flex w-[380px] shrink-0 flex-col overflow-y-auto border-r bg-(--cardalt) px-[22px] pt-[26px] pb-[120px]',
+        'flex w-[380px] shrink-0 flex-col overflow-y-auto border-r bg-(--pane) px-[22px] pt-[26px] pb-[120px]',
         // A structural boundary between two panes, not decoration: without a
         // line the rail and the entry float in one background with nothing
         // between them, and unlike a card there's no shadow doing the work.
-        HAIRLINE,
+        'border-(--hairline)',
       )}
     >
       <Link
@@ -77,7 +76,7 @@ export function ResultsRail({
       >
         <span
           aria-hidden
-          className="flex size-[30px] items-center justify-center rounded-(--radius-tile) bg-(--accent) font-[family-name:var(--face-jp)] text-[17px] text-(--accent-ink)"
+          className="flex size-[30px] items-center justify-center rounded-(--radius-chip) bg-(--accent) font-[family-name:var(--face-jp)] text-[17px] text-(--on-accent)"
         >
           仰
         </span>

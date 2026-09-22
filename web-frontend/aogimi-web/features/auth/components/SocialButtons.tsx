@@ -1,6 +1,6 @@
 'use client';
 
-import { GLASS_BUTTON, GLASS_PRESS } from '@/shared/components';
+import { PANE, PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 /**
@@ -53,23 +53,23 @@ function AppleMark() {
 }
 
 const BUTTON = cn(
-  GLASS_BUTTON,
-  GLASS_PRESS,
+  PANE,
+  PRESS,
   'flex h-12 w-full items-center justify-center gap-[11px] rounded-[11px]',
-  'font-[family-name:var(--face-ui)] text-[14px] font-bold text-(--soft)',
+  'font-[family-name:var(--face-ui)] text-[14px] font-bold text-(--ink-2)',
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
 );
 
-/* The OR rule. A background, not a border, so it can't take `HAIRLINE` — same
+/* The OR rule. A background, not a border, so it can't take `'border-(--hairline)'` — same
    mix, stated as a fill. */
-const RULE = 'h-px flex-1 [background:color-mix(in_srgb,var(--muted)_35%,transparent)]';
+const RULE = 'h-px flex-1 [background:color-mix(in_srgb,var(--ink-3)_35%,transparent)]';
 
 export function SocialButtons({ onStart }: { onStart?: (provider: 'google' | 'apple') => void }) {
   return (
     <>
       <div className="my-[26px] flex items-center gap-3.5">
         <span className={RULE} />
-        <span className="font-[family-name:var(--face-mono)] text-[9.5px] tracking-[0.18em] text-(--faint)">
+        <span className="font-[family-name:var(--face-mono)] text-[9.5px] tracking-[0.18em] text-(--ink-3)">
           OR
         </span>
         <span className={RULE} />

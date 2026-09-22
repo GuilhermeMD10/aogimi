@@ -2,86 +2,63 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* ── Design tokens (light + dark) ───────────────────────────────────────── */
-/* The only palette. The outgoing `--lgc-*` layer (`styles/themes/default.css`
-   + `styles/shape-defaults.css` + `styles/primitives.css`) is gone — every
-   screen reads the tokens below. */
+/* ── Design tokens (four themes) ────────────────────────────────────────── */
+/* The only palette. Every screen reads the tokens directly — `text-(--ink)`,
+   `bg-(--pane)`, `bg-[rgb(var(--line-rgb)/0.06)]`. */
 @import "../styles/ds-tokens.css";
 
-/* ── Glass ─────────────────────────────────────────────────────────────── */
-/* The frosted-surface recipe + every number it depends on, in one file. Its
-   rules sit in `@layer components` so utilities still override them. */
+/* ── Panes ──────────────────────────────────────────────────────────────── */
+/* `.pane` / `.pane-nav` / `.pane-modal` / `.press`, in `@layer components`
+   so utilities still override them. */
 @import "../styles/glass.css";
 
 /* ── Shared utilities ──────────────────────────────────────────────────── */
 @import "../styles/utilities.css";
 
-/* ── Sync-state tokens ─────────────────────────────────────────────────── */
-@import "../styles/sync-tokens.css";
-
 /* Themes are chosen by `html[data-theme]`, not by a `.dark` class or the OS
    preference, so `dark:` has to mean the same thing the rest of the app means.
-   Nothing uses it today — the tokens swap underneath components instead — but
-   pointing it at the real selector keeps a future `dark:` from silently
-   following `prefers-color-scheme` and disagreeing with the theme switch. */
-@custom-variant dark (html[data-theme="dark"] &);
+   Nothing uses it — the tokens swap underneath components instead (a theme is
+   one token block, D3) — but pointing it at the real selector keeps a future
+   `dark:` from silently following `prefers-color-scheme`. */
+@custom-variant dark (html[data-theme="night"] &);
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    TAILWIND ALIAS LAYER
-   Only what Tailwind itself has to know about: the radius scale behind
-   `rounded-*`, and the shadcn color namespace.
-
-   The design tokens are deliberately NOT mirrored here. Components read them
-   directly — `text-(--ink)`, `bg-(--paper)`, `font-[family-name:var(--face-ui)]`
-   — so there is one name per value and no alias to keep in step.
+   Only what Tailwind itself has to know about: the shadcn colour namespace.
+   The design tokens are deliberately NOT mirrored here, and the `rounded-*`
+   scale is Tailwind's own — call sites use the radius roles
+   (`rounded-(--radius-card)`) or `rounded-full`.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 @theme inline {
   /* ── shadcn colour namespace ──────────────────────────────────────────
-     The shadcn scale pointed at this system's tokens, so anything added later
-     with `shadcn add` paints in-theme without being rewritten. No shadcn
-     component ships in the app today; `--color-border` and
-     `--color-muted-foreground` are the two names in live use.
+     Pointed at this system's tokens so anything added later with
+     `shadcn add` paints in-theme. No shadcn component ships in the app
+     today; `--color-border` and `--color-muted-foreground` are the two names
+     in live use.
 
-     Mapped at the filled `--paper-*` group, not `--card`/`--cardalt`/`--bd`:
-     those three are transparent app-wide (shadow separates a card from the
-     canvas), and an overlay sliding over the page has nothing behind it to
-     separate against. Same reasoning as `PaperCard`.
-
-     `--color-border` is the one that reaches past shadcn: the `*` rule in the
-     base layer applies it as every element's default border color, so a bare
-     `border` utility draws a theme-aware hairline. Call sites that need a
-     visible edge still say so with `HAIRLINE`. */
-  --color-background:           var(--bg);
+     `--color-border` reaches past shadcn: the `*` rule in the base layer
+     applies it as every element's default border colour, so a bare `border`
+     utility draws the theme's hairline. `border-color` is not inherited, so a
+     call site that wants a different edge states it (`border-(--pane-bd)`). */
+  --color-background:           var(--canvas);
   --color-foreground:           var(--ink);
-  --color-card:                 var(--paper);
+  --color-card:                 var(--pane);
   --color-card-foreground:      var(--ink);
-  --color-popover:              var(--paper);
+  --color-popover:              var(--pane-strong);
   --color-popover-foreground:   var(--ink);
-  --color-primary:              var(--btn);
-  --color-primary-foreground:   var(--btn-ink);
-  --color-secondary:            var(--paper-tile);
+  --color-primary:              var(--accent);
+  --color-primary-foreground:   var(--on-accent);
+  --color-secondary:            var(--pane-strong);
   --color-secondary-foreground: var(--ink);
-  --color-muted:                var(--paper-tile);
-  --color-muted-foreground:     var(--muted);
-  --color-accent:               var(--tint-b);
-  --color-accent-foreground:    var(--ink);
+  --color-muted:                var(--pane);
+  --color-muted-foreground:     var(--ink-3);
+  --color-accent:               var(--selected);
+  --color-accent-foreground:    var(--selected-ink);
   --color-destructive:          var(--danger);
-  --color-border:               var(--paper-bd);
-  --color-input:                var(--paper-bd);
+  --color-border:               var(--hairline);
+  --color-input:                var(--hairline);
   --color-ring:                 var(--ink);
-
-  /* ── Radii ────────────────────────────────────────────────────────────
-     Behind `rounded-md` / `rounded-lg` / `rounded-2xl`. The role-named scale
-     in ds-tokens.css (`--radius-tile`, `--radius-card`, …) is the one new work
-     should reach for; these stay for the call sites that predate it. */
-  --radius-sm:  4px;
-  --radius-md:  6px;
-  --radius-lg:  10px;
-  --radius-xl:  14px;
-  --radius-2xl: 18px;
-  --radius-3xl: 22px;
-  --radius-4xl: 26px;
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -98,42 +75,34 @@
     display: none;
   }
 
-  /* Page canvas + the default face, both app-wide chrome rather than something
-     a page paints. The background is split across the two elements: base night
-     gradient on <html> (whose layers all take `cover`, so the size list stays
-     one value), star tiles on <body> at their tile size. See ds-tokens.css for
-     why one combined declaration doesn't work, and for why this canvas is what
-     the star map hangs in.
-
-     The flat fill is `--sky-3`, the gradient's own outermost stop, rather than
-     `--bg`: it is what overscroll and any unpainted sliver land on, so it should
-     be the colour the gradient ends on and not the app's surface grey. */
+  /* The canvas, painted once here and nowhere else: no screen paints its own
+     background. Split across the two root elements because `--canvas` is a
+     colour on the light themes and a gradient on Night — `background`
+     shorthand takes either, but a gradient can't be a layer inside another
+     `background-image` list, so the three washes go on <body>. Both are
+     `fixed`, so the washes sit where the handoff puts them (percentages of
+     the viewport) however far the page scrolls. */
   html {
     font-family: var(--face-ui);
-    background-color: var(--sky-3);
-    background-image: var(--page-base);
-    background-size: cover;
-    background-repeat: no-repeat;
+    background: var(--canvas);
     background-attachment: fixed;
   }
 
   body {
     color: var(--ink);
-    background-image: var(--page-stars);
-    background-size: 640px 460px;
-    background-repeat: repeat;
+    background-image:
+      radial-gradient(45% 40% at 10% 8%,  var(--wash-1) 0%, transparent 70%),
+      radial-gradient(40% 45% at 94% 42%, var(--wash-2) 0%, transparent 70%),
+      radial-gradient(55% 40% at 65% 100%, var(--wash-3) 0%, transparent 70%);
+    background-repeat: no-repeat;
     background-attachment: fixed;
-    box-shadow: var(--page-vignette);
   }
 
   /* Form controls don't inherit `font-family` from their container — the UA
      stylesheet gives them the platform font — so they need saying explicitly.
      There is deliberately NO `h1..h6` rule: headings that want the Japanese
      face say `--face-jp` at the call site, and one that says nothing should
-     inherit from its screen rather than be overridden by a global. A rule here
-     beats an inherited face no matter what the wrapper sets, which is exactly
-     how four migrated headings ended up rendering in the outgoing display
-     serif. */
+     inherit from its screen rather than be overridden by a global. */
   button,
   input,
   select,
@@ -155,16 +124,18 @@
   box-sizing: content-box;
 }
 
-/* ── Bubble animations ──────────────────────────────────────────────────── */
+/* ── Motion ─────────────────────────────────────────────────────────────── */
 
-@keyframes bubble-enter {
+/* The modal's entrance: 200ms fade + 8px rise (README → page 10 Behaviour).
+   Duration is `--modal-enter`; `Modal` applies it. */
+@keyframes modal-enter {
   from {
     opacity: 0;
-    transform: translateX(-50%) scale(0.96);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) scale(1);
+    transform: translateY(0);
   }
 }
 

@@ -1,19 +1,16 @@
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    UTILITIES — token-driven decorative bits that aren't full primitives.
-   Word hover, vertical Japanese text, selection.
+   Word hover, vertical Japanese text, selection, the opt-in inner scrollbar.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-/* Per-word hover in the reader. Mixed out of `--ink` rather than given a token
-   of its own — same reasoning as `HAIRLINE`: deriving it keeps it correct in
-   both themes without widening the palette with a name that only ever means
-   "tint this word". */
+/* Per-word hover in the reader: the nav-item hover wash, one step stronger. */
 .word-hover {
   cursor: pointer;
   border-radius: 2px;
-  transition: background 120ms;
+  transition: background var(--transition);
 }
 .word-hover:hover {
-  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  background: rgb(var(--line-rgb) / .10);
 }
 
 /* Vertical Japanese text */
@@ -25,33 +22,28 @@
   letter-spacing: 0.04em;
 }
 
-/* Selection. Was the outgoing palette's light-only pair, which in Midnight put
-   near-black text on an 8%-black wash — a selection you couldn't read. */
+/* Selection takes the handoff's highlight wash, so a selected run and a
+   highlighted word read as the same family. */
 ::selection {
-  background: color-mix(in srgb, var(--ink) 18%, transparent);
+  background: rgb(var(--accent-soft-rgb) / .35);
   color: var(--ink);
 }
-
-/* The `.lgc-scroll` opt-in scrollbar is gone with the outgoing palette. It had
-   no call sites, and the `*` rule in globals.css hides scrollbars app-wide. */
 
 /* Opt back in to a visible scrollbar, for a scroller NESTED inside a page that
    doesn't itself scroll. App-wide the `*` rule in globals.css hides scrollbars,
    which is right when the page scroll is the window's — the browser chrome and
-   the content edge already say "there is more". An inner pane says nothing: the
-   library shelf ends mid-viewport with the dock below it, and with no thumb
-   there is no affordance at all that it moves. This bar is 6px, 3px radius,
-   transparent track. */
+   the content edge already say "there is more". An inner pane says nothing.
+   6px, 3px radius, transparent track. */
 .inner-scroll {
   scrollbar-width: thin;
-  scrollbar-color: var(--paper-bd) transparent;
+  scrollbar-color: rgb(var(--line-rgb) / .2) transparent;
 }
 .inner-scroll::-webkit-scrollbar {
   display: block;
   width: 6px;
 }
 .inner-scroll::-webkit-scrollbar-thumb {
-  background: var(--paper-bd);
+  background: rgb(var(--line-rgb) / .2);
   border-radius: 3px;
 }
 .inner-scroll::-webkit-scrollbar-track {

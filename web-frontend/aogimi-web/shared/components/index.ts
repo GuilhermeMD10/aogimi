@@ -8,36 +8,38 @@
  *
  * The rule for what earns a place here: it appears at least twice. A one-off
  * stays in the feature that uses it and moves here when something else wants
- * it. `shared/ui/` holds the remaining shadcn/radix primitives — don't add
- * to it; new primitives go here.
+ * it. `shared/ui/` is gone; new primitives go here, bespoke glyphs in
+ * `shared/icons/`.
  */
 
+// ── Shell ───────────────────────────────────────────────────────────────────
+export { Footer } from './Footer';
+export { StarField } from './StarField';
+export { Modal } from './Modal';
+
+// ── Controls ────────────────────────────────────────────────────────────────
 export { Button } from './Button';
-export { CoverTile } from './CoverTile';
+export { Kbd } from './Kbd';
+export { ProgressBar } from './ProgressBar';
+export { Segmented } from './Segmented';
+export type { SegmentedItem } from './Segmented';
+export { SearchBar } from './SearchBar';
+
+// ── Text ────────────────────────────────────────────────────────────────────
 export { Eyebrow } from './Eyebrow';
 export { JlptChip } from './JlptChip';
-export { PaperCard, PAPER_GHOST } from './PaperCard';
-export { GlassCard, GLASS_GHOST } from './GlassCard';
-export { ProgressTrack } from './ProgressTrack';
-export { Skeleton } from './Skeleton';
-export { SkyBar } from './SkyBar';
-export { HAIRLINE, DASHED } from './hairline';
-export {
-  GLASS_SURFACE,
-  GLASS_SHEEN,
-  GLASS_BUTTON,
-  GLASS_SHEET,
-  GLASS_ROW,
-  GLASS_SCRIM,
-  GLASS_ACTIVE,
-  GLASS_PRESS,
-  GLASS_GRADE,
-  GLASS_GRADE_AGAIN,
-  GLASS_GRADE_HARD,
-  GLASS_GRADE_GOOD,
-  GLASS_GRADE_EASY,
-} from './glass';
 export { StageDot, stageColor, stageLabel } from './StageDot';
 export type { Stage } from './StageDot';
-export { coverPalette } from './coverPalette';
-export type { CoverColors } from './coverPalette';
+
+// ── Surfaces ────────────────────────────────────────────────────────────────
+export { HeroCard } from './HeroCard';
+export { CoverTile } from './CoverTile';
+export type { CoverColors } from './CoverTile';
+export { Skeleton } from './Skeleton';
+export { SkyBar } from './SkyBar';
+export { PANE, PANE_NAV, PANE_MODAL, PRESS, ACTIVE } from './glass';
+
+// Outgoing — re-tokened in Phase 1, deleted with their callers' sessions
+// (PLAN §2.7, §4). `SectionCard` replaces both cards.
+export { PaperCard, PAPER_GHOST } from './PaperCard';
+export { GlassCard, GLASS_GHOST } from './GlassCard';

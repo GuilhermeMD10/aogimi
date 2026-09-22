@@ -1,6 +1,6 @@
 'use client';
 
-import { GLASS_BUTTON, GLASS_PRESS, HAIRLINE } from '@/shared/components';
+import { PANE, PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { AuthField } from './AuthField';
 import { ModeSwitch } from './ModeSwitch';
@@ -62,7 +62,7 @@ export function AuthForm({
   const { title, sub } = HEADINGS[mode];
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-(--bg) px-12 py-14">
+    <div className="flex min-h-full items-center justify-center bg-(--pane-strong) px-12 py-14">
       <div className="w-full max-w-[420px]">
         <ModeSwitch mode={mode} onChange={onModeChange} />
 
@@ -72,7 +72,7 @@ export function AuthForm({
           <h1 className="m-0 font-[family-name:var(--face-ui)] text-[32px] leading-[1.1] font-bold text-(--ink)">
             {title}
           </h1>
-          <p className="mt-[9px] mb-0 font-[family-name:var(--face-ui)] text-[14.5px] text-(--muted)">{sub}</p>
+          <p className="mt-[9px] mb-0 font-[family-name:var(--face-ui)] text-[14.5px] text-(--ink-3)">{sub}</p>
         </div>
 
         <form
@@ -122,7 +122,7 @@ export function AuthForm({
             {error}
           </p>
 
-          {/* Glass, not a filled `--btn` `Button` — same call as `/profile`,
+          {/* Glass, not a filled `--accent` `Button` — same call as `/profile`,
               for the same reason: one material on a screen wants one button.
               Written out rather than composed over `GLASS_GHOST` because a
               52px full-width CTA shares none of that constant's geometry or
@@ -132,9 +132,9 @@ export function AuthForm({
             type="submit"
             disabled={submitting}
             className={cn(
-              GLASS_BUTTON,
-              GLASS_PRESS,
-              'flex h-[52px] w-full items-center justify-center gap-2 rounded-(--radius-input)',
+              PANE,
+              PRESS,
+              'flex h-[52px] w-full items-center justify-center gap-2 rounded-(--radius-control)',
               'font-[family-name:var(--face-ui)] text-[15px] leading-none font-bold text-(--ink)',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
               'disabled:opacity-60',
@@ -147,15 +147,15 @@ export function AuthForm({
 
         {SHOW_SOCIAL_AUTH && <SocialButtons />}
 
-        <p className="mt-[26px] mb-0 text-center font-[family-name:var(--face-ui)] text-[13.5px] text-(--muted)">
+        <p className="mt-[26px] mb-0 text-center font-[family-name:var(--face-ui)] text-[13.5px] text-(--ink-3)">
           {isSignup ? 'Already have an account? ' : 'New here? '}
           <button
             type="button"
             onClick={() => onModeChange(isSignup ? 'login' : 'signup')}
             className={cn(
-              GLASS_PRESS,
+              PRESS,
               'cursor-pointer border-b font-bold text-(--ink)',
-              HAIRLINE,
+              'border-(--hairline)',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
             )}
           >

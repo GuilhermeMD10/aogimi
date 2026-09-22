@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { GLASS_GHOST, GLASS_SURFACE, GlassCard } from '@/shared/components';
+import { GLASS_GHOST, PANE, GlassCard } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { useProfile } from '../hooks/useProfile';
 
@@ -14,12 +14,12 @@ import { useProfile } from '../hooks/useProfile';
  * only; the avatar stays the first letter of the name for now.
  *
  * Glass throughout, like every card on this page: `GlassCard` for the shell,
- * `GLASS_GHOST` for all four actions, and the rename field is a `GLASS_SURFACE`
+ * `GLASS_GHOST` for all four actions, and the rename field is a `PANE`
  * (the dictionary's search field made the same call — a pane, not a control, so
- * no hover). No filled `--btn` `Button` here: the library has one glass button
+ * no hover). No filled `--accent` `Button` here: the library has one glass button
  * treatment for its import, resume and re-add alike, and a page with one
  * material wants one button. The ink is what separates an action from a
- * secondary one — `--ink` for Save, Edit profile and Settings, `--soft` for
+ * secondary one — `--ink` for Save, Edit profile and Settings, `--ink-2` for
  * Cancel.
  */
 export function IdentityCard() {
@@ -61,7 +61,7 @@ export function IdentityCard() {
     <GlassCard className="mb-5 flex flex-wrap items-center gap-[26px] px-[30px] py-7">
       <span
         aria-hidden
-        className="flex size-[92px] shrink-0 items-center justify-center rounded-full bg-(--avatar) font-[family-name:var(--face-ui)] text-[38px] font-bold text-(--avatar-ink)"
+        className="flex size-[92px] shrink-0 items-center justify-center rounded-full bg-(--accent) font-[family-name:var(--face-ui)] text-[38px] font-bold text-(--on-accent)"
       >
         {displayName.charAt(0).toUpperCase()}
       </span>
@@ -85,16 +85,16 @@ export function IdentityCard() {
               // reads as glass without it, and the dictionary's version paints
               // the line only because its shell is a `<form>`.
               className={cn(
-                GLASS_SURFACE,
-                'w-full max-w-[340px] rounded-(--radius-button) px-3.5 py-2.5',
+                PANE,
+                'w-full max-w-[340px] rounded-(--radius-control) px-3.5 py-2.5',
                 'font-[family-name:var(--face-ui)] text-[20px] font-bold text-(--ink)',
-                'outline-none focus:border-(--btn)',
+                'outline-none focus:border-(--accent)',
               )}
             />
             <button type="button" onClick={() => void save()} className={cn(GLASS_GHOST, 'text-(--ink)')}>
               {saving ? 'Saving…' : 'Save'}
             </button>
-            <button type="button" onClick={cancel} className={cn(GLASS_GHOST, 'text-(--soft)')}>
+            <button type="button" onClick={cancel} className={cn(GLASS_GHOST, 'text-(--ink-2)')}>
               Cancel
             </button>
             {saveError && (

@@ -130,10 +130,10 @@ export function SearchView({
             going white. */}
         {!selectedKanji && !selectedWord && (
           <div className="flex h-full flex-col items-center justify-center px-11 text-center">
-            <p className="font-[family-name:var(--face-jp)] text-[26px] tracking-[0.14em] text-(--faint)">
+            <p className="font-[family-name:var(--face-jp)] text-[26px] tracking-[0.14em] text-(--ink-3)">
               引いてみる
             </p>
-            <p className="mt-3 font-[family-name:var(--face-ui)] text-[28px] leading-[1.12] tracking-[-0.015em] text-(--faint)">
+            <p className="mt-3 font-[family-name:var(--face-ui)] text-[28px] leading-[1.12] tracking-[-0.015em] text-(--ink-3)">
               {loading ? 'Looking…' : 'Nothing to show yet.'}
             </p>
           </div>

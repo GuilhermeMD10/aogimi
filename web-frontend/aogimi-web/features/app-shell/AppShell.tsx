@@ -1,14 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { ReaderStateProvider, useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
 import { SkyHueProvider } from '@/features/app-shell/providers/SkyHueProvider';
 import { DictionaryStateProvider } from '@/features/dictionary';
 import { DecksProvider } from '@/features/sky/stage';
-import Dock from '@/features/app-shell/Dock';
-import { ReaderBubble } from '@/features/books';
+import { AppFrame } from '@/features/app-shell/components/AppFrame';
+import { ReaderModal, AddedToast } from '@/features/books';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -16,16 +16,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const isAuthPage = pathname === '/authenticate';
-
-  // An open book owns the whole window: the reading pane fills it (the route
-  // reserves no bottom padding, unlike every other screen), so the dock would
-  // float over the page text rather than below it. Leaving a book is the
-  // toolbar's back button, and the dock comes back with the shelf.
-  //
-  // A prefix test, not equality. `/reader` has no page of its own — it is only
-  // the `[bookId]` parent segment, since the shelf moved to `/` — but the test
-  // stays a prefix so it can never match that bare segment by accident.
-  const isOpenBook = pathname.startsWith('/reader/');
 
   // Pages whose render set depends on the auth-vs-route relationship. We
   // stash the same predicate the effect uses so the early-return below
@@ -47,7 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ReaderStateProvider>
         <DictionaryStateProvider>
           <DecksProvider>
-            <ShellContent showDock={!isAuthPage && !isOpenBook}>{children}</ShellContent>
+            <ShellContent framed={!isAuthPage}>{children}</ShellContent>
           </DecksProvider>
         </DictionaryStateProvider>
       </ReaderStateProvider>
@@ -55,46 +45,60 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ShellContent({ showDock, children }: { showDock: boolean; children: React.ReactNode }) {
-  const { readerBubble, setReaderBubble, setPendingCard } = useReaderState();
+/**
+ * `framed` wraps the page in `AppFrame` (nav, gutters, footer). Only the
+ * signed-out `/authenticate` screen renders bare — every signed-in page, an
+ * open book included, gets the frame (D2).
+ */
+function ShellContent({ framed, children }: { framed: boolean; children: React.ReactNode }) {
+  const { readerModal, setReaderModal, setPendingCard } = useReaderState();
+  /** The deck a card just went into — shows the toast until it clears. */
+  const [added, setAdded] = useState<string | null>(null);
 
-  // addCard bubble close also clears `pendingCard`. Without this the
-  // decks page would observe the still-set pendingCard on next mount
-  // and re-open the same add-card flow, letting the user duplicate the
-  // card they just created. Both signals are seeded together in
-  // `useReaderActions.requestAddCard`; tearing both down together
-  // keeps them in lockstep.
-  const closeAddCardBubble = () => {
-    setReaderBubble(null);
+  // Closing the add-card modal also clears `pendingCard`. Without this the
+  // decks page would observe the still-set pendingCard on next mount and
+  // re-open the same add-card flow, letting the user duplicate the card they
+  // just created. Both signals are seeded together in
+  // `useReaderActions.openAddCard`; tearing both down together keeps them in
+  // lockstep.
+  const closeAddCard = useCallback(() => {
+    setReaderModal(null);
     setPendingCard(null);
-  };
+  }, [setReaderModal, setPendingCard]);
+
+  const onCreated = useCallback(
+    (deckName: string) => {
+      closeAddCard();
+      setAdded(deckName);
+    },
+    [closeAddCard],
+  );
+  const clearAdded = useCallback(() => setAdded(null), []);
 
   return (
-    <main className="h-full w-full">
-      {children}
+    <>
+      {framed ? <AppFrame>{children}</AppFrame> : <main className="h-full w-full">{children}</main>}
 
-      {showDock && <Dock />}
-
-      {readerBubble && (readerBubble.mode === 'dict' ? (
-        <ReaderBubble mode="dict" onClose={() => setReaderBubble(null)} />
+      {readerModal && (readerModal.mode === 'dict' ? (
+        <ReaderModal mode="dict" onClose={() => setReaderModal(null)} onCreated={onCreated} />
       ) : (
-        <ReaderBubble
+        <ReaderModal
           // Pre-existing hazard, deliberately left alone: adding the *same*
-          // headword twice from two different sources (say the reader's
-          // selection and then a rail row) keeps the same key, so the bubble
-          // does not remount and its seeded phase state — the initial
-          // select-deck phase, built from the first request's draft — is not
-          // reseeded from the second request. Out of scope here; flagged so the
-          // next person to touch the key knows it isn't already handled.
-          key={readerBubble.word}
+          // headword twice from two different sources keeps the same key, so
+          // the modal does not remount and its seeded phase — built from the
+          // first request's draft — is not reseeded from the second request.
+          key={readerModal.word}
           mode="addCard"
-          word={readerBubble.word}
-          draft={readerBubble.draft}
-          contextSentence={readerBubble.contextSentence}
-          dictVisibleBehind={readerBubble.dictVisibleBehind}
-          onClose={closeAddCardBubble}
+          word={readerModal.word}
+          draft={readerModal.draft}
+          contextSentence={readerModal.contextSentence}
+          dictVisibleBehind={readerModal.dictVisibleBehind}
+          onClose={closeAddCard}
+          onCreated={onCreated}
         />
       ))}
-    </main>
+
+      {added && <AddedToast deckName={added} onDone={clearAdded} />}
+    </>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Button, Eyebrow, HAIRLINE, JlptChip } from '@/shared/components';
+import { Button, Eyebrow, JlptChip } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import type { CardDraft, DeckSummary } from '../../types';
 import {
@@ -17,8 +17,8 @@ import {
 // Shared field shell. Both text inputs and the read-only front box are the same
 // box; only the fill differs, so that stays at the call site.
 const FIELD = cn(
-  'w-full rounded-(--radius-input) border border-(--paper-bd) px-3.5 py-2.5',
-  'font-[family-name:var(--face-ui)] text-[14px] text-(--ink) placeholder:text-(--faint)',
+  'w-full rounded-(--radius-control) border border-(--pane-bd) px-3.5 py-2.5',
+  'font-[family-name:var(--face-ui)] text-[14px] text-(--ink) placeholder:text-(--ink-3)',
   'outline-none focus:border-(--ink)',
 );
 
@@ -132,10 +132,10 @@ export function PendingCardOverlay({
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 font-[family-name:var(--face-ui)] backdrop-blur-sm">
-      {/* `--paper`, not `--card`: that group is transparent app-wide because a
+      {/* `--pane`, not `--pane`: that group is transparent app-wide because a
           card is separated from the page by shadow, and a dialog floating over
           a scrim has nothing behind it to separate against. */}
-      <div className="w-full max-w-sm rounded-(--radius-panel) border border-(--paper-bd) bg-(--paper) p-6 shadow-(--card-shadow-float)">
+      <div className="w-full max-w-sm rounded-(--radius-card) border border-(--pane-bd) bg-(--pane) p-6 shadow-(--shadow-hero)">
         {flow.phase === 'select-deck' ? (
           <SelectDeckPhase
             word={flow.draft.front}
@@ -191,7 +191,7 @@ function SelectDeckPhase({
   return (
     <>
       <h2 className="text-[17px] leading-tight font-bold text-(--ink)">Add as flashcard</h2>
-      <p className="mt-1 text-[13.5px] text-(--soft)">
+      <p className="mt-1 text-[13.5px] text-(--ink-2)">
         Front:{' '}
         <span className="font-[family-name:var(--face-jp)] font-bold text-(--ink)">
           {word}
@@ -214,19 +214,19 @@ function SelectDeckPhase({
                   onClick={() => onSelectDeck(deck.id)}
                   disabled={full}
                   className={cn(
-                    'flex w-full items-baseline gap-2.5 rounded-(--radius-input) border px-3.5 py-2.5 text-left',
+                    'flex w-full items-baseline gap-2.5 rounded-(--radius-control) border px-3.5 py-2.5 text-left',
                     'transition-[border-color] duration-120 ease-[ease]',
                     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
                     full
                       ? 'cursor-not-allowed opacity-45'
                       : 'cursor-pointer hover:border-(--accent)',
-                    HAIRLINE,
+                    'border-(--hairline)',
                   )}
                 >
                   <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-(--ink)">
                     {deck.name}
                   </span>
-                  <span className="shrink-0 font-[family-name:var(--face-mono)] text-[10.5px] text-(--muted)">
+                  <span className="shrink-0 font-[family-name:var(--face-mono)] text-[10.5px] text-(--ink-3)">
                     {full
                       ? 'full'
                       : `${deck.card_count} card${deck.card_count !== 1 ? 's' : ''}`}
@@ -237,11 +237,11 @@ function SelectDeckPhase({
           })}
         </ul>
       ) : (
-        <p className="text-[13px] text-(--muted)">No decks yet &mdash; create one below.</p>
+        <p className="text-[13px] text-(--ink-3)">No decks yet &mdash; create one below.</p>
       )}
 
       {atDeckQuota ? (
-        <p className="mt-3 text-[12.5px] text-(--muted)">{deckQuotaMessage(decks.length)}</p>
+        <p className="mt-3 text-[12.5px] text-(--ink-3)">{deckQuotaMessage(decks.length)}</p>
       ) : showNewDeck ? (
         <form onSubmit={onCreateDeck} className="mt-3 flex gap-2">
           <input
@@ -264,11 +264,11 @@ function SelectDeckPhase({
           onClick={() => setShowNewDeck(true)}
           className={cn(
             'mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5',
-            'rounded-(--radius-input) border px-3 py-2.5 text-[13.5px] font-bold text-(--soft)',
+            'rounded-(--radius-control) border px-3 py-2.5 text-[13.5px] font-bold text-(--ink-2)',
             'transition-[border-color,color] duration-120 ease-[ease]',
             'hover:border-(--accent) hover:text-(--accent)',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
-            HAIRLINE,
+            'border-(--hairline)',
           )}
         >
           + New deck
@@ -280,7 +280,7 @@ function SelectDeckPhase({
         onClick={onCancel}
         className={cn(
           'mt-4 cursor-pointer font-[family-name:var(--face-mono)] text-[11px] tracking-[0.08em] uppercase',
-          'text-(--muted) transition-colors duration-120 ease-[ease] hover:text-(--ink)',
+          'text-(--ink-3) transition-colors duration-120 ease-[ease] hover:text-(--ink)',
         )}
       >
         Cancel
@@ -325,7 +325,7 @@ function CreateCardPhase({
     <>
       <h2 className="text-[17px] leading-tight font-bold text-(--ink)">New card</h2>
       {deck && (
-        <p className="mt-0.5 text-[12.5px] text-(--muted)">Adding to {deck.name}</p>
+        <p className="mt-0.5 text-[12.5px] text-(--ink-3)">Adding to {deck.name}</p>
       )}
 
       <form onSubmit={onSubmit} className="mt-4 space-y-3.5">
@@ -334,7 +334,7 @@ function CreateCardPhase({
           <div
             className={cn(
               FIELD,
-              'flex items-center justify-between gap-3 bg-(--paper-tile)',
+              'flex items-center justify-between gap-3 bg-(--pane-strong)',
             )}
           >
             <span className="min-w-0 font-[family-name:var(--face-jp)] text-[17px]">
@@ -379,7 +379,7 @@ function CreateCardPhase({
           />
           <p
             id="pending-card-meanings-hint"
-            className="mt-1.5 font-[family-name:var(--face-mono)] text-[10.5px] text-(--muted)"
+            className="mt-1.5 font-[family-name:var(--face-mono)] text-[10.5px] text-(--ink-3)"
           >
             {tooMany
               ? `Up to ${MAX_CARD_MEANINGS} meanings — remove ${meanings.length - MAX_CARD_MEANINGS}.`
@@ -392,7 +392,7 @@ function CreateCardPhase({
             <div
               className={cn(
                 FIELD,
-                'bg-(--paper-tile) text-[13px] leading-relaxed text-(--soft)',
+                'bg-(--pane-strong) text-[13px] leading-relaxed text-(--ink-2)',
               )}
             >
               {flow.draft.contextSentence}
@@ -405,7 +405,7 @@ function CreateCardPhase({
             onClick={onCancel}
             className={cn(
               'cursor-pointer font-[family-name:var(--face-mono)] text-[11px] tracking-[0.08em] uppercase',
-              'text-(--muted) transition-colors duration-120 ease-[ease] hover:text-(--ink)',
+              'text-(--ink-3) transition-colors duration-120 ease-[ease] hover:text-(--ink)',
             )}
           >
             Cancel

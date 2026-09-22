@@ -22,7 +22,7 @@ type Props = {
    inks are hardcoded rather than tokenised — the same call `shared/components/
    SkyBar` makes and for the same reason: there is one value per slot, and a
    token would only add a name that always resolves to the same colour.
-   The inks are light-on-dark even in "Ink on paper", so `--soft` / `--muted`
+   The inks are light-on-dark even in "Ink on paper", so `--ink-2` / `--ink-3`
    would be exactly backwards here.
 
    Starless on purpose: fake stars would be the one sky in the app that isn't
@@ -48,7 +48,7 @@ export function FinishScreen({
 }: Props) {
   return (
     <div className="mx-auto w-full max-w-[720px] py-1.5">
-      <section className="overflow-hidden rounded-(--radius-panel) border border-(--paper-bd) bg-(--paper) shadow-(--paper-shadow-hover)">
+      <section className="overflow-hidden rounded-(--radius-card) border border-(--pane-bd) bg-(--pane) shadow-(--shadow-hero)">
         <div
           className="flex h-[158px] flex-col items-center justify-center gap-1.75"
           style={{ background: BANNER }}
@@ -72,7 +72,7 @@ export function FinishScreen({
             <span className="font-[family-name:var(--face-ui)] text-[52px] leading-none font-bold text-(--ink) tabular-nums">
               {summary.uniqueCards}
             </span>
-            <span className="font-[family-name:var(--face-ui)] text-[15px] text-(--muted)">
+            <span className="font-[family-name:var(--face-ui)] text-[15px] text-(--ink-3)">
               {summary.uniqueCards === 1 ? 'card studied' : 'cards studied'}
             </span>
           </div>

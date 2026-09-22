@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
@@ -9,8 +9,8 @@ import type { PDFDocumentProxy } from 'pdfjs-dist';
 // `build/pdf.mjs` sets while it evaluates. Same package for both, so the
 // viewer constructor's API-version === viewer-version check always holds.
 import { EventBus, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
-import { Search, ZoomIn, ZoomOut } from 'lucide-react';
-import { ReaderIconButton, ReaderShell } from '@/features/books/reader/components/ReaderShell';
+import { BookOpen, ZoomIn, ZoomOut } from 'lucide-react';
+import { ReaderShell, type ReaderTool } from '@/features/books/reader/components/ReaderShell';
 import { TextContextMenu } from '@/features/books/reader/components/TextContextMenu';
 import { useSelectionMenu } from '@/features/books/reader/hooks/useSelectionMenu';
 import { pdfPageCfi } from '@/features/books/reader/lib/pdfPosition';
@@ -53,6 +53,8 @@ export type PdfReaderProps = {
   sidekickOpen?: boolean;
   /** Toggle the sidekick visibility from the reader toolbar. */
   onToggleSidekick?: () => void;
+  /** The docked dictionary column, rendered beside the pages. */
+  side?: ReactNode;
   /** 1-based page to open at. Null/undefined = page 1. Consumed once, when the
    *  document's pages are initialised. */
   initialPage?: number | null;
@@ -85,6 +87,7 @@ export function PdfReaderClient({
   onBack,
   sidekickOpen = false,
   onToggleSidekick,
+  side,
   initialPage,
   onRelocate,
 }: PdfReaderProps) {
@@ -261,6 +264,33 @@ export function PdfReaderClient({
     if (viewer?.pdfDocument) viewer.currentScaleValue = 'page-width';
   };
 
+  // Zoom and the dictionary toggle are the tool cluster; there is no TOC or
+  // Display panel for a PDF. The readout doubles as reset — back to fit width.
+  const tools: ReaderTool[] = [
+    { key: 'zoom-out', label: 'Zoom', icon: <ZoomOut size={16} strokeWidth={2} aria-hidden />, onClick: zoomOut, title: 'Zoom out' },
+    {
+      key: 'zoom-reset',
+      label: <span className="font-[family-name:var(--face-mono)] tabular-nums">{scalePct}%</span>,
+      onClick: zoomReset,
+      title: 'Reset zoom to fit width',
+    },
+    { key: 'zoom-in', label: 'Zoom', icon: <ZoomIn size={16} strokeWidth={2} aria-hidden />, onClick: zoomIn, title: 'Zoom in' },
+    // One literal, not a `push`: the zoom handlers close over `viewerRef`, and
+    // the refs lint reads a push of that array as a ref access during render.
+    ...(onToggleSidekick
+      ? [
+          {
+            key: 'dictionary',
+            label: 'Dictionary',
+            icon: <BookOpen size={16} strokeWidth={2} aria-hidden />,
+            active: sidekickOpen,
+            onClick: onToggleSidekick,
+            title: sidekickOpen ? 'Hide dictionary' : 'Open dictionary',
+          },
+        ]
+      : []),
+  ];
+
   return (
     <ReaderShell
       title={bookTitle ?? 'PDF'}
@@ -272,36 +302,9 @@ export function PdfReaderClient({
       percent={numPages > 0 ? (currentPage / numPages) * 100 : 0}
       page={numPages > 0 ? { current: currentPage, total: numPages } : undefined}
       // No `onJumpToPage` yet — the viewer can jump (`currentPageNumber`), it
-      // just isn't offered in this pass. No TOC or selection tools either.
-      // Zoom and the dictionary toggle are the tool cluster; the docked panel
-      // has its own search field (same reasoning as the fixed-layout manga
-      // reader, whose pages are images).
-      tools={
-        <>
-          <ReaderIconButton label="Zoom out" onClick={zoomOut}>
-            <ZoomOut size={19} strokeWidth={1.8} />
-          </ReaderIconButton>
-          {/* The readout doubles as reset — back to fit-to-width. */}
-          <ReaderIconButton label="Reset zoom to fit width" onClick={zoomReset}>
-            <span className="font-[family-name:var(--face-mono)] text-[11px] font-bold">
-              {scalePct}%
-            </span>
-          </ReaderIconButton>
-          <ReaderIconButton label="Zoom in" onClick={zoomIn}>
-            <ZoomIn size={19} strokeWidth={1.8} />
-          </ReaderIconButton>
-
-          {onToggleSidekick && (
-            <ReaderIconButton
-              label={sidekickOpen ? 'Hide dictionary' : 'Open dictionary'}
-              active={sidekickOpen}
-              onClick={onToggleSidekick}
-            >
-              <Search size={19} strokeWidth={1.8} />
-            </ReaderIconButton>
-          )}
-        </>
-      }
+      // just isn't offered in this pass.
+      tools={tools}
+      side={side}
     >
       <div className="min-h-0 flex-1" style={{ background: THEMES.light.bg }}>
         {/* Pages are capped at ~1100px for readability, as this centred
@@ -321,7 +324,7 @@ export function PdfReaderClient({
               {error ? (
                 <p className="max-w-sm px-8 text-center text-[13.5px] text-(--accent)">{error}</p>
               ) : (
-                <p className="text-[13.5px] text-(--muted)">Opening&hellip;</p>
+                <p className="text-[13.5px] text-(--ink-3)">Opening&hellip;</p>
               )}
             </div>
           )}
@@ -336,6 +339,7 @@ export function PdfReaderClient({
             ref={menuRef}
             x={anchor.x}
             y={anchor.y}
+            text={selectedText}
             onLookup={() => onLookup(selectedText, contextSentence)}
             onAddCard={() => onAddCard(selectedText, contextSentence)}
             onClose={closeMenu}

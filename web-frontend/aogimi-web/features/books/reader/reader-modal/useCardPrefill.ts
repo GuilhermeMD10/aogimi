@@ -20,22 +20,22 @@ import type { CardDraft } from '@/features/sky/stage';
  * at that moment the app knows nothing about it.
  * `requestAddCardFromSelection` is called from a context-menu click that has to
  * open something immediately, so it can't wait for a lookup: the alternative was
- * a dead 300ms between the click and the bubble. So the request carries a `null`
- * draft, and this fills one in during the time the user is already spending on
- * the deck list. `BubbleContent` reads it at the select-deck → create-card
- * transition, which means the form is seeded once, from a value that is final by
- * the time it mounts — no prop that changes under a half-typed textarea.
+ * a dead 300ms between the click and the modal. So the request carries a `null`
+ * draft, and this fills one in while the form is already on screen.
+ * `AddCardForm` treats the result as the form's *seed* — a field shows the seed
+ * until the user types into it, and what they typed after — so a value landing
+ * late never overwrites a half-typed field.
  *
  * Two sources, cheapest first:
  *
- *  1. **The lookup that already happened.** When the bubble owns the dictionary
- *     state it runs `runSearch(word)` on mount to build its own dictionary, so
- *     the answer is usually in the shared provider for free.
+ *  1. **The lookup that already happened.** A card started from the modal's own
+ *     dictionary (page 10's `+`) arrives with a draft and never gets here; one
+ *     started from a docked column that already looked the word up finds the
+ *     answer in the shared provider for free.
  *
- *  2. **Its own request.** When a dictionary surface is already on screen behind
- *     the bubble it must not touch the shared state — that's what
- *     `dictVisibleBehind` protects — and the query there is whatever *that*
- *     surface was showing, not this word. So the prefill fetches privately. One
+ *  2. **Its own request.** Otherwise the shared query is whatever the surface
+ *     behind the modal was showing, not this word, and the modal must not touch
+ *     shared state (`dictVisibleBehind`). So the prefill fetches privately. One
  *     request, guarded on the first source having come up empty, and it writes
  *     nowhere anyone else can see.
  *
@@ -48,7 +48,7 @@ import type { CardDraft } from '@/features/sky/stage';
  * the guard is an explicit `!== null`. Keep all four.
  *
  * **The whole draft, but its front is discarded.** The consumer must keep
- * using the reader's own `phase.word` as the card front, not this draft's
+ * using the reader's own `word` as the card front, not this draft's
  * `front`. Merging the draft in wholesale changes every reader-started card's
  * front from the highlighted `食べました` to the dictionary headword `食べる` — a
  * worse flashcard and a much worse surprise, and the front isn't editable in

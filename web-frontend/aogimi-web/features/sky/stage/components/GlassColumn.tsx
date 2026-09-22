@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronsLeft } from 'lucide-react';
 
-import { GLASS_BUTTON, GLASS_PRESS, GLASS_SURFACE, stageColor } from '@/shared/components';
+import { PANE, PRESS, stageColor } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 import { NIGHT } from '../lib/nightChrome';
@@ -84,7 +84,7 @@ export function GlassColumn({
   return (
     <div
       className={cn(
-        GLASS_SURFACE,
+        PANE,
         'absolute top-[92px] bottom-[78px] left-5 z-30 flex w-[296px] max-w-[calc(100vw-40px)] flex-col overflow-hidden rounded-[18px]',
       )}
     >
@@ -108,8 +108,8 @@ export function GlassColumn({
           onClick={onCollapse}
           aria-label="Hide the panel"
           className={cn(
-            GLASS_BUTTON,
-            GLASS_PRESS,
+            PANE,
+            PRESS,
             'flex size-9 shrink-0 items-center justify-center rounded-[9px]',
             FOCUS_RING,
           )}
@@ -135,8 +135,8 @@ export function ColumnHandle({ onOpen }: { onOpen: () => void }) {
       type="button"
       onClick={onOpen}
       className={cn(
-        GLASS_BUTTON,
-        GLASS_PRESS,
+        PANE,
+        PRESS,
         'absolute top-[92px] left-5 z-30 rounded-[10px] px-[13px] py-[9px]',
         `${MONO} text-[10.5px] tracking-[0.1em]`,
         FOCUS_RING,
@@ -264,7 +264,7 @@ function SortChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        GLASS_PRESS,
+        PRESS,
         'inline-flex items-center rounded-[8px] px-2 py-[5px]',
         `${MONO} text-[9.5px] whitespace-nowrap`,
         active ? 'font-bold' : 'font-medium',

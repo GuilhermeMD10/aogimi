@@ -1,7 +1,7 @@
 'use client';
 
 import { CopyPlus } from 'lucide-react';
-import { Button, Eyebrow, HAIRLINE, JlptChip } from '@/shared/components';
+import { Button, Eyebrow, JlptChip } from '@/shared/components';
 import type { CardDraft } from '@/features/sky/stage';
 import { cn } from '@/lib/util/cn';
 import { Constellation } from './Constellation';
@@ -14,7 +14,7 @@ import type { KanjiInfo } from '../types';
 /** Values only this pane uses — see `lib/entryScale.ts` for the shared ones. */
 const LOCAL: Record<EntryScale, { frame: string; frameGlyph: string; meanings: string; readings: string }> = {
   full: {
-    frame: 'size-[132px] rounded-(--radius-card)',
+    frame: 'size-[132px] rounded-(--radius-tile)',
     frameGlyph: 'text-[84px]',
     meanings: 'max-w-[420px] text-[22px]',
     readings: 'py-[13px] text-[19px]',
@@ -23,7 +23,7 @@ const LOCAL: Record<EntryScale, { frame: string; frameGlyph: string; meanings: s
     // A smaller frame keeps the tell (a character is framed, a word isn't)
     // without eating a quarter of a 320px column, and the softer radius keeps
     // the box from reading as a card at that size.
-    frame: 'size-[84px] rounded-(--radius-input)',
+    frame: 'size-[84px] rounded-(--radius-control)',
     frameGlyph: 'text-[52px]',
     meanings: 'text-[17px]',
     readings: 'py-2.5 text-[16.5px]',
@@ -71,7 +71,7 @@ export function KanjiEntryDetail({
 
   return (
     <article>
-      <div className={cn('relative overflow-hidden border-b', pane.band, HAIRLINE)}>
+      <div className={cn('relative overflow-hidden border-b', pane.band, 'border-(--hairline)')}>
         {/* See EntryDetail — the motif needs a wide band to read as anything. */}
         {scale === 'full' && <Constellation />}
 
@@ -85,7 +85,7 @@ export function KanjiEntryDetail({
               {/* The ruled block is the tell: a word entry sets its headword as
                   bare type, a character sits in a frame. */}
               <div
-                className={cn('flex shrink-0 items-center justify-center border-2 bg-(--card)', local.frame, HAIRLINE)}
+                className={cn('flex shrink-0 items-center justify-center border-2 bg-(--pane)', local.frame, 'border-(--hairline)')}
               >
                 <span className={cn('font-[family-name:var(--face-jp)] leading-none text-(--ink)', local.frameGlyph)}>
                   {kanji.literal}
@@ -105,14 +105,14 @@ export function KanjiEntryDetail({
                     <span
                       key={f.label}
                       className={cn(
-                        'inline-flex items-center gap-[5px] rounded-(--radius-chip) border',
+                        'inline-flex items-center gap-[5px] rounded-full border',
                         'font-[family-name:var(--face-mono)] tracking-[0.04em] uppercase',
                         pane.pill,
-                        HAIRLINE,
+                        'border-(--hairline)',
                       )}
                     >
-                      <span className="text-(--faint)">{f.label}</span>
-                      <span className="text-(--soft)">{f.value}</span>
+                      <span className="text-(--ink-3)">{f.label}</span>
+                      <span className="text-(--ink-2)">{f.value}</span>
                     </span>
                   ))}
                 </div>
@@ -135,7 +135,7 @@ export function KanjiEntryDetail({
                 className={cn(
                   'border-t font-[family-name:var(--face-jp)] leading-[1.5] text-(--ink)',
                   local.readings,
-                  HAIRLINE,
+                  'border-(--hairline)',
                 )}
               >
                 {kanji.on_readings.join('、')}
@@ -150,7 +150,7 @@ export function KanjiEntryDetail({
                 className={cn(
                   'border-t font-[family-name:var(--face-jp)] leading-[1.5] text-(--ink)',
                   local.readings,
-                  HAIRLINE,
+                  'border-(--hairline)',
                 )}
               >
                 {kanji.kun_readings.join('、')}
@@ -159,7 +159,7 @@ export function KanjiEntryDetail({
           )}
         </div>
 
-        <p className={cn('text-right font-[family-name:var(--face-mono)] text-(--faint)', pane.source)}>
+        <p className={cn('text-right font-[family-name:var(--face-mono)] text-(--ink-3)', pane.source)}>
           Source · KANJIDIC2
         </p>
       </div>

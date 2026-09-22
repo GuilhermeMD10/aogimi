@@ -36,7 +36,7 @@ export function StateChangesList({ entries }: Props) {
   const downs = changes.length - ups;
 
   return (
-    <section className="mt-6 border-t border-(--bd-b) pt-5.5">
+    <section className="mt-6 border-t border-(--hairline) pt-5.5">
       <div className="flex items-baseline gap-2.5">
         <Caption>Tier progress</Caption>
         {ups > 0 && (
@@ -48,7 +48,7 @@ export function StateChangesList({ entries }: Props) {
           </span>
         )}
         {downs > 0 && (
-          <span className="font-[family-name:var(--face-mono)] text-[10px] font-bold whitespace-nowrap text-(--warn) tabular-nums">
+          <span className="font-[family-name:var(--face-mono)] text-[10px] font-bold whitespace-nowrap text-(--danger) tabular-nums">
             {downs} ↓
           </span>
         )}
@@ -64,7 +64,7 @@ export function StateChangesList({ entries }: Props) {
               boxShadow: `0 0 9px ${stageColor('new')}`,
             }}
           />
-          <p className="m-0 max-w-[52ch] text-base leading-[1.45] text-(--muted)">
+          <p className="m-0 max-w-[52ch] text-base leading-[1.45] text-(--ink-3)">
             No tier changes this round — the stars hold steady. Keep the streak going.
           </p>
         </div>
@@ -73,7 +73,7 @@ export function StateChangesList({ entries }: Props) {
           {changes.map(({ entry, up }) => (
             <div
               key={entry.card.id}
-              className="flex items-center gap-3.5 border-b border-(--bd-b) py-3.25"
+              className="flex items-center gap-3.5 border-b border-(--hairline) py-3.25"
             >
               <span
                 aria-hidden
@@ -87,7 +87,7 @@ export function StateChangesList({ entries }: Props) {
                 {entry.card.front}
               </span>
               {entry.card.reading.length > 0 && (
-                <span className="min-w-0 truncate font-[family-name:var(--face-mono)] text-xs text-(--muted)">
+                <span className="min-w-0 truncate font-[family-name:var(--face-mono)] text-xs text-(--ink-3)">
                   {entry.card.reading}
                 </span>
               )}
@@ -98,11 +98,11 @@ export function StateChangesList({ entries }: Props) {
                   className="size-[7px] shrink-0 rounded-full"
                   style={{ background: stageColor(entry.startState) }}
                 />
-                <span className="font-[family-name:var(--face-mono)] text-[11.5px] text-(--faint)">
+                <span className="font-[family-name:var(--face-mono)] text-[11.5px] text-(--ink-3)">
                   {stageLabel(entry.startState)}
                 </span>
                 <span
-                  className="font-[family-name:var(--face-mono)] text-[11.5px] text-(--faint)"
+                  className="font-[family-name:var(--face-mono)] text-[11.5px] text-(--ink-3)"
                   aria-label={up ? 'promoted to' : 'dropped to'}
                 >
                   {up ? '→' : '↓'}
@@ -115,7 +115,7 @@ export function StateChangesList({ entries }: Props) {
                     boxShadow: `0 0 7px ${stageColor(entry.endState)}`,
                   }}
                 />
-                <span className="font-[family-name:var(--face-mono)] text-[11.5px] font-bold text-(--soft)">
+                <span className="font-[family-name:var(--face-mono)] text-[11.5px] font-bold text-(--ink-2)">
                   {stageLabel(entry.endState)}
                 </span>
               </span>

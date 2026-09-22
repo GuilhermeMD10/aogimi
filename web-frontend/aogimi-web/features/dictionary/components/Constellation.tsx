@@ -18,10 +18,10 @@ export function Constellation() {
       preserveAspectRatio="xMidYMid slice"
       className="pointer-events-none absolute inset-0 size-full opacity-40"
     >
-      <g fill="none" stroke="var(--faint)" strokeWidth={1} opacity={0.45}>
+      <g fill="none" stroke="var(--ink-3)" strokeWidth={1} opacity={0.45}>
         <path d="M560 50 L660 30 L760 70 L840 44" />
       </g>
-      <g fill="var(--faint)" opacity={0.35}>
+      <g fill="var(--ink-3)" opacity={0.35}>
         <circle cx={600} cy={120} r={1.2} />
         <circle cx={720} cy={150} r={1} />
         <circle cx={820} cy={100} r={1.3} />

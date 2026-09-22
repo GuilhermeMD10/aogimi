@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-import { GLASS_BUTTON, GLASS_PRESS } from '@/shared/components';
+import { PANE, PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 import { NIGHT } from '../lib/nightChrome';
@@ -65,7 +65,7 @@ export function StudyButton({ due, href, onStudyAhead, block = false }: Props) {
     FOCUS_RING,
   );
   // The gold variant isn't glass, so it owns its own transform and can spend it
-  // on the hover lift. The quiet variants take `GLASS_PRESS` instead — glass
+  // on the hover lift. The quiet variants take `PRESS` instead — glass
   // already spends its transform on the press nudge.
   const lift =
     'transition-transform duration-[180ms] ease-[ease] hover:-translate-y-px motion-reduce:transform-none';
@@ -74,7 +74,7 @@ export function StudyButton({ due, href, onStudyAhead, block = false }: Props) {
     return (
       <span
         aria-hidden
-        className={cn(shared, GLASS_BUTTON, 'pointer-events-none opacity-60')}
+        className={cn(shared, PANE, 'pointer-events-none opacity-60')}
         style={{ color: NIGHT.soft }}
       >
         <PlayGlyph />
@@ -105,7 +105,7 @@ export function StudyButton({ due, href, onStudyAhead, block = false }: Props) {
     <button
       type="button"
       onClick={onStudyAhead}
-      className={cn(shared, GLASS_BUTTON, GLASS_PRESS)}
+      className={cn(shared, PANE, PRESS)}
       style={{ color: NIGHT.soft }}
       title="Nothing is due — practise freely, grades won’t count"
     >

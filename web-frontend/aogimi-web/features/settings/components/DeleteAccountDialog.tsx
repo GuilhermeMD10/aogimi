@@ -52,12 +52,12 @@ export function DeleteAccountDialog({ onClose }: Props) {
       ref={ref}
       onClose={onClose}
       aria-labelledby="delete-account-title"
-      className="m-auto w-[min(440px,calc(100vw-48px))] rounded-(--radius-panel) border border-(--paper-bd) bg-(--paper) p-7 font-[family-name:var(--face-ui)] font-medium shadow-(--paper-shadow) backdrop:bg-black/50"
+      className="m-auto w-[min(440px,calc(100vw-48px))] rounded-(--radius-card) border border-(--pane-bd) bg-(--pane) p-7 font-[family-name:var(--face-ui)] font-medium shadow-(--shadow-card) backdrop:bg-black/50"
     >
       <h2 id="delete-account-title" className="text-[20px] leading-tight font-bold text-(--danger)">
         Delete account
       </h2>
-      <p className="mt-2.5 text-[13.5px] leading-[1.6] text-(--muted)">
+      <p className="mt-2.5 text-[13.5px] leading-[1.6] text-(--ink-3)">
         This deletes your account and everything in it — decks, cards, books, and reading
         progress. This cannot be undone.
       </p>
@@ -75,7 +75,7 @@ export function DeleteAccountDialog({ onClose }: Props) {
           if (e.key === 'Enter') void confirm();
         }}
         autoComplete="off"
-        className="mt-2 w-full rounded-(--radius-button) border border-(--paper-bd) bg-(--paper-tile) px-3.5 py-2.5 text-[14px] font-bold text-(--ink) outline-none focus:border-(--danger)"
+        className="mt-2 w-full rounded-(--radius-control) border border-(--pane-bd) bg-(--pane-strong) px-3.5 py-2.5 text-[14px] font-bold text-(--ink) outline-none focus:border-(--danger)"
       />
 
       {phase === 'error' && (
@@ -90,7 +90,7 @@ export function DeleteAccountDialog({ onClose }: Props) {
           type="button"
           onClick={() => void confirm()}
           disabled={!canDelete}
-          className="inline-flex items-center rounded-(--radius-button) border border-(--danger-bd) px-4 py-[11px] text-[13.5px] leading-none font-bold text-(--danger) transition-colors duration-120 ease-[ease] hover:bg-(--danger-bg) disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--danger)"
+          className="inline-flex items-center rounded-(--radius-control) border border-[rgb(var(--danger-rgb)/0.35)] px-4 py-[11px] text-[13.5px] leading-none font-bold text-(--danger) transition-colors duration-120 ease-[ease] hover:bg-[rgb(var(--danger-rgb)/0.12)] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--danger)"
         >
           {phase === 'deleting' ? 'Deleting…' : 'Delete account'}
         </button>

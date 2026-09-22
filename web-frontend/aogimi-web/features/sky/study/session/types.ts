@@ -53,7 +53,8 @@ export type SessionDeck = {
   name: string;
   /** Deterministic cover glyph — `deckVisuals(name).kamon`. */
   kamon: string;
-  /** Cover surface + ink — `coverPalette(name)`. */
+  /** Cover surface + ink — `deckVisuals(name).color` under `--night-ink`
+   *  (the deck colours are all dark). */
   surface: string;
   ink: string;
 };

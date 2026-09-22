@@ -32,7 +32,7 @@ export function DeleteAccountRow() {
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className={cn(GLASS_GHOST, 'border-(--danger-bd) text-(--danger)')}
+            className={cn(GLASS_GHOST, 'border-[rgb(var(--danger-rgb)/0.35)] text-(--danger)')}
           >
             Delete account
           </button>

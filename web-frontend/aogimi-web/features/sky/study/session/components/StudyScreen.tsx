@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
-import { Button, ProgressTrack } from '@/shared/components';
+import { Button, ProgressBar } from '@/shared/components';
 import { useStudySession, type StudySource } from '../hooks/useStudySession';
 import { useStudyDisplayPrefs } from '../hooks/useStudyDisplayPrefs';
 import { Caption } from './Caption';
@@ -151,7 +151,7 @@ export function StudyScreen({ source, deck, scopeLabel, onExit }: Props) {
             onClick={onExit}
             aria-label="End session"
             title="End session (Esc)"
-            className="flex size-10 items-center justify-center rounded-(--radius-button) border border-(--bd-a) text-(--muted) transition-colors duration-120 ease-[ease] hover:bg-(--tint-b) hover:text-(--ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
+            className="flex size-10 items-center justify-center rounded-(--radius-control) border border-[rgb(var(--line-rgb)/0.22)] text-(--ink-3) transition-colors duration-120 ease-[ease] hover:bg-[rgb(var(--line-rgb)/0.04)] hover:text-(--ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
           >
             <X size={17} strokeWidth={2} aria-hidden />
           </button>
@@ -166,7 +166,7 @@ export function StudyScreen({ source, deck, scopeLabel, onExit }: Props) {
           {deck && (
             <span
               aria-hidden
-              className="flex h-12 w-8.5 shrink-0 items-center justify-center rounded-(--radius-tile) py-1.5 shadow-(--cover-shadow)"
+              className="flex h-12 w-8.5 shrink-0 items-center justify-center rounded-(--radius-chip) py-1.5 shadow-(--shadow-hero)"
               style={{ background: deck.surface }}
             >
               <span
@@ -188,12 +188,12 @@ export function StudyScreen({ source, deck, scopeLabel, onExit }: Props) {
         <div className="min-w-[240px] flex-1">
           <div className="mb-2.25 flex items-baseline justify-between gap-3">
             <Caption>Progress</Caption>
-            <span className="font-[family-name:var(--face-mono)] text-[11px] whitespace-nowrap text-(--muted) tabular-nums">
+            <span className="font-[family-name:var(--face-mono)] text-[11px] whitespace-nowrap text-(--ink-3) tabular-nums">
               {position} / {session.totalAtStart} ·{' '}
-              <b className="font-bold text-(--gold)">{remaining} left</b>
+              <b className="font-bold text-(--accent)">{remaining} left</b>
             </span>
           </div>
-          <ProgressTrack percent={percent} className="h-2" />
+          <ProgressBar percent={percent} height={6} />
         </div>
       </header>
 
@@ -204,7 +204,7 @@ export function StudyScreen({ source, deck, scopeLabel, onExit }: Props) {
           type="button"
           onClick={session.flip}
           aria-label={isFront ? 'Reveal the answer' : 'Back to the question'}
-          className={`flex flex-col rounded-(--radius-panel) border border-(--paper-bd) bg-(--paper) px-9.5 py-7.5 text-left shadow-(--paper-shadow-hover) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink) ${CARD_WIDTH}`}
+          className={`flex flex-col rounded-(--radius-card) border border-(--pane-bd) bg-(--pane) px-9.5 py-7.5 text-left shadow-(--shadow-hero) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink) ${CARD_WIDTH}`}
           // Height is content-driven with a floor, as before the redesign — the
           // handoff's fixed 560px stage is deliberately not built.
           style={{ minHeight: 'min(380px, 60vh)' }}
@@ -216,10 +216,10 @@ export function StudyScreen({ source, deck, scopeLabel, onExit }: Props) {
           <button
             type="button"
             onClick={session.reveal}
-            className={`mt-5 flex items-center justify-center gap-2.5 rounded-(--radius-input) border border-(--bd-a) px-5 py-3.5 text-[15px] font-bold text-(--soft) transition-colors duration-120 ease-[ease] hover:bg-(--tint-b) hover:text-(--ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink) ${CARD_WIDTH}`}
+            className={`mt-5 flex items-center justify-center gap-2.5 rounded-(--radius-control) border border-[rgb(var(--line-rgb)/0.22)] px-5 py-3.5 text-[15px] font-bold text-(--ink-2) transition-colors duration-120 ease-[ease] hover:bg-[rgb(var(--line-rgb)/0.04)] hover:text-(--ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink) ${CARD_WIDTH}`}
           >
             Reveal answer
-            <span className="font-[family-name:var(--face-mono)] text-[10px] font-normal text-(--faint)">
+            <span className="font-[family-name:var(--face-mono)] text-[10px] font-normal text-(--ink-3)">
               SPACE
             </span>
           </button>
@@ -247,12 +247,12 @@ function PracticeNotice() {
   return (
     <div
       role="note"
-      className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-(--radius-input) border border-(--bd-a) bg-(--tint-b) px-4 py-2.5"
+      className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-(--radius-control) border border-[rgb(var(--line-rgb)/0.22)] bg-[rgb(var(--line-rgb)/0.04)] px-4 py-2.5"
     >
-      <span className="font-[family-name:var(--face-mono)] text-[10px] tracking-[0.16em] text-(--muted) uppercase">
+      <span className="font-[family-name:var(--face-mono)] text-[10px] tracking-[0.16em] text-(--ink-3) uppercase">
         Practice
       </span>
-      <span className="text-[13px] text-(--soft)">
+      <span className="text-[13px] text-(--ink-2)">
         Nothing is due, so drill as much as you like — these grades don&rsquo;t change any
         card&rsquo;s stability, rank or schedule.
       </span>
@@ -265,7 +265,7 @@ function PracticeNotice() {
 function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="h-full w-full overflow-auto font-[family-name:var(--face-ui)] font-medium">
-      <div className="mx-auto flex w-full max-w-[1300px] flex-col px-11 pt-[34px] pb-[140px]">
+      <div className="mx-auto flex w-full max-w-[1300px] flex-col px-11 pt-[34px]">
         {children}
       </div>
     </div>
@@ -285,9 +285,9 @@ function Notice({
 }) {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4.5 text-center">
-      <p className={`m-0 text-[15px] ${muted ? 'text-(--muted)' : 'text-(--soft)'}`}>{message}</p>
+      <p className={`m-0 text-[15px] ${muted ? 'text-(--ink-3)' : 'text-(--ink-2)'}`}>{message}</p>
       {actionLabel && onAction && (
-        <Button variant="secondary" onClick={onAction}>
+        <Button variant="white" onClick={onAction}>
           {actionLabel}
         </Button>
       )}

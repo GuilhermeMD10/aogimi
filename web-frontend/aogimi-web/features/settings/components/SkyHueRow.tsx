@@ -1,6 +1,6 @@
 'use client';
 
-import { GLASS_ACTIVE, GLASS_BUTTON, GLASS_PRESS } from '@/shared/components';
+import { ACTIVE, PANE, PRESS } from '@/shared/components';
 import { SKY_HUES, SKY_PALETTES } from '@/features/sky/map';
 import { useSkyHue } from '@/features/app-shell/providers/SkyHueProvider';
 import { cn } from '@/lib/util/cn';
@@ -35,12 +35,12 @@ export function SkyHueRow() {
                 aria-pressed={selected}
                 onClick={() => setHue(h)}
                 className={cn(
-                  GLASS_BUTTON,
-                  GLASS_PRESS,
-                  'flex items-center gap-[9px] rounded-(--radius-button) px-3.5 py-2.5 text-[13px] leading-none font-bold',
+                  PANE,
+                  PRESS,
+                  'flex items-center gap-[9px] rounded-(--radius-control) px-3.5 py-2.5 text-[13px] leading-none font-bold',
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
                   // Ink on the unselected branch only — see ThemeRow.
-                  selected ? GLASS_ACTIVE : 'text-(--soft)',
+                  selected ? ACTIVE : 'text-(--ink-2)',
                 )}
               >
                 {/* New → Mastered, left to right — the same order the ledger

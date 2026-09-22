@@ -2,17 +2,12 @@
 
 import type { ReactNode } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
-import { HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 /**
- * The chrome both of the reader's lookup surfaces wear — the docked column and
- * the bubble.
- *
- * It lives here rather than inside either of them because per-phase copies
- * drift — back-button labels, paddings, whether the title renders at all. One
- * component with the parts optional is the only version of this that can't
- * drift.
+ * The docked dictionary column's header. (The modal has `Modal`'s own header
+ * now — pages 10/11 — so this has one consumer, and stays a component because
+ * the field-on-its-own-row rule below is what makes the column work at 320px.)
  *
  * Identity is `title` + a Japanese `subtitle`, which is deliberately the same
  * shape as `ReaderPanel`'s header (Contents · 目次, Display · 表示): the
@@ -46,18 +41,18 @@ export function DictPanelHeader({
   field?: ReactNode;
 }) {
   return (
-    <div className={cn('shrink-0 border-b bg-(--bg) px-[18px] pt-3.5 pb-3', HAIRLINE)}>
+    <div className={cn('shrink-0 border-b px-[18px] pt-3.5 pb-3', 'border-(--hairline)')}>
       <div className="flex items-center gap-2.5">
         {back && (
           <button
             type="button"
             onClick={back.onClick}
             className={cn(
-              'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-(--radius-button) border px-2.5 py-1.5',
-              'font-[family-name:var(--face-mono)] text-[10px] tracking-[0.12em] uppercase text-(--muted)',
+              'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-(--radius-control) border px-2.5 py-1.5',
+              'font-[family-name:var(--face-mono)] text-[10px] tracking-[0.12em] uppercase text-(--ink-3)',
               'transition-[border-color,color] duration-120 ease-[ease] hover:border-(--accent) hover:text-(--accent)',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
-              HAIRLINE,
+              'border-(--hairline)',
             )}
           >
             <ArrowLeft size={12} strokeWidth={2} aria-hidden />
@@ -70,12 +65,12 @@ export function DictPanelHeader({
             {title}
           </span>
           {subtitle && (
-            <span className="shrink-0 font-[family-name:var(--face-jp)] text-[13px] text-(--faint)">
+            <span className="shrink-0 font-[family-name:var(--face-jp)] text-[13px] text-(--ink-3)">
               {subtitle}
             </span>
           )}
           {note && (
-            <span className="min-w-0 truncate font-[family-name:var(--face-ui)] text-[12.5px] text-(--muted)">
+            <span className="min-w-0 truncate font-[family-name:var(--face-ui)] text-[12.5px] text-(--ink-3)">
               {note}
             </span>
           )}
@@ -87,7 +82,7 @@ export function DictPanelHeader({
           aria-label={closeLabel}
           title={`${closeLabel} (Esc)`}
           className={cn(
-            'ml-auto shrink-0 cursor-pointer text-(--muted) transition-colors duration-120 ease-[ease] hover:text-(--ink)',
+            'ml-auto shrink-0 cursor-pointer text-(--ink-3) transition-colors duration-120 ease-[ease] hover:text-(--ink)',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
           )}
         >

@@ -9,7 +9,6 @@
 // The current chapter is marked from the label foliate already reports on every
 // relocate.
 
-import { HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { ReaderPanel } from './ReaderShell';
 
@@ -39,18 +38,18 @@ function Row({
       aria-current={current ? 'true' : undefined}
       style={{ paddingLeft: 10 + depth * 12 }}
       className={cn(
-        'flex w-full cursor-pointer items-center gap-3 rounded-(--radius-button) border-l-[3px] py-[11px] pr-2.5 text-left',
+        'flex w-full cursor-pointer items-center gap-3 rounded-(--radius-control) border-l-[3px] py-[11px] pr-2.5 text-left',
         'transition-colors duration-150',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
         current
-          ? 'border-l-(--accent) bg-(--track)'
-          : 'border-l-transparent hover:bg-(--track)',
+          ? 'border-l-(--accent) bg-[rgb(var(--accent-rgb)/0.14)]'
+          : 'border-l-transparent hover:bg-[rgb(var(--accent-rgb)/0.14)]',
       )}
     >
       <span
         className={cn(
           'shrink-0 font-[family-name:var(--face-mono)] text-xs',
-          current ? 'text-(--accent)' : 'text-(--faint)',
+          current ? 'text-(--accent)' : 'text-(--ink-3)',
         )}
       >
         {String(n).padStart(2, '0')}
@@ -97,7 +96,7 @@ export function ContentsPanel({
       onClose={onClose}
       className={cn(
         'max-h-[calc(100vh-100px)] w-[330px] overflow-y-auto px-4 pt-[18px] pb-3.5',
-        HAIRLINE,
+        'border-(--hairline)',
       )}
     >
       {rows.length > 0 ? (
@@ -114,7 +113,7 @@ export function ContentsPanel({
           ))}
         </div>
       ) : (
-        <p className="px-2.5 py-2 text-[13.5px] text-(--muted)">This file has no contents.</p>
+        <p className="px-2.5 py-2 text-[13.5px] text-(--ink-3)">This file has no contents.</p>
       )}
     </ReaderPanel>
   );

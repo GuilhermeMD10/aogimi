@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { FolderOpen, X } from 'lucide-react';
+import { Button, PANE } from '@/shared/components';
+import { cn } from '@/lib/util/cn';
 import {
   supportsDirectoryPicker,
   getPersistedDirectory,
@@ -10,8 +12,9 @@ import {
 } from '@/features/books/lib/fsAccess';
 
 /**
- * Banner shown when a persisted directory handle exists but permission
- * has lapsed (e.g. after browser restart). One click re-grants access.
+ * Banner shown when a persisted directory handle exists but permission has
+ * lapsed (e.g. after a browser restart). One click re-grants access. A `.pane`
+ * row under the shelf (no handoff — D9).
  */
 export default function FsAccessBanner({ onReconnected }: { onReconnected?: () => void }) {
   const [show, setShow] = useState(false);
@@ -42,25 +45,25 @@ export default function FsAccessBanner({ onReconnected }: { onReconnected?: () =
   if (!show) return null;
 
   return (
-    <div className="flex items-center gap-2.5 rounded-(--radius-input) border border-(--paper-bd) bg-(--paper) px-4 py-2.5 font-[family-name:var(--face-ui)] text-[12.5px]">
-      <FolderOpen size={14} strokeWidth={1.8} className="shrink-0 text-(--accent)" />
-      <span className="flex-1 text-(--soft)">
-        Reconnect your library folder for automatic file matching.
-      </span>
-      <button
-        type="button"
-        onClick={handleReconnect}
-        className="cursor-pointer rounded-(--radius-button) bg-(--btn) px-3 py-1.5 text-[11.5px] font-bold text-(--btn-ink) transition-opacity duration-120 ease-[ease] hover:opacity-90"
-      >
+    <div
+      className={cn(
+        PANE,
+        'flex items-center gap-3 rounded-(--radius-control) py-2.5 pr-3 pl-4',
+        'font-[family-name:var(--face-ui)] text-[13px] font-medium',
+      )}
+    >
+      <FolderOpen size={15} strokeWidth={2} className="shrink-0 text-(--accent)" aria-hidden />
+      <span className="flex-1 text-(--ink-2)">Reconnect your library folder for automatic file matching.</span>
+      <Button size="sm" onClick={handleReconnect} className="h-9 px-4 text-[13px]">
         Reconnect
-      </button>
+      </Button>
       <button
         type="button"
         onClick={() => setShow(false)}
         aria-label="Dismiss"
-        className="cursor-pointer text-(--muted) transition-colors duration-120 ease-[ease] hover:text-(--ink)"
+        className="flex size-8 cursor-pointer items-center justify-center rounded-full text-(--ink-3) transition-colors duration-120 ease-[ease] hover:text-(--ink)"
       >
-        <X size={13} />
+        <X size={14} strokeWidth={2} />
       </button>
     </div>
   );

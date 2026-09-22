@@ -2,7 +2,7 @@
 
 import { ChevronRight } from 'lucide-react';
 import { useRecentSearches } from '@/features/dictionary';
-import { Eyebrow, HAIRLINE } from '@/shared/components';
+import { Eyebrow } from '@/shared/components';
 import { relativeTime } from '@/lib/util/relativeTime';
 import { cn } from '@/lib/util/cn';
 
@@ -36,15 +36,15 @@ export function SidebarPrompt({ onPick }: { onPick: (query: string) => void }) {
         <span
           title="Back to the book"
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-(--radius-chip) border px-2.5 py-1',
-            'font-[family-name:var(--face-ui)] text-[11px] text-(--muted)',
-            HAIRLINE,
+            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1',
+            'font-[family-name:var(--face-ui)] text-[11px] text-(--ink-3)',
+            'border-(--hairline)',
           )}
         >
           <kbd
             className={cn(
-              'rounded-[3px] border bg-(--track) px-1 font-[family-name:var(--face-mono)] text-[10px] font-bold text-(--ink)',
-              HAIRLINE,
+              'rounded-[3px] border bg-[rgb(var(--accent-rgb)/0.14)] px-1 font-[family-name:var(--face-mono)] text-[10px] font-bold text-(--ink)',
+              'border-(--hairline)',
             )}
           >
             Esc
@@ -53,19 +53,19 @@ export function SidebarPrompt({ onPick }: { onPick: (query: string) => void }) {
         </span>
       </div>
 
-      <div className={cn('mt-7 border-t pt-4', HAIRLINE)}>
+      <div className={cn('mt-7 border-t pt-4', 'border-(--hairline)')}>
         <div className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <Eyebrow>Recent</Eyebrow>
           <span
             title="Recent lookups are stored on this device only."
-            className="font-[family-name:var(--face-ui)] text-[10.5px] italic text-(--faint)"
+            className="font-[family-name:var(--face-ui)] text-[10.5px] italic text-(--ink-3)"
           >
             this device only
           </span>
         </div>
 
         {loading ? null : items.length === 0 ? (
-          <p className="font-[family-name:var(--face-ui)] text-[12.5px] leading-[1.45] text-(--muted)">
+          <p className="font-[family-name:var(--face-ui)] text-[12.5px] leading-[1.45] text-(--ink-3)">
             Open a book and tap a word &mdash; your lookups will land here.
           </p>
         ) : (
@@ -76,9 +76,9 @@ export function SidebarPrompt({ onPick }: { onPick: (query: string) => void }) {
                   type="button"
                   onClick={() => onPick(item.query)}
                   className={cn(
-                    'flex w-full cursor-pointer items-center gap-2.5 rounded-(--radius-input) border border-transparent px-2.5 py-2.5 text-left',
+                    'flex w-full cursor-pointer items-center gap-2.5 rounded-(--radius-control) border border-transparent px-2.5 py-2.5 text-left',
                     'transition-[border-color] duration-120 ease-[ease]',
-                    'hover:[border-color:color-mix(in_srgb,var(--muted)_35%,transparent)]',
+                    'hover:[border-color:color-mix(in_srgb,var(--ink-3)_35%,transparent)]',
                     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
                   )}
                 >
@@ -87,10 +87,10 @@ export function SidebarPrompt({ onPick }: { onPick: (query: string) => void }) {
                   <span className="min-w-0 flex-1 truncate font-[family-name:var(--face-jp)] text-[16px] text-(--ink)">
                     {item.query}
                   </span>
-                  <span className="shrink-0 font-[family-name:var(--face-mono)] text-[10px] text-(--faint)">
+                  <span className="shrink-0 font-[family-name:var(--face-mono)] text-[10px] text-(--ink-3)">
                     {relativeTime(item.at)}
                   </span>
-                  <ChevronRight size={12} strokeWidth={2} className="shrink-0 text-(--faint)" aria-hidden />
+                  <ChevronRight size={12} strokeWidth={2} className="shrink-0 text-(--ink-3)" aria-hidden />
                 </button>
               </li>
             ))}

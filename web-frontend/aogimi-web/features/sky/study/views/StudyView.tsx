@@ -3,7 +3,7 @@
 import { useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
-import { Button, coverPalette } from '@/shared/components';
+import { Button } from '@/shared/components';
 import { decksApi, deckVisuals } from '@/features/sky/stage';
 import { useDecks } from '@/features/sky/stage/providers/DecksProvider';
 import { StudyScreen, fetchDueCounts, useDeckOverrides } from '../session';
@@ -88,7 +88,7 @@ export default function StudyView() {
   // holds both is the place the two meet.
   const deck = deckId ? decks?.find((d) => d.id === deckId) ?? null : null;
   const sessionDeck: SessionDeck | null = deck
-    ? { name: deck.name, kamon: deckVisuals(deck.name).kamon, ...coverPalette(deck.name) }
+    ? { name: deck.name, kamon: deckVisuals(deck.name).kamon, surface: deckVisuals(deck.name).color, ink: 'var(--night-ink)' }
     : null;
 
   return (
@@ -161,9 +161,9 @@ function Notice({
 }) {
   return (
     <div className="flex min-h-full w-full flex-col items-center justify-center gap-4.5 p-6 text-center font-[family-name:var(--face-ui)] font-medium">
-      <p className={`m-0 text-[15px] ${muted ? 'text-(--muted)' : 'text-(--soft)'}`}>{message}</p>
+      <p className={`m-0 text-[15px] ${muted ? 'text-(--ink-3)' : 'text-(--ink-2)'}`}>{message}</p>
       {!muted && (
-        <Button variant="secondary" onClick={onExit}>
+        <Button variant="white" onClick={onExit}>
           Back to decks
         </Button>
       )}

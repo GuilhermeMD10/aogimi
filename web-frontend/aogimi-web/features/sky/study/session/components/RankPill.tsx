@@ -22,9 +22,9 @@ export function RankPill({ stage, className }: Props) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-2 rounded-(--radius-chip) px-3.25 py-1.5',
+        'inline-flex items-center gap-2 rounded-full px-3.25 py-1.5',
         'font-[family-name:var(--face-ui)] text-[11.5px] leading-none font-bold whitespace-nowrap',
-        'text-(--soft)',
+        'text-(--ink-2)',
         className,
       )}
       style={{ background: `color-mix(in oklab, ${color} 16%, transparent)` }}

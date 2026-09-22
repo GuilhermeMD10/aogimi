@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { useProfile } from '../hooks/useProfile';
-import { GLASS_GHOST, GlassCard, HAIRLINE } from '@/shared/components';
+import { GLASS_GHOST, GlassCard } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 /**
@@ -36,19 +36,19 @@ export function AccountCard() {
         </h2>
       </div>
 
-      <div className={cn('flex items-center gap-3.5 border-t px-6 py-4', HAIRLINE)}>
+      <div className={cn('flex items-center gap-3.5 border-t px-6 py-4', 'border-(--hairline)')}>
         <span className="font-[family-name:var(--face-ui)] text-[14.5px] font-bold text-(--ink)">Email</span>
-        <span className="ml-auto truncate font-[family-name:var(--face-mono)] text-[12.5px] text-(--muted)">
+        <span className="ml-auto truncate font-[family-name:var(--face-mono)] text-[12.5px] text-(--ink-3)">
           {/* Email isn't collected at signup yet, so "—" is the common case. */}
           {loading ? '' : (email ?? '—')}
         </span>
       </div>
 
-      <div className={cn('border-t px-6 py-[18px]', HAIRLINE)}>
+      <div className={cn('border-t px-6 py-[18px]', 'border-(--hairline)')}>
         <button
           type="button"
           onClick={signOut}
-          className={cn(GLASS_GHOST, 'h-11 w-full justify-center border-(--danger-bd) text-(--danger)')}
+          className={cn(GLASS_GHOST, 'h-11 w-full justify-center border-[rgb(var(--danger-rgb)/0.35)] text-(--danger)')}
         >
           Sign out
         </button>

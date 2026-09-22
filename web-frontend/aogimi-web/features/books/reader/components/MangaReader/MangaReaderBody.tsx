@@ -13,15 +13,15 @@ export function MangaReaderBody({ engine }: { engine: MangaReaderEngine }) {
   const { wrapperRef, ready, error, viewMode } = engine;
 
   return (
-    <div className="relative min-w-0 flex-1 bg-(--bg)">
+    <div className="relative min-w-0 flex-1 bg-(--pane-strong)">
       {(error || !ready) && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-(--bg)">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-(--pane-strong)">
           {error ? (
             <p className="max-w-sm text-center text-[13.5px] text-(--accent)">
               This book couldn&apos;t be loaded: {error}
             </p>
           ) : (
-            <p className="text-[13.5px] text-(--muted)">Opening&hellip;</p>
+            <p className="text-[13.5px] text-(--ink-3)">Opening&hellip;</p>
           )}
         </div>
       )}

@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
-import { TopBar } from '@/features/app-shell/TopBar';
 
 /**
- * The page frame all three settings routes share: TopBar with the
- * back-to-profile pill, a sticky title rail, and the panel column. /help and
+ * The page frame all three settings routes share: a sticky title rail and
+ * the panel column (the way back to /profile is the nav's avatar). /help and
  * /credits render this too, so navigating between them only appears to swap
  * the right-hand column — "Help lives inside settings" as an illusion, done
  * with routes instead of local view state.
@@ -16,8 +15,7 @@ import { TopBar } from '@/features/app-shell/TopBar';
 export function SettingsShell({ children }: { children: ReactNode }) {
   return (
     <div className="h-full w-full overflow-auto font-[family-name:var(--face-ui)] font-medium">
-      <div className="mx-auto w-full max-w-[1300px] px-11 pt-[34px] pb-[140px]">
-        <TopBar pillEyebrow="back to profile" />
+      <div className="mx-auto w-full max-w-[1300px] px-11 pt-[34px]">
 
         <div className="grid items-start gap-11 lg:grid-cols-[236px_minmax(0,1fr)]">
           {/* The rail never retitles — Help and Credits are still Settings. */}

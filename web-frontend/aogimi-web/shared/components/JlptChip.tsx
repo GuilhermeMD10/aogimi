@@ -6,7 +6,8 @@ import { cn } from '@/lib/util/cn';
  * The per-level palette is the standing hex exception — these five are a
  * *scale*, not palette entries, and they're fixed in both themes on purpose
  * (a learner reads "green = easy" the same way at night). Pill ink is always
- * the same warm near-black, which stays legible on all five.
+ * the same warm near-black, which stays legible on all five. The ramp is
+ * ours, not the handoff's (D6); the chip geometry — R6 — is the handoff's.
  *
  * This is the one definition of the ramp — the reader's surfaces render this
  * same component, so the scale is identical everywhere it appears.
@@ -42,17 +43,17 @@ export function JlptChip({ level, size = 'sm', className }: Props) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-(--radius-chip) font-[family-name:var(--face-mono)] font-bold',
+        'inline-flex items-center rounded-full font-[family-name:var(--face-mono)] font-bold',
         size === 'md' ? 'px-3 py-1 text-sm' : 'px-[9px] py-0.5 text-[12px]',
         className,
       )}
       // A level outside 1–5 keeps the shape but drops to the neutral token, so
       // it can't borrow a difficulty colour. Unreachable today — `level == null`
       // returns above and the DB constrains the rest — and it is the one part of
-      // this component that isn't theme-agnostic: `--faint` is a theme token and
-      // would read wrong on the decks stage's night glass, which is night in both
-      // themes. Render sites should gate on `jlpt_level != null` regardless.
-      style={background ? { background, color: PILL_INK } : { background: 'var(--faint)', color: PILL_INK }}
+      // this component that isn't theme-agnostic: `--ink-3` is a theme token and
+      // would read wrong on the Sky field, which is night in every theme. Render
+      // sites should gate on `jlpt_level != null` regardless.
+      style={background ? { background, color: PILL_INK } : { background: 'var(--ink-3)', color: PILL_INK }}
     >
       N{level}
     </span>

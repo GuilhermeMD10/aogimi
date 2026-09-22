@@ -19,6 +19,10 @@ import { cn } from '@/lib/util/cn';
 //      combined with `pointer: coarse` is the heuristic.
 function isTabletOrPhone(): boolean {
   if (typeof navigator === 'undefined') return false;
+  // Never gate a dev server: DevTools device emulation swaps in a phone UA
+  // and reports touch points, which locked the developer out of every page
+  // while checking narrow layouts. Production keeps the hard gate.
+  if (process.env.NODE_ENV === 'development') return false;
   const ua = navigator.userAgent;
   if (/iPhone|iPod|iPad/i.test(ua)) return true;
   if (/Android/i.test(ua)) return true;
@@ -59,14 +63,14 @@ export function MobileGate({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center px-6 py-10 font-[family-name:var(--face-ui)]">
       <div className="w-full max-w-sm text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-(--radius-card) border border-(--paper-bd) bg-(--paper-tile)">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-(--radius-tile) border border-(--pane-bd) bg-(--pane-strong)">
           <Smartphone size={28} strokeWidth={1.7} className="text-(--accent)" />
         </div>
 
         <h1 className="mb-2 text-[26px] leading-tight font-bold tracking-[-0.01em] text-(--ink)">
           Get Aogimi for mobile
         </h1>
-        <p className="mb-8 text-[15px] leading-snug text-(--soft)">
+        <p className="mb-8 text-[15px] leading-snug text-(--ink-2)">
           The web app is built for laptops and tablets. On your phone, the
           native app gives you the full reader, dictionary, and decks.
         </p>
@@ -77,7 +81,7 @@ export function MobileGate({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col gap-2.5">
           <a
             href={APP_STORE_URL}
-            className={cn(STORE_LINK, 'bg-(--btn) text-(--btn-ink) hover:opacity-90')}
+            className={cn(STORE_LINK, 'bg-(--accent) text-(--on-accent) hover:opacity-90')}
           >
             Download on the App Store
           </a>
@@ -85,7 +89,7 @@ export function MobileGate({ children }: { children: React.ReactNode }) {
             href={PLAY_STORE_URL}
             className={cn(
               STORE_LINK,
-              'border border-(--paper-bd) text-(--ink) hover:bg-(--paper-tile)',
+              'border border-(--pane-bd) text-(--ink) hover:bg-(--pane-strong)',
             )}
           >
             Get it on Google Play
@@ -97,7 +101,7 @@ export function MobileGate({ children }: { children: React.ReactNode }) {
 }
 
 const STORE_LINK = cn(
-  'rounded-(--radius-button) px-6 py-3 text-[14px] font-bold',
+  'rounded-(--radius-control) px-6 py-3 text-[14px] font-bold',
   'transition-[background-color,opacity] duration-120 ease-[ease]',
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
 );

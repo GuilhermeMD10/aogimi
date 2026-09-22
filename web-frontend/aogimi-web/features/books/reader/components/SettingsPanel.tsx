@@ -15,12 +15,12 @@ import {
   LINE_SPACING_STOPS,
 } from '../hooks/useReaderPrefs';
 import { THEMES } from '../lib/readerConstants';
-import { GLASS_PRESS, HAIRLINE } from '@/shared/components';
+import { PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { ReaderPanel } from './ReaderShell';
 
 const GROUP_LABEL =
-  'mb-[9px] font-[family-name:var(--face-mono)] text-[10px] tracking-[0.16em] uppercase text-(--muted)';
+  'mb-[9px] font-[family-name:var(--face-mono)] text-[10px] tracking-[0.16em] uppercase text-(--ink-3)';
 
 // ── Segmented control ───────────────────────────────────────────────────────
 
@@ -45,13 +45,13 @@ function Segmented<T extends string>({
             onClick={() => onChange(o.key)}
             style={o.style}
             className={cn(
-              GLASS_PRESS,
+              PRESS,
               'cursor-pointer rounded-[9px] py-2.5 text-center text-[15px]',
               'transition-[color,background-color,border-color,transform] duration-150',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
               on
-                ? 'border border-transparent bg-(--active) text-(--active-ink)'
-                : cn('border bg-transparent text-(--soft) hover:text-(--ink)', HAIRLINE),
+                ? 'border border-transparent bg-(--selected) text-(--selected-ink)'
+                : cn('border bg-transparent text-(--ink-2) hover:text-(--ink)', 'border-(--hairline)'),
             )}
           >
             {o.label}
@@ -91,11 +91,11 @@ function Slider({
 
   return (
     <div className="relative h-[18px]">
-      <div className="absolute inset-x-0 top-[7px] h-1 rounded-[3px] bg-(--track)" />
+      <div className="absolute inset-x-0 top-[7px] h-1 rounded-[3px] bg-[rgb(var(--accent-rgb)/0.14)]" />
       {dots ? (
         <div className="absolute inset-x-0 top-1 flex justify-between">
           {Array.from({ length: dots }, (_, i) => (
-            <span key={i} className="h-2 w-2 rounded-full bg-(--track)" />
+            <span key={i} className="h-2 w-2 rounded-full bg-[rgb(var(--accent-rgb)/0.14)]" />
           ))}
         </div>
       ) : (
@@ -106,15 +106,15 @@ function Slider({
       )}
       <div
         aria-hidden
-        className="absolute top-0 h-[18px] w-[18px] rounded-full border-2 border-(--ink) bg-(--bg) shadow-(--card-shadow)"
+        className="absolute top-0 h-[18px] w-[18px] rounded-full border-2 border-(--ink) bg-(--pane-strong) shadow-(--shadow-card)"
         style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
       />
       {ends && (
         <>
-          <span className="absolute -top-4 left-0 font-[family-name:var(--face-mono)] text-[9px] text-(--faint)">
+          <span className="absolute -top-4 left-0 font-[family-name:var(--face-mono)] text-[9px] text-(--ink-3)">
             {ends[0]}
           </span>
-          <span className="absolute -top-4 right-0 font-[family-name:var(--face-mono)] text-[9px] text-(--faint)">
+          <span className="absolute -top-4 right-0 font-[family-name:var(--face-mono)] text-[9px] text-(--ink-3)">
             {ends[1]}
           </span>
         </>
@@ -180,7 +180,7 @@ export function SettingsPanel({
 
           <div className="mb-[22px]">
             <div className="mb-[11px] flex items-baseline justify-between">
-              <span className="font-[family-name:var(--face-mono)] text-[10px] tracking-[0.16em] uppercase text-(--muted)">
+              <span className="font-[family-name:var(--face-mono)] text-[10px] tracking-[0.16em] uppercase text-(--ink-3)">
                 Font size
               </span>
               <span className="font-[family-name:var(--face-mono)] text-xs font-bold text-(--ink)">
@@ -245,14 +245,14 @@ export function SettingsPanel({
                   onClick={() => onChange({ theme: t })}
                   style={{ background: THEMES[t].bg, color: THEMES[t].fg }}
                   className={cn(
-                    GLASS_PRESS,
+                    PRESS,
                     'cursor-pointer rounded-[9px] border px-2 py-2.5 text-[11px] font-medium transition-all duration-150',
                     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
                     // A ring, not a fill: these swatches ARE their page colour,
-                    // so selection has to sit outside them. --active either way.
+                    // so selection has to sit outside them. --selected either way.
                     prefs.theme === t
-                      ? 'border-transparent ring-2 ring-(--active) ring-offset-1'
-                      : cn('hover:opacity-80', HAIRLINE),
+                      ? 'border-transparent ring-2 ring-(--selected) ring-offset-1'
+                      : cn('hover:opacity-80', 'border-(--hairline)'),
                   )}
                 >
                   {t === 'light' ? 'Light' : t === 'dark' ? 'Dark' : 'Sepia'}

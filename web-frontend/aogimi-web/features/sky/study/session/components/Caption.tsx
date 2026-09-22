@@ -20,7 +20,7 @@ export function Caption({ children, className }: Props) {
     <div
       className={cn(
         'font-[family-name:var(--face-mono)] text-[9px] tracking-[0.16em] uppercase',
-        'text-(--faint)',
+        'text-(--ink-3)',
         className,
       )}
     >

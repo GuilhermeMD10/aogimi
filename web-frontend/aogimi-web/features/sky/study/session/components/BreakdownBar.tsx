@@ -26,10 +26,10 @@ export function BreakdownBar({ entries }: Props) {
   for (const e of entries) counts[e.endState] += 1;
 
   return (
-    <section className="mt-6 border-t border-(--bd-b) pt-5.5">
+    <section className="mt-6 border-t border-(--hairline) pt-5.5">
       <Caption className="mb-3">Session mix</Caption>
 
-      <div className="flex h-2.25 overflow-hidden rounded-[5px] bg-(--track)">
+      <div className="flex h-2.25 overflow-hidden rounded-[5px] bg-[rgb(var(--accent-rgb)/0.14)]">
         {LADDER.map((state) => (
           <span
             key={state}
@@ -46,7 +46,7 @@ export function BreakdownBar({ entries }: Props) {
         {LADDER.map((state) => (
           <span
             key={state}
-            className="inline-flex items-center gap-1.5 font-[family-name:var(--face-mono)] text-[9.5px] whitespace-nowrap text-(--muted)"
+            className="inline-flex items-center gap-1.5 font-[family-name:var(--face-mono)] text-[9.5px] whitespace-nowrap text-(--ink-3)"
           >
             <span
               aria-hidden

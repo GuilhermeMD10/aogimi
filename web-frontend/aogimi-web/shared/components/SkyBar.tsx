@@ -44,7 +44,7 @@ export function SkyBar({ percent, showLabel = false, className }: Props) {
   return (
     <div
       aria-hidden
-      className={cn('relative h-[26px] overflow-hidden rounded-(--radius-tile)', className)}
+      className={cn('relative h-[26px] overflow-hidden rounded-(--radius-chip)', className)}
       style={{ backgroundColor: FILL, backgroundImage: STARS }}
     >
       <div

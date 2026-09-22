@@ -4,8 +4,9 @@
 // setting rather than a separate reader. The toolbar is the shared shell with
 // this engine's own tool cluster.
 
-import { ChevronLeft, ChevronRight, List, Search, SlidersHorizontal } from 'lucide-react';
-import { ReaderIconButton, ReaderShell } from '@/features/books/reader/components/ReaderShell';
+import type { ReactNode } from 'react';
+import { BookOpen, List, SlidersHorizontal } from 'lucide-react';
+import { ReaderShell, type ReaderTool } from '@/features/books/reader/components/ReaderShell';
 import { ContentsPanel } from '@/features/books/reader/components/ContentsPanel';
 import { SettingsPanel } from '@/features/books/reader/components/SettingsPanel';
 import { useTextReaderEngine, type TextRelocateSnapshot } from './useTextReaderEngine';
@@ -22,6 +23,8 @@ export type TextReaderProps = {
   onBack: () => void;
   sidekickOpen?: boolean;
   onToggleSidekick?: () => void;
+  /** The docked dictionary column, when open. */
+  side?: ReactNode;
   /** CFI to restore to on open (null/undefined = start). */
   initialCfi?: string | null;
   /** Position callback for progress sync, fired on every page turn. */
@@ -38,6 +41,7 @@ export function TextReader({
   onBack,
   sidekickOpen = false,
   onToggleSidekick,
+  side,
   initialCfi,
   onRelocate,
 }: TextReaderProps) {
@@ -61,49 +65,36 @@ export function TextReader({
 
   const toggle = (next: 'toc' | 'settings') => setPanel((p) => (p === next ? null : next));
 
+  // TOC · Configs · Dictionary (page 09). The Dictionary item toggles the docked
+  // column (D8); the modal is reached from a selection.
+  const tools: ReaderTool[] = [
+    { key: 'toc', label: 'TOC', icon: <List size={16} strokeWidth={2} aria-hidden />, active: panel === 'toc', onClick: () => toggle('toc'), title: 'Table of contents' },
+    { key: 'settings', label: 'Configs', icon: <SlidersHorizontal size={16} strokeWidth={2} aria-hidden />, active: panel === 'settings', onClick: () => toggle('settings'), title: 'Display settings' },
+  ];
+  if (onToggleSidekick) {
+    tools.push({
+      key: 'dictionary',
+      label: 'Dictionary',
+      icon: <BookOpen size={16} strokeWidth={2} aria-hidden />,
+      active: sidekickOpen,
+      onClick: onToggleSidekick,
+      title: sidekickOpen ? 'Hide dictionary' : 'Open dictionary',
+    });
+  }
+
   return (
     <ReaderShell
       title={bookTitle}
       author={bookAuthor}
+      chapter={chapterLabel}
       onBack={onBack}
       percent={progress}
       page={{ current: globalPage, total: totalLocations }}
       onJumpToPage={goToPage}
-      tools={
-        <>
-          <ReaderIconButton label={vertical ? 'Next page' : 'Previous page'} onClick={onLeftBtn}>
-            <ChevronLeft size={19} strokeWidth={1.8} />
-          </ReaderIconButton>
-          <ReaderIconButton label={vertical ? 'Previous page' : 'Next page'} onClick={onRightBtn}>
-            <ChevronRight size={19} strokeWidth={1.8} />
-          </ReaderIconButton>
-
-          <ReaderIconButton
-            label="Display settings"
-            active={panel === 'settings'}
-            onClick={() => toggle('settings')}
-          >
-            <SlidersHorizontal size={19} strokeWidth={1.8} />
-          </ReaderIconButton>
-          <ReaderIconButton
-            label="Table of contents"
-            active={panel === 'toc'}
-            onClick={() => toggle('toc')}
-          >
-            <List size={19} strokeWidth={1.8} />
-          </ReaderIconButton>
-
-          {onToggleSidekick && (
-            <ReaderIconButton
-              label={sidekickOpen ? 'Hide dictionary' : 'Open dictionary'}
-              active={sidekickOpen}
-              onClick={onToggleSidekick}
-            >
-              <Search size={19} strokeWidth={1.8} />
-            </ReaderIconButton>
-          )}
-        </>
-      }
+      tools={tools}
+      onPrev={{ label: vertical ? 'Next page' : 'Previous page', onClick: onLeftBtn }}
+      onNext={{ label: vertical ? 'Previous page' : 'Next page', onClick: onRightBtn }}
+      side={side}
       popover={
         panel === 'toc' ? (
           <ContentsPanel
