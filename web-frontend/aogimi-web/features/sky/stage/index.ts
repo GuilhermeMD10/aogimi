@@ -8,9 +8,10 @@ export { DecksProvider } from './providers/DecksProvider';
 export { getUserDecks, getUserDecksWithCards, getUserSkyDecks } from './lib/decksApi';
 export * as decksApi from './lib/decksApi';
 export { deckVisuals } from './lib/deckVisuals';
-// The SRS meter maths, exported for the sky page's word card — one definition,
-// or the two meters drift (both mirror backend/src/services/cardSrsService.js).
-export { masteryRank, nextState, rankProgress, shownRank } from './lib/rankProgress';
+// The SRS meter maths — one definition, or two meters drift (both mirror
+// backend/src/services/cardSrsService.js). The stage's own list and inspector
+// read them by path; exported for any other surface that draws a rank.
+export { masteryRank, rankProgress, shownRank } from './lib/rankProgress';
 export { MAX_MEANINGS_ON_CARD } from './lib/cardLimits';
 // Quota + field caps mirrored from the backend. Exported because the reader
 // bubble creates decks and cards too, and must show the same limits.

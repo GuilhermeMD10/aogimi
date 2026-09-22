@@ -1,5 +1,5 @@
-import { RANK_STABILITY_MIN, RANKS, displayedRank, rankIndex, rankOf } from '../../lib/fsrs';
-import type { CardState } from '../types';
+import { RANK_STABILITY_MIN, displayedRank, rankIndex, rankOf } from '../../lib/fsrs';
+import type { CardState, SkyCardRecord } from '../types';
 
 /**
  * How far a card has come toward its next rank, 0–100 — and which rank the UI
@@ -48,6 +48,27 @@ type Args = {
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 
+/**
+ * The meter's inputs off a lean card row — the one place the row is read for
+ * rank, so the list, the inspector and the sort agree on what they measure.
+ *
+ * `stability` is legitimately null on a never-reviewed card, so it is passed
+ * through rather than defaulted — `rankProgress` reads null as "rank new",
+ * which is what it means. `peak_rank` falls back to `state` for rows fetched
+ * before migration 027 added the column: "never been higher than it is now",
+ * the reading that can't overstate progress.
+ */
+export function rankArgs(
+  card: Pick<SkyCardRecord, 'state' | 'peak_rank' | 'stability' | 'last_reviewed_at'>,
+): Args {
+  return {
+    state: card.state ?? 'new',
+    peakRank: card.peak_rank ?? card.state ?? 'new',
+    stability: card.stability,
+    lastReviewedAt: card.last_reviewed_at ?? null,
+  };
+}
+
 /** Where each rank's progress bar starts and ends, in days of stability.
  *  `new` is not here — it has no span, see `rankProgress`. */
 const SPAN: Partial<Record<CardState, { from: number; to: number }>> = {
@@ -93,12 +114,6 @@ export function rankProgress(args: Args): number {
   const t = (Math.log(Math.max(stability, from)) - Math.log(from)) / (Math.log(span.to) - Math.log(from));
 
   return Math.round(clamp01(t) * 100);
-}
-
-/** The tier above this one, or null at the top. Drives the "next rank" label
- *  and the progress bar's gradient end. */
-export function nextState(state: CardState): CardState | null {
-  return RANKS[rankIndex(state) + 1] ?? null;
 }
 
 /** Sort key for "mastery": tier first, then how far into it. Ties on tier are

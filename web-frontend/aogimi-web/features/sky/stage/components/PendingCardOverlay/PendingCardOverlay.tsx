@@ -131,7 +131,12 @@ export function PendingCardOverlay({
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4 font-[family-name:var(--face-ui)] backdrop-blur-sm">
+    <div
+      // Fixed: the sky page scrolls, so an `absolute` scrim would cover only
+      // the part of it this component happens to sit in.
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 font-[family-name:var(--face-ui)] backdrop-blur-[8px]"
+      style={{ background: 'var(--scrim)' }}
+    >
       {/* `--pane`, not `--pane`: that group is transparent app-wide because a
           card is separated from the page by shadow, and a dialog floating over
           a scrim has nothing behind it to separate against. */}

@@ -210,6 +210,12 @@ GET /api/decks/user/{userId}/cards
                 /api/decks/user/{userId}); each deck's cards ordered
                 created_at DESC (same shape/order as /api/decks/{id}/cards);
                 empty decks carry cards: []
+  ?view=sky  The /sky page's lean projection (SkyCardRecord in
+             features/sky/stage/types.ts): id, front, reading, state,
+             peak_rank, stability, last_reviewed_at, next_due_at, created_at,
+             jlpt_level, meanings, and back only when meanings is empty.
+             next_due_at feeds the card list's Due filter and interval cell;
+             the inspector fetches the full row by id for context_sentence.
   Note:      Bulk read for screens that need every card across all decks in
              one request -- use this instead of a per-deck
              GET /api/decks/{deckId}/cards fan-out. Unpaginated; bounded by

@@ -217,6 +217,33 @@ example sentence exists only on reader-made cards. **Deletes**: `nightChrome.ts`
 (→ `--field-*`), `StageLedger`, `StageActions`, `GlassColumn`, `ColumnHandle`,
 `CardSearch`, `CardDetailCard`, `DeckBar`, `MixBar` (unless Stats keeps it).
 
+**Owner rulings (2026-09-22)** — these outrank the handoff text above:
+
+- **No `SYNCED` pill** (G6 cut). **No `Stats` pill** (G7 cut) — and with it
+  the ledger's DAYS STUDIED · STARS · DUE · MASTERED figures and the mix bar.
+- **The `⋯` circle is the home of every deck flow** the handoff draws no
+  control for: **New deck** on both tiers, **Rename deck** (new on web; the
+  provider's `updateDeck` already existed) and **Delete deck** on a focused
+  deck. Naming goes through one `DeckNameModal`; deleting keeps its confirm.
+- **Layout (later the same day): the field fills the viewport with rounded
+  corners (`--radius-hero`) and the cards list is a 340px column on its right,
+  scrolling inside itself.** `/sky` is `flow: 'fill'`; nothing on the page
+  moves when a deck or a card opens — the field keeps its size and the
+  inspector floats inside it. The handoff's 960/880 field + list-below-a-
+  scrolling-page is not built.
+- **The cards list renders on both tiers.** Whole sky: every card, newest
+  first, each row naming its deck; clicking a row flies to that deck and rings
+  the star on landing (the existing two-step). Inside a deck: that deck's cards
+  only. **Search and the filter only narrow the list** — nothing navigates but
+  a row click. The cross-deck search dropdown that flew the camera is gone.
+- **Sort chips stay** (Added · Mastery · JLPT) under the list header.
+- **`next_due_at` joins the `view=sky` projection** (backend, one column) so
+  the list has a per-card **Due** filter and an interval cell. **Chips show
+  rank**, in `--stage-*` (New · Met · Learned · Mastered) so a chip and its
+  star agree; the filter is `All · Due · New · Met · Learned · Mastered`.
+- The study rule stays: `Continue Studying · N DUE` while anything is due,
+  `Study ahead` (the practice overlay) when nothing is.
+
 ### 2.6 books/reader — size L
 
 **Pages** 09, 10, 11. **Owns** `features/books/reader/**`,
@@ -291,10 +318,10 @@ without the line.**
 | G3 | Library grid / list toggle | none | list = the dictionary result-row pattern; persist in `localStorage` | **build** (2026-09-21) — `BookRow`, `aogimi-library-view` |
 | G4 | Recent lookups as entries (kanji · reading · JLPT · gloss) | `useRecentSearches` stores query strings | store a `{ wordId, headword, reading, jlpt, gloss, at }` snapshot on entry open (mobile did this in `dictionaryStorage.ts`); `Clear log` exists | **keep strings** (2026-09-22) — rows show the term + time-ago, a row re-runs the query and the first result opens; `Clear log` built |
 | G5 | Bookmark toggle on recent rows | no saved-words feature | — | **cut** (2026-09-22) |
-| G6 | `● SYNCED` pill on the sky | decks are server-side; no sync state on web | static `SYNCED`, or cut | |
-| G7 | `Stats` pill / modal (`80%` chip) | `/api/stats/{activity,cards,recent-upgrades}` client exists (`study/stats/lib/statsApi.ts`); ledger consumes activity | modal from `StatTile`s + the ledger's mix bar; `80%` = mastered+learned share | |
+| G6 | `● SYNCED` pill on the sky | decks are server-side; no sync state on web | static `SYNCED`, or cut | **cut** (2026-09-22) |
+| G7 | `Stats` pill / modal (`80%` chip) | `/api/stats/{activity,cards,recent-upgrades}` client exists (`study/stats/lib/statsApi.ts`); ledger consumes activity | modal from `StatTile`s + the ledger's mix bar; `80%` = mastered+learned share | **cut** (2026-09-22) — the ledger's figures and mix bar went with it; `useSkyLedger` deleted |
 | G8 | `14 min` session duration | not tracked | `startedAt` in `useStudySession`, minutes at finish | **cut** (2026-09-21) |
-| G9 | Deck level sub-label `N2 Verbs` / description `Core Literature Verbs` | `deck.description` exists; no level | description as caption; level = modal `jlpt_level` of the deck's cards, or omit | |
+| G9 | Deck level sub-label `N2 Verbs` / description `Core Literature Verbs` | `deck.description` exists; no level | description as caption; level = modal `jlpt_level` of the deck's cards, or omit | description drawn as the focused header's caption when non-empty (mobile writes it); no level. The node sub-labels are the frozen map's and are not drawn (2026-09-22) |
 | G10 | Context · EN textarea "from the built-in translation"; the study back's English example line | no translation source (DeepL removed) | empty, editable field; or cut the field | **cut** on both (2026-09-21) — no EN field on the reader form either |
 | G11 | Carded word underline in the reader text | engines don't know which words have cards | — (needs a per-book carded-words index) | not built (2026-09-21) |
 | G12 | Reader hotkeys `T , D A`, `Esc` | only Esc/Enter | keydown in `ReaderView`, guarded like `StudyScreen`'s | **deferred by the owner (2026-09-21)** — not wired, so no `Kbd` chips are drawn in the reader (BRIEF §5) |

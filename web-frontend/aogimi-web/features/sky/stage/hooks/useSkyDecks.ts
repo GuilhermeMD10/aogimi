@@ -80,6 +80,8 @@ type Patches = {
   hiddenCardIds: ReadonlySet<string>;
   /** Decks created since the fetch, as the server returned them. */
   addedDecks: readonly DeckRecord[];
+  /** Decks renamed since the fetch — the new name by deck id. */
+  renamedDecks: ReadonlyMap<string, string>;
   /** Cards created since the fetch, newest first, by deck — the endpoint's own order. */
   addedCards: ReadonlyMap<string, readonly SkyCardRecord[]>;
 };
@@ -88,6 +90,7 @@ const NO_PATCHES: Patches = {
   hiddenDeckIds: new Set(),
   hiddenCardIds: new Set(),
   addedDecks: [],
+  renamedDecks: new Map(),
   addedCards: new Map(),
 };
 
@@ -131,6 +134,11 @@ export function useSkyDecks() {
     setPatches((p) => ({ ...p, addedDecks: [...p.addedDecks, deck] }));
   }, []);
 
+  /** A deck the server just renamed. `deckVisuals` hashes the name, so the frame's cover follows. */
+  const renameDeck = useCallback((id: string, name: string) => {
+    setPatches((p) => ({ ...p, renamedDecks: new Map(p.renamedDecks).set(id, name) }));
+  }, []);
+
   /** A card the server just created, into a deck the inventory already shows (fetched or added). */
   const addCard = useCallback((deckId: string, card: SkyCardRecord) => {
     setPatches((p) => {
@@ -148,7 +156,7 @@ export function useSkyDecks() {
 
   const decks = useMemo<DeckWithCards[] | null>(() => {
     if (!data) return null;
-    const { hiddenDeckIds, hiddenCardIds, addedDecks, addedCards } = patches;
+    const { hiddenDeckIds, hiddenCardIds, addedDecks, renamedDecks, addedCards } = patches;
     const fetchedIds = new Set(data.map((d) => d.id));
     // a refresh that already contains a deck added since the last one must not show it twice
     const fresh: DeckWithCards[] = addedDecks
@@ -163,9 +171,14 @@ export function useSkyDecks() {
       .filter((d) => !hiddenDeckIds.has(d.id))
       .map((d) => {
         const added = addedCards.get(d.id);
-        if (!added && hiddenCardIds.size === 0) return d;
+        const renamed = renamedDecks.get(d.id);
+        if (!added && renamed === undefined && hiddenCardIds.size === 0) return d;
         const cards = added ? [...added, ...d.cards] : d.cards;
-        return { ...d, cards: hiddenCardIds.size ? cards.filter((c) => !hiddenCardIds.has(c.id)) : cards };
+        return {
+          ...d,
+          ...(renamed !== undefined ? { name: renamed } : {}),
+          cards: hiddenCardIds.size ? cards.filter((c) => !hiddenCardIds.has(c.id)) : cards,
+        };
       });
   }, [data, patches]);
 
@@ -183,5 +196,18 @@ export function useSkyDecks() {
     );
   }, [decks]);
 
-  return { decks, sources, loading, error, refresh, hideDeck, unhideDeck, hideCard, unhideCard, addDeck, addCard };
+  return {
+    decks,
+    sources,
+    loading,
+    error,
+    refresh,
+    hideDeck,
+    unhideDeck,
+    hideCard,
+    unhideCard,
+    addDeck,
+    renameDeck,
+    addCard,
+  };
 }

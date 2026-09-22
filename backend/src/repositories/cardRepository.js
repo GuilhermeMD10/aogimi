@@ -60,7 +60,7 @@ module.exports = {
     if (!deckIds || deckIds.length === 0) return [];
     const result = await pool.query(
       `SELECT id, deck_id, front, reading, state, peak_rank, stability,
-              last_reviewed_at, created_at, jlpt_level, meanings,
+              last_reviewed_at, next_due_at, created_at, jlpt_level, meanings,
               CASE WHEN cardinality(meanings) = 0 THEN back ELSE '' END AS back
          FROM cards
         WHERE deck_id = ANY($1::uuid[])

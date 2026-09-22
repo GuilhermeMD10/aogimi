@@ -166,6 +166,13 @@ carrying its full card list under `cards` (same `CardRecord` shape and
 query — instead of a per-deck fan-out. Unpaginated; bounded by the per-user
 card quota.
 
+`?view=sky` swaps each card for the sky page's lean projection
+(`cardRepository.findSkyByDeckIds`): `id, front, reading, state, peak_rank,
+stability, last_reviewed_at, next_due_at, created_at, jlpt_level, meanings`, plus
+`back` only when `meanings` is empty (`''` otherwise) and no `deck_id`. What a
+star, a list row and its Due filter read; `context_sentence` and the rest of the
+FSRS columns come from `GET /api/decks/cards/:cardId` when a card is opened.
+
 ### Cards (nested)
 
 | Method | Path | Body | Response | Ownership check |

@@ -94,9 +94,10 @@ export function PracticeOverlay({ open, deckId, deckName, onClose }: Props) {
 
   return (
     <div
-      // Above the glass column and the stage actions, below nothing — this is a
-      // modal surface, and the sky behind it is not interactive while it's up.
-      className="absolute inset-0 z-50 overflow-hidden"
+      // Fixed to the viewport, above the field and the card list — this is a
+      // modal surface, and the page behind it (which scrolls) is not
+      // interactive while it's up.
+      className="fixed inset-0 z-50 overflow-hidden"
       // Opaque, and the app's own night rather than a stage constant: the study
       // runner is ordinary token-driven chrome (it is the same component `/study`
       // renders), so it needs the page canvas under it, not the sky.
