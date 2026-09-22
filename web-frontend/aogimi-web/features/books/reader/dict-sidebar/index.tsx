@@ -182,6 +182,7 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
               loading={loading}
               error={error}
               onRetry={submit}
+              scale="compact"
             />
           </div>
         ) : (

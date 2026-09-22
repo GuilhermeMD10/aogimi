@@ -13,7 +13,6 @@
  */
 
 // ── Shell ───────────────────────────────────────────────────────────────────
-export { Footer } from './Footer';
 export { StarField } from './StarField';
 export { Modal } from './Modal';
 
@@ -27,6 +26,7 @@ export { SearchBar } from './SearchBar';
 
 // ── Text ────────────────────────────────────────────────────────────────────
 export { Eyebrow } from './Eyebrow';
+export { Chip } from './Chip';
 export { JlptChip } from './JlptChip';
 export { StageDot, stageColor, stageLabel } from './StageDot';
 export type { Stage } from './StageDot';

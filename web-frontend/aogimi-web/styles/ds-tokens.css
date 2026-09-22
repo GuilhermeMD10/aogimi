@@ -67,11 +67,13 @@
   --pane:        rgba(255, 255, 255, .86);
   --pane-strong: rgba(255, 255, 255, .96);
   --pane-nav:    rgba(255, 255, 255, .50);
-  --pane-footer: rgba(255, 255, 255, .35);
   --pane-bd:     rgba(255, 255, 255, .80);
   /* The hero card / flashcard fill: the README's 112° gradient, white to a
      soft-accent corner. Night's block swaps in glass-strength stops. */
   --pane-hero:   linear-gradient(112deg, rgba(255, 255, 255, .94) 0%, rgba(255, 255, 255, .82) 52%, rgb(var(--accent-soft-rgb) / .45) 100%);
+  /* The dictionary entry card (page 03): the 135° gradient from a soft-accent
+     corner to translucent white. Night swaps in glass-strength stops. */
+  --pane-entry:  linear-gradient(135deg, rgb(var(--accent-soft-rgb) / .32) 0%, rgba(255, 255, 255, .60) 42%, rgba(255, 255, 255, .45) 100%);
   /* The one "this is selected" treatment (active nav item, active segment,
      selected chip): soft accent wash + accent ink on the light themes; Night
      flips it to a solid accent fill with dark ink (README → Night mapping). */
@@ -309,8 +311,8 @@ html[data-theme="night"] {
   --pane:        rgba(255, 255, 255, .07);
   --pane-strong: rgba(255, 255, 255, .18);
   --pane-nav:    rgba(255, 255, 255, .12);
-  --pane-footer: rgba(255, 255, 255, .04);
   --pane-hero:   linear-gradient(112deg, rgba(255, 255, 255, .14) 0%, rgba(255, 255, 255, .07) 52%, rgb(var(--accent-soft-rgb) / .18) 100%);
+  --pane-entry:  linear-gradient(135deg, rgb(var(--accent-soft-rgb) / .14) 0%, rgba(255, 255, 255, .08) 42%, rgba(255, 255, 255, .05) 100%);
   --pane-bd:     rgba(255, 255, 255, .14);
   --hairline:    rgba(255, 255, 255, .10);
   --scrim:       rgba(15, 14, 30, .55);

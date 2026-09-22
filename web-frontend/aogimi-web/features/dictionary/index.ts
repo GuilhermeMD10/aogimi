@@ -8,7 +8,8 @@
  * are built out of these pieces rather than out of copies of them: the docked
  * column in `features/books/reader/dict-sidebar/` and the modal in
  * `features/books/reader/reader-modal/` render the same rows and the same
- * entry (at `scale="compact"`), so the two screens can't drift apart. The rows,
+ * entry (the modal at `scale="full"`, the column at `"compact"`), so the two
+ * screens can't drift apart. The rows,
  * the list and the entry panes are all fully controlled — a `selected` boolean
  * and callbacks — so a surface that keeps its selection in local state and one
  * that keeps it in the URL use them identically.
@@ -22,16 +23,8 @@ export { DictionaryStateProvider, useDictionaryState } from './providers/Diction
 
 // ── Results ─────────────────────────────────────────────────────────────────
 export { RailList } from './components/RailList';
-export {
-  WordRow,
-  KanjiRow,
-  ClassPill,
-  AddButton,
-  ROW_SHELL,
-  ROW_LIST,
-  ROW_SELECTED,
-  ROW_FOCUS,
-} from './components/ResultRow';
+// The rows themselves (`WordRow`, `KanjiRow`) are `RailList`'s to render; no
+// surface composes them directly, so they stay inside the feature.
 
 // ── The entry ───────────────────────────────────────────────────────────────
 export { EntryDetail } from './components/EntryDetail';

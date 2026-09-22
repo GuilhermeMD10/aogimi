@@ -1,18 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getRecentSearches, type RecentSearchItem } from '../lib/storage';
+import { useCallback, useEffect, useState } from 'react';
+import { clearRecentSearches, getRecentSearches, type RecentSearchItem } from '../lib/storage';
 
 /**
  * The last few lookups on this device, newest first.
  *
  * Each entry holds `{ query, at }` and nothing else — the store never kept a
  * reading, gloss or entry id — so rows can only show the term and its age, and
- * clicking one re-runs the search rather than opening an entry. Home made the
- * same call for its dictionary card.
+ * clicking one re-runs the search rather than opening an entry (owner's call,
+ * 2026-09-22: the handoff's entry-shaped rows are not built).
  *
  * `loading` covers the first client tick, so the empty state doesn't flash
- * before localStorage has been read.
+ * before localStorage has been read. `clear` is the page's "Clear log".
  */
 export function useRecentSearches(limit: number) {
   const [items, setItems] = useState<RecentSearchItem[]>([]);
@@ -29,5 +29,10 @@ export function useRecentSearches(limit: number) {
   }, [limit]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  return { items, loading };
+  const clear = useCallback(() => {
+    clearRecentSearches();
+    setItems([]);
+  }, []);
+
+  return { items, loading, clear };
 }

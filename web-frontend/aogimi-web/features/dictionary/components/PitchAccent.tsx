@@ -13,7 +13,10 @@ import { splitMora, parsePitchPositions, pitchPattern } from '@/lib/util/pitch';
  *
  * This is generated from `readings[].pitchAccents`, so it is data, not artwork:
  * it renders nothing at all when Kanjium has no annotation for the reading,
- * which is a sizeable slice of JMdict.
+ * which is a sizeable slice of JMdict. The handoff's 64×40 two-dot diagram is
+ * a picture of one word; this draws every word, in its colours — dots in
+ * `--accent-mid`, the joining line in `--accent` at half opacity, mora labels
+ * at 10px `--ink-3` beneath (page 03 → Right pane → 2).
  *
  * The reader's lookup surfaces render this same component, so the diagram is
  * identical everywhere it appears.
@@ -30,11 +33,11 @@ export function PitchAccent({
   if (positions.length === 0 || mora.length === 0) return null;
 
   const MORA_GAP = 30;
-  const DOT_R = 4;
+  const DOT_R = 4.5;
   const HIGH_Y = DOT_R + 2;
   const LOW_Y = HIGH_Y + 16;
   const SVG_H = LOW_Y + DOT_R + 2;
-  const MORA_PX = 14;
+  const MORA_PX = 10;
   const PAD = DOT_R + 2;
 
   return (
@@ -53,24 +56,12 @@ export function PitchAccent({
         const svgWidth = PAD * 2 + (points.length - 1) * MORA_GAP;
 
         return (
-          <div
-            key={`${pos}-${i}`}
-            className="inline-flex items-center gap-2 text-(--ink-2)"
-            aria-label={`Pitch accent ${pos}`}
-          >
+          <div key={`${pos}-${i}`} className="inline-flex items-center gap-2" aria-label={`Pitch accent ${pos}`}>
             {positions.length > 1 && (
-              <span className="min-w-3.5 font-[family-name:var(--face-mono)] text-[10px] text-(--ink-3)">
-                {pos}
-              </span>
+              <span className="min-w-3.5 font-[family-name:var(--face-mono)] text-[10px] text-(--ink-3)">{pos}</span>
             )}
             <div className="inline-flex flex-col items-start">
-              <svg
-                width={svgWidth}
-                height={SVG_H}
-                viewBox={`0 0 ${svgWidth} ${SVG_H}`}
-                role="img"
-                aria-hidden
-              >
+              <svg width={svgWidth} height={SVG_H} viewBox={`0 0 ${svgWidth} ${SVG_H}`} role="img" aria-hidden>
                 {/* Segments first so the dots sit on top of them. */}
                 {points.slice(0, -1).map((p, idx) => {
                   const next = points[idx + 1]!;
@@ -81,7 +72,8 @@ export function PitchAccent({
                       y1={p.y}
                       x2={next.x}
                       y2={next.y}
-                      stroke="currentColor"
+                      stroke="var(--accent)"
+                      strokeOpacity={0.5}
                       strokeWidth={1.5}
                       strokeLinecap="round"
                       strokeDasharray={p.ghost || next.ghost ? '3 3' : undefined}
@@ -94,9 +86,9 @@ export function PitchAccent({
                     cx={p.x}
                     cy={p.y}
                     r={DOT_R}
-                    stroke="currentColor"
+                    stroke="var(--accent-mid)"
                     strokeWidth={1.5}
-                    fill={p.ghost ? 'transparent' : 'currentColor'}
+                    fill={p.ghost ? 'transparent' : 'var(--accent-mid)'}
                   />
                 ))}
               </svg>
@@ -106,7 +98,7 @@ export function PitchAccent({
                 {mora.map((m, idx) => (
                   <span
                     key={`t-${idx}`}
-                    className="absolute -translate-x-1/2 font-[family-name:var(--face-jp)] text-(--ink-2)"
+                    className="absolute -translate-x-1/2 font-[family-name:var(--face-jp)] text-(--ink-3)"
                     style={{
                       left: PAD + idx * MORA_GAP,
                       fontSize: MORA_PX,

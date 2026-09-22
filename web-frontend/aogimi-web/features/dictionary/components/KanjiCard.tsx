@@ -1,48 +1,34 @@
 import { cn } from '@/lib/util/cn';
-import { PANE, PRESS, JlptChip } from '@/shared/components';
+import { JlptChip, PANE, PRESS } from '@/shared/components';
 import type { EntryScale } from '../lib/entryScale';
 import type { KanjiInfo } from '../types';
 
 /**
- * One character in the "Kanji in this word" column.
+ * One character in "KANJI IN THIS WORD" (page 03 → Right pane → 4): an R16
+ * pane, the glyph at 52/700 in the `good` family beside a two-column detail
+ * grid — MEANING · ON · KUN · JLPT labels at 11/700 0.12em `--ink-3`, values
+ * at 12.
  *
- * A fixed mono label column on the left of each value keeps Meaning / On / Kun
- * / JLPT aligned across stacked cards, so the eye reads down a column instead
- * of hunting. Rows with no data are dropped entirely rather than rendered with
- * a dash — an em-dash reads as "this kanji has no kun-yomi", which is a claim,
- * where absence reads as "we don't have it".
+ * A fixed label column keeps the four rows aligned across stacked cards, so
+ * the eye reads down a column instead of hunting. Rows with no data are dropped
+ * entirely rather than rendered with a dash — an em-dash reads as "this kanji
+ * has no kun-yomi", which is a claim, where absence reads as "we don't have it".
  *
- * The label column narrows with `scale` but stays fixed-width within a scale:
- * sizing it to its content would let two stacked cards disagree by a few pixels,
- * which is the one thing this layout exists to prevent.
- *
- * **These are panes, and they are where the glass went.** The rail's rows gave up
- * their panes to read as a list; a kanji card is the opposite — a handful of
- * discrete objects, each a whole character with its readings, which is exactly
- * what a pane is for. So the card is `PANE` when it is display-only and
- * `PANE` + `PRESS` when it jumps to that kanji's entry, replacing
- * a `bg-(--pane)` box inside a `'border-(--hairline)'` border that hovered to an `--accent`
- * edge. Hover is the fill now, here as everywhere.
+ * With `onSelect` the card is a button that jumps to that kanji's entry
+ * (today's behaviour, D10); the spec's "link to a kanji detail" is that.
  */
-const SCALE: Record<EntryScale, { shell: string; glyph: string; label: string; rows: string; ui: string; jp: string }> =
-  {
-    full: {
-      shell: 'gap-4 px-[18px] py-4',
-      glyph: 'text-[54px]',
-      label: 'w-[58px]',
-      rows: 'gap-[7px]',
-      ui: 'text-[16px]',
-      jp: 'text-md',
-    },
-    compact: {
-      shell: 'gap-3 px-3 py-3',
-      glyph: 'text-[38px]',
-      label: 'w-[44px]',
-      rows: 'gap-1.5',
-      ui: 'text-[13px]',
-      jp: 'text-[13px]',
-    },
-  };
+const SCALE: Record<EntryScale, { shell: string; glyph: string; grid: string }> = {
+  full: {
+    shell: 'gap-[22px] px-[22px] py-5',
+    glyph: 'text-[52px]',
+    grid: 'grid-cols-[74px_minmax(0,1fr)]',
+  },
+  compact: {
+    shell: 'gap-4 px-4 py-3.5',
+    glyph: 'text-[40px]',
+    grid: 'grid-cols-[56px_minmax(0,1fr)]',
+  },
+};
 
 export function KanjiCard({
   kanji,
@@ -57,37 +43,28 @@ export function KanjiCard({
   const s = SCALE[scale];
 
   const rows: { label: string; value: string; jp?: boolean }[] = [];
-  if (kanji.meanings.length > 0) {
-    rows.push({ label: 'Meaning', value: kanji.meanings.join(', ') });
-  }
-  if (kanji.on_readings.length > 0) {
-    rows.push({ label: 'On', value: kanji.on_readings.join('、'), jp: true });
-  }
-  if (kanji.kun_readings.length > 0) {
-    rows.push({ label: 'Kun', value: kanji.kun_readings.join('、'), jp: true });
-  }
+  if (kanji.meanings.length > 0) rows.push({ label: 'Meaning', value: kanji.meanings.join('; ') });
+  if (kanji.on_readings.length > 0) rows.push({ label: 'On', value: kanji.on_readings.join('・'), jp: true });
+  if (kanji.kun_readings.length > 0) rows.push({ label: 'Kun', value: kanji.kun_readings.join('・'), jp: true });
 
-  const labelCell = cn(
-    s.label,
-    'shrink-0 font-[family-name:var(--face-mono)] text-[9.5px] tracking-[0.04em] uppercase text-(--ink-3)',
-  );
+  const label = 'font-[family-name:var(--face-ui)] text-[11px] leading-[1.4] font-bold tracking-[0.12em] uppercase text-(--ink-3)';
 
   const body = (
     <>
-      <span className={cn('shrink-0 font-[family-name:var(--face-jp)] leading-none text-(--ink)', s.glyph)}>
+      <span className={cn('shrink-0 font-[family-name:var(--face-jp)] leading-none font-bold text-(--good)', s.glyph)}>
         {kanji.literal}
       </span>
 
-      <div className={cn('flex min-w-0 flex-1 flex-col', s.rows)}>
+      <div className={cn('grid min-w-0 flex-1 gap-x-2 gap-y-2', s.grid)}>
         {rows.map((r) => (
-          <div key={r.label} className="flex gap-2.5">
-            <span className={cn(labelCell, 'pt-0.5')}>{r.label}</span>
+          <div key={r.label} className="contents">
+            <span className={label}>{r.label}</span>
             <span
               className={cn(
-                'min-w-0',
+                'min-w-0 text-[12px] leading-[1.4]',
                 r.jp
-                  ? cn('font-[family-name:var(--face-jp)] text-(--ink-2)', s.jp)
-                  : cn('font-[family-name:var(--face-ui)] text-(--ink)', s.ui),
+                  ? 'font-[family-name:var(--face-jp)] text-(--ink-2)'
+                  : 'font-[family-name:var(--face-ui)] font-medium text-(--ink)',
               )}
             >
               {r.value}
@@ -96,31 +73,31 @@ export function KanjiCard({
         ))}
 
         {kanji.jlpt_level != null && (
-          <div className="flex items-center gap-2.5">
-            <span className={labelCell}>JLPT</span>
-            <JlptChip level={kanji.jlpt_level} />
-          </div>
+          <>
+            <span className={label}>JLPT</span>
+            <span className="flex items-center">
+              <JlptChip level={kanji.jlpt_level} />
+            </span>
+          </>
         )}
       </div>
     </>
   );
 
-  const shell = cn('flex w-full rounded-(--radius-control) text-left', s.shell);
+  const shell = cn(PANE, 'flex w-full items-start rounded-(--radius-tile) text-left shadow-(--shadow-card)', s.shell);
 
-  // No `onSelect` → nothing to click, so it takes the pane without the hover and
-  // the cursor `PANE` would bring.
-  if (!onSelect) {
-    return <div className={cn(PANE, shell)}>{body}</div>;
-  }
+  // No `onSelect` → nothing to click, so it takes the pane without the hover
+  // and the cursor.
+  if (!onSelect) return <div className={shell}>{body}</div>;
 
   return (
     <button
       type="button"
       onClick={() => onSelect(kanji.literal)}
       className={cn(
-        PANE,
-        PRESS,
         shell,
+        PRESS,
+        'cursor-pointer transition-[background-color,transform] duration-120 ease-[ease] hover:bg-(--pane-strong)',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
       )}
     >

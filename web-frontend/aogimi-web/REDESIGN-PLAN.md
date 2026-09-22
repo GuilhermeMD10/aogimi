@@ -111,6 +111,14 @@ string ("6 (6th grade of primary school)") → render it, don't parse a school.
 **Deletes**: `Constellation.tsx` decoration if the spec has no equivalent,
 `GLASS_ROW`/`ROW_LIST`.
 
+**Owner rulings (2026-09-22)** — these outrank the handoff text above: recents
+stay query strings (G4) and a row re-runs the query; bookmark cut (G5);
+suggestion chips are the newest recents, hidden when there are none; the two
+inner scroll containers stay (`flow: fill`), so the result state widens its
+gutter through `FrameOverrideProvider` rather than the route table; `Button`
+gains `variant="good"` for `Add to deck`; the `+` → check after adding is cut;
+`Constellation` deleted. Nothing the app has no data or function for is drawn.
+
 ### 2.4 sky/study — size M
 
 **Pages** 06, 07, 08. **Owns** `features/sky/study/**`, `app/study/page.tsx`.
@@ -281,8 +289,8 @@ without the line.**
 | G1 | `Home` nav item | no page | — | **cut (D2)** |
 | G2 | `Search ⌘K` in the utility pill and on the library/dictionary bars | ⌘K only focuses the dictionary field on `/dictionary` | global keydown in `AppFrame` → open the dictionary `Modal` (dict mode) on any route | **library bar shows `/`** (its real key), not ⌘K (2026-09-21) |
 | G3 | Library grid / list toggle | none | list = the dictionary result-row pattern; persist in `localStorage` | **build** (2026-09-21) — `BookRow`, `aogimi-library-view` |
-| G4 | Recent lookups as entries (kanji · reading · JLPT · gloss) | `useRecentSearches` stores query strings | store a `{ wordId, headword, reading, jlpt, gloss, at }` snapshot on entry open (mobile did this in `dictionaryStorage.ts`); `Clear log` exists | |
-| G5 | Bookmark toggle on recent rows | no saved-words feature | — | |
+| G4 | Recent lookups as entries (kanji · reading · JLPT · gloss) | `useRecentSearches` stores query strings | store a `{ wordId, headword, reading, jlpt, gloss, at }` snapshot on entry open (mobile did this in `dictionaryStorage.ts`); `Clear log` exists | **keep strings** (2026-09-22) — rows show the term + time-ago, a row re-runs the query and the first result opens; `Clear log` built |
+| G5 | Bookmark toggle on recent rows | no saved-words feature | — | **cut** (2026-09-22) |
 | G6 | `● SYNCED` pill on the sky | decks are server-side; no sync state on web | static `SYNCED`, or cut | |
 | G7 | `Stats` pill / modal (`80%` chip) | `/api/stats/{activity,cards,recent-upgrades}` client exists (`study/stats/lib/statsApi.ts`); ledger consumes activity | modal from `StatTile`s + the ledger's mix bar; `80%` = mastered+learned share | |
 | G8 | `14 min` session duration | not tracked | `startedAt` in `useStudySession`, minutes at finish | **cut** (2026-09-21) |
@@ -290,7 +298,7 @@ without the line.**
 | G10 | Context · EN textarea "from the built-in translation"; the study back's English example line | no translation source (DeepL removed) | empty, editable field; or cut the field | **cut** on both (2026-09-21) — no EN field on the reader form either |
 | G11 | Carded word underline in the reader text | engines don't know which words have cards | — (needs a per-book carded-words index) | not built (2026-09-21) |
 | G12 | Reader hotkeys `T , D A`, `Esc` | only Esc/Enter | keydown in `ReaderView`, guarded like `StudyScreen`'s | **deferred by the owner (2026-09-21)** — not wired, so no `Kbd` chips are drawn in the reader (BRIEF §5) |
-| G13 | Footer links `SRS Review Deck · Reader Library · Keyboard Shortcuts`; dictionary footer `Vocabulary SRS · Kanji Radicals · Literature Corpus` | `/sky`, `/`, `/help`; the dictionary three have no destinations | standard footer → `/sky` · `/` · `/help#shortcuts`; dictionary variant → `/sky` · `/dictionary` · `/` or the standard footer | |
+| G13 | Footer links `SRS Review Deck · Reader Library · Keyboard Shortcuts`; dictionary footer `Vocabulary SRS · Kanji Radicals · Literature Corpus` | `/sky`, `/`, `/help`; the dictionary three have no destinations | standard footer → `/sky` · `/` · `/help#shortcuts`; dictionary variant → `/sky` · `/dictionary` · `/` or the standard footer | **cut** — the footer is deleted from every page (D11, 2026-09-22) |
 | G14 | `24-day streak` chip | `daysStudied` + `perDay` from `/api/stats/activity`; no streak | consecutive `perDay` days ending today/yesterday, computed in the nav; hidden at 0 | |
 | G15 | Kanji cards "link to a kanji detail" | exists (`?kanji=`) | — | **no gap** |
 | G16 | Undo, tier upgrades, hardest cards, correct/missed | exist | — | **no gap** |

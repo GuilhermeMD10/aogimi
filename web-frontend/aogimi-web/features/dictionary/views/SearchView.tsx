@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';
+import { useFrameOverride } from '@/features/app-shell/providers/FrameOverrideProvider';
+import { cn } from '@/lib/util/cn';
 import { ResultsRail } from '../components/ResultsRail';
 import { EntryDetail } from '../components/EntryDetail';
 import { KanjiEntryDetail } from '../components/KanjiEntryDetail';
@@ -12,13 +14,22 @@ import type { RailContents } from '../lib/results';
 import type { Selection } from '../types';
 
 /**
- * `/dictionary?q=…` — the results rail beside the selected entry.
+ * `/dictionary?q=…` (page 03) — the results column beside the entry card, on
+ * a `316px minmax(0,1fr)` grid inside the frame's wide gutter.
  *
- * The page itself never scrolls: the rail and the entry are two independent
- * scroll containers, so reading to the end of a long entry doesn't carry the
- * results off screen, and switching entries doesn't lose your place in the
- * list. That's the whole point of the layout — comparing 辞書 against 辞書形 is
- * one keystroke, not two navigations.
+ * At desktop widths the page itself never scrolls: the list and the entry are
+ * two independent scroll containers, so reading to the end of a long entry
+ * doesn't carry the results off screen, and switching entries doesn't lose
+ * your place in the list (owner's call, 2026-09-22 — kept over the handoff's
+ * document flow). Comparing 辞書 against 辞書形 is one keystroke, not two
+ * navigations.
+ *
+ * Below `lg` (~1000px, the spec's breakpoint) the panes stack, list first,
+ * the whole page scrolls as one, and the entry's "‹ back to results" link
+ * appears to scroll the list back into view.
+ *
+ * The frame's row for `/dictionary` is the lookup page's (96px gutters); this
+ * state widens it while mounted.
  */
 export function SearchView({
   query,
@@ -52,93 +63,103 @@ export function SearchView({
   arrowKeyNav?: boolean;
 }) {
   const { requestAddCardFromEntry } = useReaderActions();
+  useFrameOverride({ gutter: 'wide' });
 
   const selectedWord =
     selection?.kind === 'word' ? contents.words.find((w) => w.id === selection.id) : undefined;
   const selectedKanji =
-    selection?.kind === 'kanji'
-      ? contents.kanjiEntries.find((k) => k.literal === selection.literal)
-      : undefined;
+    selection?.kind === 'kanji' ? contents.kanjiEntries.find((k) => k.literal === selection.literal) : undefined;
 
-  const {
-    details,
-    loading: detailsLoading,
-    error: detailsError,
-  } = useWordDetails(selectedWord?.id ?? null);
+  const { details, loading: detailsLoading, error: detailsError } = useWordDetails(selectedWord?.id ?? null);
 
-  // The entry pane is its own scroll container and outlives the entry inside
-  // it, so without this you'd arrow off the bottom of a long entry and land
-  // halfway down the next one.
+  // Two scroll containers — the page (stacked) and the entry card (desktop).
+  // Both outlive the entry inside them, so without this you'd arrow off the
+  // bottom of a long entry and land halfway down the next one.
+  const pageRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<HTMLElement>(null);
   const selectionKey = selection ? `${selection.kind}:${'id' in selection ? selection.id : selection.literal}` : '';
   useEffect(() => {
     paneRef.current?.scrollTo({ top: 0 });
   }, [selectionKey]);
 
-  // ↑/↓ walk the rail, including from inside the search field. See the hook for
+  // Stacked only: the list is above the entry, so "back" is scrolling up.
+  const backToResults = useCallback(() => {
+    pageRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // ↑/↓ walk the list, including from inside the search field. See the hook for
   // why it's opt-in.
   useSelectionKeys({ contents, selection, onSelect, enabled: arrowKeyNav });
 
   return (
-    // Capped and centred on the same 1300px column every other page in the app
-    // uses (Home, /sky, /profile, and this route's own `BeforeSearch`), so the
-    // two panes line up with the rest of the app instead of running to the
-    // viewport edges. The cap sits on the outer row, not the panes: the rail
-    // keeps its fixed 380px and the entry takes what's left of the column.
-    <div className="mx-auto flex h-full w-full max-w-[1300px] font-[family-name:var(--face-ui)] font-medium">
-      <ResultsRail
-        query={query}
-        draft={draft}
-        onDraftChange={onDraftChange}
-        onSubmit={onSubmit}
-        onClear={onClear}
-        contents={contents}
-        selection={selection}
-        onSelect={onSelect}
-        onAddWord={(w) => {
-          // Only borrow the loaded example sentence when it belongs to *this*
-          // row. Adding row 5 while row 1 is open would otherwise stamp row
-          // 1's sentence onto row 5's card.
-          const sentences = details?.word.id === w.id ? details.sentences : undefined;
-          requestAddCardFromEntry(wordCardDraft(w, query, sentences));
-        }}
-        onAddKanji={(k) => requestAddCardFromEntry(kanjiCardDraft(k))}
-        loading={loading}
-        error={error}
-        onRetry={() => onRun(query)}
-      />
+    <div ref={pageRef} className="h-full min-h-0 w-full overflow-y-auto pt-6 pb-10 font-[family-name:var(--face-ui)] lg:overflow-hidden">
+      <div className="grid min-h-0 grid-cols-1 gap-6 lg:h-full lg:grid-cols-[316px_minmax(0,1fr)]">
+        <ResultsRail
+          query={query}
+          draft={draft}
+          onDraftChange={onDraftChange}
+          onSubmit={onSubmit}
+          onClear={onClear}
+          contents={contents}
+          selection={selection}
+          onSelect={onSelect}
+          onAddWord={(w) => {
+            // Only borrow the loaded example sentence when it belongs to *this*
+            // row. Adding row 5 while row 1 is open would otherwise stamp row
+            // 1's sentence onto row 5's card.
+            const sentences = details?.word.id === w.id ? details.sentences : undefined;
+            requestAddCardFromEntry(wordCardDraft(w, query, sentences));
+          }}
+          onAddKanji={(k) => requestAddCardFromEntry(kanjiCardDraft(k))}
+          loading={loading}
+          error={error}
+          onRetry={() => onRun(query)}
+        />
 
-      <main ref={paneRef} className="min-w-0 flex-1 overflow-y-auto pb-[120px]">
-        {selectedKanji && (
-          <KanjiEntryDetail kanji={selectedKanji} onAddCard={requestAddCardFromEntry} />
-        )}
+        {/* The entry card: R28, the `--pane-entry` gradient, the pane edge and
+            the hero shadow. It is the box; the entry inside owns the inset. */}
+        <main
+          ref={paneRef}
+          className={cn(
+            'min-h-0 rounded-(--radius-modal) border border-(--pane-bd) shadow-(--shadow-hero) [background:var(--pane-entry)]',
+            'lg:h-full lg:overflow-y-auto',
+          )}
+        >
+          {selectedKanji && (
+            <KanjiEntryDetail
+              kanji={selectedKanji}
+              onAddCard={requestAddCardFromEntry}
+              onBack={backToResults}
+              backClassName="lg:hidden"
+            />
+          )}
 
-        {selectedWord && (
-          <EntryDetail
-            word={selectedWord}
-            query={query}
-            details={details}
-            detailsLoading={detailsLoading}
-            detailsError={detailsError}
-            onKanjiSelect={onRun}
-            onAddCard={requestAddCardFromEntry}
-          />
-        )}
+          {selectedWord && (
+            <EntryDetail
+              word={selectedWord}
+              query={query}
+              details={details}
+              detailsLoading={detailsLoading}
+              detailsError={detailsError}
+              onKanjiSelect={onRun}
+              onAddCard={requestAddCardFromEntry}
+              onBack={backToResults}
+              backClassName="lg:hidden"
+            />
+          )}
 
-        {/* Nothing selected — either the query found nothing or it's still in
-            flight. The pane keeps the empty page's copy, muted, rather than
-            going white. */}
-        {!selectedKanji && !selectedWord && (
-          <div className="flex h-full flex-col items-center justify-center px-11 text-center">
-            <p className="font-[family-name:var(--face-jp)] text-[26px] tracking-[0.14em] text-(--ink-3)">
-              引いてみる
-            </p>
-            <p className="mt-3 font-[family-name:var(--face-ui)] text-[28px] leading-[1.12] tracking-[-0.015em] text-(--ink-3)">
-              {loading ? 'Looking…' : 'Nothing to show yet.'}
-            </p>
-          </div>
-        )}
-      </main>
+          {/* Nothing selected — either the query found nothing or it's still in
+              flight. The card stays and the content softens. */}
+          {!selectedKanji && !selectedWord && (
+            <div className="flex h-full min-h-[320px] flex-col items-center justify-center px-9 py-12 text-center">
+              <p className="font-[family-name:var(--face-jp)] text-[22px] tracking-[0.14em] text-(--ink-3)">引いてみる</p>
+              <p className="mt-3 text-[22px] leading-[1.2] font-bold tracking-[-0.01em] text-(--ink-3)">
+                {loading ? 'Looking…' : 'Nothing to show yet.'}
+              </p>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
