@@ -25,9 +25,10 @@ list; §5 the baseline.
 | 09 | Reader — word selected | `#web-reader` | Reader | no | 40 | `books/reader` |
 | 10 | Reader — dictionary pop-up | `#web-reader-dictionary` | Reader | no | — | `books/reader/reader-bubble` → `Modal` |
 | 11 | Reader — add card | `#web-reader-addcard` | Reader | no | — | `books/reader/reader-bubble` → `Modal` |
+| — | Auth — Sign In / Sign Up (separate handoff, 2026-09-22) | `#web-signin` · `#web-signup` | none (own bar) | no (D11) | 96 | `auth` |
 
 **No handoff** (D9 re-skin): `/profile` + settings list, `/help`, `/credits`,
-`/authenticate`, `PracticeOverlay`, `PendingCardOverlay`, `NightConfirm`,
+`PracticeOverlay`, `PendingCardOverlay`, `NightConfirm`,
 `OnboardingExplainerModal`, `MobileGate`, the PDF reader chrome, the manga
 reader, the library's `ReimportCard` / `LibraryEmpty` / `FsAccessBanner`.
 
@@ -270,11 +271,10 @@ entries (Theme now four `Segmented`-style chips with per-theme swatches, Sky
 hue unchanged, Help, Credits, Delete account as a `danger` outline); `Help` gains
 a **Keyboard shortcuts** section (the footer's link target, G13) listing
 `⌘K · Space · 1–4 · Z · T , D A · Esc`; `/credits` typography list unchanged
-(D1). `/authenticate`: `HeroCard`-style panel on the canvas, `Button` primary,
-inputs R12 — `validate()` mirror and `AuthProvider` untouched; the force-light
-exception is already gone (Phase 1). **Deletes**: `SkyPanel`'s `SkyBar`, the
-`GLASS_*` usage in `ThemeRow`/`SkyHueRow`, `PaperCard`/`GlassCard` once no caller
-remains.
+(D1). `/authenticate`: **done 2026-09-22 against its own handoff** (Sign In / Sign
+Up, Daybreak Glow) — see the BRIEF §10 ledger row; `validate()` mirror and
+`AuthProvider` untouched. **Deletes**: the `GLASS_*` usage in
+`ThemeRow`/`SkyHueRow`, `PaperCard`/`GlassCard` once no caller remains.
 
 ---
 

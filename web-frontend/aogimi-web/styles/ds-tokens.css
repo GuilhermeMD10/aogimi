@@ -74,6 +74,11 @@
   /* The dictionary entry card (page 03): the 135° gradient from a soft-accent
      corner to translucent white. Night swaps in glass-strength stops. */
   --pane-entry:  linear-gradient(135deg, rgb(var(--accent-soft-rgb) / .32) 0%, rgba(255, 255, 255, .60) 42%, rgba(255, 255, 255, .45) 100%);
+  /* The auth card's brand panel (the 2026-09-22 auth handoff): the 158°
+     gradient behind the mark, headline and pillars — sakura-led on sign in,
+     sky-led on sign up. Night swaps in glass-strength stops. */
+  --pane-auth-login:  linear-gradient(158deg, rgb(var(--accent-soft-rgb) / .62) 0%, rgb(var(--pale-rgb) / .42) 46%, rgb(var(--learn-tint-rgb) / .44) 100%);
+  --pane-auth-signup: linear-gradient(158deg, rgb(var(--learn-tint-rgb) / .50) 0%, rgb(var(--pale-rgb) / .42) 52%, rgb(var(--good-tint-rgb) / .38) 100%);
   /* The one "this is selected" treatment (active nav item, active segment,
      selected chip): soft accent wash + accent ink on the light themes; Night
      flips it to a solid accent fill with dark ink (README → Night mapping). */
@@ -313,6 +318,8 @@ html[data-theme="night"] {
   --pane-nav:    rgba(255, 255, 255, .12);
   --pane-hero:   linear-gradient(112deg, rgba(255, 255, 255, .14) 0%, rgba(255, 255, 255, .07) 52%, rgb(var(--accent-soft-rgb) / .18) 100%);
   --pane-entry:  linear-gradient(135deg, rgb(var(--accent-soft-rgb) / .14) 0%, rgba(255, 255, 255, .08) 42%, rgba(255, 255, 255, .05) 100%);
+  --pane-auth-login:  linear-gradient(158deg, rgb(var(--accent-soft-rgb) / .22) 0%, rgb(var(--pale-rgb) / .10) 46%, rgb(var(--learn-tint-rgb) / .16) 100%);
+  --pane-auth-signup: linear-gradient(158deg, rgb(var(--learn-tint-rgb) / .18) 0%, rgb(var(--pale-rgb) / .10) 52%, rgb(var(--good-tint-rgb) / .14) 100%);
   --pane-bd:     rgba(255, 255, 255, .14);
   --hairline:    rgba(255, 255, 255, .10);
   --scrim:       rgba(15, 14, 30, .55);
