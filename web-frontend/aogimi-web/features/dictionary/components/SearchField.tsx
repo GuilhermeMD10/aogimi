@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
-import { PANE, PRESS } from '@/shared/components';
+import { PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 type Variant = 'hero' | 'rail' | 'sidebar';
@@ -10,13 +10,15 @@ type Variant = 'hero' | 'rail' | 'sidebar';
 type Props = {
   value: string;
   onChange: (next: string) => void;
-  /** Enter, or the search glyph. The only thing that runs a query. */
+  /** Enter, the search glyph, or the hero's `Enter` pill. The only things that
+   *  run a query. */
   onSubmit: () => void;
   /** The ✕ button, and Esc. Empties the field; absent → no ✕ is drawn. */
   onClear?: () => void;
   /**
-   * `hero` is the centred field on the empty page, `rail` the 380px column,
-   * `sidebar` the narrow docked one (320–480px) — between the two in scale.
+   * `hero` is the 58px pill on the lookup page (page 02), `rail` the 48px R14
+   * query field at the top of the results column (page 03), `sidebar` the 48px
+   * R12 field in the reader's modal and docked column (page 10).
    */
   variant: Variant;
   /** Takes the caret on mount. Off by default: a field that mounts inside the
@@ -34,33 +36,38 @@ type Props = {
   'aria-label'?: string;
 };
 
+/** The box. All three are the handoff's white field: `--pane-strong` fill,
+ *  hairline edge; only the hero carries the deeper shadow. */
 const SHELL: Record<Variant, string> = {
-  hero: 'w-full max-w-[620px] gap-[13px] rounded-(--radius-tile) px-[22px] py-[18px]',
-  sidebar: 'w-full gap-2.5 rounded-(--radius-control) px-3 py-2.5',
-  rail: 'w-full gap-[11px] rounded-(--radius-control) px-[15px] py-[13px]',
+  hero: 'h-[58px] w-full max-w-[560px] gap-3 rounded-full pr-3 pl-6 shadow-[0_12px_32px_rgb(var(--line-rgb)/0.08)]',
+  rail: 'h-12 w-full gap-2.5 rounded-(--radius-row) px-4 shadow-(--shadow-pill)',
+  sidebar: 'h-12 w-full gap-2.5 rounded-(--radius-control) px-4',
 };
 
+/** The typed text — the JP face, since the query is usually Japanese and the
+ *  face carries Latin as well. 15/600 → 700 (D1) on the two compact fields. */
 const TEXT: Record<Variant, string> = {
-  hero: 'text-[17px]',
-  sidebar: 'text-[14.5px] font-bold',
-  rail: 'text-base font-bold',
+  hero: 'text-[15px]',
+  rail: 'text-[15px] font-bold',
+  sidebar: 'text-[15px] font-bold',
 };
 
-const GLYPH: Record<Variant, number> = { hero: 22, sidebar: 17, rail: 19 };
+/** The magnifier: `accent` where the field is the page's one accent (the hero,
+ *  the modal), `ink-3` in the results column where the accent is the caption. */
+const GLYPH: Record<Variant, { size: number; className: string }> = {
+  hero: { size: 17, className: 'text-(--accent)' },
+  rail: { size: 15, className: 'text-(--ink-3)' },
+  sidebar: { size: 16, className: 'text-(--accent)' },
+};
 
 /**
  * The one search field, in its three sizes.
  *
- * The empty page, the results rail and the reader's docked column draw the same
- * control at different scales and positions, so they share a component rather
- * than a look. Only the scale is per-variant — all three are the same glass.
- *
- * The shell is `PANE`: fill, blur, the inner glow and a lit top edge,
- * the same material the library's panels are made of. The old `--bd` was
- * transparent and a field with no visible edge isn't a field — the frosted
- * fill and its specular edge answer that without a drawn border, so the field
- * reads as an object rather than as an outline. Both buttons inside it
- * are `PANE`s, so the field's hover and press are the app's.
+ * The lookup page, the results column and the reader's two surfaces draw the
+ * same control at different scales, so they share a component rather than a
+ * look. `shared/components/SearchBar` is the plain shell for filter bars; this
+ * one keeps the dictionary's field logic — explicit submit, clear, Esc, the
+ * page hotkeys and the caret rules — which is why it isn't built on it.
  *
  * Submitting from the prompt swaps one instance for the other — different
  * elements in different layouts, so neither can stay mounted. `autoFocus`
@@ -72,6 +79,9 @@ const GLYPH: Record<Variant, number> = { hero: 22, sidebar: 17, rail: 19 };
  * and should have the keyboard, while in the reader it shares one with an open
  * book, and a field that grabs focus or swallows `/` on mount there is a field
  * that types into the wrong place.
+ *
+ * The hero's trailing `Enter` pill is a real submit control, not a drawn hint
+ * (BRIEF §5: a key on a control must work).
  */
 export function SearchField({
   value,
@@ -85,6 +95,7 @@ export function SearchField({
   'aria-label': ariaLabel = 'Look up a word',
 }: Props) {
   const ref = useRef<HTMLInputElement>(null);
+  const glyph = GLYPH[variant];
 
   // Clearing is a prelude to typing something else, so the caret goes back in
   // the field rather than being left on the ✕ that just disappeared.
@@ -134,12 +145,11 @@ export function SearchField({
         e.preventDefault();
         onSubmit();
       }}
-      className={cn(PANE, 'flex items-center', SHELL[variant])}
+      className={cn('flex items-center border border-(--hairline) bg-(--pane-strong)', SHELL[variant])}
     >
-      {/* A real submit control, not decoration — the glyph is clickable. The
-          only vermilion on this screen besides the brand mark. */}
-      <button type="submit" aria-label="Search" className={cn(PRESS, 'shrink-0 cursor-pointer')}>
-        <Search size={GLYPH[variant]} strokeWidth={1.9} className="stroke-(--accent)" />
+      {/* A real submit control, not decoration — the glyph is clickable. */}
+      <button type="submit" aria-label="Search" className={cn(PRESS, 'shrink-0 cursor-pointer', glyph.className)}>
+        <Search size={glyph.size} strokeWidth={2} aria-hidden />
       </button>
 
       <input
@@ -157,7 +167,7 @@ export function SearchField({
         aria-label={ariaLabel}
         className={cn(
           'w-full min-w-0 bg-transparent caret-(--accent) outline-none',
-          'font-[family-name:var(--face-ui)] text-(--ink) placeholder:text-(--ink-3)',
+          'font-[family-name:var(--face-jp)] text-(--ink) placeholder:text-(--ink-3)',
           // `search` inputs get a UA clear button in WebKit; we draw our own.
           '[&::-webkit-search-cancel-button]:appearance-none',
           TEXT[variant],
@@ -171,15 +181,32 @@ export function SearchField({
           aria-label="Clear search"
           title="Clear (Esc)"
           className={cn(
-            PANE,
             PRESS,
-            'flex size-5 shrink-0 items-center justify-center',
-            'rounded-(--radius-chip) text-(--ink-2)',
+            'flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-(--ink-3)',
+            'transition-[color,transform] duration-120 ease-[ease] hover:text-(--ink)',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
           )}
         >
-          <X size={12} strokeWidth={2.4} />
+          <X size={12} strokeWidth={2.4} aria-hidden />
         </button>
+      )}
+
+      {variant === 'hero' && (
+        <>
+          <span aria-hidden className="h-5 w-px shrink-0 bg-[rgb(var(--line-rgb)/0.1)]" />
+          <button
+            type="submit"
+            className={cn(
+              PRESS,
+              'h-[30px] shrink-0 cursor-pointer rounded-full border border-[rgb(var(--line-rgb)/0.1)] px-3',
+              'font-[family-name:var(--face-ui)] text-[11px] leading-none font-medium text-(--ink-2)',
+              'transition-[background-color,transform] duration-120 ease-[ease] hover:bg-[rgb(var(--line-rgb)/0.04)]',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+            )}
+          >
+            Enter
+          </button>
+        </>
       )}
     </form>
   );

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { ReaderStateProvider, useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
 import { SkyHueProvider } from '@/features/app-shell/providers/SkyHueProvider';
+import { FrameOverrideProvider } from '@/features/app-shell/providers/FrameOverrideProvider';
 import { DictionaryStateProvider } from '@/features/dictionary';
 import { DecksProvider } from '@/features/sky/stage';
 import { AppFrame } from '@/features/app-shell/components/AppFrame';
@@ -37,7 +38,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ReaderStateProvider>
         <DictionaryStateProvider>
           <DecksProvider>
-            <ShellContent framed={!isAuthPage}>{children}</ShellContent>
+            <FrameOverrideProvider>
+              <ShellContent framed={!isAuthPage}>{children}</ShellContent>
+            </FrameOverrideProvider>
           </DecksProvider>
         </DictionaryStateProvider>
       </ReaderStateProvider>
@@ -46,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * `framed` wraps the page in `AppFrame` (nav, gutters, footer). Only the
+ * `framed` wraps the page in `AppFrame` (nav, gutters). Only the
  * signed-out `/authenticate` screen renders bare — every signed-in page, an
  * open book included, gets the frame (D2).
  */

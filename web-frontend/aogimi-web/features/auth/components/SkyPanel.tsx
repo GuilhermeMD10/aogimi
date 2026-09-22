@@ -6,8 +6,8 @@
  * sampling, a Prim minimum spanning tree over the points) — is deferred. For
  * now the panel is its background plus the scrim, and the constellation
  * mounts as an absolutely-positioned child of the same wrapper when it lands.
- * `features/dictionary/components/Constellation.tsx` is a hand-drawn
- * decorative SVG, not a generator, so it isn't the thing to reuse.
+ * (The dictionary once had a hand-drawn decorative `Constellation.tsx`; it was
+ * not a generator, and the 2026-09-22 redesign deleted it.)
  *
  * The colours are hardcoded, not tokenised. This panel is night in BOTH
  * themes — same reasoning as `shared/components/SkyBar.tsx` ("the sky is the

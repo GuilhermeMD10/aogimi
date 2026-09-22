@@ -1,37 +1,34 @@
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/util/cn';
-import { ROW_FOCUS } from './ResultRow';
 
 /**
- * "← Results", above the eyebrow in an entry's hero.
+ * "‹ back to results", on the right of an entry's header row (page 03).
  *
- * Only rendered when a surface passes `onBack`, which `/dictionary` never does:
- * there the rail is on screen the whole time, so there is nowhere to go back
- * *to*. The narrow surfaces swap the list out for the entry, and without this
- * the list would be unreachable.
+ * Only rendered when a surface passes `onBack`. The reader's modal and docked
+ * column show the entry *instead of* their list, so there it is the only way
+ * back. On `/dictionary` the rail is beside the entry at desktop widths and the
+ * link would go nowhere, so the page passes it with `className="lg:hidden"` and
+ * it appears only once the panes stack (below ~1000px), where "back" means
+ * scrolling the list back into view.
  *
- * Sized as a rail row's sibling rather than as a `Button` — it's a way out of
- * the current view, not the entry's action, and the entry already has one
- * filled button. Same bordered-never-filled treatment as the chips it sits
- * above.
+ * 12/600 → 500 (D1) in `--accent`, a 10px chevron.
  */
-export function EntryBack({ onClick }: { onClick: () => void }) {
+export function EntryBack({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'mb-3 inline-flex cursor-pointer items-center gap-1.5 rounded-(--radius-control) border px-2.5 py-1.5',
-        'font-[family-name:var(--face-mono)] text-[10px] tracking-[0.12em] uppercase text-(--ink-3)',
-        'transition-[border-color,color] duration-120 ease-[ease] hover:border-(--accent) hover:text-(--accent)',
-        'border-(--hairline)',
-        ROW_FOCUS,
+        'inline-flex shrink-0 cursor-pointer items-center gap-1 font-[family-name:var(--face-ui)] text-[12px] leading-none font-medium text-(--accent)',
+        'transition-colors duration-120 ease-[ease] hover:text-(--accent-hover)',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+        className,
       )}
     >
-      <ArrowLeft size={12} strokeWidth={2} aria-hidden />
-      Results
+      <ChevronLeft size={10} strokeWidth={2.4} aria-hidden />
+      back to results
     </button>
   );
 }

@@ -1,25 +1,23 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import Link from 'next/link';
-import { cn } from '@/lib/util/cn';
 import { SearchField } from './SearchField';
 import { RailList } from './RailList';
 import type { RailContents } from '../lib/results';
 import type { KanjiInfo, Selection, WordResult } from '../types';
 
 /**
- * The left column of the search page: brand, the field, and `RailList`.
+ * The left pane of the result page (page 03 → Left pane): the query field,
+ * then `RailList` — the caption and the result cards.
  *
- * This is `/dictionary`'s furniture and only that — the 380px width, the edge
- * against the entry pane, the scroll container, the Dock clearance, the brand
- * mark, and the search field that owns the screen's keyboard. The results
+ * This is `/dictionary`'s furniture and only that — the column, the field that
+ * owns the screen's keyboard, and the list's scroll container. The results
  * themselves live in `RailList`, which carries none of it, so the reader's
- * narrower column renders the same list inside its own frame.
+ * surfaces render the same list inside their own frames.
  *
- * Scrolls on its own — the page itself doesn't scroll, so reading down a long
- * entry never carries the results list off screen. `pb-[120px]` clears the
- * fixed `Dock`.
+ * At desktop widths the list scrolls on its own under the fixed field, so
+ * reading down a long entry never carries the results off screen. Below `lg`
+ * the panes stack and the page scrolls as one (see `SearchView`).
  */
 export function ResultsRail({
   query,
@@ -51,40 +49,15 @@ export function ResultsRail({
   error: string | null;
   onRetry: () => void;
 }) {
-  // A new query gets a new list; leaving the rail scrolled where the last one
+  // A new query gets a new list; leaving the list scrolled where the last one
   // ended would hide the top hits.
-  const railRef = useRef<HTMLElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    railRef.current?.scrollTo({ top: 0 });
+    listRef.current?.scrollTo({ top: 0 });
   }, [query]);
 
   return (
-    <aside
-      ref={railRef}
-      className={cn(
-        'flex w-[380px] shrink-0 flex-col overflow-y-auto border-r bg-(--pane) px-[22px] pt-[26px] pb-[120px]',
-        // A structural boundary between two panes, not decoration: without a
-        // line the rail and the entry float in one background with nothing
-        // between them, and unlike a card there's no shadow doing the work.
-        'border-(--hairline)',
-      )}
-    >
-      <Link
-        href="/"
-        aria-label="Aogimi home"
-        className="mb-[18px] flex items-center gap-2.5 transition-opacity duration-120 ease-[ease] hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)"
-      >
-        <span
-          aria-hidden
-          className="flex size-[30px] items-center justify-center rounded-(--radius-chip) bg-(--accent) font-[family-name:var(--face-jp)] text-[17px] text-(--on-accent)"
-        >
-          仰
-        </span>
-        <span className="font-[family-name:var(--face-ui)] text-[18px] font-bold text-(--ink)">
-          aogimi
-        </span>
-      </Link>
-
+    <aside className="flex flex-col gap-1 lg:min-h-0">
       {/* This field owns the screen, so it claims `/`, ⌘K and the caret. Both
           are opt-in per instance — see SearchField. */}
       <SearchField
@@ -97,17 +70,22 @@ export function ResultsRail({
         globalHotkeys
       />
 
-      <RailList
-        query={query}
-        contents={contents}
-        selection={selection}
-        onSelect={onSelect}
-        onAddWord={onAddWord}
-        onAddKanji={onAddKanji}
-        loading={loading}
-        error={error}
-        onRetry={onRetry}
-      />
+      {/* `-mx-1 px-1`: room for the selected card's ring, which would otherwise
+          be clipped by the scroll container's edge. */}
+      <div ref={listRef} className="-mx-1 flex flex-col px-1 pb-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+        <RailList
+          query={query}
+          contents={contents}
+          selection={selection}
+          onSelect={onSelect}
+          onAddWord={onAddWord}
+          onAddKanji={onAddKanji}
+          loading={loading}
+          error={error}
+          onRetry={onRetry}
+          scale="compact"
+        />
+      </div>
     </aside>
   );
 }

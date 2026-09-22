@@ -7,7 +7,7 @@ import { BackIcon, CloseIcon, MoreIcon } from '@/shared/icons';
 import { PANE, PRESS } from './glass';
 import { Kbd } from './Kbd';
 
-type Variant = 'primary' | 'white' | 'icon' | 'danger';
+type Variant = 'primary' | 'white' | 'icon' | 'danger' | 'good';
 type Size = 'sm' | 'md' | 'lg';
 
 type Props = {
@@ -46,6 +46,10 @@ type Props = {
  *   `more` or `close`; anything else goes in `children`.
  * - `danger` — the one destructive affordance: an outline pill in `--danger`
  *   (`DANGER` .35 edge, .12 fill on hover). Delete book, delete account.
+ * - `good` — the "good" family's filled action (page 03's `Add to deck`): R12,
+ *   not a pill, `--good` fill with `--good-glow`, `--on-accent` label so it stays
+ *   legible on Night's light green. Green in Sakura, brown in Kanagawa, blue in
+ *   Clear Sky — the tokens decide.
  *
  * `href` decides the element: a navigation must be an anchor so it prefetches,
  * opens in a new tab on middle-click, and reads as a link to a screen reader.
@@ -109,6 +113,14 @@ export function Button({
               PILL_HEIGHT[size],
               className,
             )
+          : variant === 'good'
+            ? cn(
+                BASE,
+                'gap-2 rounded-(--radius-control) bg-(--good) pr-5 pl-4 text-(--on-accent) shadow-[0_8px_20px_var(--good-glow)]',
+                'hover:brightness-[1.06]',
+                PILL_HEIGHT[size],
+                className,
+              )
         : cn(
             BASE,
             'rounded-full bg-(--accent) text-(--on-accent) shadow-[0_10px_24px_rgb(var(--accent-rgb)/0.3)]',
