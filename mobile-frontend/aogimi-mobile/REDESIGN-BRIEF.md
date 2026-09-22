@@ -13,7 +13,8 @@ Three documents sit beside it:
   known for your feature, and what bugs you close. Read *your* section, not all
   of it. Verify each listed gap against the actual `types.ts` yourself; the
   list was made from a read of the types, not from running the app.
-- **`design-handoff/2026-09-16-foundations/`** — the designs. `DESIGN.md` there
+- **`design-handoff/2026-09-16-foundations/`** — the designs. **Removed 2026-09-22**
+  (every screen it drew has been built; `theme/tokens.ts` holds its values). `DESIGN.md` there
   is the token contract; the `*.dc.html` files are the screens (open in a
   browser with `support.js` beside them).
 - **`REDESIGN.md`** — the older handbook. Its §4 (where code goes), §5 (mobile
