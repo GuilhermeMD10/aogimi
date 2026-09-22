@@ -41,22 +41,17 @@ export type StudySessionConfig = {
 };
 
 /**
- * The deck a session belongs to, as the header draws it: its name plus the
- * spine chip's glyph and colours.
+ * The deck a session belongs to, as the header names it. Null on the two
+ * cross-deck sessions (`/study?due=1`, the practice overlay over the whole
+ * sky), which have no single deck to name and carry their scope instead.
  *
- * Resolved by the caller (`StudyView`) rather than looked up here: the glyph
- * comes from `deckVisuals`, which lives in the *decks* sub-feature, and
- * sub-features don't import each other. Null on the two cross-deck sessions
- * (`/study`, `/study?due=1`), which have no single deck to name.
+ * Resolved by the caller (`StudyView`, `PracticeOverlay`) rather than looked
+ * up here: decks belong to the *stage* sub-feature, and sub-features don't
+ * import each other. The pre-redesign spine chip (glyph + cover colour) is
+ * gone — the handoff draws none.
  */
 export type SessionDeck = {
   name: string;
-  /** Deterministic cover glyph — `deckVisuals(name).kamon`. */
-  kamon: string;
-  /** Cover surface + ink — `deckVisuals(name).color` under `--night-ink`
-   *  (the deck colours are all dark). */
-  surface: string;
-  ink: string;
 };
 
 /** Due-card counts across every deck the user owns.

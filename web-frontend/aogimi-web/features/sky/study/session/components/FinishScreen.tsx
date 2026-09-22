@@ -1,105 +1,119 @@
 'use client';
 
-import { ArrowLeft, RotateCcw } from 'lucide-react';
-import { Button, PAPER_GHOST } from '@/shared/components';
-import { cn } from '@/lib/util/cn';
-import type { SessionSummary } from '../types';
+import { RotateCcw } from 'lucide-react';
+import { Button, HeroCard, ProgressBar, SectionCard, StatTile } from '@/shared/components';
+import type { SessionDeck, SessionSummary } from '../types';
+import { gradeTotals, tierChanges } from '../lib/sessionStats';
 import { BreakdownBar } from './BreakdownBar';
 import { HardestInSessionList } from './HardestInSessionList';
+import { SessionHeader } from './SessionHeader';
 import { StateChangesList } from './StateChangesList';
 
 type Props = {
   summary: SessionSummary;
-  /** The deck's name, or the scope's ("All decks", "Due today"). */
-  label: string;
-  /** The deck's cover glyph. Absent on a cross-deck session, which has none. */
-  kamon?: string;
+  /** Cards the session started with — the hero's `N / N`. */
+  total: number;
+  deck: SessionDeck | null;
+  /** The scope's name when there's no deck ("Due today", "Study ahead"). */
+  scopeLabel?: string;
   onStudyAgain: () => void;
-  onBackToDeck: () => void;
+  onBack: () => void;
 };
 
-/* The banner is this deep purple in both themes, so its three stops and its two
-   inks are hardcoded rather than tokenised — the same call `shared/components/
-   SkyBar` makes and for the same reason: there is one value per slot, and a
-   token would only add a name that always resolves to the same colour.
-   The inks are light-on-dark even in "Ink on paper", so `--ink-2` / `--ink-3`
-   would be exactly backwards here.
-
-   Starless on purpose: fake stars would be the one sky in the app that isn't
-   the real map, and the empty-sky convention on home and the deck card is to
-   wait for it rather than draw a stand-in. */
-const BANNER = 'radial-gradient(130% 175% at 50% -12%, #06081E 15%, #1A1556 56%, #3A2A8C 108%)';
-const BANNER_INK = '#B9BCE8';
-const BANNER_INK_DIM = '#8A8FD0';
+const MONO = 'font-[family-name:var(--face-mono)] text-[11px] leading-none tracking-[0.04em] uppercase text-(--ink-3) tabular-nums';
 
 /**
- * The round is over: the night banner, what got studied, and the two ways out.
+ * The round is over (page 08): header, the summary hero with its two stat
+ * tiles, then Hardest cards and Tier changes side by side, then the mix.
  *
- * Four sections under the count: TIER PROGRESS (promotions *and* demotions),
- * the session mix, and the hardest cards. The mix bar carries the grade
- * breakdown.
+ * `Study again` sits beside the back control (owner, 2026-09-21) — the hero
+ * carries figures, not actions. Not drawn: the session minutes (G8, cut) and
+ * the footer (D11).
  */
-export function FinishScreen({
-  summary,
-  label,
-  kamon,
-  onStudyAgain,
-  onBackToDeck,
-}: Props) {
+export function FinishScreen({ summary, total, deck, scopeLabel, onStudyAgain, onBack }: Props) {
+  const { correct, missed, missedCards, total: grades } = gradeTotals(summary.perCard);
+  const correctPct = grades > 0 ? Math.round((correct / grades) * 100) : 0;
+  const percent = total > 0 ? Math.round((summary.uniqueCards / total) * 100) : 0;
+
+  const changes = tierChanges(summary.perCard);
+  const ups = changes.filter((c) => c.up).length;
+  const downs = changes.length - ups;
+
+  const label = deck?.name ?? scopeLabel ?? 'Study session';
+
   return (
-    <div className="mx-auto w-full max-w-[720px] py-1.5">
-      <section className="overflow-hidden rounded-(--radius-card) border border-(--pane-bd) bg-(--pane) shadow-(--shadow-hero)">
-        <div
-          className="flex h-[158px] flex-col items-center justify-center gap-1.75"
-          style={{ background: BANNER }}
-        >
-          <div
-            className="font-[family-name:var(--face-mono)] text-[11px] tracking-[0.2em] uppercase"
-            style={{ color: BANNER_INK }}
-          >
-            Session complete
+    <div className="flex flex-col gap-7">
+      <SessionHeader
+        kicker={
+          deck ? (
+            <span className="font-[family-name:var(--face-jp)] font-medium tracking-[0.04em] normal-case">{deck.name}</span>
+          ) : (
+            label
+          )
+        }
+        title="Session complete"
+        size="page"
+        onBack={onBack}
+        backLabel="Back to the sky"
+        end={
+          <Button onClick={onStudyAgain} icon={<RotateCcw size={15} strokeWidth={2.2} aria-hidden />}>
+            Study again
+          </Button>
+        }
+      />
+
+      <HeroCard className="flex flex-wrap items-center gap-x-10 gap-y-6">
+        <div className="flex min-w-[260px] flex-1 flex-col gap-3.5">
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="text-[32px] leading-[1.1] font-bold tracking-[-0.02em] text-(--ink)">
+              {summary.uniqueCards} {summary.uniqueCards === 1 ? 'card' : 'cards'} reviewed
+            </span>
+            <span className="text-[12px] leading-none font-bold text-(--accent) tabular-nums">{percent}%</span>
           </div>
-          <div
-            className="max-w-[80%] truncate font-[family-name:var(--face-mono)] text-[10.5px] tracking-[0.08em]"
-            style={{ color: BANNER_INK_DIM }}
-          >
-            {kamon ? `${kamon} · ${label}` : label}
-          </div>
+          <ProgressBar percent={percent} />
+          <span className={MONO}>
+            {label} · {grades} {grades === 1 ? 'grade' : 'grades'} · {summary.uniqueCards} / {total}
+          </span>
         </div>
 
-        <div className="px-8.5 pt-6.5 pb-7.5">
-          <div className="flex items-baseline gap-3">
-            <span className="font-[family-name:var(--face-ui)] text-[52px] leading-none font-bold text-(--ink) tabular-nums">
-              {summary.uniqueCards}
-            </span>
-            <span className="font-[family-name:var(--face-ui)] text-[15px] text-(--ink-3)">
-              {summary.uniqueCards === 1 ? 'card studied' : 'cards studied'}
-            </span>
-          </div>
+        <div className="flex shrink-0 flex-wrap gap-3">
+          <StatTile
+            label="Correct"
+            value={correct}
+            color="var(--grade-good)"
+            meta={`${correctPct}% · good/easy`}
+          />
+          <StatTile
+            label="Missed"
+            value={missed}
+            color="var(--grade-again)"
+            meta={`again · ${missedCards} ${missedCards === 1 ? 'card' : 'cards'}`}
+          />
+        </div>
+      </HeroCard>
 
-          <StateChangesList entries={summary.perCard} />
-          <BreakdownBar entries={summary.perCard} />
+      <div className="grid grid-cols-2 items-start gap-[18px] max-lg:grid-cols-1">
+        <SectionCard title="Hardest cards" meta="This session">
           <HardestInSessionList entries={summary.perCard} />
+        </SectionCard>
+        <SectionCard title="Tier changes" meta={tierMeta(ups, downs)}>
+          <StateChangesList entries={summary.perCard} />
+        </SectionCard>
+      </div>
 
-          <div className="mt-6.5 flex gap-3">
-            <button
-              type="button"
-              onClick={onBackToDeck}
-              className={cn(PAPER_GHOST, 'w-auto flex-1 justify-center py-[13px]')}
-            >
-              <ArrowLeft size={14} strokeWidth={1.8} aria-hidden />
-              Back to deck
-            </button>
-            <Button
-              onClick={onStudyAgain}
-              icon={<RotateCcw size={15} strokeWidth={1.8} aria-hidden />}
-              className="w-auto flex-1 justify-center py-[14px] shadow-[0_8px_20px_rgba(33,56,92,.24)]"
-            >
-              Study again
-            </Button>
-          </div>
-        </div>
-      </section>
+      <SectionCard title="Session mix" meta="Where the cards stand">
+        <BreakdownBar entries={summary.perCard} />
+      </SectionCard>
     </div>
   );
+}
+
+/** The tier card's caption — the spec's `5 stars brighter`, honest about
+ *  demotions: `2 brighter · 1 dimmer` when both happened. */
+function tierMeta(ups: number, downs: number): string {
+  if (ups === 0 && downs === 0) return 'No change';
+  const parts: string[] = [];
+  if (ups > 0) parts.push(`${ups} ${ups === 1 ? 'star' : 'stars'} brighter`);
+  if (downs > 0) parts.push(`${downs} ${downs === 1 ? 'star' : 'stars'} dimmer`);
+  return parts.join(' · ');
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import { PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import type { StudyOutcome } from '../types';
@@ -10,9 +11,12 @@ type Props = {
 };
 
 /**
- * Four tinted tiles, one per FSRS grade, in the four `--grade-*` tokens
- * (`styles/ds-tokens.css`, D6 — fixed in every theme). Tile geometry is the
- * handoff's: bg at .12, border at .4, label in the grade colour.
+ * The grade shelf (page 07): four tiles, one per FSRS grade, in the four
+ * `--grade-*` tokens (`styles/ds-tokens.css`, D6 — fixed in every theme). Tile
+ * geometry is the handoff's: 72 tall, R16, `0 16px 0 20px`, fill at .12 (.18
+ * on hover), edge at .4, the label left in the grade colour and the key
+ * square right. No interval line under the label (owner ruling 2026-09-21,
+ * G17): nothing computes a per-grade projection on web.
  *
  * **Why there are four.** FSRS is fitted on a four-grade distribution in which
  * Good is the dominant success grade. With three buttons there is no neutral
@@ -24,23 +28,21 @@ type Props = {
  * and the logged grade would disagree, poisoning the review log for any future
  * parameter fit. So: four buttons, four grades, no lie.
  *
- * No interval label under the grade (owner ruling 2026-09-21, G17): nothing
- * computes a per-grade projection on web. The slot carries the key instead.
+ * Four equal-weight tiles, deliberately: a filled primary would recommend
+ * itself before the user has graded anything, and the point is an honest
+ * self-assessment.
  */
-const OUTCOMES: { outcome: StudyOutcome; label: string; hint: string; tint: string }[] = [
-  { outcome: 'again', label: 'Again', hint: '1', tint: 'var(--grade-again)' },
-  { outcome: 'hard', label: 'Hard', hint: '2', tint: 'var(--grade-hard)' },
-  { outcome: 'good', label: 'Good', hint: '3', tint: 'var(--grade-good)' },
-  { outcome: 'easy', label: 'Easy', hint: '4', tint: 'var(--grade-easy)' },
+const OUTCOMES: { outcome: StudyOutcome; label: string; key: string; tint: string }[] = [
+  { outcome: 'again', label: 'Again', key: '1', tint: 'var(--grade-again)' },
+  { outcome: 'hard', label: 'Hard', key: '2', tint: 'var(--grade-hard)' },
+  { outcome: 'good', label: 'Good', key: '3', tint: 'var(--grade-good)' },
+  { outcome: 'easy', label: 'Easy', key: '4', tint: 'var(--grade-easy)' },
 ];
 
-// Four equal-weight tiles: same shape, same everything but hue. None of them is
-// a filled primary: a highlighted button recommends itself before the user has
-// graded anything, and the point is an honest self-assessment.
 export function ResultButtons({ onResult, disabled }: Props) {
   return (
-    <div className="mt-5 flex w-full max-w-[860px] gap-3">
-      {OUTCOMES.map(({ outcome, label, hint, tint }) => (
+    <div className="grid w-full max-w-[760px] grid-cols-4 gap-3 max-sm:grid-cols-2">
+      {OUTCOMES.map(({ outcome, label, key, tint }) => (
         <button
           key={outcome}
           type="button"
@@ -48,25 +50,22 @@ export function ResultButtons({ onResult, disabled }: Props) {
           disabled={disabled}
           className={cn(
             PRESS,
-            'flex h-[72px] flex-1 flex-col items-center justify-center gap-[6px] rounded-(--radius-tile) border px-2.5',
-            'font-[family-name:var(--face-ui)] text-[15px] leading-none font-bold',
-            'transition-[background-color,transform] duration-120 ease-[ease]',
-            'disabled:pointer-events-none disabled:opacity-50',
+            'flex h-[72px] items-center justify-between rounded-(--radius-tile) border pr-4 pl-5',
+            'font-[family-name:var(--face-ui)] text-[15px] leading-none font-bold text-(--tint)',
+            'border-[color-mix(in_srgb,var(--tint)_40%,transparent)] bg-[color-mix(in_srgb,var(--tint)_12%,transparent)]',
+            'transition-[background-color,transform] duration-120 ease-[ease] hover:bg-[color-mix(in_srgb,var(--tint)_18%,transparent)]',
+            'disabled:pointer-events-none disabled:opacity-40',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
           )}
-          style={{
-            color: tint,
-            background: `color-mix(in srgb, ${tint} 12%, transparent)`,
-            borderColor: `color-mix(in srgb, ${tint} 40%, transparent)`,
-          }}
+          style={{ '--tint': tint } as CSSProperties}
         >
           {label}
-          <span
-            className="flex size-5 items-center justify-center rounded-(--radius-chip) font-[family-name:var(--face-mono)] text-[10px] font-medium tabular-nums"
-            style={{ background: `color-mix(in srgb, ${tint} 18%, transparent)` }}
+          <kbd
+            aria-hidden
+            className="grid size-7 place-items-center rounded-(--radius-chip) border border-[color-mix(in_srgb,var(--tint)_40%,transparent)] bg-(--pane-strong) font-[family-name:var(--face-mono)] text-[11px] font-bold tabular-nums"
           >
-            {hint}
-          </span>
+            {key}
+          </kbd>
         </button>
       ))}
     </div>

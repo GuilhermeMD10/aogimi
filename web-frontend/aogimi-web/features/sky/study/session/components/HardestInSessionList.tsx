@@ -1,92 +1,47 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import type { CardSessionEntry } from '../types';
-import { Caption } from './Caption';
+import { hardestCards } from '../lib/sessionStats';
+import { CollapsibleRows } from './CollapsibleRows';
+import { SummaryRow } from './SummaryRow';
 
 type Props = {
   entries: CardSessionEntry[];
-  limit?: number;
 };
 
-const DEFAULT_LIMIT = 3;
-
 /**
- * A card qualifies as "hard" without having been missed once its FSRS
- * difficulty passes this, on the **[1, 10]** scale.
+ * Page 08's "Hardest cards": the cards that fought back, three rows then
+ * `N MORE`. The chip on the right is the miss count in the Again grade's
+ * colour (`--grade-again`, D6), and is absent on a card that ranked on
+ * difficulty alone — it was never missed this round, it just arrived hard.
  *
- * 6.0 is just above `D0(Good)` mean-reverted upward a few times and just below
- * `D0(Again)` = 6.41, so it reads as "this card has taken at least one bad
- * grade at some point" without needing the session to contain that grade. The
- * pre-FSRS threshold was 0.5 on a [0.05, 0.95] scale — the same *idea*, not a
- * convertible number.
+ * Nothing qualifying is a result the card states rather than hides: the
+ * shell stays, the content softens.
  */
-const HARD_DIFFICULTY = 6.0;
+export function HardestInSessionList({ entries }: Props) {
+  const ranked = hardestCards(entries);
 
-/**
- * The cards that fought back — top N by Again-count, then by difficulty, so a
- * card nobody missed can still surface if it ended up hard enough.
- *
- * The whole section drops when nothing qualifies: unlike the tier rows, "no
- * hard cards" isn't a result worth a sentence, it's the absence of a problem.
- */
-export function HardestInSessionList({ entries, limit = DEFAULT_LIMIT }: Props) {
-  const ranked = entries
-    .map((e) => ({
-      entry: e,
-      agains: e.outcomes.filter((o) => o === 'again').length,
-      // Null difficulty means the card has no FSRS history at all, which is the
-      // opposite of hard — floor it so it can never rank.
-      difficulty: e.finalDifficulty ?? 0,
-    }))
-    .filter((x) => x.agains > 0 || x.difficulty >= HARD_DIFFICULTY)
-    .sort((a, b) => {
-      if (a.agains !== b.agains) return b.agains - a.agains;
-      return b.difficulty - a.difficulty;
-    })
-    .slice(0, limit);
-
-  if (ranked.length === 0) return null;
+  if (ranked.length === 0) {
+    return <p className="m-0 text-[13px] leading-snug font-medium text-(--ink-3)">Nothing fought back this round.</p>;
+  }
 
   return (
-    <section className="mt-6 border-t border-(--hairline) pt-5.5">
-      <Caption className="mb-3">Hardest this round</Caption>
-
-      <div className="flex flex-col gap-2">
-        {ranked.map(({ entry, agains }) => {
-          // The glosses, not `back`: this row is one truncated line, and `back`
-          // on a dictionary-made card *starts* with the reading — so truncating
-          // it gave a subtitle of kana under a word whose kana was never the
-          // point. Falls back to `back` for cards with no `meanings` (pre-026,
-          // hand-made, mobile), where it is all there is.
-          const subtitle =
-            entry.card.meanings.length > 0
-              ? entry.card.meanings.join(' · ')
-              : entry.card.back;
-
-          return (
-            <div
-              key={entry.card.id}
-              className="flex items-center gap-3.5 rounded-(--radius-control) border border-(--pane-bd) bg-(--pane-strong) px-4 py-2.75"
+    <CollapsibleRows
+      items={ranked}
+      keyOf={(x) => x.entry.card.id}
+      render={({ entry, misses }) => (
+        <SummaryRow card={entry.card}>
+          {misses > 0 && (
+            <span
+              className="rounded-(--radius-chip) border border-[color-mix(in_srgb,var(--tint)_40%,transparent)] bg-[color-mix(in_srgb,var(--tint)_12%,transparent)] px-[9px] py-[3px] font-[family-name:var(--face-ui)] text-[11px] leading-none font-bold tracking-[0.04em] uppercase whitespace-nowrap text-(--tint) tabular-nums"
+              style={{ '--tint': 'var(--grade-again)' } as CSSProperties}
             >
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-[family-name:var(--face-jp)] text-[17px] leading-[1.3] font-bold text-(--ink)">
-                  {entry.card.front}
-                </div>
-                {subtitle.length > 0 && (
-                  <div className="truncate font-[family-name:var(--face-ui)] text-xs text-(--ink-3)">
-                    {subtitle}
-                  </div>
-                )}
-              </div>
-              {agains > 0 && (
-                <span className="shrink-0 rounded-full border border-[rgb(var(--danger-rgb)/0.35)] bg-[rgb(var(--danger-rgb)/0.12)] px-2.5 py-1 font-[family-name:var(--face-mono)] text-[10px] whitespace-nowrap text-(--danger) tabular-nums">
-                  {agains}× missed
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </section>
+              {misses} {misses === 1 ? 'miss' : 'misses'}
+            </span>
+          )}
+        </SummaryRow>
+      )}
+    />
   );
 }

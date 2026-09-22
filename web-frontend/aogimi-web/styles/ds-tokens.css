@@ -49,6 +49,7 @@
   --press:       scale(.97);   /* `.press:active`, over --transition */
   --modal-enter: 200ms;        /* `modal-enter` keyframes in globals.css */
   --fill-anim:   300ms;        /* progress fills */
+  --flip-anim:   300ms;        /* the flashcard's turn; each half-turn is /2 */
 
   /* ── Blur, theme-invariant ───────────────────────────────────────────── */
   --blur-nav:     blur(24px) saturate(160%);
