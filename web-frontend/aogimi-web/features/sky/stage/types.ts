@@ -30,8 +30,10 @@ export interface LastCard {
 /**
  * A card as the sky page holds it — `GET /api/decks/user/:userId/cards?view=sky`'s projection of
  * the row: what a star, a list row and a search hit read, and nothing else. `notes`,
- * `context_sentence`, `reviewed_times` and the FSRS scheduling columns stay on the server until a
- * card is opened, when `CardDetailCard` fetches the full `CardRecord` by id.
+ * `context_sentence`, `reviewed_times` and the FSRS memory columns stay on the server until a
+ * card is opened, when the inspector fetches the full `CardRecord` by id. `next_due_at` is the
+ * one scheduling column shipped: the card list's Due filter and interval cell read it per card,
+ * and the due-counts endpoint only knows per-deck totals.
  *
  * `back` is present only where it is the card's sole gloss source — a pre-026 row whose
  * `meanings` is empty — and `''` everywhere else, since on every other card it is a rendering of
@@ -48,6 +50,7 @@ export type SkyCardRecord = Pick<
   | 'peak_rank'
   | 'stability'
   | 'last_reviewed_at'
+  | 'next_due_at'
   | 'created_at'
   | 'jlpt_level'
   | 'meanings'
@@ -64,6 +67,7 @@ export const toSkyCard = (c: CardRecord): SkyCardRecord => ({
   peak_rank: c.peak_rank,
   stability: c.stability,
   last_reviewed_at: c.last_reviewed_at,
+  next_due_at: c.next_due_at,
   created_at: c.created_at,
   jlpt_level: c.jlpt_level,
   meanings: c.meanings,

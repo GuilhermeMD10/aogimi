@@ -1,23 +1,18 @@
 'use client';
 
-import Link from 'next/link';
-
-import { PANE, PRESS } from '@/shared/components';
-import { cn } from '@/lib/util/cn';
-
-import { NIGHT } from '../lib/nightChrome';
+import { Button } from '@/shared/components';
 
 /**
- * The study entry point, and the whole study flow in one control: it is
- * **"Study N due"** while anything is due, and only becomes **"Study ahead"**
- * once the queue is empty.
+ * The study entry point, and the whole study flow in one control: it is the
+ * primary **"Continue Studying · N DUE"** pill while anything is due, and only
+ * becomes the quiet **"Study ahead"** pill once the queue is empty.
  *
  * That order is the feature, not the styling. Grading a card that isn't due
  * changes nothing — no stability, no rank, no schedule (`session/lib/srs.ts` →
  * `isDue`) — so "Study ahead" leads to a session that cannot earn anything, and
  * offering it while real work is waiting would send people to the one place
- * their effort doesn't count. Hence gold and prominent for the due session,
- * quiet glass and secondary for practice.
+ * their effort doesn't count. Hence the accent pill for the due session, the
+ * white pill for practice.
  *
  * **The `null` count is its own state**, deliberately not folded into "nothing
  * due". `null` means the counts request is still in flight, and treating it as
@@ -25,24 +20,11 @@ import { NIGHT } from '../lib/nightChrome';
  * beat after paint, at the moment someone is most likely to click it. It waits
  * instead, disabled and unlabelled as to count.
  *
- * **Two call sites, one component.** `StageActions` renders it inline at the
- * whole-sky tier (every deck's due, `/study?due=1`); the focused deck's card
- * list panel pins a `block` one at its top (that deck's due,
- * `/study?deck={id}`). The three-way reasoning above is the subtle part and is
- * identical at both, so it lives here rather than twice — the scope is entirely
- * carried by the `due` and `href` the caller hands in.
+ * One component for both tiers of the field header: the whole sky's session
+ * (`/study?due=1`, page 04's `Continue Studying`) and the focused deck's
+ * (`/study?deck={id}`, page 05's `Study Deck Due`). The scope is entirely
+ * carried by the props.
  */
-
-const FOCUS_RING =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
-
-function PlayGlyph() {
-  return (
-    <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M6 4.5l13 7.5-13 7.5z" />
-    </svg>
-  );
-}
 
 type Props = {
   /** The due total for this button's scope. `null` while the request is in flight. */
@@ -51,49 +33,27 @@ type Props = {
   href: string;
   /** Open the practice overlay. The caller decides which cards it drills. */
   onStudyAhead: () => void;
-  /** Fill the container rather than hug the label — the panel-pinned variant. */
-  block?: boolean;
+  /** Page 04's label + `N DUE` pill, or page 05's label + bare count. */
+  scope: 'sky' | 'deck';
 };
 
-export function StudyButton({ due, href, onStudyAhead, block = false }: Props) {
-  const loading = due === null;
-  const hasDue = !loading && due > 0;
+export function StudyButton({ due, href, onStudyAhead, scope }: Props) {
+  const label = scope === 'sky' ? 'Continue Studying' : 'Study Deck Due';
 
-  const shared = cn(
-    'inline-flex items-center gap-[9px] rounded-[11px] px-[18px] text-[13.5px] leading-none font-bold whitespace-nowrap',
-    block ? 'w-full justify-center py-3' : 'py-[11px]',
-    FOCUS_RING,
-  );
-  // The gold variant isn't glass, so it owns its own transform and can spend it
-  // on the hover lift. The quiet variants take `PRESS` instead — glass
-  // already spends its transform on the press nudge.
-  const lift =
-    'transition-transform duration-[180ms] ease-[ease] hover:-translate-y-px motion-reduce:transform-none';
-
-  if (loading) {
+  if (due === null) {
     return (
-      <span
-        aria-hidden
-        className={cn(shared, PANE, 'pointer-events-none opacity-60')}
-        style={{ color: NIGHT.soft }}
-      >
-        <PlayGlyph />
-        Study
-      </span>
+      <Button disabled title="Counting what is due…">
+        {label}
+      </Button>
     );
   }
 
   // Due: a real session, so a real navigation.
-  if (hasDue) {
+  if (due > 0) {
     return (
-      <Link
-        href={href}
-        className={cn(shared, lift)}
-        style={{ background: NIGHT.btn, color: NIGHT.btnInk, boxShadow: '0 8px 20px rgba(0,0,0,.35)' }}
-      >
-        <PlayGlyph />
-        Study {due.toLocaleString()} due
-      </Link>
+      <Button href={href} kbd={scope === 'sky' ? `${due.toLocaleString()} DUE` : due.toLocaleString()}>
+        {label}
+      </Button>
     );
   }
 
@@ -102,15 +62,14 @@ export function StudyButton({ due, href, onStudyAhead, block = false }: Props) {
   // navigate to, and navigating would only throw that inventory away and make
   // the next screen re-fetch it.
   return (
-    <button
-      type="button"
+    <Button
+      variant="white"
+      size="sm"
       onClick={onStudyAhead}
-      className={cn(shared, PANE, PRESS)}
-      style={{ color: NIGHT.soft }}
+      className="shadow-(--field-pill-shadow)"
       title="Nothing is due — practise freely, grades won’t count"
     >
-      <PlayGlyph />
       Study ahead
-    </button>
+    </Button>
   );
 }

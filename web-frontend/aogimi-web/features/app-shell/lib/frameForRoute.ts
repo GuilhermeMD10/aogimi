@@ -47,9 +47,10 @@ export function frameForRoute(pathname: string): FrameConfig {
   // `[bookId]` segment), so this can never match the bare segment.
   if (pathname.startsWith('/reader/')) return { gutter: 'wide', section: 'reader', flow: 'fill', nav: false };
   if (pathname === '/dictionary') return { gutter: 'content', section: 'dictionary', flow: 'fill', nav: true };
-  // The sky scrolls as a document: the Sky field (960/880 tall) with the card
-  // list below it (pages 04/05).
-  if (pathname === '/sky') return { gutter: 'wide', section: 'sky', flow: 'page', nav: true };
+  // The Sky field fills the viewport beside the card list column, which
+  // scrolls inside itself (owner's layout, 2026-09-22 — pages 04/05 drew the
+  // list below a 960px field on a scrolling page).
+  if (pathname === '/sky') return { gutter: 'wide', section: 'sky', flow: 'fill', nav: true };
   if (pathname === '/study') return { gutter: 'content', section: 'sky', flow: 'fill', nav: true };
   return CONTENT_NONE;
 }
