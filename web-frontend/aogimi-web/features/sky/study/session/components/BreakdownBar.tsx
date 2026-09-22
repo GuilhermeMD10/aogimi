@@ -1,62 +1,51 @@
 'use client';
 
 import { stageColor, stageLabel } from '@/shared/components';
-import type { CardState } from '@/features/sky/stage/types';
 import type { CardSessionEntry } from '../types';
-import { Caption } from './Caption';
+import { LADDER, stateCounts } from '../lib/sessionStats';
 
 type Props = {
   entries: CardSessionEntry[];
 };
 
-const LADDER: CardState[] = ['new', 'met', 'learned', 'mastered'];
-
 /**
  * Where the cards stand now the round is over — one segment per tier, laid out
- * new → mastered so progression reads left to right.
+ * new → mastered so progression reads left to right, with a legend under it.
+ * It reads the `stageColor` ramp, so it can't drift a tier from the stars.
+ * A tier nobody reached keeps its legend entry but paints no segment.
  *
- * Same object as the deck ledger's mastery mix, and it reads the same
- * `stageColor` ramp, so the two can't drift a tier apart. A tier nobody reached
- * keeps its legend entry but paints no segment.
+ * The handoff doesn't draw a mix on page 08; the owner kept it (2026-09-21)
+ * as a third section under the two cards.
  */
 export function BreakdownBar({ entries }: Props) {
-  if (entries.length === 0) return null;
-
-  const counts: Record<CardState, number> = { new: 0, met: 0, learned: 0, mastered: 0 };
-  for (const e of entries) counts[e.endState] += 1;
+  const counts = stateCounts(entries);
 
   return (
-    <section className="mt-6 border-t border-(--hairline) pt-5.5">
-      <Caption className="mb-3">Session mix</Caption>
-
-      <div className="flex h-2.25 overflow-hidden rounded-[5px] bg-[rgb(var(--accent-rgb)/0.14)]">
+    <div className="flex flex-col gap-3">
+      <div className="flex h-2 overflow-hidden rounded-full bg-[rgb(var(--accent-rgb)/0.14)]">
         {LADDER.map((state) => (
           <span
             key={state}
             title={stageLabel(state)}
             // flex-grow 0.001 keeps an empty tier out of the bar without
-            // special-casing the layout — the deck ledger's mix bar does the
-            // same thing for the same reason.
+            // special-casing the layout.
             style={{ flex: counts[state] || 0.001, background: stageColor(state) }}
           />
         ))}
       </div>
 
-      <div className="mt-2.25 flex flex-wrap gap-4">
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
         {LADDER.map((state) => (
           <span
             key={state}
-            className="inline-flex items-center gap-1.5 font-[family-name:var(--face-mono)] text-[9.5px] whitespace-nowrap text-(--ink-3)"
+            className="inline-flex items-center gap-1.5 font-[family-name:var(--face-ui)] text-[12px] leading-none font-medium whitespace-nowrap text-(--ink-2)"
           >
-            <span
-              aria-hidden
-              className="size-2 shrink-0 rounded-full"
-              style={{ background: stageColor(state) }}
-            />
-            {stageLabel(state)} <b className="text-(--ink) tabular-nums">{counts[state]}</b>
+            <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: stageColor(state) }} />
+            {stageLabel(state)}
+            <span className="font-bold text-(--ink) tabular-nums">{counts[state]}</span>
           </span>
         ))}
       </div>
-    </section>
+    </div>
   );
 }

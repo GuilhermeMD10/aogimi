@@ -143,3 +143,22 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* The flashcard's flip (pages 06 → 07): two quarter-turns about Y, the face
+   swapped at the invisible midpoint. Each half runs `--flip-anim / 2`; `useFlip` (study)
+   drives the two phases and swaps in `fade-out` / `fade-in` under
+   `prefers-reduced-motion`. */
+@keyframes flip-out {
+  from { transform: perspective(1400px) rotateY(0); }
+  to { transform: perspective(1400px) rotateY(90deg); }
+}
+
+@keyframes flip-in {
+  from { transform: perspective(1400px) rotateY(-90deg); }
+  to { transform: perspective(1400px) rotateY(0); }
+}

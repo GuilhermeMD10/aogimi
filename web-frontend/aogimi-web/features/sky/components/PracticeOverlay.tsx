@@ -5,7 +5,6 @@ import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import type { CardRecord } from '../stage/types';
 import { getDeckCards, getUserDecksWithCards } from '../stage/lib/decksApi';
-import { deckVisuals } from '../stage/lib/deckVisuals';
 import { StudyScreen } from '../study/session';
 import type { SessionDeck } from '../study/session/types';
 
@@ -73,13 +72,7 @@ export function PracticeOverlay({ open, deckId, deckName, onClose }: Props) {
     { enabled: open },
   );
 
-  const deck: SessionDeck | null = useMemo(
-    () =>
-      deckName
-        ? { name: deckName, kamon: deckVisuals(deckName).kamon, surface: deckVisuals(deckName).color, ink: 'var(--night-ink)' }
-        : null,
-    [deckName],
-  );
+  const deck: SessionDeck | null = useMemo(() => (deckName ? { name: deckName } : null), [deckName]);
 
   // The card list is the session's identity: `useStudySession` re-seeds when
   // this reference changes, so a stable one is what stops the queue reshuffling
@@ -98,10 +91,11 @@ export function PracticeOverlay({ open, deckId, deckName, onClose }: Props) {
       // modal surface, and the page behind it (which scrolls) is not
       // interactive while it's up.
       className="fixed inset-0 z-50 overflow-hidden"
-      // Opaque, and the app's own night rather than a stage constant: the study
-      // runner is ordinary token-driven chrome (it is the same component `/study`
-      // renders), so it needs the page canvas under it, not the sky.
-      style={{ background: 'var(--field-bg)' }}
+      // Opaque, and the page canvas rather than the Sky field: the study runner
+      // is ordinary token-driven chrome (it is the same component `/study`
+      // renders), so it needs `--canvas` under it — on the light themes the
+      // field's indigo would put dark ink on a dark ground.
+      style={{ background: 'var(--canvas)' }}
       role="dialog"
       aria-modal="true"
       aria-label={deckName ? `Practising ${deckName}` : 'Practising'}
@@ -122,7 +116,11 @@ export function PracticeOverlay({ open, deckId, deckName, onClose }: Props) {
           )}
         </div>
       ) : (
-        <StudyScreen source={source} deck={deck} scopeLabel="Study ahead" onExit={onClose} />
+        // The same column `AppFrame` gives `/study` (content gutter, 1980 cap),
+        // so the runner is the same width here as on its route.
+        <div className="mx-auto h-full w-full max-w-[1980px] px-24">
+          <StudyScreen source={source} deck={deck} scopeLabel="Study ahead" onExit={onClose} />
+        </div>
       )}
     </div>
   );

@@ -35,10 +35,11 @@ export type { Stage } from './StageDot';
 
 // ── Surfaces ────────────────────────────────────────────────────────────────
 export { HeroCard } from './HeroCard';
+export { SectionCard } from './SectionCard';
+export { StatTile } from './StatTile';
 export { CoverTile } from './CoverTile';
 export type { CoverColors } from './CoverTile';
 export { Skeleton } from './Skeleton';
-export { SkyBar } from './SkyBar';
 export { PANE, PANE_NAV, PANE_MODAL, PRESS, ACTIVE } from './glass';
 
 // Outgoing — re-tokened in Phase 1, deleted with their callers' sessions
