@@ -89,9 +89,9 @@
   /* ── The Sky field — fixed in every theme ────────────────────────────────
      The dark star-map panel on /sky (pages 04/05). It is night under every
      theme, so it does not read the canvas tokens; everything drawn around and
-     over the frozen map (features/sky/map) reads this block. Replaces
-     features/sky/stage/lib/nightChrome.ts, whose consumers move here in the
-     sky/stage session. */
+     over the frozen map (features/sky/map) reads this block — the field's
+     edge and gradients, the inspector panel, the glass buttons inside it. The
+     header's white pills are `.pane`, so Night turns them to glass. */
   --field-bg:           linear-gradient(180deg, #1A1633 0%, #0F0E1E 100%);
   --field-bg-deck:      linear-gradient(180deg, #181432 0%, #0D0C1C 100%);
   --field-aurora:       rgba(90, 120, 200, .28);
@@ -101,6 +101,7 @@
   --field-node-bd:      rgba(255, 255, 255, .14);
   --field-node-shadow:  inset 0 1px 0 rgba(255, 255, 255, .22), 0 8px 32px rgba(0, 0, 0, .35);
   --field-panel:        rgba(22, 19, 42, .74);
+  --field-panel-bd:     rgba(255, 255, 255, .18);
   --field-panel-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 20px 50px rgba(0, 0, 0, .45);
   --field-blur:         blur(28px) saturate(160%);
   --field-pill-shadow:  0 6px 18px rgba(0, 0, 0, .25);

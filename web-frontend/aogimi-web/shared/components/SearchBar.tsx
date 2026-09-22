@@ -11,9 +11,10 @@ type Props = {
   /** Enter. Optional: a filter-as-you-type bar has nothing to submit. */
   onSubmit?: () => void;
   placeholder?: string;
-  /** `md` is the 48px bar (library, sky); `hero` the 58px one on page 02 with
-   *  the accent magnifier and the deeper shadow. */
-  size?: 'md' | 'hero';
+  /** `sm` is the 44px filter pill (the sky's card list); `md` the 48px bar
+   *  (library); `hero` the 58px one on page 02 with the accent magnifier and
+   *  the deeper shadow. */
+  size?: 'sm' | 'md' | 'hero';
   /** Trailing chip — a `Kbd`, or the `Enter` pill. A drawn key must work. */
   trailing?: ReactNode;
   inputRef?: RefObject<HTMLInputElement | null>;
@@ -50,7 +51,11 @@ export function SearchBar({
       className={cn(
         PANE,
         'flex items-center gap-2.5 rounded-full',
-        hero ? 'h-[58px] pr-2.5 pl-[22px] shadow-[0_12px_32px_rgb(var(--line-rgb)/0.08)]' : 'h-12 pr-2 pl-[18px]',
+        hero
+          ? 'h-[58px] pr-2.5 pl-[22px] shadow-[0_12px_32px_rgb(var(--line-rgb)/0.08)]'
+          : size === 'sm'
+            ? 'h-11 pr-1.5 pl-4'
+            : 'h-12 pr-2 pl-[18px]',
         className,
       )}
     >
@@ -71,7 +76,7 @@ export function SearchBar({
           'min-w-0 flex-1 bg-transparent caret-(--accent) outline-none',
           'font-[family-name:var(--face-ui)] font-medium text-(--ink) placeholder:text-(--ink-3)',
           '[&::-webkit-search-cancel-button]:appearance-none',
-          hero ? 'text-[15px]' : 'text-[14px]',
+          hero ? 'text-[15px]' : size === 'sm' ? 'text-[13px]' : 'text-[14px]',
         )}
       />
       {trailing}
