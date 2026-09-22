@@ -46,7 +46,7 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
                 This book couldn&apos;t be loaded: {error}
               </p>
             ) : (
-              <p className="text-[13.5px] text-(--muted)">Opening&hellip;</p>
+              <p className="text-[13.5px] text-(--ink-3)">Opening&hellip;</p>
             )}
           </div>
         )}
@@ -60,6 +60,7 @@ export function TextReaderBody({ engine, onLookup, onAddCard }: TextReaderBodyPr
             ref={ctxMenuRef}
             x={ctxMenu.x}
             y={ctxMenu.y}
+            text={selectedText}
             onLookup={() => onLookup(selectedText, contextSentence)}
             onAddCard={() => onAddCard(selectedText, contextSentence)}
             onClose={() => setCtxMenu(null)}

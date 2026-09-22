@@ -40,7 +40,7 @@ export default function OnboardingExplainer({ onDismiss }: OnboardingExplainerPr
     <div className="flex min-h-full items-center justify-center p-8 font-[family-name:var(--face-ui)]">
       <div className="w-full max-w-md">
         <div className="mx-auto mb-6 flex h-24 items-center justify-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-(--radius-card) border border-(--paper-bd) bg-(--paper-tile)">
+          <div className="flex h-14 w-14 items-center justify-center rounded-(--radius-tile) border border-(--pane-bd) bg-(--pane-strong)">
             <BookOpen size={24} strokeWidth={1.7} className="text-(--accent)" />
           </div>
         </div>
@@ -48,7 +48,7 @@ export default function OnboardingExplainer({ onDismiss }: OnboardingExplainerPr
         <h1 className="mb-1.5 text-center text-[21px] leading-tight font-bold tracking-[-0.01em] text-(--ink)">
           Your library syncs. Your files stay yours.
         </h1>
-        <p className="mb-8 text-center text-[13px] text-(--muted)">
+        <p className="mb-8 text-center text-[13px] text-(--ink-3)">
           Here’s how Aogimi handles your books.
         </p>
 
@@ -56,14 +56,14 @@ export default function OnboardingExplainer({ onDismiss }: OnboardingExplainerPr
           {POINTS.map(({ icon: Icon, title, body }) => (
             <div
               key={title}
-              className="flex gap-3.5 rounded-(--radius-input) border border-(--paper-bd) px-4 py-3.5"
+              className="flex gap-3.5 rounded-(--radius-control) border border-(--pane-bd) px-4 py-3.5"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-(--radius-tile) bg-(--paper-tile)">
-                <Icon size={16} strokeWidth={1.8} className="text-(--muted)" />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-(--radius-chip) bg-(--pane-strong)">
+                <Icon size={16} strokeWidth={1.8} className="text-(--ink-3)" />
               </div>
               <div>
                 <div className="mb-0.5 text-[13.5px] font-bold text-(--ink)">{title}</div>
-                <div className="text-[12.5px] leading-relaxed text-(--soft)">{body}</div>
+                <div className="text-[12.5px] leading-relaxed text-(--ink-2)">{body}</div>
               </div>
             </div>
           ))}

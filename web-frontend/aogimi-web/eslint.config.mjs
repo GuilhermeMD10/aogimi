@@ -47,6 +47,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored third-party ES modules (foliate-js) served from /public.
     "public/foliate-js/**",
+    // Design handoffs: HTML canvases + their runtime, not app code.
+    "design-handoff/**",
   ]),
 ]);
 

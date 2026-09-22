@@ -7,7 +7,7 @@ import { useDictionaryState } from '@/features/dictionary/providers/DictionarySt
 import type { CardDraft } from '@/features/sky/stage';
 
 // Routes where the dictionary surface is *always* visible; lookups skip the
-// floating bubble and just feed the visible surface. An open book is
+// modal and just feed the visible surface. An open book is
 // conditional on the sidekick being docked — see `isDictSurfaceVisible`.
 const ALWAYS_DICT_VISIBLE_ROUTES = new Set(['/dictionary']);
 
@@ -16,8 +16,8 @@ function isDictSurfaceVisible(pathname: string, sidekickOpen: boolean): boolean 
   // A prefix test, not equality: the reader is `/reader/<bookId>`, and bare
   // `/reader` is just that route's parent segment with no page behind it. The
   // sidekick only exists inside a book, so the prefix is what has to match —
-  // otherwise every in-book lookup would pop the floating bubble over the
-  // docked panel that was already showing it.
+  // otherwise every in-book lookup would pop the modal over the docked panel
+  // that was already showing it.
   if (pathname.startsWith('/reader/') && sidekickOpen) return true;
   return false;
 }
@@ -32,30 +32,30 @@ function isDictSurfaceVisible(pathname: string, sidekickOpen: boolean): boolean 
 export function useReaderActions() {
   const pathname = usePathname();
   const dict = useDictionaryState();
-  const { setReaderBubble, setPendingCard, sidekickOpen } = useReaderState();
+  const { setReaderModal, setPendingCard, sidekickOpen } = useReaderState();
 
   const requestDictLookup = useCallback(
     (word: string, contextSentence?: string) => {
       void dict.runSearch(word, contextSentence);
       if (!isDictSurfaceVisible(pathname, sidekickOpen)) {
-        setReaderBubble({ mode: 'dict' });
+        setReaderModal({ mode: 'dict' });
       }
     },
-    [dict, pathname, sidekickOpen, setReaderBubble],
+    [dict, pathname, sidekickOpen, setReaderModal],
   );
 
-  // The one thing both add-card entry points share: open the bubble and seed
+  // The one thing both add-card entry points share: open the modal and seed
   // the /sky hand-off with the same payload.
   const openAddCard = useCallback(
     (word: string, draft: CardDraft | null, contextSentence?: string) => {
-      // Always open the bubble — the decks page consumes pendingCard
+      // Always open the modal — the decks page consumes pendingCard
       // independently if mounted; both consumers are intentional.
-      setReaderBubble({
+      setReaderModal({
         mode: 'addCard',
         word,
         draft,
         contextSentence,
-        // When a dictionary surface is already showing, the bubble must not
+        // When a dictionary surface is already showing, the modal must not
         // run its own lookup: the two share one `DictionaryStateProvider`, so
         // it would replace the query and results the surface behind it is
         // rendering — on /dictionary that empties the rail and drops the
@@ -64,13 +64,13 @@ export function useReaderActions() {
       });
       setPendingCard({ word, draft, contextSentence });
     },
-    [setReaderBubble, setPendingCard, pathname, sidekickOpen],
+    [setReaderModal, setPendingCard, pathname, sidekickOpen],
   );
 
   /**
    * Add a card from a dictionary entry — the rail's row buttons and both
-   * detail panes. The draft is complete at click time, so the bubble opens
-   * straight onto deck selection with every field already known.
+   * detail panes. The draft is complete at click time, so the modal opens
+   * with every field already known.
    */
   const requestAddCardFromEntry = useCallback(
     // The draft's own `contextSentence` has already been resolved against the

@@ -1,454 +1,358 @@
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   AOGIMI DESIGN TOKENS
-   The one palette. Two themes — `light` ("Ink on paper") and `dark`
-   ("Midnight") — selected by `html[data-theme]`.
+   AOGIMI DESIGN TOKENS — 2026-09 web redesign
+   One palette, four themes, selected by `html[data-theme]`:
+     sakura    Sakura Daybreak (default) · "Daybreak Glow"
+     kanagawa  Kanagawa Wave
+     clear     Clear Sky
+     night     Night · Sakura Yozora
 
-   Components read these directly: `text-(--ink)`, `bg-(--paper)`,
-   `font-[family-name:var(--face-ui)]`. They are deliberately NOT mirrored into
-   globals.css's `@theme` block: an alias is a second name for one value and
-   something that has to be kept in step. `@theme` holds only what Tailwind
-   itself must know — the `rounded-*` scale, and the shadcn color namespace the
-   two surviving shadcn components paint with.
+   A theme is EXACTLY one block below plus one entry in `THEMES`
+   (features/app-shell/providers/ThemeProvider.tsx). Adding or removing a
+   variant is that block + that entry and nothing else — no per-theme code, no
+   per-theme classes, no `dark:`.
 
-   The type roles stay `--face-*` rather than `--font-*`: `--font-switzer` and
-   `--font-noto-sans-jp` are what `next/font` emits in app/layout.tsx, so a
-   `--font-ui` next to them reads as another next/font variable when it is a
-   role.
+   Naming (design-handoff/2026-09-21-web/README.md → Design tokens):
+     lowercase handoff names are colours          → `--ink`, `--accent`
+     UPPERCASE handoff names are RGB triples      → `--line-rgb: 14 19 38`
+       used as `rgb(var(--line-rgb) / 0.06)`; Tailwind reads either directly:
+       `text-(--ink)`, `bg-[rgb(var(--line-rgb)/0.06)]`.
+   Nothing here is mirrored into Tailwind's `@theme` — components read tokens.
+
+   `:root` holds what is fixed in every theme, plus the *line-derived* defaults
+   (hairline, scrim, shadows, selected state, pane tiers) that the three light
+   themes share; Night is the one block that overrides them.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-/* ── Theme-invariant ─────────────────────────────────────────────────────── */
-
 :root {
-  /* Vermilion seal. The accent, used in exactly two places on this design:
-     the brand tile and the dictionary search glyph. Identical in both themes. */
-  --accent:            #c2452c;
-  --accent-ink:        #f6ead0;
+  /* ── Type roles ──────────────────────────────────────────────────────────
+     Both families load in app/layout.tsx via next/font, which emits the
+     `--font-*` variables these read. `--face-mono` is Switzer on purpose (the
+     audition's call); nothing loads a monospace file. Neither family ships a
+     600 or 800 cut: 600 → 700 at 15px and above, 600 → 500 below; 800 → 700. */
+  --face-jp:   var(--font-noto-sans-jp), 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  --face-ui:   var(--font-switzer), system-ui, sans-serif;
+  --face-mono: var(--font-switzer), system-ui, sans-serif;
 
-  /* ── Active / selected ───────────────────────────────────────────────────
-     ONE colour for "this is the selected one", app-wide — one answer instead
-     of three competing ones: `--btn` (which is #141414 on paper and #f2f1ee
-     at night, so "selected" would be black on one theme and white on the
-     other), a `--gold` edge, or shadcn's `bg-primary`.
+  /* ── Radii, as roles ─────────────────────────────────────────────────── */
+  --radius-chip:      6px;   /* level/state chips, kbd chips */
+  --radius-control:  12px;   /* inputs, menu rows, small buttons */
+  --radius-row:      14px;   /* list rows, result cards, covers */
+  --radius-tile:     16px;   /* stat tiles, kanji cards, grade tiles */
+  --radius-card:     20px;   /* section cards */
+  --radius-hero:     24px;   /* hero cards, the sky's side panel */
+  --radius-modal:    28px;   /* modals */
+  --radius-flashcard: 36px;  /* the study flashcard */
+  /* pills are `rounded-full`; circles are `rounded-full` on a square box */
 
-     Theme-invariant, like --accent and for the same reason: a selection marker
-     that changes hue with the theme stops being a marker and starts being
-     decoration. It is a pale tint carrying dark ink in both themes, which also
-     means --active-ink is NOT --btn-ink — it does not flip.
+  /* ── Motion ──────────────────────────────────────────────────────────── */
+  --transition:  120ms ease;   /* the one hover/press duration */
+  --press:       scale(.97);   /* `.press:active`, over --transition */
+  --modal-enter: 200ms;        /* `modal-enter` keyframes in globals.css */
+  --fill-anim:   300ms;        /* progress fills */
 
-     Stated as a solid colour, not as an alpha. Opaque surfaces use it as-is;
-     glass derives the tint it wants with color-mix (see --glass-active-fill in
-     glass.css, which is this at 65%). One name, one hue, two densities. */
-  --active:            #f2e2fd;
-  --active-ink:        #141414;
+  /* ── Blur, theme-invariant ───────────────────────────────────────────── */
+  --blur-nav:     blur(24px) saturate(160%);
+  --blur-modal:   blur(40px) saturate(200%);
+  --blur-toolbar: blur(32px) saturate(180%);
 
-  /* Book / deck cover surfaces. Same in both themes — a cover is a printed
-     object, it doesn't re-dye itself at night. Only the progress strip
-     (--covtrack) has to adapt, since it sits ON the cover. */
-  --cover-1:           #21385c;
-  --cover-1-ink:       #e7dcc2;
-  --cover-2:           #6B2A5E;
-  --cover-2-ink:       #F6E2EF;
-  --cover-3:           #4E8088;
-  --cover-3-ink:       #f0ead0;
-  --cover-4:           #2d5a4a;
-  --cover-4-ink:       #e9f6f1;
-  --cover-shadow:      0 10px 22px rgba(0, 0, 0, .24);
+  /* ── Line-derived defaults (the three light themes share these) ──────── */
+  --hairline:       rgb(var(--line-rgb) / .06);
+  --scrim:          rgb(var(--line-rgb) / .25);
+  --shadow-pill:    0 6px 18px rgb(var(--line-rgb) / .05);
+  --shadow-card:    0 8px 24px rgb(var(--line-rgb) / .06);
+  --shadow-hero:    0 16px 40px rgb(var(--line-rgb) / .08);
+  --shadow-modal:   0 30px 80px rgb(var(--line-rgb) / .25);
+  --shadow-toolbar: 0 12px 32px rgb(var(--line-rgb) / .14);
+  /* Panes: the handoff's whites. Night swaps in its glass tiers. */
+  --pane:        rgba(255, 255, 255, .86);
+  --pane-strong: rgba(255, 255, 255, .96);
+  --pane-nav:    rgba(255, 255, 255, .50);
+  --pane-footer: rgba(255, 255, 255, .35);
+  --pane-bd:     rgba(255, 255, 255, .80);
+  /* The hero card / flashcard fill: the README's 112° gradient, white to a
+     soft-accent corner. Night's block swaps in glass-strength stops. */
+  --pane-hero:   linear-gradient(112deg, rgba(255, 255, 255, .94) 0%, rgba(255, 255, 255, .82) 52%, rgb(var(--accent-soft-rgb) / .45) 100%);
+  /* The one "this is selected" treatment (active nav item, active segment,
+     selected chip): soft accent wash + accent ink on the light themes; Night
+     flips it to a solid accent fill with dark ink (README → Night mapping). */
+  --selected:     rgb(var(--accent-soft-rgb) / .42);
+  --selected-ink: var(--accent);
+  --on-accent:    #ffffff;
 
-  /* Mastery ladder — the fallback ramp only.
-     The live values come from the `html[data-sky-hue="…"]` blocks at the bottom
-     of this file: the ladder follows the reader's sky hue preset, in both
-     themes, so a star and its rank pill are the same colour. This copy is the
-     `default` preset, and it is what SSR and the first paint use before the
-     pre-paint script has stamped the attribute (`:root` is one specificity step
-     below `html[…]`, so any preset block wins over it). Nothing else should
-     override these — `--stage-mastered` deliberately has no per-theme value. */
-  --stage-new:         #7E78E0;
-  --stage-met:         #A98BFF;
-  --stage-learned:     #FF7AC4;
-  --stage-mastered:    #F4DC82;
+  /* ── The Sky field — fixed in every theme ────────────────────────────────
+     The dark star-map panel on /sky (pages 04/05). It is night under every
+     theme, so it does not read the canvas tokens; everything drawn around and
+     over the frozen map (features/sky/map) reads this block. Replaces
+     features/sky/stage/lib/nightChrome.ts, whose consumers move here in the
+     sky/stage session. */
+  --field-bg:           linear-gradient(180deg, #1A1633 0%, #0F0E1E 100%);
+  --field-bg-deck:      linear-gradient(180deg, #181432 0%, #0D0C1C 100%);
+  --field-aurora:       rgba(90, 120, 200, .28);
+  --field-bd:           rgba(255, 255, 255, .14);
+  --field-shadow:       0 20px 50px rgba(0, 0, 0, .45);
+  --field-node:         rgba(255, 255, 255, .07);
+  --field-node-bd:      rgba(255, 255, 255, .14);
+  --field-node-shadow:  inset 0 1px 0 rgba(255, 255, 255, .22), 0 8px 32px rgba(0, 0, 0, .35);
+  --field-panel:        rgba(22, 19, 42, .74);
+  --field-panel-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 20px 50px rgba(0, 0, 0, .45);
+  --field-blur:         blur(28px) saturate(160%);
+  --field-pill-shadow:  0 6px 18px rgba(0, 0, 0, .25);
+  --field-ink:          rgba(255, 255, 255, .92);
+  --field-ink-2:        rgba(255, 255, 255, .62);
+  --field-ink-3:        rgba(255, 255, 255, .50);
 
-  /* ── Paper surfaces (deck card + profile) ────────────────────────────────
-     A deliberately separate surface group, not a reuse of --card / --cardalt /
-     --bd.
+  /* ── SRS grade tints — fixed (D6) ────────────────────────────────────────
+     Again red · Hard amber · Good green · Easy blue. Green sits on the
+     *expected* success grade, not on Easy: four tiles side by side carry the
+     same ink, so hue is the whole signal. Moved from glass.css unchanged. */
+  --grade-again: #ff5757;
+  --grade-hard:  #ffd582;
+  --grade-good:  #7ee29a;
+  --grade-easy:  #8ec8ff;
 
-     Those three are `transparent` app-wide because home and the dictionary
-     separate their surfaces with shadow and layout instead of a fill. Two
-     screens can't: the deck card is one clipped object whose top half is a
-     dark sky panel and whose bottom half is paper, and the profile page is
-     built as ruled lists — rows separated by hairlines inside a filled card —
-     which read as nothing without a real fill and a real edge. Filling the
-     shared tokens would have given both screens what they need — and repainted
-     every card, chip, pill and divider on the finished screens at the same
-     time. This group exists so a filled object can be filled while the rest of
-     the app stays as designed.
-
-     The sky pair below stays the deck card's own: the sky is the sky, and the
-     panel plus its inset vignette are the card's frame rather than part of the
-     star map that will eventually mount inside it. */
-  --deck-sky:          #16233c;
-  --deck-sky-shadow:   inset 0 0 60px 10px rgba(6, 10, 22, .55);
-
-  /* Star-field geometry. The RGB triplets are per-theme (below); the layer
-     list is written once and picks them up through var() substitution, which
-     resolves against the element the background lands on. Writing it twice
-     would be ~4KB of near-identical CSS waiting to drift apart. */
-  --star-blue:         132, 150, 180;
-
-  /* Radii. Named by role rather than by number so a call site reads as
-     intent. The continue-reading cover and the library covers share
-     --radius-cover — a 1px difference on a book cover isn't perceptible. */
-  --radius-tile:       6px;   /* deck tile */
-  --radius-cover:      8px;   /* book covers, brand mark */
-  --radius-button:    10px;
-  --radius-input:     12px;   /* dictionary search field */
-  --radius-pill:      14px;   /* profile pill, sky card */
-  --radius-card:      16px;
-  --radius-panel:     18px;   /* decks panel */
-  --radius-chip:      20px;
-
-  /* Type. Three separate roles even though --face-ui and --face-mono resolve
-     to the same family today — re-splitting a role later is then a one-line
-     change here rather than a sweep through components.
-     `--font-switzer` / `--font-noto-sans-jp` are what next/font emits in
-     app/layout.tsx; the system stacks behind them cover the gap before the
-     webfont lands. --face-mono falls back to sans, not monospace: its call
-     sites are eyebrows and counters, and a glyph miss should degrade to the
-     UI look rather than to Courier. */
-  --face-jp:          var(--font-noto-sans-jp), 'Hiragino Sans', 'Yu Gothic', sans-serif;
-  --face-ui:          var(--font-switzer), system-ui, sans-serif;
-  --face-mono:        var(--font-switzer), system-ui, sans-serif;
-
-  /* Motion. Deliberately the only transition on the page — nothing else
-     animates. */
-  --transition:       120ms ease;
+  /* ── Mastery ranks — defaults; the `data-sky-hue` blocks below repaint ──
+     Read by StageDot / stageColor and every chip that names a rank, so a chip
+     and its star never disagree. The star map mirrors these in
+     features/sky/map/lib/palette.ts. */
+  --stage-new:      #7E78E0;
+  --stage-met:      #A98BFF;
+  --stage-learned:  #FF7AC4;
+  --stage-mastered: #F4DC82;
 }
 
-/* ── Light — "Ink on paper" (default) ────────────────────────────────────── */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   THEMES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-html[data-theme="light"] {
-  --bg:                #f3f2ef;
+/* Sakura Daybreak (default) — quiet garden at dawn. */
+html[data-theme="sakura"] {
+  --theme-name: "Daybreak Glow";
 
-  /* Cards are transparent by design: shadow and layout do the separating, not
-     a filled surface. Fill these three to switch the whole app to filled
-     cards without touching any markup. */
-  --card:              transparent;
-  --cardalt:           transparent;
-  --bd:                transparent;
+  --canvas: #FFF9F7;
+  --wash-1: rgba(242, 184, 198, .26);
+  --wash-2: rgba(169, 211, 234, .24);
+  --wash-3: rgba(143, 199, 160, .18);
 
-  --card-border:       transparent;
-  --card-border-on:    rgba(20, 20, 20, .14);
-  --card-shadow:       0 8px 22px rgba(20, 20, 20, .08);
-  --card-shadow-float: 0 18px 44px rgba(20, 20, 20, .14);
+  --ink:      #0E1326;
+  --ink-body: #1E2538;
+  --ink-2:    #4D5875;
+  --ink-3:    #6B7590;
+  --line-rgb: 14 19 38;
 
-  --ink:               #141414;
-  --soft:              #4a4a48;
-  --muted:             #8b8a86;
-  --faint:             #b0afa9;
+  --accent:          #B84D67;
+  --accent-hover:    #8F3A50;
+  --accent-rgb:      184 77 103;
+  --accent-mid:      #D97A93;
+  --accent-soft:     #F2B8C6;
+  --accent-soft-rgb: 242 184 198;
+  --accent-pale:     #F7CFD8;
+  --pale-rgb:        247 207 216;
 
-  --btn:               #141414;
-  --btn-ink:           #ffffff;
+  --good:          #2F7A46;
+  --good-tint-rgb: 143 199 160;
+  --good-glow:     rgba(47, 122, 70, .25);
 
-  --track:             #e8e6e0;
-  --fill:              #141414;
+  --learn:          #A9D3EA;
+  --learn-tint-rgb: 169 211 234;
+  --master:         #8FC7A0;
+  --danger:         #E8707A;
+  --danger-rgb:     232 112 122;
+  --deck-n1-day:    #B93A45;
 
-  --avatar:            #141414;
-  --avatar-ink:        #ffffff;
+  --night-ink:       #F4EFF5;
+  --night-ink-rgb:   244 239 245;
+  --on-accent-night: #2A1A24;
 
-  /* Destructive actions. Distinct from --accent, which is the vermilion seal:
-     that one is theme-invariant by design, and #c2452c on the dark deck paper
-     is a dark red on dark grey. Danger has to stay legible on whatever it
-     lands on, so it shifts with the theme. */
-  --danger:            #c2452c;
-  --danger-bg:         rgba(194, 69, 44, .08);
-  --danger-bd:         rgba(194, 69, 44, .28);
-
-  /* Caution — a warning tint on a page surface. Read by the study session's
-     annotation chips — the "hardest in session" list and the state-change
-     rows. The study runner's grade buttons do NOT read it: they are tinted
-     glass and carry their own `--grade-*` tints in glass.css, because a 30%
-     fill behind neutral ink wants a brighter, more saturated hue than
-     ink-on-paper does. Distinct from --gold, which it sits close to here and
-     nowhere near in Midnight (#ffe085): --gold means "reading progress on a
-     book cover", so sharing one would tie a caution chip's colour to a change
-     in the book palette. Shifts with the theme for the same reason --danger
-     does. */
-  --warn:              #a87d22;
-  --warn-bg:           rgba(168, 129, 31, .12);
-  --warn-bd:           rgba(181, 134, 46, .30);
-
-  /* Glass + tints. The deck-detail card panel and everything layered inside
-     it: a translucent surface, two hover/selected tints, and two border
-     weights. Unlike --card / --bd these carry real values, because a panel
-     floating beside the sky has nothing behind it to separate against. */
-  --scrim:             rgba(255, 255, 255, .72);
-  --tint-a:            rgba(20, 20, 20, .10);
-  --tint-b:            rgba(20, 20, 20, .04);
-  --bd-a:              rgba(20, 20, 20, .22);
-  --bd-b:              rgba(20, 20, 20, .09);
-
-  --covtrack:          rgba(255, 255, 255, .16);
-
-  /* Paper surfaces — see the invariant block above for why these are their own. */
-  --paper:              #ffffff;
-  --paper-tile:         #f7f6f3;  /* header icon tile, ghost-button hover, row hover */
-  --paper-bd:           #e8e6e0;  /* card edge, ruled rows, the dashed last-word rule */
-  --paper-shadow:       0 6px 20px rgba(22, 35, 60, .10);
-  --paper-shadow-hover: 0 18px 36px rgba(22, 35, 60, .18);
-
-  /* Kincha gold, as gold. Reading progress on a book cover and the hover
-     outline on a library card. Distinct from --stage-mastered, which means
-     "top of the SRS ladder" — sharing one token would tie a book's progress
-     colour to a change in the mastery palette. */
-  --gold:              #a8811f;
-
-  --star-gold:         180, 138, 40;
-  --sky-1:             #dde5ee;
-  --sky-2:             #c2cedb;
-  --sky-3:             #9fa8b6;
-  --page-vignette:     inset 0 0 180px 40px rgba(110, 130, 165, .22);
+  --nebula-rgb:    190 90 160;
+  --constellation: rgba(242, 184, 198, .28);
 }
 
-/* ── Dark — "Midnight" ───────────────────────────────────────────────────── */
+/* Kanagawa Wave — Hokusai print, sea and sand. */
+html[data-theme="kanagawa"] {
+  --theme-name: "Kanagawa Wave";
 
-html[data-theme="dark"] {
-  --bg:                #0b0b0d;
+  --canvas: #F7F1E6;
+  --wash-1: rgba(168, 199, 222, .26);
+  --wash-2: rgba(224, 200, 160, .24);
+  --wash-3: rgba(196, 160, 120, .18);
 
-  --card:              transparent;
-  --cardalt:           transparent;
-  --bd:                transparent;
+  --ink:      #1C2B44;
+  --ink-body: #1E2538;
+  --ink-2:    #4F5D70;
+  --ink-3:    #7C8595;
+  --line-rgb: 28 43 68;
 
-  --card-border:       transparent;
-  --card-border-on:    rgba(255, 255, 255, .14);
-  --card-shadow:       0 10px 26px rgba(0, 0, 0, .45);
-  --card-shadow-float: 0 20px 50px rgba(0, 0, 0, .6);
+  --accent:          #2F5D8A;
+  --accent-hover:    #244A70;
+  --accent-rgb:      47 93 138;
+  --accent-mid:      #4E7FAF;
+  --accent-soft:     #A8C7DE;
+  --accent-soft-rgb: 168 199 222;
+  --accent-pale:     #C9DDEB;
+  --pale-rgb:        201 221 235;
 
-  --ink:               #f2f1ee;
-  --soft:              #c9c8c4;
-  --muted:             #9b9aa2;
-  --faint:             #7a7982;
+  --good:          #7A5230;
+  --good-tint-rgb: 196 160 120;
+  --good-glow:     rgba(122, 82, 48, .25);
 
-  --btn:               #f2f1ee;
-  --btn-ink:           #141414;
+  --learn:          #E0C8A0;
+  --learn-tint-rgb: 224 200 160;
+  --master:         #C4A078;
+  --danger:         #9A6B45;
+  --danger-rgb:     154 107 69;
+  --deck-n1-day:    #6E4A2E;
 
-  --track:             #1f2024;
-  --fill:              #f2f1ee;
+  --night-ink:       #F3ECDF;
+  --night-ink-rgb:   243 236 223;
+  --on-accent-night: #1F2A3D;
 
-  --avatar:            #f2f1ee;
-  --avatar-ink:        #141414;
-
-  /* The dock has no tokens here: it is frosted glass, and everything it needs
-     lives in styles/glass.css as --dock-glass-*. Glass is theme-invariant by
-     construction, which suits a dock that is white-on-dark in BOTH themes.
-     --paper-* above is the standing example of a component-owned surface
-     group. */
-
-  /* Danger lightens in Midnight so it stays readable on the dark surfaces. */
-  --danger:            #e0715a;
-  --danger-bg:         rgba(224, 113, 90, .14);
-  --danger-bd:         rgba(224, 113, 90, .34);
-
-  /* Caution lightens in Midnight for the same reason danger does. */
-  --warn:              #e0b85a;
-  --warn-bg:           rgba(224, 184, 90, .14);
-  --warn-bd:           rgba(224, 184, 90, .34);
-
-  --scrim:             rgba(28, 28, 34, .86);
-  --tint-a:            rgba(255, 255, 255, .14);
-  --tint-b:            rgba(255, 255, 255, .06);
-  --bd-a:              rgba(255, 255, 255, .26);
-  --bd-b:              rgba(255, 255, 255, .12);
-
-  --covtrack:          rgba(0, 0, 0, .18);
-  --gold:              #ffe085;
-
-  /* Paper surfaces. Shadows deepen to the theme's floating values rather than
-     scaling the light ones — a light-theme shadow reads as grey haze on the
-     dark canvas. */
-  --paper:        #31333a;
-  --paper-tile:         #1f2024;
-  --paper-bd:           #3f424a;
-  --paper-shadow:       0 10px 26px rgba(0, 0, 0, .45);
-  --paper-shadow-hover: 0 20px 50px rgba(0, 0, 0, .6);
-
-  --star-gold:         244, 220, 130;
-  /* The page's three stops (not the star map's own values — the map is
-     transparent over this, see the Page background block). --sky-3 is also
-     <html>'s background-color, so it must stay the darkest of the three.
-
-     They read TOP → BASE of a vertical sky: the background is a linear
-     gradient with a separate glow laid over it, so "1" is the lit top of the
-     sky and "3" the deep bottom. The `--page-base` block below is where that
-     geometry lives. */
-  --sky-1:             #16223c;   /* skyTop  */
-  --sky-2:             #0d1526;   /* skyMid  */
-  --sky-3:             #080514;   /* skyBase — deliberately a shade violet, not pure black */
-  --page-vignette:     inset 0 0 220px 60px rgba(4, 7, 14, .55);
+  --nebula-rgb:    180 130 80;
+  --constellation: rgba(168, 199, 222, .28);
 }
 
-/* ── Sky hue presets — the mastery ladder ─────────────────────────────────────
-   A DOCUMENTED MIRROR of `SKY_PALETTES` in `features/sky/lib/palette.ts`:
-   four hexes per preset, in rank order (New / Recent / Learned / Mastered).
-   Change one, change both — the same standing pairing as
-   `study/decks/lib/rankProgress.ts` ↔ `backend/.../cardSrsService.js`. The sky
-   can't read CSS (its lib is plain TypeScript, copied to mobile as-is) and the
-   ~30 chrome call sites can't read the sky's module, so the two copies are the
-   seam and this comment is the contract.
+/* Clear Sky — monochrome, calm, minimal. Learning and Mastered share one
+   colour here, so rank chips must keep their text label (README note). */
+html[data-theme="clear"] {
+  --theme-name: "Clear Sky";
 
-   `html[data-sky-hue]` is written by `SkyHueProvider` (and by the pre-paint
-   script in app/layout.tsx, so the first paint is already right); the fallback
-   when it is absent is the `default` ramp in `:root` above.
+  --canvas: #FAFBFD;
+  --wash-1: rgba(191, 214, 234, .26);
+  --wash-2: rgba(191, 214, 234, .24);
+  --wash-3: rgba(191, 214, 234, .18);
 
-   These are a **separate axis from the theme**: one hex per rank, used in both
-   light and dark. The ladder is the sky's ladder, and a star that is pink does
-   not become blue because the page went to paper. The knowing cost is contrast
-   on the pale ranks — ginga's and aurora's Learned are near-white and sit light
-   on the light theme's paper. Accepted by the owner; there is deliberately no
-   per-theme compensation, because that is the split this replaced. */
+  --ink:      #16233A;
+  --ink-body: #1E2538;
+  --ink-2:    #4F5D70;
+  --ink-3:    #7C8595;
+  --line-rgb: 22 35 58;
+
+  --accent:          #2F5D8A;
+  --accent-hover:    #244A70;
+  --accent-rgb:      47 93 138;
+  --accent-mid:      #4E7FAF;
+  --accent-soft:     #BFD6EA;
+  --accent-soft-rgb: 191 214 234;
+  --accent-pale:     #D6E5F2;
+  --pale-rgb:        214 229 242;
+
+  --good:          #2F5D8A;
+  --good-tint-rgb: 191 214 234;
+  --good-glow:     rgba(47, 93, 138, .25);
+
+  --learn:          #BFD6EA;
+  --learn-tint-rgb: 191 214 234;
+  --master:         #BFD6EA;
+  --danger:         #4E7FAF;
+  --danger-rgb:     78 127 175;
+  --deck-n1-day:    #244A70;
+
+  --night-ink:       #F1F5FA;
+  --night-ink-rgb:   241 245 250;
+  --on-accent-night: #1A2740;
+
+  --nebula-rgb:    78 127 175;
+  --constellation: rgba(191, 214, 234, .28);
+}
+
+/* Night · Sakura Yozora — the foundation system's dark mode
+   (design-handoff/2026-09-21-web/reference/DESIGN.md). No web canvas exists
+   for it: derived from DESIGN.md's glass tiers through the tokens. The canvas
+   is the indigo gradient (a `background` shorthand value, not a colour — see
+   globals.css); the washes are the nebula and the aurora; the procedural star
+   layer is `shared/components/StarField`, mounted by `AppFrame` on this theme
+   only. Panes become glass here — same classes, different values. */
+html[data-theme="night"] {
+  --theme-name: "Sakura Yozora";
+
+  --canvas: linear-gradient(180deg, #1A1633 0%, #0F0E1E 100%);
+  --wash-1: rgba(190, 90, 160, .28);
+  --wash-2: rgba(190, 90, 160, .10);
+  --wash-3: rgba(90, 120, 200, .26);
+
+  --ink:      #F4EFF5;
+  --ink-body: rgba(244, 239, 245, .90);
+  --ink-2:    rgba(244, 239, 245, .62);
+  --ink-3:    rgba(244, 239, 245, .50);
+  --line-rgb: 255 255 255;
+
+  --accent:          #F2B8C6;
+  --accent-hover:    #F7CFD8;
+  --accent-rgb:      242 184 198;
+  --accent-mid:      #D97A93;
+  --accent-soft:     #F2B8C6;
+  --accent-soft-rgb: 242 184 198;
+  --accent-pale:     #F7CFD8;
+  --pale-rgb:        247 207 216;
+  --on-accent:       #2A1A24;
+  --selected:        var(--accent);
+  --selected-ink:    var(--on-accent);
+
+  --good:          #8FC7A0;
+  --good-tint-rgb: 143 199 160;
+  --good-glow:     rgba(143, 199, 160, .25);
+
+  --learn:          #A9D3EA;
+  --learn-tint-rgb: 169 211 234;
+  --master:         #8FC7A0;
+  --danger:         #E8707A;
+  --danger-rgb:     232 112 122;
+  --deck-n1-day:    #E8707A;
+
+  --night-ink:       #F4EFF5;
+  --night-ink-rgb:   244 239 245;
+  --on-accent-night: #2A1A24;
+
+  --nebula-rgb:    190 90 160;
+  --constellation: rgba(242, 184, 198, .28);
+
+  /* glass tiers */
+  --pane:        rgba(255, 255, 255, .07);
+  --pane-strong: rgba(255, 255, 255, .18);
+  --pane-nav:    rgba(255, 255, 255, .12);
+  --pane-footer: rgba(255, 255, 255, .04);
+  --pane-hero:   linear-gradient(112deg, rgba(255, 255, 255, .14) 0%, rgba(255, 255, 255, .07) 52%, rgb(var(--accent-soft-rgb) / .18) 100%);
+  --pane-bd:     rgba(255, 255, 255, .14);
+  --hairline:    rgba(255, 255, 255, .10);
+  --scrim:       rgba(15, 14, 30, .55);
+  --shadow-pill:    inset 0 1px 0 rgba(255, 255, 255, .22), 0 8px 32px rgba(0, 0, 0, .35);
+  --shadow-card:    inset 0 1px 0 rgba(255, 255, 255, .22), 0 8px 32px rgba(0, 0, 0, .35);
+  --shadow-hero:    inset 0 1px 0 rgba(255, 255, 255, .22), 0 8px 32px rgba(0, 0, 0, .35);
+  --shadow-modal:   inset 0 1px 0 rgba(255, 255, 255, .22), 0 30px 80px rgba(0, 0, 0, .50);
+  --shadow-toolbar: inset 0 1px 0 rgba(255, 255, 255, .22), 0 8px 32px rgba(0, 0, 0, .35);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SKY HUE — a second axis, independent of the theme
+   Picks the star map's palette (features/sky/map/lib/palette.ts owns the
+   values; these blocks are its CSS mirror) and, through `--stage-*`, every
+   piece of chrome that names a rank. Set pre-paint by app/layout.tsx from
+   `aogimi-sky-hue`; the id list there mirrors `SKY_HUES`.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 html[data-sky-hue="default"] {
-  --stage-new:         #7E78E0;
-  --stage-met:         #A98BFF;
-  --stage-learned:     #FF7AC4;
-  --stage-mastered:    #F4DC82;
+  --stage-new:      #7E78E0;
+  --stage-met:      #A98BFF;
+  --stage-learned:  #FF7AC4;
+  --stage-mastered: #F4DC82;
 }
 
 html[data-sky-hue="ginga"] {
-  --stage-new:         #48545C;
-  --stage-met:         #8494A0;
-  --stage-learned:     #DCE6EC;
-  --stage-mastered:    #E0A448;
+  --stage-new:      #48545C;
+  --stage-met:      #8494A0;
+  --stage-learned:  #DCE6EC;
+  --stage-mastered: #E0A448;
 }
 
 html[data-sky-hue="ember"] {
-  --stage-new:         #4B316F;
-  --stage-met:         #83405C;
-  --stage-learned:     #C25A45;
-  --stage-mastered:    #F0A13C;
+  --stage-new:      #4B316F;
+  --stage-met:      #83405C;
+  --stage-learned:  #C25A45;
+  --stage-mastered: #F0A13C;
 }
 
 html[data-sky-hue="aurora"] {
-  --stage-new:         #5E324D;
-  --stage-met:         #A863A8;
-  --stage-learned:     #DCD0E4;
-  --stage-mastered:    #52D46A;
-}
-
-/* ── Page background ─────────────────────────────────────────────────────── */
-/* Split across two elements on purpose. Putting all 43 layers in one
-   `background` forces a 43-entry `background-size` list (42 star tiles
-   at 640×460 plus the base gradient at `cover`) — a shorter list gets cycled
-   by the spec, so `640px 460px, cover` would apply `cover` to every other
-   star layer. Painting the base on <html> and the stars on <body> lets each
-   take a single size value. Natural paint order stacks them correctly with no
-   pseudo-element and no z-index, and both are viewport-fixed so they don't
-   drift while scrolling.
-
-   The star field must stay *barely* perceptible.
-
-   ── This canvas is what /decks sits on ────────────────────────────────────
-   The star map paints no background of its own (see the `<svg>` note in
-   `features/sky/components/SkyCanvas.tsx`) — it is transparent over whatever
-   the page is, and /decks draws no stage panel behind it. So this declaration
-   is the night the constellations hang in, on every screen, which is what makes
-   the top bar and the decks read as one plane. It is **not** a mirror of the
-   sky's own `skyBackground()`: that function survives only for hosts that draw
-   the map in a box of their own (the demo harness), and the two are free to
-   diverge. Change the look here.
-
-   Both layers are viewport-fixed, so the horizon sits in the same place on
-   /decks and /profile alike.
-
-   ── Per theme, not one formula ────────────────────────────────────────────
-   The two themes are genuinely different backgrounds, not one geometry with
-   swapped stops: Midnight is a vertical night sky under a soft violet glow,
-   paper is a pale radial sky dome. So `--page-base`
-   is declared twice rather than built from tokens that swap underneath. The
-   three stops still come from `--sky-1/2/3` in the theme blocks above, so a
-   palette change is still a palette-block edit.
-
-   `<html>`'s `background-color` is `--sky-3`, the outermost stop — the fill
-   behind overscroll, and the one colour the gradient is guaranteed to end on. */
-
-/* Paper. Midnight (the pinned theme) overrides it below. */
-:root {
-  --page-base: radial-gradient(130% 120% at 44% 18%,
-    var(--sky-1) 0%, var(--sky-1) 10%, var(--sky-2) 52%, var(--sky-3) 108%);
-}
-
-html[data-theme="dark"] {
-  /* Glow over sky — THE settled Midnight background. Two layers, in paint order:
-
-       glow  — an ellipse of #130a33 at 69%, 80% × 100% of the viewport, centred
-               at 50%/50%. A deep violet, only a shade off the sky it sits on:
-               brighter than the mid and base stops but darker than the lit top
-               band, so it reads as a violet cast lifting the centre and lower
-               field rather than as a light source. That near-parity is the
-               point — the constellations hang centre-screen and want a quiet,
-               near-flat ground, not a bloom competing with them. It
-               fades to the SAME hue at zero alpha, never the keyword
-               `transparent` (= rgba(0,0,0,0)): a colour → black-at-zero ramp
-               picks up a grey cast on the way down. Same rule glass.css states
-               for its specular lines. The tint is a literal because the glow is
-               one layer of one gradient — a token for it would widen the palette
-               every screen reads for a value nothing else can use.
-       sky   — a plain vertical ramp, top → mid at 10% → base. The three stops
-               are the `--sky-*` trio, so a palette change stays a palette-block
-               edit. At a 10% mid stop the top colour is a thin band along the
-               very edge and the ramp is really mid → base, which is what gives
-               the glow a near-flat field to bloom on.
-
-     This is the settled value — re-tune by hand here. */
-  --page-base:
-    radial-gradient(80% 100% at 50% 50%,
-      rgba(19, 10, 51, .69) 0%, rgba(19, 10, 51, 0) 100%),
-    linear-gradient(180deg,
-      var(--sky-1) 0%, var(--sky-2) 10%, var(--sky-3) 100%);
-}
-
-/* The star tiles are theme-independent — one field, `--star-gold`/`--star-blue`
-   carry the per-theme alpha-safe channels. */
-:root {
-  --page-stars:
-    radial-gradient(1.42px 1.42px at 66.53% 2.81%, rgba(var(--star-gold), 0.16) 50%, transparent 51%),
-    radial-gradient(0.89px 0.89px at 28.99% 77.87%, rgba(var(--star-blue), 0.09) 50%, transparent 51%),
-    radial-gradient(1.45px 1.45px at 40.57% 28.68%, rgba(var(--star-blue), 0.11) 50%, transparent 51%),
-    radial-gradient(0.97px 0.97px at 48.79% 7.44%, rgba(var(--star-blue), 0.26) 50%, transparent 51%),
-    radial-gradient(1.31px 1.31px at 3.97% 35.73%, rgba(var(--star-blue), 0.26) 50%, transparent 51%),
-    radial-gradient(0.92px 0.92px at 46.58% 2.79%, rgba(var(--star-blue), 0.13) 50%, transparent 51%),
-    radial-gradient(0.50px 0.50px at 51.05% 82.50%, rgba(var(--star-gold), 0.29) 50%, transparent 51%),
-    radial-gradient(0.53px 0.53px at 98.26% 71.64%, rgba(var(--star-blue), 0.22) 50%, transparent 51%),
-    radial-gradient(1.20px 1.20px at 63.57% 99.29%, rgba(var(--star-blue), 0.29) 50%, transparent 51%),
-    radial-gradient(0.69px 0.69px at 67.39% 23.03%, rgba(var(--star-blue), 0.30) 50%, transparent 51%),
-    radial-gradient(1.06px 1.06px at 86.94% 43.39%, rgba(var(--star-blue), 0.08) 50%, transparent 51%),
-    radial-gradient(0.73px 0.73px at 94.70% 50.61%, rgba(var(--star-blue), 0.28) 50%, transparent 51%),
-    radial-gradient(1.22px 1.22px at 59.93% 96.03%, rgba(var(--star-gold), 0.27) 50%, transparent 51%),
-    radial-gradient(1.06px 1.06px at 53.08% 98.25%, rgba(var(--star-blue), 0.14) 50%, transparent 51%),
-    radial-gradient(0.49px 0.49px at 19.60% 85.65%, rgba(var(--star-blue), 0.21) 50%, transparent 51%),
-    radial-gradient(1.20px 1.20px at 72.25% 1.90%, rgba(var(--star-blue), 0.25) 50%, transparent 51%),
-    radial-gradient(0.50px 0.50px at 74.60% 0.41%, rgba(var(--star-blue), 0.20) 50%, transparent 51%),
-    radial-gradient(0.92px 0.92px at 90.80% 33.75%, rgba(var(--star-blue), 0.16) 50%, transparent 51%),
-    radial-gradient(0.80px 0.80px at 48.38% 77.48%, rgba(var(--star-gold), 0.23) 50%, transparent 51%),
-    radial-gradient(0.87px 0.87px at 73.80% 73.03%, rgba(var(--star-blue), 0.29) 50%, transparent 51%),
-    radial-gradient(0.44px 0.44px at 96.12% 37.02%, rgba(var(--star-blue), 0.19) 50%, transparent 51%),
-    radial-gradient(0.91px 0.91px at 92.23% 41.83%, rgba(var(--star-blue), 0.27) 50%, transparent 51%),
-    radial-gradient(0.75px 0.75px at 23.45% 41.14%, rgba(var(--star-blue), 0.07) 50%, transparent 51%),
-    radial-gradient(0.65px 0.65px at 51.60% 0.61%, rgba(var(--star-blue), 0.18) 50%, transparent 51%),
-    radial-gradient(0.89px 0.89px at 55.90% 70.82%, rgba(var(--star-gold), 0.11) 50%, transparent 51%),
-    radial-gradient(0.56px 0.56px at 15.05% 94.62%, rgba(var(--star-blue), 0.25) 50%, transparent 51%),
-    radial-gradient(0.79px 0.79px at 91.04% 60.55%, rgba(var(--star-blue), 0.06) 50%, transparent 51%),
-    radial-gradient(0.64px 0.64px at 53.88% 99.20%, rgba(var(--star-blue), 0.21) 50%, transparent 51%),
-    radial-gradient(0.45px 0.45px at 45.00% 84.91%, rgba(var(--star-blue), 0.19) 50%, transparent 51%),
-    radial-gradient(0.57px 0.57px at 51.28% 77.78%, rgba(var(--star-blue), 0.20) 50%, transparent 51%),
-    radial-gradient(1.09px 1.09px at 76.42% 34.86%, rgba(var(--star-gold), 0.15) 50%, transparent 51%),
-    radial-gradient(0.50px 0.50px at 13.47% 80.35%, rgba(var(--star-blue), 0.23) 50%, transparent 51%),
-    radial-gradient(0.93px 0.93px at 98.06% 27.76%, rgba(var(--star-blue), 0.07) 50%, transparent 51%),
-    radial-gradient(0.59px 0.59px at 78.77% 20.03%, rgba(var(--star-blue), 0.11) 50%, transparent 51%),
-    radial-gradient(1.25px 1.25px at 70.50% 27.55%, rgba(var(--star-blue), 0.07) 50%, transparent 51%),
-    radial-gradient(1.30px 1.30px at 89.29% 92.72%, rgba(var(--star-blue), 0.07) 50%, transparent 51%),
-    radial-gradient(1.03px 1.03px at 54.93% 91.28%, rgba(var(--star-gold), 0.28) 50%, transparent 51%),
-    radial-gradient(0.99px 0.99px at 11.33% 94.75%, rgba(var(--star-blue), 0.15) 50%, transparent 51%),
-    radial-gradient(0.78px 0.78px at 1.70% 23.48%, rgba(var(--star-blue), 0.11) 50%, transparent 51%),
-    radial-gradient(0.46px 0.46px at 14.78% 29.85%, rgba(var(--star-blue), 0.26) 50%, transparent 51%),
-    radial-gradient(1.09px 1.09px at 84.31% 87.27%, rgba(var(--star-blue), 0.11) 50%, transparent 51%),
-    radial-gradient(0.69px 0.69px at 3.04% 50.33%, rgba(var(--star-blue), 0.24) 50%, transparent 51%);
+  --stage-new:      #5E324D;
+  --stage-met:      #A863A8;
+  --stage-learned:  #DCD0E4;
+  --stage-mastered: #52D46A;
 }

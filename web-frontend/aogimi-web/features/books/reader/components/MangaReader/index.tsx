@@ -7,8 +7,9 @@
 //
 // Pages run right to left, so the left button advances.
 
-import { ChevronLeft, ChevronRight, List, Search, SlidersHorizontal } from 'lucide-react';
-import { ReaderIconButton, ReaderShell } from '@/features/books/reader/components/ReaderShell';
+import type { ReactNode } from 'react';
+import { BookOpen, List, SlidersHorizontal } from 'lucide-react';
+import { ReaderShell, type ReaderTool } from '@/features/books/reader/components/ReaderShell';
 import { ContentsPanel } from '@/features/books/reader/components/ContentsPanel';
 import { SettingsPanel, type ViewModeOption } from '@/features/books/reader/components/SettingsPanel';
 import { useMangaReaderEngine, type ViewMode, type MangaRelocateSnapshot } from './useMangaReaderEngine';
@@ -25,6 +26,8 @@ export type MangaReaderProps = {
   onBack: () => void;
   sidekickOpen?: boolean;
   onToggleSidekick?: () => void;
+  /** The docked dictionary column, when open. */
+  side?: ReactNode;
   /** CFI restore is not used for fixed-layout; manga restores by spine index. */
   initialCfi?: string | null;
   /** Spine index to restore to on open. */
@@ -46,6 +49,7 @@ export function MangaReader({
   onBack,
   sidekickOpen = false,
   onToggleSidekick,
+  side,
   initialSpineIndex,
   onRelocate,
 }: MangaReaderProps) {
@@ -72,6 +76,21 @@ export function MangaReader({
   // book's spine, not from this setting.
   const changeViewMode = (key: string) => setViewMode(key as ViewMode);
 
+  const tools: ReaderTool[] = [
+    { key: 'toc', label: 'TOC', icon: <List size={16} strokeWidth={2} aria-hidden />, active: panel === 'toc', onClick: () => toggle('toc'), title: 'Table of contents' },
+    { key: 'settings', label: 'Configs', icon: <SlidersHorizontal size={16} strokeWidth={2} aria-hidden />, active: panel === 'settings', onClick: () => toggle('settings'), title: 'Display settings' },
+  ];
+  if (onToggleSidekick) {
+    tools.push({
+      key: 'dictionary',
+      label: 'Dictionary',
+      icon: <BookOpen size={16} strokeWidth={2} aria-hidden />,
+      active: sidekickOpen,
+      onClick: onToggleSidekick,
+      title: sidekickOpen ? 'Hide dictionary' : 'Open dictionary',
+    });
+  }
+
   return (
     <ReaderShell
       title={bookTitle}
@@ -80,41 +99,11 @@ export function MangaReader({
       percent={total > 0 ? (currentPage / total) * 100 : 0}
       page={{ current: currentPage, total }}
       onJumpToPage={goToPage}
-      tools={
-        <>
-          <ReaderIconButton label="Next page" onClick={advancePage}>
-            <ChevronLeft size={19} strokeWidth={1.8} />
-          </ReaderIconButton>
-          <ReaderIconButton label="Previous page" onClick={goBackPage}>
-            <ChevronRight size={19} strokeWidth={1.8} />
-          </ReaderIconButton>
-
-          <ReaderIconButton
-            label="Display settings"
-            active={panel === 'settings'}
-            onClick={() => toggle('settings')}
-          >
-            <SlidersHorizontal size={19} strokeWidth={1.8} />
-          </ReaderIconButton>
-          <ReaderIconButton
-            label="Table of contents"
-            active={panel === 'toc'}
-            onClick={() => toggle('toc')}
-          >
-            <List size={19} strokeWidth={1.8} />
-          </ReaderIconButton>
-
-          {onToggleSidekick && (
-            <ReaderIconButton
-              label={sidekickOpen ? 'Hide dictionary' : 'Open dictionary'}
-              active={sidekickOpen}
-              onClick={onToggleSidekick}
-            >
-              <Search size={19} strokeWidth={1.8} />
-            </ReaderIconButton>
-          )}
-        </>
-      }
+      tools={tools}
+      // Pages run right to left, so the left button advances.
+      onPrev={{ label: 'Next page', onClick: advancePage }}
+      onNext={{ label: 'Previous page', onClick: goBackPage }}
+      side={side}
       popover={
         panel === 'toc' ? (
           <ContentsPanel

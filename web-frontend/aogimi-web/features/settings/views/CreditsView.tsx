@@ -13,18 +13,18 @@ export default function CreditsView() {
   return (
     <SettingsShell>
       <div>
-        {/* Exit is the TopBar pill — see HelpView. */}
+        {/* Exit is the nav's avatar → /profile — see HelpView. */}
         <Eyebrow className="mb-3">Credits</Eyebrow>
         <PaperCard className="flex items-start gap-7 p-[30px]">
           <span
             aria-hidden
-            className="flex size-[66px] shrink-0 items-center justify-center rounded-(--radius-card) bg-(--accent) font-[family-name:var(--face-jp)] text-[34px] text-(--accent-ink)"
+            className="flex size-[66px] shrink-0 items-center justify-center rounded-(--radius-tile) bg-(--accent) font-[family-name:var(--face-jp)] text-[34px] text-(--on-accent)"
           >
             仰
           </span>
           <span className="min-w-0">
             <h2 className="text-[27px] leading-[1.15] font-bold text-(--ink)">Aogimi</h2>
-            <p className="mt-2 text-[13.5px] leading-[1.6] text-(--muted)">
+            <p className="mt-2 text-[13.5px] leading-[1.6] text-(--ink-3)">
               <span className="font-[family-name:var(--face-jp)]">仰ぎ見る</span> — to look up.
             </p>
           </span>
@@ -35,7 +35,7 @@ export default function CreditsView() {
         <div key={section.heading}>
           <Eyebrow className="mb-3">{section.heading}</Eyebrow>
           {section.blurb && (
-            <p className="mb-3 max-w-[62ch] text-[13px] leading-[1.5] text-(--muted)">
+            <p className="mb-3 max-w-[62ch] text-[13px] leading-[1.5] text-(--ink-3)">
               {section.blurb}
             </p>
           )}
@@ -56,7 +56,7 @@ function CreditRow({ entry, ruled }: { entry: CreditEntry; ruled: boolean }) {
   return (
     <div
       className={
-        'flex items-center gap-6 px-6 py-[18px]' + (ruled ? ' border-t border-(--paper-bd)' : '')
+        'flex items-center gap-6 px-6 py-[18px]' + (ruled ? ' border-t border-(--pane-bd)' : '')
       }
     >
       <div className="min-w-0 flex-1">
@@ -74,9 +74,9 @@ function CreditRow({ entry, ruled }: { entry: CreditEntry; ruled: boolean }) {
             entry.name
           )}
         </div>
-        {detail && <div className="mt-[3px] text-[13px] leading-[1.45] text-(--muted)">{detail}</div>}
+        {detail && <div className="mt-[3px] text-[13px] leading-[1.45] text-(--ink-3)">{detail}</div>}
       </div>
-      <div className="shrink-0 text-right font-[family-name:var(--face-mono)] text-[10px] tracking-[0.1em] text-(--faint)">
+      <div className="shrink-0 text-right font-[family-name:var(--face-mono)] text-[10px] tracking-[0.1em] text-(--ink-3)">
         {entry.license}
       </div>
     </div>

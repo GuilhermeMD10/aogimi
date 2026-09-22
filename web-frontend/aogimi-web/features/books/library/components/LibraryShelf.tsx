@@ -1,26 +1,51 @@
 'use client';
 
-// `/` — the library shelf, and the app's landing page. Composition, geometry and the client-side
-// filter; it fetches nothing. `BooksView` owns the data and every handler, this
-// arranges the tiles in `LibraryCards` and the empty state in `LibraryEmpty`.
+// `/` — the library shelf (page 01), and the app's landing page. Composition,
+// geometry and the client-side filter; it fetches nothing. `BooksView` owns the
+// data and every handler, this arranges the tiles in `LibraryCards` and the
+// empty state in `LibraryEmpty`.
+//
+// The page scrolls as a page (`frameForRoute`'s `flow: 'page'`): header row →
+// hero → search + filter → shelf → the frame's footer.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { BookOpen, Plus, Search } from 'lucide-react';
-import { GLASS_ACTIVE, GLASS_BUTTON, GLASS_PRESS, GLASS_SURFACE, HAIRLINE, Skeleton } from '@/shared/components';
-import { TopBar } from '@/features/app-shell/TopBar';
+import { LayoutGrid, List, Plus } from 'lucide-react';
+import {
+  Button,
+  Eyebrow,
+  HeroCard,
+  Kbd,
+  PANE,
+  PRESS,
+  SearchBar,
+  Segmented,
+  Skeleton,
+  ACTIVE,
+} from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import type { Book } from '@/features/books/types';
-import { BookCard, ContinueReadingCard, ReimportCard } from './LibraryCards';
+import { BookCover, BookRow, HeroBook, ReimportCard } from './LibraryCards';
 import { LibraryEmpty } from './LibraryEmpty';
+import { useLibraryView, type LibraryView } from '../hooks/useLibraryView';
+
+const UI = 'font-[family-name:var(--face-ui)]';
 
 const FILTERS = ['all', 'reading', 'new', 'finished'] as const;
 type Filter = (typeof FILTERS)[number];
 
+/** `new` keeps its URL value; the spec labels it "Unread". */
 const FILTER_LABEL: Record<Filter, string> = {
   all: 'All',
   reading: 'Reading',
-  new: 'New',
+  new: 'Unread',
+  finished: 'Finished',
+};
+
+const SHELF_TITLE: Record<Filter, string> = {
+  all: 'All Books',
+  reading: 'Reading',
+  new: 'Unread',
   finished: 'Finished',
 };
 
@@ -31,13 +56,12 @@ const EMPTY_FOR_FILTER: Record<Filter, string> = {
   finished: 'No finished books yet.',
 };
 
-// Three columns, fixed rather than responsive: the hero eats a fixed 470px,
-// so the shelf's own width doesn't track the viewport closely enough for a
-// column count to be worth deriving from it.
-const GRID = 'grid grid-cols-3 content-start gap-[22px]';
+/** The spec's 4-column grid, gap 18. */
+const GRID = 'grid grid-cols-4 gap-[18px]';
 
-/** The hero's column. */
-const HERO_COL = '470px';
+/** The shelf header's dot: fixed `#3E8B3E` in every theme (page 01 → Theme
+ *  notes). Not a token — it never changes, and nothing else uses it. */
+const SHELF_DOT = '#3E8B3E';
 
 function matchesFilter(book: Book, filter: Filter): boolean {
   switch (filter) {
@@ -56,7 +80,7 @@ export type LibraryShelfProps = {
   books: Book[];
   loading: boolean;
   importing: boolean;
-  /** Something went wrong. Rendered under the header, vermilion edge. */
+  /** Something went wrong. Rendered under the header. */
   error?: string | null;
   /** Transient confirmation ("Already in your library…"). Dismissible. */
   notice?: string | null;
@@ -67,8 +91,8 @@ export type LibraryShelfProps = {
   onRename: (book: Book, title: string) => void;
   onMarkFinished: (book: Book) => void;
   onRemove: (book: Book) => void;
-  /** Below the grid, inside the shelf scroller — the filesystem-access banner. */
-  footer?: React.ReactNode;
+  /** Under the shelf — the filesystem-access banner. */
+  footer?: ReactNode;
 };
 
 export function LibraryShelf({
@@ -90,6 +114,7 @@ export function LibraryShelf({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState('');
+  const [view, setView] = useLibraryView();
   const searchRef = useRef<HTMLInputElement>(null);
 
   // The filter lives in the URL so it survives a reload and can be linked to.
@@ -105,9 +130,10 @@ export function LibraryShelf({
   };
 
   // `/` focuses search from anywhere on the page, unless you're already typing.
+  // It is the key the bar's chip promises (⌘K belongs to the dictionary, G2).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== '/') return;
+      if (e.key !== '/' || e.metaKey || e.ctrlKey) return;
       const tgt = e.target as HTMLElement | null;
       if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
       e.preventDefault();
@@ -129,8 +155,7 @@ export function LibraryShelf({
     [books],
   );
 
-  // Same rule as mobile's BooksScreen.hero: most recently read, actually in
-  // progress, and openable on this device.
+  // The current book: most recently read, actually in progress, openable here.
   const hero =
     sorted.find((b) => b.lastReadAt && b.available && b.progress > 0 && b.progress < 100) ?? null;
 
@@ -144,7 +169,7 @@ export function LibraryShelf({
   );
 
   const q = query.trim().toLowerCase();
-  const grid = useMemo(
+  const shelf = useMemo(
     () =>
       sorted
         .filter((b) => b.id !== hero?.id)
@@ -155,161 +180,207 @@ export function LibraryShelf({
 
   const isEmpty = !loading && books.length === 0;
 
-  // No book is partway through (everything new, or everything finished), so
-  // there is no hero — and a 470px column of nothing beside the shelf reads as
-  // a bug. The shelf takes the full width instead.
-  const twoColumn = loading || hero !== null;
-
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden font-[family-name:var(--face-ui)] font-medium">
-      <div className="mx-auto flex min-h-0 w-full max-w-[1300px] flex-1 flex-col px-11 pt-[34px] pb-[140px]">
-        <TopBar />
-
-        {/* Row 1 — the page title, on its own line. */}
-        <div className="mb-[18px] flex shrink-0 items-center justify-between gap-6">
-          <div className="flex items-center gap-[11px]">
-            <BookOpen size={24} strokeWidth={1.7} className="shrink-0 text-(--ink)" />
-            <h1 className="text-[23px] font-bold tracking-[-0.01em] text-(--ink)">Library</h1>
-          </div>
-
-          {!isEmpty && (
-            <button
-              type="button"
-              onClick={onImport}
-              disabled={importing}
-              className={cn(
-                GLASS_BUTTON,
-                GLASS_PRESS,
-                'flex shrink-0 items-center gap-2 rounded-(--radius-button) p-2',
-                'text-[13.5px] font-bold text-(--ink)',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
-                importing && 'opacity-60',
-              )}
-            >
-              <Plus size={16} strokeWidth={1.9} />
-              {importing ? 'Importing…' : ''}
-            </button>
-          )}
+    <div className={cn(UI, 'flex flex-col gap-7 pt-9 pb-12')}>
+      {/* ── Header row ─────────────────────────────────────────────────── */}
+      <div className="flex items-end justify-between gap-6">
+        <div className="flex flex-col gap-2">
+          <Eyebrow tone="accent" dot className="tracking-[0.16em]">
+            Reading room
+          </Eyebrow>
+          <h1 className="text-[42px] leading-none font-bold tracking-[-0.02em] text-(--ink)">Library</h1>
         </div>
 
-        {/* Row 2 — filters at one end, search at the other. */}
         {!isEmpty && (
-          <div className="mb-[22px] flex shrink-0 items-center justify-end gap-6">
-            <div className="flex flex-wrap gap-2 justify-between">
-              {FILTERS.map((f) => (
-                <FilterChip
-                  key={f}
-                  label={FILTER_LABEL[f]}
-                  count={counts[f]}
-                  active={filter === f}
-                  onClick={() => setFilter(f)}
-                />
-              ))}
-              <SearchField inputRef={searchRef} value={query} onChange={setQuery} />
-            </div>
-          </div>
-        )}
-
-        {error && <Banner tone="error">{error}</Banner>}
-        {!error && notice && (
-          <Banner tone="notice" onDismiss={onDismissNotice}>
-            {notice}
-          </Banner>
-        )}
-
-        {isEmpty ? (
-          <LibraryEmpty onImport={onImport} importing={importing} />
-        ) : (
-          <div
-            className="grid min-h-0 flex-1 gap-[30px]"
-            style={{ gridTemplateColumns: twoColumn ? `${HERO_COL} minmax(0,1fr)` : 'minmax(0,1fr)' }}
-          >
-            {loading ? (
-              <HeroSkeleton />
-            ) : (
-              hero && (
-                <ContinueReadingCard
-                  book={hero}
-                  onResume={() => onOpen(hero)}
-                  onLocate={() => onLocate(hero)}
-                  onRename={(title) => onRename(hero, title)}
-                  onRemove={() => onRemove(hero)}
-                />
-              )
-            )}
-
-            {/* The one scroller on the screen. `pr` leaves the thumb its lane so
-                it doesn't sit on top of the last column of covers. */}
-            <div className="inner-scroll min-h-0 overflow-y-auto pr-2.5 pb-8 pl-1">
-              {loading ? (
-                <div className={GRID}>
-                  {Array.from({ length: 6 }, (_, i) => (
-                    <Skeleton key={i} className="aspect-[96/140] w-full rounded-(--radius-cover)" />
-                  ))}
-                </div>
-              ) : grid.length > 0 ? (
-                <div className={GRID}>
-                  {grid.map((book) =>
-                    book.available ? (
-                      <BookCard
-                        key={book.id}
-                        book={book}
-                        onOpen={() => onOpen(book)}
-                        onRename={(title) => onRename(book, title)}
-                        onMarkFinished={() => onMarkFinished(book)}
-                        onRemove={() => onRemove(book)}
-                      />
-                    ) : (
-                      <ReimportCard
-                        key={book.id}
-                        book={book}
-                        onReAdd={() => onLocate(book)}
-                        onRename={(title) => onRename(book, title)}
-                        onRemove={() => onRemove(book)}
-                      />
-                    ),
-                  )}
-                </div>
-              ) : (
-                /* A filter with no matches softens to a line; the shelf area
-                   never collapses. */
-                <p className="text-[13.5px] text-(--muted)">
-                  {q ? 'Nothing matches that search.' : EMPTY_FOR_FILTER[filter]}
-                </p>
-              )}
-
-              {footer && <div className="mt-8">{footer}</div>}
-            </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="white"
+              size="sm"
+              icon={<Plus size={14} strokeWidth={2.4} />}
+              onClick={onImport}
+              disabled={importing}
+              className="pr-5 pl-4"
+            >
+              {importing ? 'Importing…' : 'Add Book'}
+            </Button>
+            <ViewToggle view={view} onChange={setView} />
           </div>
         )}
       </div>
+
+      {error && <Banner tone="error">{error}</Banner>}
+      {!error && notice && (
+        <Banner tone="notice" onDismiss={onDismissNotice}>
+          {notice}
+        </Banner>
+      )}
+
+      {isEmpty ? (
+        <LibraryEmpty onImport={onImport} importing={importing} />
+      ) : (
+        <>
+          {/* ── Current book ──────────────────────────────────────────── */}
+          {loading ? (
+            <HeroSkeleton />
+          ) : (
+            hero && (
+              <HeroBook
+                book={hero}
+                onResume={() => onOpen(hero)}
+                onRename={(title) => onRename(hero, title)}
+                onRemove={() => onRemove(hero)}
+              />
+            )
+          )}
+
+          {/* ── Search + filter ───────────────────────────────────────── */}
+          <div className="flex items-center justify-between gap-5">
+            <SearchBar
+              inputRef={searchRef}
+              value={query}
+              onChange={setQuery}
+              placeholder="Search books, authors, or keywords..."
+              aria-label="Search your library"
+              trailing={<Kbd size="lg">/</Kbd>}
+              className="w-[520px] max-w-full"
+            />
+            <Segmented
+              aria-label="Filter books"
+              value={filter}
+              onChange={setFilter}
+              items={FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f], count: counts[f] }))}
+            />
+          </div>
+
+          {/* ── Shelf ─────────────────────────────────────────────────── */}
+          <section aria-labelledby="library-shelf" className="flex flex-col gap-[18px]">
+            <div className="flex items-baseline gap-2.5">
+              <span aria-hidden className="size-2 shrink-0 self-center rounded-full" style={{ background: SHELF_DOT }} />
+              <h2 id="library-shelf" className="text-[22px] leading-none font-bold tracking-[-0.01em] text-(--ink)">
+                {q ? 'Search results' : SHELF_TITLE[filter]}
+              </h2>
+              {!loading && (
+                <span className="text-[13px] font-medium text-(--ink-3) tabular-nums">
+                  {shelf.length} {shelf.length === 1 ? 'item' : 'items'}
+                </span>
+              )}
+            </div>
+
+            {loading ? (
+              <div className={GRID}>
+                {Array.from({ length: 8 }, (_, i) => (
+                  <Skeleton key={i} className="aspect-[3/4] w-full rounded-(--radius-row)" />
+                ))}
+              </div>
+            ) : shelf.length === 0 ? (
+              /* A filter with no matches softens to a line; the shelf never
+                 collapses. */
+              <p className="text-[13.5px] font-medium text-(--ink-3)">
+                {q ? 'Nothing matches that search.' : EMPTY_FOR_FILTER[filter]}
+              </p>
+            ) : view === 'grid' ? (
+              <div className={GRID}>
+                {shelf.map((book) =>
+                  book.available ? (
+                    <BookCover
+                      key={book.id}
+                      book={book}
+                      onOpen={() => onOpen(book)}
+                      onRename={(title) => onRename(book, title)}
+                      onMarkFinished={() => onMarkFinished(book)}
+                      onRemove={() => onRemove(book)}
+                    />
+                  ) : (
+                    <ReimportCard
+                      key={book.id}
+                      book={book}
+                      onReAdd={() => onLocate(book)}
+                      onRename={(title) => onRename(book, title)}
+                      onRemove={() => onRemove(book)}
+                    />
+                  ),
+                )}
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {shelf.map((book) => (
+                  <BookRow
+                    key={book.id}
+                    book={book}
+                    onOpen={() => onOpen(book)}
+                    onLocate={() => onLocate(book)}
+                    onRename={(title) => onRename(book, title)}
+                    onMarkFinished={() => onMarkFinished(book)}
+                    onRemove={() => onRemove(book)}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {footer}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── View toggle ─────────────────────────────────────────────────────────────
+
+// The white pill with two 34px circles (page 01 → header row). The active
+// circle is the app's selected treatment.
+function ViewToggle({ view, onChange }: { view: LibraryView; onChange: (v: LibraryView) => void }) {
+  const circle = (key: LibraryView, label: string, icon: ReactNode) => {
+    const on = view === key;
+    return (
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={on}
+        title={label}
+        onClick={() => onChange(key)}
+        className={cn(
+          PRESS,
+          'flex size-[34px] cursor-pointer items-center justify-center rounded-full',
+          'transition-[background-color,color,transform] duration-120 ease-[ease]',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+          on ? ACTIVE : 'text-(--ink-2) hover:bg-[rgb(var(--line-rgb)/0.04)]',
+        )}
+      >
+        {icon}
+      </button>
+    );
+  };
+
+  return (
+    <div role="group" aria-label="Shelf layout" className={cn(PANE, 'flex h-11 items-center gap-0.5 rounded-full px-[5px]')}>
+      {circle('grid', 'Grid view', <LayoutGrid size={16} strokeWidth={2} />)}
+      {circle('list', 'List view', <List size={16} strokeWidth={2} />)}
     </div>
   );
 }
 
 // ── Banner ──────────────────────────────────────────────────────────────────
 
-// The notice-bar shape — hairline box with a 3px coloured left edge —
-// reused for both tones. Vermilion is the design's `--danger` as well as its
-// `--accent`, so an error reads as urgent without a second red entering the
-// palette; a confirmation takes the neutral `--btn` edge instead.
+// A `.pane` row with a 3px coloured left edge: `--danger` for an error, the
+// accent for a confirmation.
 function Banner({
   tone,
   children,
   onDismiss,
 }: {
   tone: 'error' | 'notice';
-  children: React.ReactNode;
+  children: ReactNode;
   onDismiss?: () => void;
 }) {
   return (
     <div
       role={tone === 'error' ? 'alert' : 'status'}
       className={cn(
-        'mb-[22px] flex shrink-0 items-center gap-3 rounded-(--radius-button) border border-l-[3px] px-[18px] py-3.5',
-        'text-[13.5px] leading-[1.5] text-(--soft)',
-        HAIRLINE,
-        tone === 'error' ? 'border-l-(--accent)' : 'border-l-(--btn)',
+        PANE,
+        'flex items-center gap-3 rounded-(--radius-control) border-l-[3px] px-[18px] py-3.5',
+        'text-[13.5px] leading-[1.5] font-medium text-(--ink-2)',
+        tone === 'error' ? 'border-l-(--danger)' : 'border-l-(--accent)',
       )}
     >
       <span className="flex-1">{children}</span>
@@ -318,11 +389,9 @@ function Banner({
           type="button"
           onClick={onDismiss}
           className={cn(
-            GLASS_PRESS,
-            'shrink-0 cursor-pointer font-[family-name:var(--face-mono)] text-[11px] tracking-[0.14em] uppercase',
-            // transform rides along: a bare `transition-colors` would win over
-            // GLASS_PRESS's own list and the nudge would snap instead of ease.
-            'text-(--faint) transition-[color,transform] duration-120 hover:text-(--ink)',
+            PRESS,
+            'shrink-0 cursor-pointer text-[12px] font-bold text-(--ink-3)',
+            'transition-[color,transform] duration-120 hover:text-(--ink)',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
           )}
         >
@@ -333,91 +402,20 @@ function Banner({
   );
 }
 
-// ── Header search ───────────────────────────────────────────────────────────
-
-function SearchField({
-  inputRef,
-  value,
-  onChange,
-}: {
-  inputRef: React.RefObject<HTMLInputElement | null>;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div
-      className={cn(
-        'inline-flex min-w-55 shrink-0 items-center gap-2 rounded-(--radius-input) border px-2.5 py-2',
-        HAIRLINE,
-      )}
-    >
-      <Search size={14} className="shrink-0 text-(--faint)" />
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Search title or author"
-        aria-label="Search your library"
-        className="min-w-0 flex-1 bg-transparent text-[13px] text-(--ink) outline-none placeholder:text-(--faint)"
-      />
-    </div>
-  );
-}
-
-// ── Filter chip ─────────────────────────────────────────────────────────────
-
-// Not the shared `Chip`: that one is a link or a static label, and these are
-// single-select controls with a pressed state and their own mono type scale.
-//
-// Plain white glass when unselected (GLASS_SCRIM is the on-cover treatment,
-// and nothing on this row sits on cover art), the app's active glass when
-// selected. `GLASS_ACTIVE` brings the fill AND the ink, so there is
-// no `text-*` on the selected branch — a utility would beat the recipe.
-function FilterChip({
-  label,
-  count,
-  active,
-  onClick,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        GLASS_BUTTON,
-        GLASS_PRESS,
-        'inline-flex items-center gap-1.5 rounded-(--radius-chip) py-2 px-3',
-        'font-(family-name:--face-mono) text-[12px] uppercase',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
-        active ? GLASS_ACTIVE : 'text-(--soft)',
-      )}
-    >
-      {label}
-      <span className="text-[12px] opacity-70">{count}</span>
-    </button>
-  );
-}
-
 // ── Loading ─────────────────────────────────────────────────────────────────
 
-// The hero's glass shell, at its real height, so the two-column geometry is
-// already correct when the shelf arrives. The cover skeletons are rendered
-// inline in the shelf column above.
+// The hero's shell at its real height, so nothing shifts when the data lands.
 function HeroSkeleton() {
   return (
-    <div className={cn(GLASS_SURFACE, 'flex h-fit gap-[22px] self-start rounded-(--radius-panel) p-[26px]')}>
-      <Skeleton className="aspect-[96/140] w-[176px] shrink-0 rounded-(--radius-cover)" />
+    <HeroCard className="flex items-center gap-10">
+      <Skeleton className="h-[234px] w-[156px] shrink-0 rounded-(--radius-chip)" />
       <div className="flex flex-1 flex-col gap-3">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-7 w-2/3" />
-        <Skeleton className="mt-auto h-[26px] w-full" />
+        <Skeleton className="h-[26px] w-32" />
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="mt-1.5 h-2 w-full" />
+        <Skeleton className="mt-5 h-[52px] w-56" />
       </div>
-    </div>
+    </HeroCard>
   );
 }

@@ -6,8 +6,8 @@
  *
  * Everything below the route is exported because the reader's lookup surfaces
  * are built out of these pieces rather than out of copies of them: the docked
- * column in `features/books/reader/dict-sidebar/` and the bubble in
- * `features/books/reader/reader-bubble/` render the same rows and the same
+ * column in `features/books/reader/dict-sidebar/` and the modal in
+ * `features/books/reader/reader-modal/` render the same rows and the same
  * entry (at `scale="compact"`), so the two screens can't drift apart. The rows,
  * the list and the entry panes are all fully controlled — a `selected` boolean
  * and callbacks — so a surface that keeps its selection in local state and one

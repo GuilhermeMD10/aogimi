@@ -25,7 +25,7 @@ export function SettingRow({ title, description, danger, control, className }: P
           {title}
         </div>
         {description && (
-          <div className="mt-[3px] text-[13px] leading-[1.45] text-(--muted)">{description}</div>
+          <div className="mt-[3px] text-[13px] leading-[1.45] text-(--ink-3)">{description}</div>
         )}
       </div>
       <div className="shrink-0">{control}</div>

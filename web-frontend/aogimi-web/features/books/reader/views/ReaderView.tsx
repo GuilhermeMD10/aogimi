@@ -171,7 +171,7 @@ export default function ReaderView({ bookId }: { bookId: string }) {
   );
   // The selection variant, not the entry one: a word tapped in the book is a raw
   // surface string with no dictionary entry behind it yet, and the menu has to
-  // open immediately rather than wait for a lookup. The bubble's `useCardPrefill`
+  // open immediately rather than wait for a lookup. The modal's `useCardPrefill`
   // resolves the reading, glosses and JLPT tier while the user picks a deck.
   const handleAddCard = useCallback(
     (word: string, contextSentence?: string) => requestAddCardFromSelection(word, contextSentence),
@@ -181,7 +181,7 @@ export default function ReaderView({ bookId }: { bookId: string }) {
   if (status.phase === 'opening') {
     return (
       <div className="flex h-full items-center justify-center font-[family-name:var(--face-ui)]">
-        <p className="text-[13.5px] text-(--muted)">Opening&hellip;</p>
+        <p className="text-[13.5px] font-medium text-(--ink-3)">Opening&hellip;</p>
       </div>
     );
   }
@@ -189,18 +189,18 @@ export default function ReaderView({ bookId }: { bookId: string }) {
   if (status.phase === 'missing' || status.phase === 'failed') {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center font-[family-name:var(--face-ui)]">
-        <BookOpen size={28} strokeWidth={1.7} className="text-(--faint)" />
+        <BookOpen size={28} strokeWidth={1.7} className="text-(--ink-3)" aria-hidden />
         <div>
           <p className="text-[15.5px] font-bold text-(--ink)">
             {status.phase === 'missing' ? "This book isn't on this device" : "This book couldn't be opened"}
           </p>
-          <p className="mt-1 max-w-sm text-[13.5px] text-(--muted)">
+          <p className="mt-1 max-w-sm text-[13.5px] font-medium text-(--ink-3)">
             {status.phase === 'missing'
               ? 'Aogimi keeps your progress, not your files. Re-add the file from your library to open it where you left off.'
               : status.message}
           </p>
         </div>
-        <Button href="/" variant="secondary">
+        <Button href="/" variant="white">
           Back to library
         </Button>
       </div>
@@ -219,47 +219,42 @@ export default function ReaderView({ bookId }: { bookId: string }) {
        (book.initialSpineIndex && book.initialSpineIndex > 0 ? book.initialSpineIndex : null))
     : null;
 
-  return (
-    <div className="flex h-full min-h-0 flex-row">
-      <div className="flex h-full min-h-0 flex-1 flex-col">
-        {book.isPdf ? (
-          <PdfReader
-            fileUrl={book.fileUrl}
-            bookTitle={book.title}
-            bookAuthor={book.author}
-            onLookup={handleLookup}
-            onAddCard={handleAddCard}
-            onBack={goBack}
-            sidekickOpen={sidekickOpen}
-            onToggleSidekick={toggleSidekick}
-            initialPage={initialPdfPage}
-            onRelocate={recordProgress}
-          />
-        ) : (
-          <EpubReader
-            fileUrl={book.fileUrl}
-            bookTitle={book.title}
-            bookAuthor={book.author}
-            onLookup={handleLookup}
-            onAddCard={handleAddCard}
-            onBack={goBack}
-            sidekickOpen={sidekickOpen}
-            onToggleSidekick={toggleSidekick}
-            initialCfi={book.initialCfi}
-            initialSpineIndex={book.initialSpineIndex}
-            onRelocate={recordProgress}
-          />
-        )}
-      </div>
+  // The docked column, handed to the engine's shell so it sits beside the
+  // reading surface and under the toolbar rather than beside the whole reader.
+  const side = sidekickOpen ? (
+    <aside aria-label="Dictionary" className="flex min-h-0 w-1/4 max-w-[480px] min-w-[320px] shrink-0">
+      <DictSidebar onClose={() => setSidekickOpen(false)} />
+    </aside>
+  ) : undefined;
 
-      {sidekickOpen && (
-        <aside
-          aria-label="Dictionary"
-          style={{ width: '25%', minWidth: 320, maxWidth: 480, flexShrink: 0 }}
-        >
-          <DictSidebar onClose={() => setSidekickOpen(false)} />
-        </aside>
-      )}
-    </div>
+  return book.isPdf ? (
+    <PdfReader
+      fileUrl={book.fileUrl}
+      bookTitle={book.title}
+      bookAuthor={book.author}
+      onLookup={handleLookup}
+      onAddCard={handleAddCard}
+      onBack={goBack}
+      sidekickOpen={sidekickOpen}
+      onToggleSidekick={toggleSidekick}
+      side={side}
+      initialPage={initialPdfPage}
+      onRelocate={recordProgress}
+    />
+  ) : (
+    <EpubReader
+      fileUrl={book.fileUrl}
+      bookTitle={book.title}
+      bookAuthor={book.author}
+      onLookup={handleLookup}
+      onAddCard={handleAddCard}
+      onBack={goBack}
+      sidekickOpen={sidekickOpen}
+      onToggleSidekick={toggleSidekick}
+      side={side}
+      initialCfi={book.initialCfi}
+      initialSpineIndex={book.initialSpineIndex}
+      onRelocate={recordProgress}
+    />
   );
 }

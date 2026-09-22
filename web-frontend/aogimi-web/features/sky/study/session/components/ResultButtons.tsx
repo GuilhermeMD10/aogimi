@@ -1,14 +1,6 @@
 'use client';
 
-import {
-  GLASS_BUTTON,
-  GLASS_GRADE,
-  GLASS_GRADE_AGAIN,
-  GLASS_GRADE_EASY,
-  GLASS_GRADE_GOOD,
-  GLASS_GRADE_HARD,
-  GLASS_PRESS,
-} from '@/shared/components';
+import { PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import type { StudyOutcome } from '../types';
 
@@ -18,8 +10,9 @@ type Props = {
 };
 
 /**
- * Four tinted glasses, one per FSRS grade — see the grade block in `glass.css`
- * for the tints and why they're local rather than `--danger` / `--warn`.
+ * Four tinted tiles, one per FSRS grade, in the four `--grade-*` tokens
+ * (`styles/ds-tokens.css`, D6 — fixed in every theme). Tile geometry is the
+ * handoff's: bg at .12, border at .4, label in the grade colour.
  *
  * **Why there are four.** FSRS is fitted on a four-grade distribution in which
  * Good is the dominant success grade. With three buttons there is no neutral
@@ -31,26 +24,19 @@ type Props = {
  * and the logged grade would disagree, poisoning the review log for any future
  * parameter fit. So: four buttons, four grades, no lie.
  *
- * No interval label under the grade. A static table of "this many days" is a
- * promise the scheduler does not make — the real next-due depends on the card's
- * own stability, so printing a number honestly means computing it per card,
- * which is a different feature. The slot carries the keyboard shortcut instead.
+ * No interval label under the grade (owner ruling 2026-09-21, G17): nothing
+ * computes a per-grade projection on web. The slot carries the key instead.
  */
 const OUTCOMES: { outcome: StudyOutcome; label: string; hint: string; tint: string }[] = [
-  { outcome: 'again', label: 'Again', hint: '1', tint: GLASS_GRADE_AGAIN },
-  { outcome: 'hard', label: 'Hard', hint: '2', tint: GLASS_GRADE_HARD },
-  { outcome: 'good', label: 'Good', hint: '3', tint: GLASS_GRADE_GOOD },
-  { outcome: 'easy', label: 'Easy', hint: '4', tint: GLASS_GRADE_EASY },
+  { outcome: 'again', label: 'Again', hint: '1', tint: 'var(--grade-again)' },
+  { outcome: 'hard', label: 'Hard', hint: '2', tint: 'var(--grade-hard)' },
+  { outcome: 'good', label: 'Good', hint: '3', tint: 'var(--grade-good)' },
+  { outcome: 'easy', label: 'Easy', hint: '4', tint: 'var(--grade-easy)' },
 ];
 
-// Four equal-weight buttons: same glass, same neutral ink, same everything but
-// hue. None of them is a filled primary: a highlighted button recommends itself
-// before the user has graded anything, and the point is an honest
-// self-assessment. Good is the grade the model expects most often, so a UI that
-// nudged toward Easy would skew the very distribution FSRS is fitted against.
-//
-// Ink is stated on the button rather than on the label so `currentColor` (which
-// is what the hover edge resolves to) is the ink.
+// Four equal-weight tiles: same shape, same everything but hue. None of them is
+// a filled primary: a highlighted button recommends itself before the user has
+// graded anything, and the point is an honest self-assessment.
 export function ResultButtons({ onResult, disabled }: Props) {
   return (
     <div className="mt-5 flex w-full max-w-[860px] gap-3">
@@ -61,18 +47,24 @@ export function ResultButtons({ onResult, disabled }: Props) {
           onClick={() => onResult(outcome)}
           disabled={disabled}
           className={cn(
-            GLASS_BUTTON,
-            GLASS_PRESS,
-            GLASS_GRADE,
-            tint,
-            'flex flex-1 flex-col items-center gap-[3px] rounded-(--radius-input) px-2.5 py-3.5',
-            'font-[family-name:var(--face-ui)] text-[15px] leading-none font-bold text-(--ink)',
+            PRESS,
+            'flex h-[72px] flex-1 flex-col items-center justify-center gap-[6px] rounded-(--radius-tile) border px-2.5',
+            'font-[family-name:var(--face-ui)] text-[15px] leading-none font-bold',
+            'transition-[background-color,transform] duration-120 ease-[ease]',
             'disabled:pointer-events-none disabled:opacity-50',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
           )}
+          style={{
+            color: tint,
+            background: `color-mix(in srgb, ${tint} 12%, transparent)`,
+            borderColor: `color-mix(in srgb, ${tint} 40%, transparent)`,
+          }}
         >
           {label}
-          <span className="font-[family-name:var(--face-mono)] text-[10px] font-normal text-(--muted)">
+          <span
+            className="flex size-5 items-center justify-center rounded-(--radius-chip) font-[family-name:var(--face-mono)] text-[10px] font-medium tabular-nums"
+            style={{ background: `color-mix(in srgb, ${tint} 18%, transparent)` }}
+          >
             {hint}
           </span>
         </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { TextReader } from '@/features/books/reader/components/TextReader';
 import { MangaReader } from '@/features/books/reader/components/MangaReader';
 import { makeBookFromBlob } from '@/features/books/reader/lib/foliate';
@@ -28,6 +28,8 @@ type Props = {
   sidekickOpen?: boolean;
   /** Toggle the sidekick visibility from the reader toolbar. */
   onToggleSidekick?: () => void;
+  /** The docked dictionary column, rendered beside the reading surface. */
+  side?: ReactNode;
   /** CFI to restore to on open (flowing EPUBs). */
   initialCfi?: string | null;
   /** Spine index to restore to on open (fixed-layout / manga EPUBs). */
@@ -58,6 +60,7 @@ export function EpubReader({
   onBack,
   sidekickOpen,
   onToggleSidekick,
+  side,
   initialCfi,
   initialSpineIndex,
   onRelocate,
@@ -110,8 +113,8 @@ export function EpubReader({
 
   if (error) {
     return (
-      <div className="flex h-full items-center justify-center p-8">
-        <p className="max-w-sm text-center text-[13.5px] text-(--accent)">
+      <div className="flex h-full items-center justify-center p-8 font-[family-name:var(--face-ui)]">
+        <p className="max-w-sm text-center text-[13.5px] font-medium text-(--danger)">
           This book couldn&apos;t be opened: {error}
         </p>
       </div>
@@ -120,8 +123,8 @@ export function EpubReader({
 
   if (!blob || !readerType) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-[13.5px] text-(--muted)">Opening&hellip;</p>
+      <div className="flex h-full items-center justify-center font-[family-name:var(--face-ui)]">
+        <p className="text-[13.5px] font-medium text-(--ink-3)">Opening&hellip;</p>
       </div>
     );
   }
@@ -131,7 +134,7 @@ export function EpubReader({
   const shared = {
     blob, bookTitle, bookAuthor,
     onLookup, onAddCard, onBack,
-    sidekickOpen, onToggleSidekick,
+    sidekickOpen, onToggleSidekick, side,
     initialCfi, initialSpineIndex, onRelocate,
   };
 

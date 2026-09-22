@@ -1,6 +1,6 @@
 'use client';
 
-import { GLASS_ACTIVE, GLASS_PRESS, GLASS_ROW, GLASS_SURFACE } from '@/shared/components';
+import { ACTIVE, PRESS, PANE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import type { AuthMode } from '../types';
 
@@ -17,8 +17,8 @@ import type { AuthMode } from '../types';
  * `AuthForm`. It's the first thing in the panel and the panel's height is
  * pinned, so it can't.
  *
- * Glass: a `GLASS_SURFACE` track holding two `GLASS_ROW`s, the selected one
- * lit by `GLASS_ACTIVE`. That is the dock's shell-and-pill arrangement at a
+ * Glass: a `PANE` track holding two `PANE`s, the selected one
+ * lit by `ACTIVE`. That is the dock's shell-and-pill arrangement at a
  * smaller size, and it is the app's one answer to "this is the selected one".
  */
 export function ModeSwitch({
@@ -45,7 +45,7 @@ export function ModeSwitch({
     <div
       role="radiogroup"
       aria-label="Log in or create an account"
-      className={cn(GLASS_SURFACE, 'flex gap-1.5 rounded-[13px] p-[5px]')}
+      className={cn(PANE, 'flex gap-1.5 rounded-[13px] p-[5px]')}
     >
       {options.map(({ value, label }) => {
         const selected = mode === value;
@@ -59,14 +59,14 @@ export function ModeSwitch({
             onClick={() => onChange(value)}
             onKeyDown={onKeyDown}
             className={cn(
-              GLASS_ROW,
-              GLASS_PRESS,
+              PANE,
+              PRESS,
               'flex-1 rounded-[9px] py-[11px] text-center',
               'font-[family-name:var(--face-ui)] text-[13.5px] font-bold',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
-              // No ink on the selected branch: GLASS_ACTIVE brings the dark one
+              // No ink on the selected branch: ACTIVE brings the dark one
               // the tint needs, and a `text-*` utility would beat the recipe.
-              selected ? GLASS_ACTIVE : 'text-(--muted)',
+              selected ? ACTIVE : 'text-(--ink-3)',
             )}
           >
             {label}

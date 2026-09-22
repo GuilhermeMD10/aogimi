@@ -2,7 +2,7 @@
 
 import { CopyPlus } from 'lucide-react';
 import { cn } from '@/lib/util/cn';
-import { GLASS_ACTIVE, GLASS_BUTTON, GLASS_PRESS, GLASS_ROW, HAIRLINE, JlptChip } from '@/shared/components';
+import { ACTIVE, PANE, PRESS, JlptChip } from '@/shared/components';
 import { preferredHeadword } from '../lib/headword';
 import { inflectionNote } from '../lib/inflection';
 import type { KanjiInfo, WordResult } from '../types';
@@ -17,54 +17,54 @@ import type { KanjiInfo, WordResult } from '../types';
  * surfaces should be the same list, not two lists that look alike.
  *
  * ── Row states ──────────────────────────────────────────────────────────────
- * **A row is not a pane.** `GLASS_ROW` carries the glass hover fill and nothing
+ * **A row is not a pane.** `PANE` carries the glass hover fill and nothing
  * at rest — no fill, no border, no blur, no specular edge — and `ROW_LIST` rules
  * a hairline between rows, so the rail reads as one running column. It spent a
- * pass as a full `GLASS_BUTTON` and that was the wrong read: forty results as
+ * pass as a full `PANE` and that was the wrong read: forty results as
  * forty little frosted cards makes the eye count cards instead of scanning down
  * the list, and the rail is a list.
  *
- * The interactions are still the app's: hover brightens the fill, `GLASS_PRESS`
+ * The interactions are still the app's: hover brightens the fill, `PRESS`
  * gives the same nudge as every other button, and the selected row is
- * `GLASS_ACTIVE` — the `--active` tint, which is what "this is the selected one"
+ * `ACTIVE` — the `--selected` tint, which is what "this is the selected one"
  * means everywhere from the dock's pill to the library's filter chips. What is
- * gone for good is the bespoke set: a transparent border that grew a `--muted`
+ * gone for good is the bespoke set: a transparent border that grew a `--ink-3`
  * 35% mix on hover, an `--accent` edge when selected, and the headword turning
  * `--accent` on hover.
  *
- * **The lit row flips every ink.** `--ink`/`--soft`/`--muted`/`--faint` are all
+ * **The lit row flips every ink.** `--ink`/`--ink-2`/`--ink-3`/`--ink-3` are all
  * light-on-dark at night, so on a pale tint they would disappear one after the
  * other. `ROW_INK` is the two sets; take it with `rowInk(selected)` and read
  * `.strong` / `.soft` / `.muted` / `.faint` off it. The dark side is
- * `--active-ink` at four densities through `color-mix`, because Tailwind's
+ * `--selected-ink` at four densities through `color-mix`, because Tailwind's
  * slash-opacity can't apply to an arbitrary `var()` colour. `JlptChip` needs
  * nothing — it is a solid pill with its own near-black ink, legible on anything.
  */
 export const ROW_SHELL = cn(
-  GLASS_ROW,
-  GLASS_PRESS,
+  PANE,
+  PRESS,
   // No `group` any more — it existed only for the `group-hover:` accent swap on
   // the headword, and the fill is the hover now.
-  'flex w-full items-start gap-2.5 rounded-(--radius-input) px-3 py-[13px] text-left',
+  'flex w-full items-start gap-2.5 rounded-(--radius-control) px-3 py-[13px] text-left',
 );
 
 /**
  * The list the rows sit in: no gap, and a hairline under every row but the last,
  * which is what makes them read as connected rather than stacked.
  *
- * The colour is written out instead of composing `HAIRLINE`, and the rule is a
- * child selector instead of `divide-y`, for one reason each. Tailwind scans
- * source text for class names, so a template-interpolated
- * `` `[&>li…]:${HAIRLINE}` `` is a class it never sees and never generates. And
+ * The colour is written out instead of composed from a constant, and the rule
+ * is a child selector instead of `divide-y`, for one reason each. Tailwind scans
+ * source text for class names, so a class built at runtime from a variable
+ * (`[&>li…]:${…}`) is one it never sees and never generates. And
  * `border-color` is not inherited — globals' `*` rule gives every element its
  * own `--color-border` — so setting the colour on the `<ul>` would leave the
  * children's rules painted in the default instead.
  */
 export const ROW_LIST = cn('flex flex-col gap-2');
 
-/** There is no `ROW_IDLE` any more: an idle row is a plain `GLASS_ROW` and the
+/** There is no `ROW_IDLE` any more: an idle row is a plain `PANE` and the
  *  hover lives in that recipe, so the constant had nothing left to hold. */
-export const ROW_SELECTED = GLASS_ACTIVE;
+export const ROW_SELECTED = ACTIVE;
 
 export const ROW_FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)';
 
@@ -77,23 +77,23 @@ const ROW_ADD_GUTTER = 'pr-12';
 const ROW_INK = {
   idle: {
     strong: 'text-(--ink)',
-    soft: 'text-(--soft)',
-    muted: 'text-(--muted)',
-    faint: 'text-(--faint)',
+    soft: 'text-(--ink-2)',
+    muted: 'text-(--ink-3)',
+    faint: 'text-(--ink-3)',
   },
   selected: {
-    strong: 'text-(--active-ink)',
-    soft: '[color:color-mix(in_srgb,var(--active-ink)_78%,transparent)]',
-    muted: '[color:color-mix(in_srgb,var(--active-ink)_62%,transparent)]',
-    faint: '[color:color-mix(in_srgb,var(--active-ink)_45%,transparent)]',
+    strong: 'text-(--selected-ink)',
+    soft: '[color:color-mix(in_srgb,var(--selected-ink)_78%,transparent)]',
+    muted: '[color:color-mix(in_srgb,var(--selected-ink)_62%,transparent)]',
+    faint: '[color:color-mix(in_srgb,var(--selected-ink)_45%,transparent)]',
   },
 } as const;
 
 const rowInk = (selected: boolean) => (selected ? ROW_INK.selected : ROW_INK.idle);
 
-/** Hairline that survives the lit fill — `HAIRLINE` is a white mix and vanishes
+/** Hairline that survives the lit fill — `'border-(--hairline)'` is a white mix and vanishes
  *  on it, so a selected row's edges are drawn in the dark ink instead. */
-const EDGE_SELECTED = '[border-color:color-mix(in_srgb,var(--active-ink)_26%,transparent)]';
+const EDGE_SELECTED = '[border-color:color-mix(in_srgb,var(--selected-ink)_26%,transparent)]';
 
 /** The class pill next to the JLPT chip. Bordered, never filled — so it needs
  *  both its ink and its edge flipped on a lit row. */
@@ -102,10 +102,10 @@ export function ClassPill({ children, selected = false }: { children: string; se
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-(--radius-chip) border px-[9px] py-0.5',
+        'inline-flex items-center rounded-full border px-[9px] py-0.5',
         'font-[family-name:var(--face-mono)] text-[9.5px] tracking-[0.04em] uppercase',
         ink.muted,
-        selected ? EDGE_SELECTED : HAIRLINE,
+        selected ? EDGE_SELECTED : 'border-(--hairline)',
       )}
     >
       {children}
@@ -129,9 +129,9 @@ export function AddButton({ onClick, label }: { onClick: () => void; label: stri
       aria-label={label}
       title={label}
       className={cn(
-        GLASS_BUTTON,
-        GLASS_PRESS,
-        'flex size-8 shrink-0 items-center justify-center rounded-(--radius-button) text-(--accent)',
+        PANE,
+        PRESS,
+        'flex size-8 shrink-0 items-center justify-center rounded-(--radius-control) text-(--accent)',
         ROW_FOCUS,
       )}
     >
@@ -258,10 +258,10 @@ export function KanjiRow({
       >
         <span
           className={cn(
-            'flex size-11.5 shrink-0 items-center justify-center rounded-(--radius-tile) border',
+            'flex size-11.5 shrink-0 items-center justify-center rounded-(--radius-chip) border',
             'font-(family-name:--face-jp) text-[30px] leading-none',
             ink.strong,
-            selected ? EDGE_SELECTED : HAIRLINE,
+            selected ? EDGE_SELECTED : 'border-(--hairline)',
           )}
         >
           {kanji.literal}

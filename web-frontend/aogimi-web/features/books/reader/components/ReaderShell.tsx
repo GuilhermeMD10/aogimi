@@ -1,95 +1,104 @@
 'use client';
 
-// The frame every reader wears: a 64px toolbar that never moves, one scrolling
-// pane below it, and a single anchor for the popovers.
+// The frame every reader wears: the reader bar — back circle + title stack on
+// the left, the tool pill in the centre, page controls + progress on the right
+// — one reading surface below it, an optional docked column beside that
+// surface, and a single anchor for the popovers.
 //
-// Each reader supplies its own pieces — `tools` for the right-hand cluster,
-// `popover` for whichever panel is open, `children` for the reading surface —
-// so the shell never branches on reader type. Everything in the centre is
-// optional, and that is how a more limited engine degrades: a PDF has no table
-// of contents, so it simply passes fewer `tools`; a book with no location count
-// passes no `page`. Nothing here has to know why.
+// The bar *is* the page's top bar. Inside a book the app frame draws no
+// `TopNav` (`frameForRoute` → `nav: false`), and this takes its slot and its
+// material — the 64px `.pane-nav` pill with 44px inner pills of 34px items —
+// so the book gets the nav's height back (owner's call, 2026-09-22; page 09
+// drew both).
 //
-// The toolbar sits on `--bg` rather than `--card`: `--card` is transparent by
-// design, and a toolbar that lets the page text scroll through it is not a
-// toolbar. The reading pane below keeps its *own* background (the reader's
-// light/dark/sepia), which is deliberately independent of the app theme — the
-// book's page colour is a reading preference, not a UI skin.
+// Each reader supplies its own pieces — `tools` for the pill, `popover` for
+// whichever panel is open, `children` for the reading surface — so the shell
+// never branches on reader type. A more limited engine simply passes fewer
+// tools and no `page`.
+//
+// The reading surface keeps its *own* background (the reader's light / dark /
+// sepia), deliberately independent of the app theme: the book's page colour is
+// a reading preference, not a UI skin. Only the chrome here takes the theme.
 
 import { useState, type ReactNode } from 'react';
-import { ChevronLeft } from 'lucide-react';
-import { GLASS_PRESS, HAIRLINE, SkyBar } from '@/shared/components';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ACTIVE, Button, PANE_NAV, PRESS, ProgressBar } from '@/shared/components';
+import { CloseIcon } from '@/shared/icons';
 import { cn } from '@/lib/util/cn';
 
-// ── Title ───────────────────────────────────────────────────────────────────
+const UI = 'font-[family-name:var(--face-ui)]';
+const MONO = 'font-[family-name:var(--face-mono)] tracking-[0.04em]';
 
-/** Longest title the toolbar prints in full. */
-const TITLE_MAX = 25;
+/** The 44px pill both inner groups sit in — the nav's `PILL`. */
+const PILL = 'flex h-11 shrink-0 items-center rounded-full border border-(--hairline) bg-(--pane) px-[5px]';
 
-/**
- * A character cap, not a CSS one. The title sits in the toolbar's `1fr` column
- * next to the author and can't shrink (it must not wrap or squeeze mid-word), so
- * a long one would widen that column and shove the centred progress cluster
- * off-centre — a filename-derived title on a PDF reaches halfway across the bar.
- * Cutting the string is what bounds the column; `title={…}` on the span still
- * carries the whole thing for hover.
- */
-function clampTitle(title: string): string {
-  if (title.length <= TITLE_MAX) return title;
-  return `${title.slice(0, TITLE_MAX).trimEnd()}…`;
-}
+// ── Tool pill ───────────────────────────────────────────────────────────────
 
-// ── Icon button ─────────────────────────────────────────────────────────────
-
-export function ReaderIconButton({
-  label,
-  onClick,
-  active = false,
-  disabled = false,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  /** Toggle is on — the panel it opens is showing, or the mode is engaged. */
+export type ReaderTool = {
+  key: string;
+  label: ReactNode;
+  /** 16px glyph, `currentColor`. */
+  icon?: ReactNode;
+  /** The surface this tool opens is showing. */
   active?: boolean;
   disabled?: boolean;
-  children: ReactNode;
-}) {
+  onClick: () => void;
+  /** Announced / hover name when `label` is not plain text. */
+  title?: string;
+};
+
+function ToolItem({ tool }: { tool: ReaderTool }) {
   return (
     <button
       type="button"
       // Marks this as a popover trigger: a pointerdown here must not count as
       // "outside", or the button would close the panel it just opened.
       data-reader-tool
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      aria-label={label}
-      aria-pressed={active}
+      onClick={tool.onClick}
+      disabled={tool.disabled}
+      title={tool.title}
+      aria-label={tool.title}
+      aria-pressed={tool.active}
       className={cn(
-        GLASS_PRESS,
-        'flex h-[38px] w-[38px] shrink-0 cursor-pointer items-center justify-center',
-        'rounded-(--radius-button) border',
-        'transition-[color,background-color,border-color,transform] duration-150',
+        PRESS,
+        UI,
+        'flex h-[34px] shrink-0 cursor-pointer items-center gap-2 rounded-full px-3 whitespace-nowrap',
+        'text-[13px] leading-none',
+        'transition-[color,background-color,transform] duration-120 ease-[ease]',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
         'disabled:cursor-default disabled:opacity-40',
-        // A pressed toolbar toggle is the app's --active, same as a selected
-        // filter chip or the dock's current entry.
-        active
-          ? 'border-(--active) bg-(--active) text-(--active-ink)'
-          : cn('bg-transparent text-(--ink) hover:bg-(--track)', HAIRLINE),
+        tool.active ? cn(ACTIVE, 'font-bold') : 'font-medium text-(--ink-2) hover:bg-[rgb(var(--line-rgb)/0.04)]',
       )}
     >
-      {children}
+      {tool.icon}
+      {tool.label}
+    </button>
+  );
+}
+
+/** A 34px circle inside the right pill — the nav avatar's footprint. */
+function PageTurn({ label, onClick, icon }: { label: string; onClick: () => void; icon: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={cn(
+        PRESS,
+        'flex size-[34px] shrink-0 cursor-pointer items-center justify-center rounded-full text-(--ink-2)',
+        'transition-[background-color,color,transform] duration-120 ease-[ease] hover:bg-[rgb(var(--line-rgb)/0.04)] hover:text-(--ink)',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
+      )}
+    >
+      {icon}
     </button>
   );
 }
 
 // ── Popover panel ───────────────────────────────────────────────────────────
 
-// The shell for Settings and Contents. Opaque (`--bg`) because it covers text,
-// and it takes its own width/padding so Contents can be taller and tighter than
-// Settings without a second component.
+// The shell for Display and Contents: a strong pane under the tool pill.
 export function ReaderPanel({
   title,
   subtitle,
@@ -106,39 +115,30 @@ export function ReaderPanel({
 }) {
   return (
     <div
-      // See ReaderIconButton: a pointerdown inside the panel isn't "outside".
+      // See ToolItem: a pointerdown inside the panel isn't "outside".
       data-reader-panel
       className={cn(
-        'w-[328px] rounded-(--radius-pill) border bg-(--bg) px-5 pt-[18px] pb-[22px]',
-        'shadow-(--card-shadow-float)',
-        HAIRLINE,
+        UI,
+        'w-[328px] rounded-(--radius-card) border border-(--hairline) bg-(--pane-strong) px-5 pt-[18px] pb-[22px] shadow-(--shadow-modal)',
         className,
       )}
     >
       <div className="mb-[18px] flex items-center justify-between">
         <div className="flex items-baseline gap-[9px]">
-          <span className="font-[family-name:var(--face-ui)] text-[15px] font-bold text-(--ink)">
-            {title}
-          </span>
-          {subtitle && (
-            <span className="font-[family-name:var(--face-jp)] text-[13px] text-(--faint)">
-              {subtitle}
-            </span>
-          )}
+          <span className="text-[15px] font-bold text-(--ink)">{title}</span>
+          {subtitle && <span className="font-[family-name:var(--face-jp)] text-[13px] text-(--ink-3)">{subtitle}</span>}
         </div>
         <button
           type="button"
           onClick={onClose}
           aria-label={`Close ${title}`}
           className={cn(
-            'cursor-pointer text-(--muted) transition-colors duration-150 hover:text-(--ink)',
+            'flex size-8 cursor-pointer items-center justify-center rounded-full text-(--ink-3)',
+            'transition-colors duration-120 ease-[ease] hover:text-(--ink)',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
           )}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M6 6l12 12" />
-            <path d="M18 6 6 18" />
-          </svg>
+          <CloseIcon size={12} />
         </button>
       </div>
       {children}
@@ -148,11 +148,9 @@ export function ReaderPanel({
 
 // ── Page jump ───────────────────────────────────────────────────────────────
 
-// `142` over `/ 412`. Editable when the reader can jump; plain text when it
-// can't (the PDF pane scrolls freely and has no page→offset mapping).
-//
-// While the box is focused `draft` is non-null, which is what stops an incoming
-// page turn from overwriting what you're typing.
+// `142 / 412` inside the progress pill. Editable when the reader can jump;
+// plain text when it can't. While the box is focused `draft` is non-null,
+// which is what stops an incoming page turn from overwriting what you type.
 function PageJump({
   current,
   total,
@@ -171,14 +169,10 @@ function PageJump({
     setDraft(null);
   };
 
-  const box = cn(
-    'flex h-[30px] min-w-[46px] items-center justify-center rounded-(--radius-cover) border px-[9px]',
-    'font-[family-name:var(--face-mono)] text-xs font-bold text-(--ink)',
-    HAIRLINE,
-  );
+  const digits = String(total).length;
 
   return (
-    <div className="flex items-center gap-1.5 font-[family-name:var(--face-mono)] text-xs">
+    <span className={cn(MONO, 'flex items-center gap-1 text-[12px] font-medium text-(--ink-2) tabular-nums')}>
       {onJump ? (
         <input
           value={draft ?? String(current)}
@@ -199,17 +193,17 @@ function PageJump({
           }}
           aria-label="Jump to page"
           title="Jump to page"
+          style={{ width: `${Math.max(2, digits)}ch` }}
           className={cn(
-            box,
-            'bg-transparent text-center outline-none transition-colors duration-150',
-            'hover:border-(--ink) focus:border-(--ink)',
+            'rounded-(--radius-chip) bg-transparent text-center text-(--ink) outline-none',
+            'transition-colors duration-120 hover:bg-[rgb(var(--line-rgb)/0.06)] focus:bg-[rgb(var(--line-rgb)/0.06)]',
           )}
         />
       ) : (
-        <span className={cn(box, 'bg-transparent')}>{current}</span>
+        <span className="text-(--ink)">{current}</span>
       )}
-      <span className="text-(--faint)">/ {total}</span>
-    </div>
+      <span className="text-(--ink-3)">/ {total}</span>
+    </span>
   );
 }
 
@@ -217,70 +211,109 @@ function PageJump({
 
 export type ReaderShellProps = {
   title: string;
-  /** Gives way before the title does on a narrow window. */
   author?: string;
+  /** The chapter being read, when the engine knows it. Mono, after the author. */
+  chapter?: string;
   onBack: () => void;
-  /** 0–100. Omit to hide the sky bar. */
+  /** 0–100. Omit to hide the progress pill. */
   percent?: number;
-  /** Omit to hide the page box — a reader with no page count shows nothing. */
+  /** Present → the pill prints `current / total` beside the track. */
   page?: { current: number; total: number };
   /** Present → the page box becomes editable. */
   onJumpToPage?: (page: number) => void;
-  /** Right-hand cluster of icon buttons. */
-  tools?: ReactNode;
+  /** The centre pill's items, in order. */
+  tools: ReaderTool[];
+  /** The two page-turn circles beside the progress pill (D10 — the handoff
+   *  draws none, the current behaviour stays). */
+  onPrev?: { label: string; onClick: () => void };
+  onNext?: { label: string; onClick: () => void };
   /** Whichever panel is open. Callers keep these mutually exclusive — there is
-   *  one anchor, so two panels would stack on top of each other. */
+   *  one anchor, so two panels would stack. */
   popover?: ReactNode;
+  /** A column docked beside the reading surface — the dictionary sidebar. */
+  side?: ReactNode;
   children: ReactNode;
 };
 
 export function ReaderShell({
   title,
   author,
+  chapter,
   onBack,
   percent,
   page,
   onJumpToPage,
   tools,
+  onPrev,
+  onNext,
   popover,
+  side,
   children,
 }: ReaderShellProps) {
+  const meta = [author, chapter].filter(Boolean).join(' · ');
+  const showProgress = percent !== undefined || (page && page.total > 0);
+
   return (
-    <div className="relative flex h-full min-h-0 flex-col font-[family-name:var(--face-ui)]">
-      <div
+    <div className={cn(UI, 'relative flex h-full min-h-0 flex-col')}>
+      {/* ── Reader bar — the nav's slot and material ─────────────────── */}
+      <header
         className={cn(
-          'relative z-20 grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-5 border-b px-[22px]',
-          'bg-(--bg)',
-          HAIRLINE,
+          PANE_NAV,
+          'relative z-20 mt-5 flex h-16 shrink-0 items-center justify-between gap-4 rounded-full pr-2.5 pl-2.5',
         )}
       >
-        <div className="flex min-w-0 items-center gap-3.5">
-          <ReaderIconButton label="Back to library" onClick={onBack}>
-            <ChevronLeft size={19} strokeWidth={2} />
-          </ReaderIconButton>
-          <div className="flex min-w-0 items-baseline gap-2.5">
-            <span className="shrink-0 text-lg font-bold whitespace-nowrap text-(--ink)" title={title}>
-              {clampTitle(title)}
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <Button variant="icon" glyph="back" size="sm" onClick={onBack} aria-label="Back to library" title="Back to library" />
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="truncate font-[family-name:var(--face-jp)] text-[17px] leading-tight font-bold text-(--ink)" title={title}>
+              {title}
             </span>
-            {author && (
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-(--muted)">{author}</span>
+            {meta && (
+              <span className={cn(MONO, 'truncate font-[family-name:var(--face-jp)] text-[11px] text-(--ink-3)')} title={meta}>
+                {meta}
+              </span>
             )}
           </div>
         </div>
 
-        <div className="flex items-center justify-self-center gap-3">
-          {percent !== undefined && <SkyBar percent={percent} showLabel className="w-60" />}
-          {page && page.total > 0 && (
-            <PageJump current={page.current} total={page.total} onJump={onJumpToPage} />
+        {tools.length > 0 && (
+          <div role="toolbar" aria-label="Reader tools" className={cn(PILL, 'gap-0.5')}>
+            {tools.map((tool) => (
+              <ToolItem key={tool.key} tool={tool} />
+            ))}
+          </div>
+        )}
+
+        <div className="flex min-w-0 flex-1 items-center justify-end">
+          {(onPrev || onNext || showProgress) && (
+            <div className={cn(PILL, 'gap-0.5')}>
+              {onPrev && <PageTurn label={onPrev.label} onClick={onPrev.onClick} icon={<ChevronLeft size={16} strokeWidth={2.2} />} />}
+              {onNext && <PageTurn label={onNext.label} onClick={onNext.onClick} icon={<ChevronRight size={16} strokeWidth={2.2} />} />}
+              {showProgress && (
+                <div className="flex h-[34px] items-center gap-3 pr-2.5 pl-3">
+                  <ProgressBar percent={percent ?? 0} height={4} className="w-[72px]" />
+                  {page && page.total > 0 ? (
+                    <PageJump current={page.current} total={page.total} onJump={onJumpToPage} />
+                  ) : (
+                    <span className={cn(MONO, 'text-[12px] font-medium text-(--ink-2) tabular-nums')}>
+                      {Math.round(percent ?? 0)}%
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
+      </header>
 
-        <div className="flex items-center justify-self-end gap-[9px]">{tools}</div>
+      {/* ── Surface + docked column ──────────────────────────────────── */}
+      <div className="relative mt-4 mb-5 flex min-h-0 flex-1 gap-4">
+        <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-(--radius-card)">{children}</div>
+        {side}
       </div>
 
-      <div className="relative flex min-h-0 flex-1">{children}</div>
-
-      {popover && <div className="absolute top-[72px] right-5 z-40">{popover}</div>}
+      {/* Under the bar: 20 top + 64 bar + 12 gap. */}
+      {popover && <div className="absolute top-24 left-1/2 z-40 -translate-x-1/2">{popover}</div>}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { CopyPlus } from 'lucide-react';
-import { Button, GLASS_BUTTON, GLASS_PRESS, HAIRLINE, JlptChip, Skeleton } from '@/shared/components';
+import { Button, PANE, PRESS, JlptChip, Skeleton } from '@/shared/components';
 import type { CardDraft } from '@/features/sky/stage';
 import { cn } from '@/lib/util/cn';
 import { Constellation } from './Constellation';
@@ -132,7 +132,7 @@ export function EntryDetail({
   return (
     <article>
       {/* ── Hero band ─────────────────────────────────────────────────── */}
-      <div className={cn('relative overflow-hidden border-b', pane.band, HAIRLINE)}>
+      <div className={cn('relative overflow-hidden border-b', pane.band, 'border-(--hairline)')}>
         {/* `full` only: the motif is composed to slice from the top-right of a
             wide band, so in a narrow column the visible slice is empty canvas
             plus a stray dot — decoration that reads as a rendering fault. */}
@@ -149,7 +149,7 @@ export function EntryDetail({
                 </h1>
 
                 {primaryReading && (
-                  <p className={cn('font-[family-name:var(--face-mono)] text-(--muted)', pane.reading)}>
+                  <p className={cn('font-[family-name:var(--face-mono)] text-(--ink-3)', pane.reading)}>
                     {primaryReading.form}
                   </p>
                 )}
@@ -160,10 +160,10 @@ export function EntryDetail({
                   {pos && (
                     <span
                       className={cn(
-                        'inline-flex items-center rounded-(--radius-chip) border',
-                        'font-[family-name:var(--face-mono)] tracking-[0.04em] uppercase text-(--soft)',
+                        'inline-flex items-center rounded-full border',
+                        'font-[family-name:var(--face-mono)] tracking-[0.04em] uppercase text-(--ink-2)',
                         pane.pill,
-                        HAIRLINE,
+                        'border-(--hairline)',
                       )}
                     >
                       {pos}
@@ -182,9 +182,9 @@ export function EntryDetail({
                         // character at a bigger size — a `--accent` edge on hover
                         // here and a brightening fill down there would have been
                         // two answers to one gesture.
-                        GLASS_BUTTON,
-                        GLASS_PRESS,
-                        'inline-flex items-center gap-[5px] rounded-(--radius-cover)',
+                        PANE,
+                        PRESS,
+                        'inline-flex items-center gap-[5px] rounded-(--radius-row)',
                         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
                         local.charChip,
                       )}
@@ -193,7 +193,7 @@ export function EntryDetail({
                         {char}
                       </span>
                       {grade != null && (
-                        <span className={cn('font-[family-name:var(--face-mono)] text-(--muted)', local.charGrade)}>
+                        <span className={cn('font-[family-name:var(--face-mono)] text-(--ink-3)', local.charGrade)}>
                           G{grade}
                         </span>
                       )}
@@ -224,7 +224,7 @@ export function EntryDetail({
               <SectionLabel en="Meanings" jp="" />
               <div className="flex flex-col">
                 {meanings.map((m, i) => (
-                  <div key={`${m.lang}-${i}`} className={cn('flex border-t', local.meaningRow, HAIRLINE)}>
+                  <div key={`${m.lang}-${i}`} className={cn('flex border-t', local.meaningRow, 'border-(--hairline)')}>
                     <span
                       className={cn('shrink-0 font-[family-name:var(--face-mono)] text-(--accent)', local.meaningNum)}
                     >
@@ -274,7 +274,7 @@ export function EntryDetail({
                 </>
               ) : (
                 sentences.map((s) => (
-                  <div key={s.id} className={cn('flex border-t', local.sentenceRow, HAIRLINE)}>
+                  <div key={s.id} className={cn('flex border-t', local.sentenceRow, 'border-(--hairline)')}>
                     <div className="min-w-0 flex-1">
                       {s.jaRuby ? (
                         <div
@@ -289,7 +289,7 @@ export function EntryDetail({
                           {s.ja}
                         </div>
                       )}
-                      <p className={cn('font-[family-name:var(--face-ui)] italic text-(--soft)', local.sentenceEn)}>
+                      <p className={cn('font-[family-name:var(--face-ui)] italic text-(--ink-2)', local.sentenceEn)}>
                         {s.en}
                       </p>
                     </div>
@@ -300,10 +300,10 @@ export function EntryDetail({
                     {s.gradeLabel && (
                       <span
                         className={cn(
-                          'shrink-0 rounded-(--radius-button) border bg-(--card)',
+                          'shrink-0 rounded-(--radius-control) border bg-(--pane)',
                           'font-[family-name:var(--face-mono)] font-bold text-(--accent)',
                           local.sentenceChip,
-                          HAIRLINE,
+                          'border-(--hairline)',
                         )}
                       >
                         {s.gradeLabel}
@@ -316,7 +316,7 @@ export function EntryDetail({
           </section>
         )}
 
-        <p className={cn('text-right font-[family-name:var(--face-mono)] text-(--faint)', pane.source)}>
+        <p className={cn('text-right font-[family-name:var(--face-mono)] text-(--ink-3)', pane.source)}>
           Source · JMdict{sentences.length > 0 && ' · Tatoeba (via Kanjium)'}
         </p>
       </div>
@@ -329,6 +329,6 @@ export function EntryDetail({
  *  a different and wrong statement. */
 function FailedSection({ what }: { what: string }) {
   return (
-    <p className="py-2 font-[family-name:var(--face-ui)] text-[13px] text-(--muted)">Couldn&rsquo;t load {what}.</p>
+    <p className="py-2 font-[family-name:var(--face-ui)] text-[13px] text-(--ink-3)">Couldn&rsquo;t load {what}.</p>
   );
 }

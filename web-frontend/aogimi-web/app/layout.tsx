@@ -16,9 +16,9 @@ import { MobileGate } from '@/features/mobile-gate';
 //
 // Switzer is a Fontshare (ITF) family, so it self-hosts from app/fonts/ —
 // next/font/google doesn't carry it. Neither family ships a 600 cut: keep
-// call sites on `font-medium` / `font-bold`; a `font-semibold` gets
-// synthesised. Both are on the /credits inventory — keep that in step with
-// what loads here.
+// call sites on `font-medium` / `font-bold`; a 600 weight gets
+// synthesised (D1: 600 → 700 at 15px and above, 500 below). Both are on the
+// /credits inventory — keep that in step with what loads here.
 
 const switzer = localFont({
   variable: '--font-switzer',
@@ -38,33 +38,22 @@ const notoSansJp = Noto_Sans_JP({
 });
 
 // Runs during parse, before anything below it is painted, so the chosen theme
-// is on <html> from the first frame instead of flashing light then correcting.
-// A React effect can't do this — it fires after paint. localStorage is the
-// store for now; a `users.theme` column supersedes it later.
+// is on <html> from the first frame instead of flashing the default then
+// correcting. A React effect can't do this — it fires after paint. localStorage
+// is the store for now; a `users.theme` column supersedes it later.
+//
+// The id list mirrors `THEMES` in features/app-shell/providers/ThemeProvider.tsx
+// — inlined rather than imported to keep this a plain string. Default is
+// `sakura` (D3); there is no OS fallback, every theme has a full palette. The
+// two pre-redesign keys are mapped so a stored choice keeps its meaning:
+// `light` → sakura, `dark` → night.
 //
 // It sets the sky hue preset too — a separate axis from the theme, and one that
 // has to be pre-paint for the same reason: `data-sky-hue` drives the mastery
 // chrome's rank colours in ds-tokens.css, so applying it after paint would flash
 // the wrong ramp. (The star map itself is client-measured and never flashes.)
-// The id list mirrors `SKY_HUES` in features/sky/lib/palette.ts — inlined rather
-// than imported to keep this a plain string, exactly as the theme names are.
-//
-// /authenticate is the one exception: it has no dark palette, so a hard load
-// there paints light whatever the stored theme says. The user's resolved theme
-// is parked in `data-user-theme` so ThemeProvider (which mirrors this route
-// gate) can seed its state from it and restore it on nav away — the stored key
-// itself is never touched. Exact pathname match, same as AppShell's gate.
-//
-// ── DARK LOCK (temporary) ───────────────────────────────────────────────────
-// The glassmorphism pass is being designed against Midnight only, so the app
-// is pinned to `dark` until the light palette gets its own pass. `FORCED` below
-// is the switch: set it to `null` and the two lines under it come back, which
-// restores stored-preference-then-OS resolution exactly as before. The stored
-// `aogimi-theme` key is deliberately still read and never overwritten, so a
-// user's pre-lock choice is waiting for them when the lock lifts. Mirrors
-// `FORCED_THEME` in features/app-shell/providers/ThemeProvider.tsx — change one,
-// change both.
-const THEME_INIT = `(function(){try{var d=document.documentElement;var FORCED='dark';var t=localStorage.getItem('aogimi-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(FORCED){t=FORCED;}if(location.pathname==='/authenticate'){d.setAttribute('data-theme','light');d.setAttribute('data-user-theme',t);}else{d.setAttribute('data-theme',t);}var h=localStorage.getItem('aogimi-sky-hue');if(['default','ginga','ember','aurora'].indexOf(h)<0){h='default';}d.setAttribute('data-sky-hue',h);}catch(e){}})();`;
+// The id list mirrors `SKY_HUES` in features/sky/map/lib/palette.ts.
+const THEME_INIT = `(function(){try{var d=document.documentElement;var t=localStorage.getItem('aogimi-theme');if(t==='light'){t='sakura';}if(t==='dark'){t='night';}if(['sakura','kanagawa','clear','night'].indexOf(t)<0){t='sakura';}d.setAttribute('data-theme',t);var h=localStorage.getItem('aogimi-sky-hue');if(['default','ginga','ember','aurora'].indexOf(h)<0){h='default';}d.setAttribute('data-sky-hue',h);}catch(e){}})();`;
 
 export const metadata: Metadata = {
   title: 'Aogimi',
@@ -100,7 +89,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-theme="dark"
+      data-theme="sakura"
       data-sky-hue="default"
       suppressHydrationWarning
       className={`${switzer.variable} ${notoSansJp.variable} h-full antialiased`}

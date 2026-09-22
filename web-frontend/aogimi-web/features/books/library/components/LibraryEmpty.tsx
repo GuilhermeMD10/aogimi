@@ -7,7 +7,7 @@
 // Three lines explaining the model, and a dropzone to act on it.
 
 import { UploadCloud } from 'lucide-react';
-import { DASHED, Eyebrow, GLASS_PRESS } from '@/shared/components';
+import { Eyebrow, PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 const STEPS = [
@@ -47,9 +47,9 @@ export function LibraryEmpty({
             <li key={step.kanji} className="flex items-start gap-[15px]">
               <div
                 className={cn(
-                  'flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-(--radius-button) border',
+                  'flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-(--radius-control) border',
                   'font-[family-name:var(--face-jp)] text-[18px] text-(--ink)',
-                  DASHED,
+                  'border-[rgb(var(--line-rgb)/0.14)]',
                 )}
                 aria-hidden
               >
@@ -59,7 +59,7 @@ export function LibraryEmpty({
                 <div className="font-[family-name:var(--face-ui)] text-[15.5px] font-bold text-(--ink)">
                   {step.title}
                 </div>
-                <div className="mt-[3px] font-[family-name:var(--face-ui)] text-[13.5px] leading-[1.5] text-(--muted)">
+                <div className="mt-[3px] font-[family-name:var(--face-ui)] text-[13.5px] leading-[1.5] text-(--ink-3)">
                   {step.body}
                 </div>
               </div>
@@ -88,23 +88,23 @@ function Dropzone({ onImport, importing }: { onImport: () => void; importing: bo
       onClick={onImport}
       disabled={importing}
       className={cn(
-        GLASS_PRESS,
+        PRESS,
         'flex h-[330px] w-full cursor-pointer flex-col items-center justify-center gap-3.5 p-6 text-center',
-        'rounded-(--radius-card) border-2 border-dashed',
+        'rounded-(--radius-tile) border-2 border-dashed',
         // transform named alongside opacity so the nudge eases — the utility
-        // would otherwise replace GLASS_PRESS's own transition list.
+        // would otherwise replace PRESS's own transition list.
         'transition-[opacity,transform] duration-120 disabled:cursor-default disabled:opacity-60',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
-        DASHED,
+        'border-[rgb(var(--line-rgb)/0.14)]',
       )}
     >
-      <div className="flex h-[62px] w-[62px] items-center justify-center rounded-(--radius-pill) bg-(--btn) text-(--btn-ink) shadow-(--card-shadow)">
+      <div className="flex h-[62px] w-[62px] items-center justify-center rounded-(--radius-row) bg-(--accent) text-(--on-accent) shadow-(--shadow-card)">
         <UploadCloud size={29} strokeWidth={1.6} />
       </div>
       <div className="font-[family-name:var(--face-ui)] text-[21px] font-bold text-(--ink)">
         {importing ? 'Adding your book…' : 'Add your first book'}
       </div>
-      <div className="font-[family-name:var(--face-ui)] text-[13.5px] text-(--muted)">
+      <div className="font-[family-name:var(--face-ui)] text-[13.5px] text-(--ink-3)">
         It stays on your device — only your progress syncs.
       </div>
       <Eyebrow className="tracking-[0.22em]">EPUB · PDF</Eyebrow>

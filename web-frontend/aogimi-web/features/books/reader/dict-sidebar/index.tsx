@@ -26,7 +26,6 @@ import {
 } from '@/features/dictionary';
 import type { SurfaceEntry } from '@/features/dictionary';
 import type { CardDraft } from '@/features/sky/stage';
-import { HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';
 import { useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
@@ -36,7 +35,7 @@ import { SidebarPrompt } from './SidebarPrompt';
 
 export default function DictSidebar({ onClose }: { onClose: () => void }) {
   const { requestAddCardFromEntry } = useReaderActions();
-  const { readerBubble } = useReaderState();
+  const { readerModal } = useReaderState();
   const { query, result, loading, error, readerContext, setQuery, runSearch } = useDictionaryState();
 
   // Enter on an empty field shouldn't ask the backend for nothing — the provider
@@ -63,15 +62,15 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
   // the hook's listener is on `window`, so every mounted list would answer one
   // keypress, and the only other one is `/dictionary`'s — a different route.
   //
-  // Dropped while the bubble is up. It can only be the add-card flow (a lookup
-  // routes into this panel rather than opening a bubble over it), so there's no
+  // Dropped while the modal is up. It can only be the add-card flow (a lookup
+  // routes into this panel rather than opening a modal over it), so there's no
   // second list to fight with — but a modal owns the keyboard, and moving this
   // panel's selection behind the scrim is invisible work.
   useSelectionKeys({
     contents,
     selection,
     onSelect: select,
-    enabled: readerBubble === null,
+    enabled: readerModal === null,
   });
 
   // Esc closes the panel — the one shortcut `SidebarPrompt` advertises.
@@ -111,12 +110,13 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
   return (
     <div
       ref={rootRef}
-      // Opaque, unlike `/dictionary`'s rail: the pane beside this one paints the
+      // A strong pane, not `.pane`: the surface beside this one paints the
       // *book's* page colour, which is a reading preference and deliberately
-      // independent of the app theme. A transparent column would put the app
-      // canvas's star field directly against a sepia page. `--bg` is what the
-      // reader toolbar uses, so the two read as one piece of chrome.
-      className={cn('flex h-full min-h-0 flex-col border-l bg-(--bg)', HAIRLINE)}
+      // independent of the app theme, so the column has to carry its own
+      // opaque-ish ground rather than let the canvas show through.
+      className={cn(
+        'flex h-full min-h-0 w-full flex-col overflow-hidden rounded-(--radius-card) border border-(--hairline) bg-(--pane-strong) shadow-(--shadow-card)',
+      )}
     >
       <DictPanelHeader
         title="Dictionary"
@@ -142,10 +142,7 @@ export default function DictSidebar({ onClose }: { onClose: () => void }) {
         }
       />
 
-      {/* `pb-6` is breathing room at the end of the scroll, nothing more: the
-          `Dock` is hidden while a book is open, so this column doesn't have to
-          reserve the 140px pages normally keep clear of it.
-          No horizontal padding here: the entry panes carry their own, and their
+      {/* No horizontal padding here: the entry panes carry their own, and their
           hero's lower edge has to span the full width of the column. The two
           branches that don't (the list and the prompt) wrap themselves. */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto pb-6">

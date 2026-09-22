@@ -1,6 +1,6 @@
 'use client';
 
-import { Eyebrow, GLASS_PRESS, HAIRLINE, Skeleton } from '@/shared/components';
+import { Eyebrow, PRESS, Skeleton } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { KanjiRow, ROW_LIST, WordRow } from './ResultRow';
 import { sameSelection } from '../lib/results';
@@ -58,7 +58,7 @@ export function RailList({
       <div className="mt-5.5 mb-2.5 flex items-baseline gap-2 px-1">
         {/* Not `<Eyebrow className="text-(--accent)">`: tailwind-merge can't
             tell whether `text-(--var)` is a colour or a size, so the override
-            and the primitive's own `text-(--faint)` would both survive and
+            and the primitive's own `text-(--ink-3)` would both survive and
             stylesheet order would pick the winner. */}
         <span className="font-(family-name:--face-mono) text-[14px] tracking-[0.14em] uppercase text-(--accent)">
           Results
@@ -85,10 +85,10 @@ export function RailList({
             type="button"
             onClick={onRetry}
             className={cn(
-              GLASS_PRESS,
+              PRESS,
               'mt-2 cursor-pointer font-(family-name:--face-mono) text-[14px] text-(--ink)',
               // transform named alongside opacity, or the utility replaces
-              // GLASS_PRESS's transition list and the nudge snaps.
+              // PRESS's transition list and the nudge snaps.
               'underline underline-offset-4 transition-[opacity,transform] duration-120 hover:opacity-75',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
             )}
@@ -101,7 +101,7 @@ export function RailList({
       {settled && count === 0 && (
         <div className="px-1 py-3">
           <p className="font-(family-name:--face-ui) text-[16px] text-muted-foreground">Nothing found.</p>
-          <p className="mt-1 font-(family-name:--face-ui) text-[14px] text-(--faint)">
+          <p className="mt-1 font-(family-name:--face-ui) text-[14px] text-(--ink-3)">
             Try the kana reading, or an English word.
           </p>
         </div>
@@ -133,7 +133,7 @@ export function RailList({
       )}
 
       {settled && names.length > 0 && (
-        <section className={cn('mt-6 border-t pt-4', HAIRLINE)}>
+        <section className={cn('mt-6 border-t pt-4', 'border-(--hairline)')}>
           <Eyebrow className="mb-2.5 px-1">Names</Eyebrow>
           <ul className="flex flex-col">
             {names.slice(0, 10).map((n) => (
@@ -145,12 +145,12 @@ export function RailList({
                   )}
                 </div>
                 {n.translations.length > 0 && (
-                  <p className="mt-0.5 font-(family-name:--face-ui) text-[16px] text-(--soft)">
+                  <p className="mt-0.5 font-(family-name:--face-ui) text-[16px] text-(--ink-2)">
                     {n.translations.join('; ')}
                   </p>
                 )}
                 {n.name_type.length > 0 && (
-                  <p className="mt-0.5 font-(family-name:--face-mono) text-[14px] tracking-[0.04em] uppercase text-(--faint)">
+                  <p className="mt-0.5 font-(family-name:--face-mono) text-[14px] tracking-[0.04em] uppercase text-(--ink-3)">
                     {n.name_type.join(', ')}
                   </p>
                 )}

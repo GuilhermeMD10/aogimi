@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { GlassCard, HAIRLINE } from '@/shared/components';
+import { GlassCard } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { AboutRow } from './AboutRow';
 import { DeleteAccountRow } from './DeleteAccountRow';
@@ -67,5 +67,5 @@ export function SettingsList() {
  * layer's `*` rule gives every element its own).
  */
 function Ruled({ children }: { children: ReactNode }) {
-  return <div className={cn('border-t', HAIRLINE)}>{children}</div>;
+  return <div className={cn('border-t', 'border-(--hairline)')}>{children}</div>;
 }

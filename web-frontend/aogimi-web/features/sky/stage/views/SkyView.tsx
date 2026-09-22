@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
-import { TopBar } from '@/features/app-shell/TopBar';
 // The single `cards.back` flattening point, owned by the feature that builds
 // drafts. Called at the createCard boundary so the draft never carries a second
 // representation of its own reading + meanings.
@@ -420,24 +419,17 @@ export function SkyView() {
   );
 
 
-  /* ---------- render: TopBar column, then one stage panel — everything floats over the sky ---------- */
+  /* ---------- render: one stage panel under the app frame's nav — everything floats over the sky ---------- */
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden font-[family-name:var(--face-ui)] font-medium">
-      {/* The shared TopBar on the same content bounds as home/profile
-          (max-w-[1300px] + px-11). The stage below is bounded a step wider —
-          see the note on its wrapper. */}
-      <div className="mx-auto w-full max-w-[1300px] shrink-0 px-11 pt-[34px]">
-        <TopBar />
-      </div>
-
       {/* No gutter, no radius, no fill: the stage IS the page. SkyCanvas paints
-          nothing and the app's night is `--page-base` (see the Page background
-          block in ds-tokens.css), so the constellations sit on the same canvas
-          the TopBar above them does — there is no panel edge left to frame
-          them.
+          nothing and the app's night is `--field-bg` (see the Page background
+          block in ds-tokens.css), so the constellations sit on the page canvas
+          — there is no panel edge left to frame them. (The sky/stage session
+          puts the map inside the `--field-*` panel, page 04.)
           **Unbounded in width, deliberately.** It used to stop at 1440px, one
-          step wider than the TopBar's 1300px column, so the stage read as the
+          step wider than the old TopBar's 1300px column, so the stage read as the
           page's widest element. That cap was costing the outer view horizontal
           room it now needs: at twenty decks the grid is a ~7×3 arrangement whose
           fit is set by whichever axis runs out first, and on anything wider than

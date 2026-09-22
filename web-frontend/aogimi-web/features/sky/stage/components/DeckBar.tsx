@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { ChevronLeft, Trash2 } from 'lucide-react';
 
-import { GLASS_BUTTON, GLASS_PRESS, GLASS_SURFACE, stageColor } from '@/shared/components';
+import { PANE, PRESS, stageColor } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 import { masteryMixOf } from '../lib/masteryMix';
@@ -67,7 +67,7 @@ export function DeckBar({ deck, dueCount, onBack, onRequestDeleteDeck }: Props) 
   return (
     <div
       className={cn(
-        GLASS_SURFACE,
+        PANE,
         'absolute inset-x-5 top-5 z-30 flex items-center gap-5 rounded-[16px] px-4 py-[11px]',
       )}
     >
@@ -76,8 +76,8 @@ export function DeckBar({ deck, dueCount, onBack, onRequestDeleteDeck }: Props) 
         onClick={onBack}
         aria-label="Back to the whole sky"
         className={cn(
-          GLASS_BUTTON,
-          GLASS_PRESS,
+          PANE,
+          PRESS,
           'flex size-[34px] shrink-0 items-center justify-center rounded-full',
           FOCUS_RING,
         )}

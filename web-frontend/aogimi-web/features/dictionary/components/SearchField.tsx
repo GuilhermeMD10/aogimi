@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
-import { GLASS_BUTTON, GLASS_PRESS, GLASS_SURFACE } from '@/shared/components';
+import { PANE, PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 type Variant = 'hero' | 'rail' | 'sidebar';
@@ -35,9 +35,9 @@ type Props = {
 };
 
 const SHELL: Record<Variant, string> = {
-  hero: 'w-full max-w-[620px] gap-[13px] rounded-(--radius-card) px-[22px] py-[18px]',
-  sidebar: 'w-full gap-2.5 rounded-(--radius-input) px-3 py-2.5',
-  rail: 'w-full gap-[11px] rounded-(--radius-input) px-[15px] py-[13px]',
+  hero: 'w-full max-w-[620px] gap-[13px] rounded-(--radius-tile) px-[22px] py-[18px]',
+  sidebar: 'w-full gap-2.5 rounded-(--radius-control) px-3 py-2.5',
+  rail: 'w-full gap-[11px] rounded-(--radius-control) px-[15px] py-[13px]',
 };
 
 const TEXT: Record<Variant, string> = {
@@ -55,12 +55,12 @@ const GLYPH: Record<Variant, number> = { hero: 22, sidebar: 17, rail: 19 };
  * control at different scales and positions, so they share a component rather
  * than a look. Only the scale is per-variant — all three are the same glass.
  *
- * The shell is `GLASS_SURFACE`: fill, blur, the inner glow and a lit top edge,
- * the same material the library's panels and the dock are made of. `--bd` is
+ * The shell is `PANE`: fill, blur, the inner glow and a lit top edge,
+ * the same material the library's panels are made of. The old `--bd` was
  * transparent and a field with no visible edge isn't a field — the frosted
  * fill and its specular edge answer that without a drawn border, so the field
  * reads as an object rather than as an outline. Both buttons inside it
- * are `GLASS_BUTTON`s, so the field's hover and press are the app's.
+ * are `PANE`s, so the field's hover and press are the app's.
  *
  * Submitting from the prompt swaps one instance for the other — different
  * elements in different layouts, so neither can stay mounted. `autoFocus`
@@ -134,11 +134,11 @@ export function SearchField({
         e.preventDefault();
         onSubmit();
       }}
-      className={cn(GLASS_SURFACE, 'flex items-center', SHELL[variant])}
+      className={cn(PANE, 'flex items-center', SHELL[variant])}
     >
       {/* A real submit control, not decoration — the glyph is clickable. The
           only vermilion on this screen besides the brand mark. */}
-      <button type="submit" aria-label="Search" className={cn(GLASS_PRESS, 'shrink-0 cursor-pointer')}>
+      <button type="submit" aria-label="Search" className={cn(PRESS, 'shrink-0 cursor-pointer')}>
         <Search size={GLYPH[variant]} strokeWidth={1.9} className="stroke-(--accent)" />
       </button>
 
@@ -157,7 +157,7 @@ export function SearchField({
         aria-label={ariaLabel}
         className={cn(
           'w-full min-w-0 bg-transparent caret-(--accent) outline-none',
-          'font-[family-name:var(--face-ui)] text-(--ink) placeholder:text-(--faint)',
+          'font-[family-name:var(--face-ui)] text-(--ink) placeholder:text-(--ink-3)',
           // `search` inputs get a UA clear button in WebKit; we draw our own.
           '[&::-webkit-search-cancel-button]:appearance-none',
           TEXT[variant],
@@ -171,10 +171,10 @@ export function SearchField({
           aria-label="Clear search"
           title="Clear (Esc)"
           className={cn(
-            GLASS_BUTTON,
-            GLASS_PRESS,
+            PANE,
+            PRESS,
             'flex size-5 shrink-0 items-center justify-center',
-            'rounded-(--radius-tile) text-(--soft)',
+            'rounded-(--radius-chip) text-(--ink-2)',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ink)',
           )}
         >

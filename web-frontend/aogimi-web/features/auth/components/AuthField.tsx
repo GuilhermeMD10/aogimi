@@ -1,14 +1,14 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { GLASS_BUTTON, GLASS_PRESS, GLASS_SURFACE } from '@/shared/components';
+import { PANE, PRESS } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 /**
  * One labelled field on the auth panel, glass like every other input in the app.
  *
- * The field is a `GLASS_SURFACE` (a pane — there is nothing to hover) and the
- * password reveal is a `GLASS_BUTTON` sitting inside it, which is the same
+ * The field is a `PANE` (a pane — there is nothing to hover) and the
+ * password reveal is a `PANE` sitting inside it, which is the same
  * pairing the dictionary's search field uses for its ✕.
  *
  * As on `/profile`'s rename field, the specular top line does not paint here:
@@ -58,12 +58,12 @@ export function AuthField({
           autoComplete={autoComplete}
           required={required}
           className={cn(
-            GLASS_SURFACE,
-            'w-full rounded-md p-2.5 text-(--ink)',
+            PANE,
+            'w-full rounded-(--radius-control) p-2.5 text-(--ink)',
             // The field had no focus indication at all beyond the caret. Glass
             // gives it an edge, so focus can move that edge rather than adding a
             // ring the design doesn't use anywhere else.
-            'outline-none focus:border-(--btn)',
+            'outline-none focus:border-(--accent)',
           )}
         />
         {reveal && (
@@ -74,10 +74,10 @@ export function AuthField({
             aria-label={shown ? 'Hide password' : 'Show password'}
             aria-controls={id}
             className={cn(
-              GLASS_BUTTON,
-              GLASS_PRESS,
+              PANE,
+              PRESS,
               'absolute top-1.5 right-1.5 flex h-9.5 items-center rounded-[9px] px-3',
-              'font-(family-name:--face-mono) text-[10px] tracking-[0.14em] text-(--muted)',
+              'font-(family-name:--face-mono) text-[10px] tracking-[0.14em] text-(--ink-3)',
             )}
           >
             {shown ? 'HIDE' : 'SHOW'}

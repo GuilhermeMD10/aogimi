@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo } from 'react';
-import { coverPalette } from '@/shared/components';
 import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
 import { useFetchWithAbort } from '@/lib/useFetchWithAbort';
 import type { CardRecord } from '../stage/types';
@@ -77,7 +76,7 @@ export function PracticeOverlay({ open, deckId, deckName, onClose }: Props) {
   const deck: SessionDeck | null = useMemo(
     () =>
       deckName
-        ? { name: deckName, kamon: deckVisuals(deckName).kamon, ...coverPalette(deckName) }
+        ? { name: deckName, kamon: deckVisuals(deckName).kamon, surface: deckVisuals(deckName).color, ink: 'var(--night-ink)' }
         : null,
     [deckName],
   );
@@ -101,21 +100,21 @@ export function PracticeOverlay({ open, deckId, deckName, onClose }: Props) {
       // Opaque, and the app's own night rather than a stage constant: the study
       // runner is ordinary token-driven chrome (it is the same component `/study`
       // renders), so it needs the page canvas under it, not the sky.
-      style={{ background: 'var(--page-base)' }}
+      style={{ background: 'var(--field-bg)' }}
       role="dialog"
       aria-modal="true"
       aria-label={deckName ? `Practising ${deckName}` : 'Practising'}
     >
       {cards === null ? (
         <div className="flex h-full flex-col items-center justify-center gap-4">
-          <p className="m-0 font-[family-name:var(--face-mono)] text-[11px] tracking-[0.1em] text-(--muted)">
+          <p className="m-0 font-[family-name:var(--face-mono)] text-[11px] tracking-[0.1em] text-(--ink-3)">
             {error ? `Couldn’t load the cards — ${error}` : 'Loading…'}
           </p>
           {error && (
             <button
               type="button"
               onClick={onClose}
-              className="rounded-(--radius-button) border border-(--bd) px-3 py-2 text-[11.5px] font-bold text-(--soft)"
+              className="rounded-(--radius-control) border border-(--hairline) px-3 py-2 text-[11.5px] font-bold text-(--ink-2)"
             >
               Back to the sky
             </button>

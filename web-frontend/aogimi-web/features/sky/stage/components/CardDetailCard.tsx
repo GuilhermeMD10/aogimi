@@ -4,14 +4,7 @@ import Link from 'next/link';
 import { Languages, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import {
-  GLASS_BUTTON,
-  GLASS_PRESS,
-  GLASS_SURFACE,
-  JlptChip,
-  stageColor,
-  stageLabel,
-} from '@/shared/components';
+import { PANE, PRESS, JlptChip, stageColor, stageLabel } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 import { getCard } from '../lib/decksApi';
@@ -92,7 +85,7 @@ export function CardDetailCard({ card, onClose, onRequestDelete }: Props) {
   return (
     <div
       className={cn(
-        GLASS_SURFACE,
+        PANE,
         // Bottom is not pinned: the card is as tall as its content up to the
         // room between its top and the list panel's own bottom edge (92 + 78),
         // so a one-meaning card doesn't draw a mostly-empty pane down the
@@ -123,8 +116,8 @@ export function CardDetailCard({ card, onClose, onRequestDelete }: Props) {
           onClick={onClose}
           aria-label="Close the card detail"
           className={cn(
-            GLASS_BUTTON,
-            GLASS_PRESS,
+            PANE,
+            PRESS,
             'flex size-7 shrink-0 items-center justify-center rounded-[8px]',
             FOCUS_RING,
           )}
@@ -150,7 +143,7 @@ export function CardDetailCard({ card, onClose, onRequestDelete }: Props) {
           {/* The shared `JlptChip` and its per-level ramp, not a local gold pill:
               the colour IS the level, and the dictionary renders the same five.
               Gated on non-null rather than left to the chip's own guard — its
-              out-of-range fallback paints with `--faint`, a theme token that
+              out-of-range fallback paints with `--ink-3`, a theme token that
               reads wrong on this night glass. */}
           {card.jlpt_level !== null && (
             <JlptChip level={card.jlpt_level} className="mt-1 shrink-0" />
@@ -193,7 +186,7 @@ export function CardDetailCard({ card, onClose, onRequestDelete }: Props) {
         {/* No translation line beside the sentence: nothing stores one, so the
             box is the sentence alone and disappears with it. */}
         {contextSentence && (
-          <div className={cn(GLASS_SURFACE, 'mt-3.25 rounded-[12px] px-3.25 py-2.75')}>
+          <div className={cn(PANE, 'mt-3.25 rounded-[12px] px-3.25 py-2.75')}>
             <div className={`mb-[7px] ${MONO} text-[8.5px] tracking-[0.16em]`} style={{ color: NIGHT.faint }}>
               IN CONTEXT
             </div>
@@ -253,8 +246,8 @@ export function CardDetailCard({ card, onClose, onRequestDelete }: Props) {
             href={`/dictionary?q=${encodeURIComponent(card.front)}`}
             aria-label={`Look up ${card.front} in the dictionary`}
             className={cn(
-              GLASS_BUTTON,
-              GLASS_PRESS,
+              PANE,
+              PRESS,
               'inline-flex items-center gap-2 rounded-[9px] px-3 py-2 text-[11.5px] leading-none font-bold',
               FOCUS_RING,
             )}
@@ -268,8 +261,8 @@ export function CardDetailCard({ card, onClose, onRequestDelete }: Props) {
             onClick={onRequestDelete}
             aria-label={`Delete ${card.front}`}
             className={cn(
-              GLASS_BUTTON,
-              GLASS_PRESS,
+              PANE,
+              PRESS,
               'ml-auto inline-flex items-center gap-2 rounded-[9px] px-3 py-2 text-[11.5px] leading-none font-bold',
               FOCUS_RING,
             )}

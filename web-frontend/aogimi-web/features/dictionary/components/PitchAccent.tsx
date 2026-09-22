@@ -55,11 +55,11 @@ export function PitchAccent({
         return (
           <div
             key={`${pos}-${i}`}
-            className="inline-flex items-center gap-2 text-(--soft)"
+            className="inline-flex items-center gap-2 text-(--ink-2)"
             aria-label={`Pitch accent ${pos}`}
           >
             {positions.length > 1 && (
-              <span className="min-w-3.5 font-[family-name:var(--face-mono)] text-[10px] text-(--faint)">
+              <span className="min-w-3.5 font-[family-name:var(--face-mono)] text-[10px] text-(--ink-3)">
                 {pos}
               </span>
             )}
@@ -106,7 +106,7 @@ export function PitchAccent({
                 {mora.map((m, idx) => (
                   <span
                     key={`t-${idx}`}
-                    className="absolute -translate-x-1/2 font-[family-name:var(--face-jp)] text-(--soft)"
+                    className="absolute -translate-x-1/2 font-[family-name:var(--face-jp)] text-(--ink-2)"
                     style={{
                       left: PAD + idx * MORA_GAP,
                       fontSize: MORA_PX,

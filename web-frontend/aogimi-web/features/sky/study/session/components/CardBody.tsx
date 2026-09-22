@@ -17,7 +17,7 @@ type Props = {
 
 const WORD = 'font-[family-name:var(--face-jp)] font-bold text-(--ink)';
 const READING =
-  'font-[family-name:var(--face-mono)] text-[14px] tracking-[0.05em] text-(--muted)';
+  'font-[family-name:var(--face-mono)] text-[14px] tracking-[0.05em] text-(--ink-3)';
 
 /**
  * What's printed on the card, per side.
@@ -61,7 +61,7 @@ export function CardBody({ card, prefs, deckName, side }: Props) {
 
         <div className="flex flex-1 flex-col items-center justify-center gap-4.5 py-8 text-center">
           {inverted ? (
-            <div className="max-w-[46ch] whitespace-pre-line text-[clamp(18px,1.9vw,27px)] leading-[1.4] text-(--soft)">
+            <div className="max-w-[46ch] whitespace-pre-line text-[clamp(18px,1.9vw,27px)] leading-[1.4] text-(--ink-2)">
               {meaningPrompt}
             </div>
           ) : (
@@ -73,7 +73,7 @@ export function CardBody({ card, prefs, deckName, side }: Props) {
                 <div className={READING}>{card.reading}</div>
               )}
               {prefs.front.context && card.context_sentence.length > 0 && (
-                <div className="max-w-[42ch] font-[family-name:var(--face-jp)] text-[17px] leading-[1.75] text-(--muted)">
+                <div className="max-w-[42ch] font-[family-name:var(--face-jp)] text-[17px] leading-[1.75] text-(--ink-3)">
                   {cloze(card.context_sentence, card.front)}
                 </div>
               )}
@@ -110,7 +110,7 @@ export function CardBody({ card, prefs, deckName, side }: Props) {
               splitting them would mangle real cards to tidy some of them.
           Under `production` the meaning was the prompt, so it's already spent. */}
       {!inverted && (
-        <div className="mt-5.5 border-t border-(--bd-b) pt-5">
+        <div className="mt-5.5 border-t border-(--hairline) pt-5">
           <Caption className="mb-2.25">Meaning</Caption>
           {card.meanings.length > 0 ? (
             // Ordered: JMdict sense order is the frequency order, and `cardBack`
@@ -123,8 +123,8 @@ export function CardBody({ card, prefs, deckName, side }: Props) {
                   key={i}
                   className={
                     i === 0
-                      ? 'text-[clamp(18px,1.9vw,27px)] leading-[1.35] text-(--soft)'
-                      : 'mt-2 text-[clamp(14px,1.15vw,17px)] leading-[1.45] text-(--muted)'
+                      ? 'text-[clamp(18px,1.9vw,27px)] leading-[1.35] text-(--ink-2)'
+                      : 'mt-2 text-[clamp(14px,1.15vw,17px)] leading-[1.45] text-(--ink-3)'
                   }
                 >
                   {meaning}
@@ -132,7 +132,7 @@ export function CardBody({ card, prefs, deckName, side }: Props) {
               ))}
             </ol>
           ) : (
-            <div className="whitespace-pre-line text-[clamp(18px,1.9vw,27px)] leading-[1.35] text-(--soft)">
+            <div className="whitespace-pre-line text-[clamp(18px,1.9vw,27px)] leading-[1.35] text-(--ink-2)">
               {card.back}
             </div>
           )}
@@ -140,9 +140,9 @@ export function CardBody({ card, prefs, deckName, side }: Props) {
       )}
 
       {prefs.back.exampleSentence && (
-        <div className={cn('mt-5', inverted && 'border-t border-(--bd-b) pt-5')}>
+        <div className={cn('mt-5', inverted && 'border-t border-(--hairline) pt-5')}>
           <Caption className="mb-2.5">Example · 例文</Caption>
-          <div className="rounded-(--radius-input) border border-(--paper-bd) bg-(--paper-tile) px-5 py-4.5">
+          <div className="rounded-(--radius-control) border border-(--pane-bd) bg-(--pane-strong) px-5 py-4.5">
             {card.context_sentence.length > 0 ? (
               <div className="font-[family-name:var(--face-jp)] text-[22px] leading-[1.75] text-(--ink)">
                 {card.context_sentence}
@@ -152,7 +152,7 @@ export function CardBody({ card, prefs, deckName, side }: Props) {
                  don't. The block keeps its shell and softens instead of
                  vanishing, so the card doesn't change height depending on
                  where it came from. */
-              <div className="text-[13.5px] leading-[1.5] text-(--faint)">
+              <div className="text-[13.5px] leading-[1.5] text-(--ink-3)">
                 No example sentence on this card.
               </div>
             )}

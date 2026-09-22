@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Trash2 } from 'lucide-react';
+import { Button, Modal } from '@/shared/components';
 import { renameBook as renameLocalBook } from '@/features/books/lib/bookStore';
 import { updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/features/books/lib/booksApi';
 import { deleteBookEverywhere } from '@/features/books/lib/deleteBook';
@@ -207,7 +208,7 @@ export default function BooksView() {
   );
 
   return (
-    <div className="relative h-full overflow-hidden">
+    <>
       <LibraryShelf
         books={books}
         loading={pageState === 'loading'}
@@ -240,43 +241,39 @@ export default function BooksView() {
       />
 
       {deletingBook && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/60" onClick={() => setDeletingBook(null)} />
-          <div className="fixed top-1/2 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-(--radius-panel) border border-(--paper-bd) bg-(--paper) p-6 font-[family-name:var(--face-ui)] shadow-(--card-shadow-float)">
-            {/* `--danger`, not `text-red-500`: the destructive pair shifts with
-                the theme so it stays legible on both canvases. */}
-            <div className="mb-1.5 flex items-center gap-2 text-(--danger)">
-              <Trash2 size={16} strokeWidth={1.9} />
-              <h2 className="text-[16px] leading-none font-bold">Delete book</h2>
-            </div>
-            <p className="mb-1 text-[13px] text-(--soft)">
+        <Modal
+          onClose={() => setDeletingBook(null)}
+          width={440}
+          height="auto"
+          aria-label="Delete book"
+          title={
+            <span className="inline-flex items-center gap-2 text-(--danger)">
+              <Trash2 size={16} strokeWidth={2} aria-hidden />
+              Delete book
+            </span>
+          }
+        >
+          <div className="font-[family-name:var(--face-ui)]">
+            <p className="text-[14px] font-medium text-(--ink-2)">
               Are you sure you want to delete{' '}
               <strong className="font-bold text-(--ink)">{deletingBook.title}</strong>?
             </p>
-            <p className="mb-5 text-[12.5px] leading-relaxed text-(--muted)">
-              This will permanently remove this book and its local file from this device. This action cannot be undone.
+            <p className="mt-2 text-[13px] leading-[1.5] font-medium text-(--ink-3)">
+              This permanently removes the book and its local file from this device. It cannot be undone.
             </p>
-            <div className="flex justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setDeletingBook(null)}
-                className="cursor-pointer rounded-(--radius-button) border border-(--paper-bd) px-4 py-2 text-[13px] font-bold text-(--ink) transition-colors duration-120 ease-[ease] hover:bg-(--paper-tile)"
-              >
+            <div className="mt-6 flex justify-end gap-2.5">
+              <Button variant="white" size="sm" onClick={() => setDeletingBook(null)}>
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeleteBook(deletingBook)}
-                className="cursor-pointer rounded-(--radius-button) border border-(--danger-bd) px-4 py-2 text-[13px] font-bold text-(--danger) transition-colors duration-120 ease-[ease] hover:bg-(--danger-bg)"
-              >
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => handleDeleteBook(deletingBook)}>
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
-        </>
+        </Modal>
       )}
 
       {showOnboarding && <OnboardingExplainerModal onDismiss={() => setShowOnboarding(false)} />}
-    </div>
+    </>
   );
 }

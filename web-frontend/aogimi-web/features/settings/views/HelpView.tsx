@@ -18,12 +18,12 @@ export default function HelpView() {
   return (
     <SettingsShell>
       <div>
-        {/* The way back is the TopBar's "back to profile" pill — the eyebrow's
-            own "back to settings" link went with the /settings route. */}
+        {/* The way back is the nav's avatar → /profile — the eyebrow's own
+            "back to settings" link went with the /settings route. */}
         <Eyebrow className="mb-3">Help</Eyebrow>
         <PaperCard className="p-[30px] pb-8">
           <h2 className="text-[27px] leading-[1.15] font-bold text-(--ink)">What is Aogimi?</h2>
-          <p className="mt-3 max-w-[60ch] text-[14.5px] leading-[1.7] text-(--soft)">
+          <p className="mt-3 max-w-[60ch] text-[14.5px] leading-[1.7] text-(--ink-2)">
             Aogimi is a Japanese reading and vocabulary companion. Open an EPUB or PDF, look up
             any word in the built-in dictionary with a single gesture, save what you want to
             remember to a flashcard deck, and pick up where you left off on any of your devices.
@@ -73,7 +73,7 @@ export default function HelpView() {
               round.
             </p>
             <p>The cloud badge in the corner of each book tile tells you where that book stands:</p>
-            <ul className="mt-3 overflow-hidden rounded-(--radius-input) border border-(--paper-bd)">
+            <ul className="mt-3 overflow-hidden rounded-(--radius-control) border border-(--pane-bd)">
               <SyncLegendRow
                 icon={<Cloudy aria-hidden size={22} color={SYNC_GREEN} />}
                 title="Synced"
@@ -109,15 +109,15 @@ function HelpRow({
   return (
     <div
       className={
-        'flex gap-6 px-6 py-5' + (index > 1 ? ' border-t border-(--paper-bd)' : '')
+        'flex gap-6 px-6 py-5' + (index > 1 ? ' border-t border-(--pane-bd)' : '')
       }
     >
-      <div className="w-[26px] shrink-0 pt-[3px] font-[family-name:var(--face-mono)] text-[10px] text-(--faint)">
+      <div className="w-[26px] shrink-0 pt-[3px] font-[family-name:var(--face-mono)] text-[10px] text-(--ink-3)">
         {String(index).padStart(2, '0')}
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-[15px] font-bold text-(--ink)">{title}</div>
-        <div className="mt-[5px] max-w-[62ch] space-y-2 text-[13.5px] leading-[1.6] text-(--muted)">
+        <div className="mt-[5px] max-w-[62ch] space-y-2 text-[13.5px] leading-[1.6] text-(--ink-3)">
           {children}
         </div>
       </div>
@@ -135,11 +135,11 @@ function SyncLegendRow({
   body: string;
 }) {
   return (
-    <li className="flex gap-3 px-3.5 py-3 not-first:border-t not-first:border-(--paper-bd)">
+    <li className="flex gap-3 px-3.5 py-3 not-first:border-t not-first:border-(--pane-bd)">
       <div className="shrink-0 pt-0.5">{icon}</div>
       <div className="min-w-0 flex-1">
         <div className="text-[13.5px] font-bold text-(--ink)">{title}</div>
-        <div className="mt-0.5 text-[12.5px] leading-[1.5] text-(--muted)">{body}</div>
+        <div className="mt-0.5 text-[12.5px] leading-[1.5] text-(--ink-3)">{body}</div>
       </div>
     </li>
   );

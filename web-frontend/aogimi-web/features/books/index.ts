@@ -8,4 +8,4 @@ export { getAllBooks, wipeBookDatabase } from './lib/bookStore';
 export type { BookRecord } from './lib/bookStore';
 // Views
 export { default as BooksView } from './views/BooksView';
-export { ReaderView, ReaderBubble } from './reader';
+export { ReaderView, ReaderModal, AddedToast } from './reader';

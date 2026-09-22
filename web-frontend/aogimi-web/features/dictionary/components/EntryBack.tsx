@@ -1,7 +1,6 @@
 'use client';
 
 import { ArrowLeft } from 'lucide-react';
-import { HAIRLINE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { ROW_FOCUS } from './ResultRow';
 
@@ -24,10 +23,10 @@ export function EntryBack({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       className={cn(
-        'mb-3 inline-flex cursor-pointer items-center gap-1.5 rounded-(--radius-button) border px-2.5 py-1.5',
-        'font-[family-name:var(--face-mono)] text-[10px] tracking-[0.12em] uppercase text-(--muted)',
+        'mb-3 inline-flex cursor-pointer items-center gap-1.5 rounded-(--radius-control) border px-2.5 py-1.5',
+        'font-[family-name:var(--face-mono)] text-[10px] tracking-[0.12em] uppercase text-(--ink-3)',
         'transition-[border-color,color] duration-120 ease-[ease] hover:border-(--accent) hover:text-(--accent)',
-        HAIRLINE,
+        'border-(--hairline)',
         ROW_FOCUS,
       )}
     >
