@@ -1,7 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { Button } from '@/shared/components/Button';
-import { Header } from '@/shared/components/Header';
+import { Button, Header } from '@/shared/components';
 import { useT } from '@/lib/i18n/I18nContext';
 import { spacing } from '@/theme/tokens';
 

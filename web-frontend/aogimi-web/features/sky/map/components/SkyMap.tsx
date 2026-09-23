@@ -5,13 +5,18 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 // feature, and going via barrels either way would close a module cycle.
 import { useSkyHue } from '@/features/app-shell/providers/SkyHueProvider';
 
-import { useCamera } from '../hooks/useCamera';
-import { useSkyDraw, useSkyStage } from '../hooks/useSkyFrame';
-import { buildSky, todayBucket, type SkyDeckSource } from '../lib/buildSky';
-import { fitZoom } from '../lib/camera';
-import { openConstellationOf } from '../lib/generator';
-import { framedAt } from '../lib/layout';
-import type { FocusPath, Insets, Star } from '../lib/types';
+import { useCamera, useSkyDraw, useSkyStage } from '../hooks';
+import {
+  buildSky,
+  todayBucket,
+  type SkyDeckSource,
+  fitZoom,
+  openConstellationOf,
+  framedAt,
+  type FocusPath,
+  type Insets,
+  type Star,
+} from '../lib';
 import { SkyCanvas } from './SkyCanvas';
 import { type DeckFrameData, FALLBACK_COVER } from './SkyFrames';
 

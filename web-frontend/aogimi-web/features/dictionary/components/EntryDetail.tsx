@@ -9,9 +9,7 @@ import { EntryHeader } from './EntryHeader';
 import { KanjiCard } from './KanjiCard';
 import { PitchAccent } from './PitchAccent';
 import { SectionLabel } from './SectionLabel';
-import { preferredHeadword } from '../lib/headword';
-import { wordCardDraft } from '../lib/cardDraft';
-import { ENTRY_SCALE, type EntryScale } from '../lib/entryScale';
+import { preferredHeadword, wordCardDraft, ENTRY_SCALE, type EntryScale } from '../lib';
 import type { DetailsResponse, WordResult } from '../types';
 
 /** Values only this pane uses. What it shares with the kanji pane and the kanji

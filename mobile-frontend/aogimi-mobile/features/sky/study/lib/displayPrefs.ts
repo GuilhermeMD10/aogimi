@@ -7,8 +7,7 @@
 // every toggle. After a manual toggle, the preset stays whatever was
 // last picked but the toggle values diverge from the preset baseline.
 
-import { request } from '@/lib/api';
-import { loadJSON, saveJSON } from '@/lib/storage';
+import { request, loadJSON, saveJSON } from '@/lib';
 import type { BackPrefs, DisplayPrefs, FrontPrefs, Preset } from '../types';
 
 const STORAGE_KEY = 'study_display_prefs_v1';

@@ -1,15 +1,12 @@
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button } from '@/shared/components/Button';
-import { Screen } from '@/shared/components/Screen';
+import { Button, Screen } from '@/shared/components';
 import { LookupDrawers } from '@/features/dictionary/components/LookupDrawers';
 import { useWordLookup } from '@/features/dictionary/hooks/useWordLookup';
-import { usePalette } from '@/theme/ThemeContext';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
-import { useStudySession } from '../hooks/useStudySession';
-import { useStudyDisplayPrefs } from '../hooks/useStudyDisplayPrefs';
+import { useStudySession, useStudyDisplayPrefs } from '../hooks';
 import { FinishScreen } from './FinishScreen';
 import { GradeShelf } from './GradeShelf';
 import { StudyCard } from './StudyCard';

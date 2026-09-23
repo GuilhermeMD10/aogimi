@@ -1,6 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { usePalette, useTheme } from '@/theme/ThemeContext';
-import { fontFamily, radius } from '@/theme/tokens';
+import { usePalette, useTheme, fontFamily, radius } from '@/theme';
 
 /**
  * The brand mark: 仰 on the accent tile.

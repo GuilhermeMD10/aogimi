@@ -1,11 +1,9 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Touchable } from '@/shared/components/Touchable';
-import { Glass } from '@/shared/components/Glass';
+import { Touchable, Glass } from '@/shared/components';
 import { FlameIcon } from '@/shared/icons/flame';
-import { usePalette, useTheme } from '@/theme/ThemeContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, useTheme, radius, spacing, type, type Palette } from '@/theme';
 
 /** The brand mark's circle, the avatar's circle, and the streak chip's height —
  *  DESIGN.md's "Header pills (Home)" gives all three. */

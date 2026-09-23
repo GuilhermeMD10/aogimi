@@ -1,10 +1,8 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { IconButton } from '@/shared/components/IconButton';
-import { ProgressBar } from '@/shared/components/ProgressBar';
-import { usePalette } from '@/theme/ThemeContext';
+import { IconButton, ProgressBar } from '@/shared/components';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
 
 /** DESIGN.md's header row. Same 60pt as `Header`, different contents. */
 const BAR_H = 60;

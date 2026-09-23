@@ -1,14 +1,9 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Button } from '@/shared/components/Button';
-import { Card } from '@/shared/components/Card';
-import { Tag } from '@/shared/components/Chip';
-import { ProgressBar } from '@/shared/components/ProgressBar';
-import { Touchable } from '@/shared/components/Touchable';
-import { usePalette } from '@/theme/ThemeContext';
+import { Button, Card, Tag, ProgressBar, Touchable } from '@/shared/components';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
 import { formatRelativeTime } from '@/lib/relativeTime';
-import { spacing, type, type Palette } from '@/theme/tokens';
 import type { BookRecord } from '../../types';
 import { BookCover } from './BookCover';
 

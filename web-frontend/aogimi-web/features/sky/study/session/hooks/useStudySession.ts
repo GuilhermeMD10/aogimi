@@ -25,9 +25,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CardRecord } from '@/features/sky/stage/types';
-import { applyOutcome, type SrsApplyResult } from '../lib/srs';
-import { advanceQueue } from '../lib/reviewQueue';
-import { fetchStudySession, submitReview } from '../lib/studyApi';
+import {
+  applyOutcome,
+  type SrsApplyResult,
+  advanceQueue,
+  fetchStudySession,
+  submitReview,
+} from '../lib';
 import type {
   CardSessionEntry,
   SessionSummary,

@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { Touchable } from './Touchable';
-import { usePalette } from '@/theme/ThemeContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 
 /**
  * **Every button in the app.** DESIGN.md's four variants, one 48pt control with

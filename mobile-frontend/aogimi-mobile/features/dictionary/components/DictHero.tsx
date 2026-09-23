@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 
 /**
  * The empty state's centred title block — `DictionarySearch.dc.html`'s hero:

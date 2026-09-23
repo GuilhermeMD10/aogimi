@@ -1,18 +1,15 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BottomSheet } from '@/shared/components/BottomSheet';
-import { Slider } from '@/shared/components/Slider';
-import { Touchable } from '@/shared/components/Touchable';
-import { usePalette } from '@/theme/ThemeContext';
+import { BottomSheet, Slider, Touchable } from '@/shared/components';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
 import {
   READER_THEMES,
   type ReaderFont,
   type ReaderPrefs,
   type ReaderTheme,
-} from '../../lib/readerStorage';
-import type { MangaPageDir } from '../../lib/readerLayout';
+  type MangaPageDir,
+} from '../../lib';
 import { SheetHeading } from './SheetHeading';
 
 /** `Reader.dc.html`'s Configs drawer: 58% of the screen, 40pt segments, 44pt

@@ -4,8 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { StarField } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
-import { useTheme } from '../providers/ThemeProvider';
-import { useFrameOverrideValue } from '../providers/FrameOverrideProvider';
+import { useTheme, useFrameOverrideValue } from '../providers';
 import { TopNav } from './TopNav';
 import { frameForRoute } from '../lib/frameForRoute';
 

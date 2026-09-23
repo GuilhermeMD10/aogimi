@@ -1,8 +1,7 @@
 'use client';
 
 import { SettingsList } from '@/features/settings';
-import { AccountCard } from '../components/AccountCard';
-import { IdentityCard } from '../components/IdentityCard';
+import { AccountCard, IdentityCard } from '../components';
 
 /**
  * `/profile` — the account page and, since the `/settings` route was removed,

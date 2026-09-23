@@ -1,9 +1,8 @@
 import { StyleSheet } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { UndoIcon } from '@/shared/icons/undo';
-import { usePalette } from '@/theme/ThemeContext';
+import { usePalette, radius } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { radius } from '@/theme/tokens';
 
 /** DESIGN.md's action row is 48pt tall, and this is its square end. */
 const SIZE = 48;

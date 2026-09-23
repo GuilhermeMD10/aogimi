@@ -1,11 +1,8 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BottomSheet } from '@/shared/components/BottomSheet';
-import { Glass } from '@/shared/components/Glass';
-import { Touchable } from '@/shared/components/Touchable';
-import { usePalette } from '@/theme/ThemeContext';
+import { BottomSheet, Glass, Touchable } from '@/shared/components';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
 import type { EpubTocItem } from '../../lib/foliateHtml';
 import { SheetHeading } from './SheetHeading';
 

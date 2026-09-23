@@ -7,21 +7,19 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FONT_STACKS, useReaderPrefs } from '@/features/books/reader/hooks/useReaderPrefs';
 import type { NavItem } from '@/features/books/reader/components/ContentsPanel';
-import { THEMES } from '@/features/books/reader/lib/readerConstants';
+// `cleanSelectionText` / `extractSentenceFromSelection` are shared with the PDF reader's selection
+// menu — both engines ask the same two questions of a Selection, so the answers live in `lib/`.
 import {
+  THEMES,
   createFoliateView,
   flattenFoliateToc,
   loadFoliate,
   type FoliateRelocateDetail,
   type FoliateLoadDetail,
   type FoliateViewElement,
-} from '@/features/books/reader/lib/foliate';
-// Shared with the PDF reader's selection menu — both engines ask the same two
-// questions of a Selection, so the answers live in `lib/`.
-import {
   cleanSelectionText,
   extractSentenceFromSelection,
-} from '@/features/books/reader/lib/selectionText';
+} from '@/features/books/reader/lib';
 
 // ── CSS builder for foliate's per-chapter style injection ───────────────────
 // Foliate's renderer.setStyles takes a CSS string and re-injects it into each

@@ -1,21 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
-import { Touchable } from '@/shared/components/Touchable';
-import { BottomSheet } from '@/shared/components/BottomSheet';
-import { Button } from '@/shared/components/Button';
-import { Glass } from '@/shared/components/Glass';
-import { TextField } from '@/shared/components/TextField';
-import { usePalette } from '@/theme/ThemeContext';
+import { Touchable, BottomSheet, Button, Glass, TextField } from '@/shared/components';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
-import { deleteBook, updateBookTitle } from '../../lib/booksApi';
-import { deleteBookFile } from '../../lib/bookPaths';
-import { evictBookCache } from '../../lib/mangaPages';
-import { wipeBookLocalState } from '../../lib/wipeBookLocalState';
-import { clearLocalProgress } from '../../lib/booksLocalCache';
-import { removeCachedBook } from '../../lib/syncedBookCache';
-import { isPendingBookId, syncOneBookOnDemand } from '../../lib/bookPush';
+import {
+  deleteBook,
+  updateBookTitle,
+  deleteBookFile,
+  evictBookCache,
+  wipeBookLocalState,
+  clearLocalProgress,
+  removeCachedBook,
+  isPendingBookId,
+  syncOneBookOnDemand,
+} from '../../lib';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import type { BookRecord } from '../../types';
 

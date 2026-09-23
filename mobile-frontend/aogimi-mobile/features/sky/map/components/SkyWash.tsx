@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { Circle, Group } from '@shopify/react-native-skia';
 
-import type { Lobe } from '../lib/cluster';
-import { WASH_ALPHA, WASH_LOBES, WASH_MIN_SPREAD } from '../lib/config';
+import { type Lobe, WASH_ALPHA, WASH_LOBES, WASH_MIN_SPREAD } from '../lib';
 
 import { washPaints } from './SkyPaints';
 

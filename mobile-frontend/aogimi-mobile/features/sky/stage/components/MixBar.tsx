@@ -2,9 +2,8 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { RANK_COLORS } from '@/features/sky/map/lib/palette';
-import { usePalette } from '@/theme/ThemeContext';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
 import { MIX_ORDER, type MasteryMix } from '../lib/masteryMix';
 
 /** DESIGN.md's mastery distribution bar: 12pt tall, radius 6. */

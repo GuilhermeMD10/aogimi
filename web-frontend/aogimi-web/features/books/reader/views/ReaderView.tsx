@@ -14,15 +14,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/shared/components';
-import { EpubReader } from '@/features/books/reader/components/EpubReader';
-import { PdfReader } from '@/features/books/reader/components/PdfReader';
+import { EpubReader, PdfReader } from '@/features/books/reader/components';
 import { useProgressSync, type ProgressTarget } from '@/features/books/reader/hooks/useProgressSync';
 import { parsePdfPageCfi } from '@/features/books/reader/lib/pdfPosition';
-import { getAllBooks, getBookFile, ensureBackendBook } from '@/features/books/lib/bookStore';
-import { getUserBooks } from '@/features/books/lib/booksApi';
-import { findRemoteTwin } from '@/features/books/lib/pairBooks';
+import {
+  getAllBooks,
+  getBookFile,
+  ensureBackendBook,
+  getUserBooks,
+  findRemoteTwin,
+  getReaderProgress,
+} from '@/features/books/lib';
 import { effectiveSyncState } from '@/features/books/lib/sync';
-import { getReaderProgress } from '@/features/books/lib/readerSession';
 import type { BookProgressRecord } from '@/features/books/types';
 import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
 import { useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';

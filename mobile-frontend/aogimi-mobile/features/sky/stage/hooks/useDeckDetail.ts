@@ -1,14 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { fetchDeck, fetchDeckCards } from '../lib/decksApi';
 import {
+  fetchDeck,
+  fetchDeckCards,
   getCardsByDeckId,
-  hydrateFromBackend as hydrateCardsFromBackend,
-} from '../lib/cardLocalState';
-import {
+  hydrateCardsFromBackend,
   getDeck,
   setDeck as setLocalDeck,
-} from '../lib/deckLocalState';
+} from '../lib';
 import type { LocalCard, LocalDeck } from '../types';
 
 /**

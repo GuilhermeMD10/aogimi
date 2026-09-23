@@ -1,13 +1,9 @@
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen } from '@/shared/components/Screen';
-import { BackBar } from '@/shared/components/BackBar';
-import { DangerButton } from '@/shared/components/DangerButton';
-import { RowGroup, Row, SectionLabel } from '@/shared/components/RowGroup';
+import { Screen, BackBar, DangerButton, RowGroup, Row, SectionLabel } from '@/shared/components';
 import { LOCALES, useI18n, useT } from '@/lib/i18n/I18nContext';
 import { useReaderPrefs } from '@/features/books/reader/lib/readerPrefs';
-import { useTheme } from '@/theme/ThemeContext';
-import { spacing } from '@/theme/tokens';
+import { useTheme, spacing } from '@/theme';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 
 /**

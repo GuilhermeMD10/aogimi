@@ -4,8 +4,7 @@
 // but kept as a separate local cache key so the two slices can be
 // loaded / mutated independently.
 
-import { request } from '@/lib/api';
-import { loadJSON, saveJSON } from '@/lib/storage';
+import { request, loadJSON, saveJSON } from '@/lib';
 import type { DisplayPrefs, StudyMode } from '../types';
 
 const STORAGE_KEY = 'study_deck_overrides_v1';

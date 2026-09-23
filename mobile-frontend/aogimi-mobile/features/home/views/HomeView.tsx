@@ -7,8 +7,7 @@ import { Screen } from '@/shared/components/Screen';
 import { spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { useBooks } from '@/features/books/hooks/useBooks';
-import { useDecks } from '@/features/sky/stage/hooks/useDecks';
-import { useDueCounts } from '@/features/sky/stage/hooks/useDueCounts';
+import { useDecks, useDueCounts } from '@/features/sky/stage/hooks';
 import { useStatsActivity } from '@/features/profile/hooks/useStatsActivity';
 import { kamonFor } from '@/features/profile/lib/kamon';
 import {
@@ -17,9 +16,7 @@ import {
 } from '@/features/dictionary/lib/dictionaryStorage';
 import { useDockClearance } from '@/features/app-shell/Dock';
 import { ContinueReadingCard } from '@/features/books/library/components/ContinueReadingCard';
-import { HomeTopBar } from '../components/HomeTopBar';
-import { StudyCard } from '../components/StudyCard';
-import { DictionaryCard } from '../components/DictionaryCard';
+import { HomeTopBar, StudyCard, DictionaryCard } from '../components';
 
 /**
  * Home — the mobile-only dashboard.

@@ -3,8 +3,7 @@ import { StyleSheet, TextInput, type StyleProp, type ViewStyle } from 'react-nat
 import Feather from '@expo/vector-icons/Feather';
 import { InnerPlate } from './Card';
 import { Touchable } from './Touchable';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 
 /** DESIGN.md's search field: a 48pt control. */
 const FIELD_H = 48;

@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { usePalette } from '@/theme/ThemeContext';
-import { type, type Palette } from '@/theme/tokens';
+import { usePalette, type, type Palette } from '@/theme';
 
 /**
  * The eyebrow that opens each block — RECENTLY LOOKED UP, MEANINGS, KANJI IN

@@ -3,8 +3,7 @@ import { StyleSheet, View, type ViewStyle } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { usePalette, useTheme } from '@/theme/ThemeContext';
-import { CANVAS, spacing } from '@/theme/tokens';
+import { usePalette, useTheme, CANVAS, spacing } from '@/theme';
 
 /**
  * **The canvas.** Every screen renders inside this, and no screen paints its

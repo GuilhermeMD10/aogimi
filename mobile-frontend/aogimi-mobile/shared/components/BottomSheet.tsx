@@ -11,10 +11,16 @@ import {
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PressableBackdrop } from './Touchable';
-import { usePalette, useTheme } from '@/theme/ThemeContext';
-import { glassSheet } from '@/theme/glass';
-import { ACCELERATE, DECELERATE, SHEET_MS, SURFACE_MS } from '@/theme/motion';
-import { radius } from '@/theme/tokens';
+import {
+  usePalette,
+  useTheme,
+  glassSheet,
+  ACCELERATE,
+  DECELERATE,
+  SHEET_MS,
+  SURFACE_MS,
+  radius,
+} from '@/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 
 type Props = {

@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { usePalette } from '@/theme/ThemeContext';
-import { radius, type, type Palette } from '@/theme/tokens';
+import { usePalette, radius, type, type Palette } from '@/theme';
 
 /**
  * The colourless metadata tag — POS, kanji school grade, a name's type.

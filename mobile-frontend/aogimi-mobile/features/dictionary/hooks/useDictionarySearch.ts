@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { queryDictionary } from '../lib/dictApi';
-import { peekSearch } from '../lib/dictCache';
-import { PAGE_SIZE } from '../lib/localDict';
+import { queryDictionary, peekSearch, PAGE_SIZE } from '../lib';
 import type { SearchResponse } from '../types';
 
 /** Exported: the panes that render this state are typed against it. */

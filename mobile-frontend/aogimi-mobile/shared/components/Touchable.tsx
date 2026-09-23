@@ -8,19 +8,19 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { usePalette, useTheme } from '@/theme/ThemeContext';
-import { glassWash } from '@/theme/glass';
 import {
+  usePalette,
+  useTheme,
+  glassWash,
   EASE,
   MIN_TARGET,
   PRESS_MS,
   PRESS_SCALE,
   PRESS_TRANSLATE_Y,
   SURFACE_MS,
-} from '@/theme/motion';
-import { radius as radii } from '@/theme/tokens';
-import { pressFeedback } from '@/lib/haptics';
-import { useReduceMotion } from '@/lib/useReduceMotion';
+  radius as radii,
+} from '@/theme';
+import { pressFeedback, useReduceMotion } from '@/lib';
 import { Sheens } from './Sheens';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);

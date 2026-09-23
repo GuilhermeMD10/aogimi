@@ -1,12 +1,9 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { JlptChip } from '@/shared/components/JlptChip';
-import { PitchAccentDiagram } from '@/shared/components/PitchAccentDiagram';
-import { usePalette } from '@/theme/ThemeContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
+import { JlptChip, PitchAccentDiagram } from '@/shared/components';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 import type { WordResult } from '../types';
-import { preferredHeadword } from '../lib/headword';
-import { posLabel } from '../lib/posLabel';
+import { preferredHeadword, posLabel } from '../lib';
 import { MetaChip } from './MetaChip';
 
 /**

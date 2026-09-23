@@ -2,12 +2,18 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Animated, PanResponder, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Glass } from '@/shared/components/Glass';
-import { IconButton } from '@/shared/components/IconButton';
-import { usePalette } from '@/theme/ThemeContext';
+import { Glass, IconButton } from '@/shared/components';
+import {
+  usePalette,
+  ACCELERATE,
+  DECELERATE,
+  SHEET_MS,
+  SURFACE_MS,
+  radius,
+  spacing,
+  type Palette,
+} from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { ACCELERATE, DECELERATE, SHEET_MS, SURFACE_MS } from '@/theme/motion';
-import { radius, spacing, type Palette } from '@/theme/tokens';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 import type { LocalCard } from '../types';
 import { CardInspectorBody, CardTags } from './CardInspectorBody';

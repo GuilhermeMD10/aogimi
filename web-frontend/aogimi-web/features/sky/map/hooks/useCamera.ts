@@ -21,15 +21,18 @@ import {
   tweenCamera,
   viewOf,
   zoomAround,
-} from '../lib/camera';
-import {
   CAMERA_TWEEN_MS,
   DRAG_SLOP_PX,
   ESCAPE_PUSH_DECAY_MS,
   ESCAPE_PUSH_PX,
   ZOOM_PER_WHEEL_PX,
-} from '../lib/config';
-import type { Bounds, Camera, Insets, Point, View, Viewport } from '../lib/types';
+  type Bounds,
+  type Camera,
+  type Insets,
+  type Point,
+  type View,
+  type Viewport,
+} from '../lib';
 
 type Drag = {
   id: number; // the pointer we are following

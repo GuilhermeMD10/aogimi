@@ -14,8 +14,8 @@ import {
 } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 
-import { NO_FULCRAL } from '../lib/cluster';
 import {
+  NO_FULCRAL,
   LABEL_BAND,
   LABEL_MIN_PX,
   LABEL_WORLD_PX,
@@ -28,14 +28,22 @@ import {
   LINK_STRAND_MAP_PX,
   LINK_STRAND_PX,
   UNFOCUSED_DECK_OPACITY,
-} from '../lib/config';
-import { deckAt, type SkyLayout } from '../lib/layout';
+  deckAt,
+  type SkyLayout,
+  labelOpAt,
+  STAR_LABEL_COLOR,
+  type SkyPalette,
+  lerpHex,
+  rankOf,
+  strandRamps,
+  pickStar,
+  type DeckDraw,
+  type SkyFrame,
+  type FocusPath,
+  type Point,
+  type Star,
+} from '../lib';
 import { selectionStartFeedback, starTapFeedback } from '@/lib/haptics';
-import { labelOpAt } from '../lib/lod';
-import { STAR_LABEL_COLOR, type SkyPalette, lerpHex, rankOf, strandRamps } from '../lib/palette';
-import { pickStar } from '../lib/picking';
-import type { DeckDraw, SkyFrame } from '../lib/tiers';
-import type { FocusPath, Point, Star } from '../lib/types';
 import type { SkyCameraController } from '../hooks/useSkyCamera';
 import { COMMIT_ZOOM_RATIO } from '../native/gestureConfig';
 

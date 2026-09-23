@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 
 /**
  * The eyebrow-and-title block at the top of a reader sheet: `読 · CONTENTS`

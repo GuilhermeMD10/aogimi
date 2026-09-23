@@ -1,15 +1,11 @@
 import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 
-import { BottomSheet } from '@/shared/components/BottomSheet';
-import { Button } from '@/shared/components/Button';
-import { TextField } from '@/shared/components/TextField';
-import { usePalette } from '@/theme/ThemeContext';
+import { BottomSheet, Button, TextField } from '@/shared/components';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { createDeckLocal } from '../lib/deckPush';
-import { MAX_DECK_DESCRIPTION, MAX_DECK_NAME } from '../lib/limits';
+import { createDeckLocal, MAX_DECK_DESCRIPTION, MAX_DECK_NAME } from '../lib';
 import type { LocalDeck } from '../types';
 
 type Props = {

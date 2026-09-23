@@ -1,13 +1,9 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
+import { Touchable, Screen, BackBar } from '@/shared/components';
 import Feather from '@expo/vector-icons/Feather';
-import { Screen } from '@/shared/components/Screen';
-import { BackBar } from '@/shared/components/BackBar';
-import { useColors } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing } from '@/theme/tokens';
+import { useColors, fontFamily, fontSize, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { useReaderPrefs } from '@/features/books/reader/lib/readerPrefs';
-import { HIGHLIGHT_COLORS, type HighlightColor } from '@/features/books/reader/lib/readerStorage';
+import { useReaderPrefs, HIGHLIGHT_COLORS, type HighlightColor } from '@/features/books/reader/lib';
 
 // Which colour the reader's text-selection band paints.
 //

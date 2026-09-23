@@ -1,25 +1,26 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
+import {
+  Touchable,
+  Screen,
+  BackBar,
+  DangerButton,
+  RowGroup,
+  Row,
+  SectionLabel,
+} from '@/shared/components';
 import { useRouter } from 'expo-router';
-import { Screen } from '@/shared/components/Screen';
-import { BackBar } from '@/shared/components/BackBar';
-import { DangerButton } from '@/shared/components/DangerButton';
-import { RowGroup, Row, SectionLabel } from '@/shared/components/RowGroup';
-import { usePalette } from '@/theme/ThemeContext';
+import { usePalette, fontFamily, fontSize, radius, spacing, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { updateUserProfile } from '../lib/profileApi';
-import { kamonFor } from '../lib/kamon';
+import { updateUserProfile, kamonFor } from '../lib';
 import { AvatarPickerSheet } from './AvatarPickerSheet';
 import { SignedOutProfileScreen } from './SignedOutProfileScreen';
 import { AnimalLabel } from './AnimalLabel';
 import { ProfileIdentity } from './ProfileIdentity';
 import { ProfileStats } from './ProfileStats';
 import { ProfileHeaderButton } from './ProfileHeaderButton';
-import { useStatsCards } from '../hooks/useStatsCards';
-import { useStatsActivity } from '../hooks/useStatsActivity';
+import { useStatsCards, useStatsActivity } from '../hooks';
 
 const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const;
 type JlptLevel = (typeof JLPT_LEVELS)[number];

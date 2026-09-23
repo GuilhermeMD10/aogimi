@@ -1,11 +1,9 @@
 import { StyleSheet, View } from 'react-native';
-import { Button } from '@/shared/components/Button';
-import { MeaningRow } from '@/shared/components/MeaningRow';
+import { Button, MeaningRow } from '@/shared/components';
 import { useT } from '@/lib/i18n/I18nContext';
 import { spacing } from '@/theme/tokens';
 import type { WordDetails } from '../types';
-import { isEnglish } from '../lib/headword';
-import { posLabel } from '../lib/posLabel';
+import { isEnglish, posLabel } from '../lib';
 import { SectionHeading } from './SectionHeading';
 import { EntryHeader } from './EntryHeader';
 import { KanjiBreakdownCard } from './KanjiBreakdownCard';

@@ -1,7 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useColors } from '@/theme/ThemeContext';
+import { useColors, fontFamily, fontSize } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize } from '@/theme/tokens';
 import type { DeckCardStats } from '@/features/sky/stage/lib/cardLocalState';
 
 type Props = {

@@ -2,8 +2,8 @@
 
 import { Fragment } from 'react';
 
-import { clip } from '../lib/cards';
 import {
+  clip,
   HOVER_HALO_PX,
   LABEL_FONT_WEIGHT,
   LABEL_MAX_CHARS,
@@ -15,17 +15,13 @@ import {
   SELECT_GLOW_SCALE,
   SELECT_HALO_PX,
   STAR_MIN_LIT,
-} from '../lib/config';
-import { clamp01 } from '../lib/geometry';
-import {
+  clamp01,
   BEAD_HIGHLIGHT,
   SELECT_COLOR,
   STAR_LABEL_COLOR,
   type RankRamp,
   rankOf,
   starColor,
-} from '../lib/palette';
-import {
   beadResolves,
   coreRadius,
   glowOf,
@@ -36,8 +32,8 @@ import {
   ringWidth,
   labelWorldSize,
   starRadiusPx,
-} from '../lib/star';
-import type { Star } from '../lib/types';
+  type Star,
+} from '../lib';
 
 /**
  * One deck's surviving stars, in that deck's own local coordinates.

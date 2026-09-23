@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { fetchDueCounts } from '@/features/sky/study/lib/studyApi';
-import { isDue } from '@/features/sky/study/lib/srs';
+import { fetchDueCounts, isDue } from '@/features/sky/study/lib';
 import { getAllCards } from '../lib/cardLocalState';
 import { isOnlineNow } from '@/lib/network/network';
 

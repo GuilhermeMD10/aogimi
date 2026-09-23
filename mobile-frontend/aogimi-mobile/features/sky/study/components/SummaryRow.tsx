@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { InnerPlate } from '@/shared/components/Card';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import type { CardRecord } from '../../stage/types';
 
 /**

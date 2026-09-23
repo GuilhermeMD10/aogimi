@@ -1,8 +1,14 @@
 'use client';
 
-import { type Lobe, lobeTint } from '../lib/cluster';
-import { WASH_ALPHA, WASH_LOBES, WASH_MIN_SPREAD } from '../lib/config';
-import { type RankRamp, washStops } from '../lib/palette';
+import {
+  type Lobe,
+  lobeTint,
+  WASH_ALPHA,
+  WASH_LOBES,
+  WASH_MIN_SPREAD,
+  type RankRamp,
+  washStops,
+} from '../lib';
 
 /**
  * The atmosphere under a focused deck's drawing: three broad, overlapping tints sized off the deck's

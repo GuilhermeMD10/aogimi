@@ -1,9 +1,15 @@
 import { useMemo } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { usePalette, useTheme } from '@/theme/ThemeContext';
-import { glassAccent, glassSheet, glassTier, type GlassTier } from '@/theme/glass';
-import { radius as radii } from '@/theme/tokens';
+import {
+  usePalette,
+  useTheme,
+  glassAccent,
+  glassSheet,
+  glassTier,
+  type GlassTier,
+  radius as radii,
+} from '@/theme';
 
 /**
  * **A pane of glass.** The material every surface in the app is made of — cards,

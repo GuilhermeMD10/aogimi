@@ -6,15 +6,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
+import { Touchable, Screen, Button, TextField } from '@/shared/components';
 import { useRouter } from 'expo-router';
-import { Screen } from '@/shared/components/Screen';
-import { Button } from '@/shared/components/Button';
-import { TextField } from '@/shared/components/TextField';
-import { useColors } from '@/theme/ThemeContext';
+import { useColors, fontFamily, fontSize, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { fontFamily, fontSize, spacing } from '@/theme/tokens';
 
 /**
  * Mirrors the backend's `return res.status(403)` at the top of the register

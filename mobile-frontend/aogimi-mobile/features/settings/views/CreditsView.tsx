@@ -1,11 +1,8 @@
 import { useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
+import { Touchable, Screen, BackBar } from '@/shared/components';
 import Feather from '@expo/vector-icons/Feather';
-import { Screen } from '@/shared/components/Screen';
-import { BackBar } from '@/shared/components/BackBar';
-import { useColors } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing } from '@/theme/tokens';
+import { useColors, fontFamily, fontSize, spacing } from '@/theme';
 import { CREDITS, type CreditEntry, type CreditSection } from '@/features/settings/lib/credits';
 
 // Credits page — third-party data sources, fonts, and libraries used by

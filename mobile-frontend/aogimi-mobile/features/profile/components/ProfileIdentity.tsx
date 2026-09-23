@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
-import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
+import { usePalette, fontFamily, fontSize, spacing, type Palette } from '@/theme';
 
 /**
  * Avatar, name, and the "looking up since" line — the identity block.

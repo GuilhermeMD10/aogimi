@@ -7,21 +7,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LookupDrawers } from '@/features/dictionary/components/LookupDrawers';
 import { useWordLookup } from '@/features/dictionary/hooks/useWordLookup';
 import { isDue } from '@/features/sky/study/lib/srs';
-import { Button } from '@/shared/components/Button';
-import { Chip } from '@/shared/components/Chip';
-import { Header } from '@/shared/components/Header';
-import { PopoverMenu } from '@/shared/components/PopoverMenu';
-import { Screen } from '@/shared/components/Screen';
-import { SearchField } from '@/shared/components/SearchField';
-import { ThemeScope, usePalette } from '@/theme/ThemeContext';
+import { Button, Chip, Header, PopoverMenu, Screen, SearchField } from '@/shared/components';
+import { ThemeScope, usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
 
 import { CardRow } from '../components/CardRow';
-import { useDeckDetail } from '../hooks/useDeckDetail';
-import { useDueCounts } from '../hooks/useDueCounts';
-import { deleteCardLocal } from '../lib/cardPush';
-import { MIX_ORDER } from '../lib/masteryMix';
+import { useDeckDetail, useDueCounts } from '../hooks';
+import { deleteCardLocal, MIX_ORDER } from '../lib';
 import type { CardState, LocalCard } from '../types';
 import { shownRank } from '../../lib/skyProjection';
 

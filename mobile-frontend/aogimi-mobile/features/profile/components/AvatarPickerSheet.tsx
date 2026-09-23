@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
-import { BottomSheet } from '@/shared/components/BottomSheet';
-import { Button } from '@/shared/components/Button';
-import { useColors } from '@/theme/ThemeContext';
+import { Touchable, BottomSheet, Button } from '@/shared/components';
+import { useColors, fontFamily, fontSize, radius, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import { KAMON_SET } from '../lib/kamon';
 
 type Props = {

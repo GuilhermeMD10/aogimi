@@ -13,8 +13,7 @@ import { BookOpen, ZoomIn, ZoomOut } from 'lucide-react';
 import { ReaderShell, type ReaderTool } from '@/features/books/reader/components/ReaderShell';
 import { TextContextMenu } from '@/features/books/reader/components/TextContextMenu';
 import { useSelectionMenu } from '@/features/books/reader/hooks/useSelectionMenu';
-import { pdfPageCfi } from '@/features/books/reader/lib/pdfPosition';
-import { THEMES } from '@/features/books/reader/lib/readerConstants';
+import { pdfPageCfi, THEMES } from '@/features/books/reader/lib';
 import 'pdfjs-dist/web/pdf_viewer.css';
 
 // Single pdfjs-dist (the root one). Bundled worker matches the API version

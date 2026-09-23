@@ -3,9 +3,7 @@
 import { PRESS, Skeleton } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 import { KanjiRow, WordRow } from './ResultRow';
-import { sameSelection } from '../lib/results';
-import type { RailContents } from '../lib/results';
-import type { EntryScale } from '../lib/entryScale';
+import { sameSelection, type RailContents, type EntryScale } from '../lib';
 import type { KanjiInfo, Selection, WordResult } from '../types';
 
 const SKELETON_ROWS = 6;

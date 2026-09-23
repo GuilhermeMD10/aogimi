@@ -1,5 +1,4 @@
-import { request, API_BASE } from '@/lib/api';
-import { getAccessToken } from '@/lib/tokenStore';
+import { request, API_BASE, getAccessToken } from '@/lib';
 import type {
   BookIdentityPayload,
   BookMatchCandidate,

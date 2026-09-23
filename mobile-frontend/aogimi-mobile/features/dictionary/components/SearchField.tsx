@@ -1,10 +1,8 @@
 import { forwardRef, useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, TextInput, type StyleProp, type ViewStyle } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
-import { InnerPlate } from '@/shared/components/Card';
-import { Touchable } from '@/shared/components/Touchable';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { InnerPlate, Touchable } from '@/shared/components';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 
 /** DESIGN.md's search field: a 48pt control. */
 const FIELD_H = 48;

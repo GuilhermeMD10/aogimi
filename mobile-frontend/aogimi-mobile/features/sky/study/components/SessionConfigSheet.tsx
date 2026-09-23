@@ -8,11 +8,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
-import { BottomSheet } from '@/shared/components/BottomSheet';
-import { useColors } from '@/theme/ThemeContext';
+import { Touchable, BottomSheet } from '@/shared/components';
+import { useColors, fontFamily, fontSize, radius, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 import type { StudyMode } from '../types';
 
 // Per-deck session config. The user picks one mode + a session size;

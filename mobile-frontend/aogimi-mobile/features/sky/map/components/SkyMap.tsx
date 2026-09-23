@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { useSkyCamera } from '../hooks/useSkyCamera';
-import { useSkyDraw, useSkyStage } from '../hooks/useSkyFrame';
-import { buildSky, todayBucket, type SkyDeckSource } from '../lib/buildSky';
-import { openConstellationOf } from '../lib/generator';
-import { DEFAULT_SKY_HUE, SKY_PALETTES, type SkyHue } from '../lib/palette';
-import type { FocusPath, Insets, Star } from '../lib/types';
+import { useSkyCamera, useSkyDraw, useSkyStage } from '../hooks';
+import {
+  buildSky,
+  todayBucket,
+  type SkyDeckSource,
+  openConstellationOf,
+  DEFAULT_SKY_HUE,
+  SKY_PALETTES,
+  type SkyHue,
+  type FocusPath,
+  type Insets,
+  type Star,
+} from '../lib';
 import { SkyCanvas } from './SkyCanvas';
 import { SkyDeckBadges } from './SkyDeckBadges';
 

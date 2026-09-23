@@ -4,18 +4,23 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Trash2 } from 'lucide-react';
 import { Button, Modal } from '@/shared/components';
-import { renameBook as renameLocalBook } from '@/features/books/lib/bookStore';
-import { updateBookTitle as apiUpdateBookTitle, updateBookProgress } from '@/features/books/lib/booksApi';
-import { deleteBookEverywhere } from '@/features/books/lib/deleteBook';
-import { locateAndAttachFile, validateBookFile } from '@/features/books/lib/locateAndAttachFile';
-import { importBookWithMatch } from '@/features/books/lib/importBookWithMatch';
+import {
+  renameBook as renameLocalBook,
+  updateBookTitle as apiUpdateBookTitle,
+  updateBookProgress,
+  deleteBookEverywhere,
+  locateAndAttachFile,
+  validateBookFile,
+  importBookWithMatch,
+  MAX_BOOKS,
+  bookQuotaMessage,
+} from '@/features/books/lib';
 import { useAuthedUser } from '@/features/auth/hooks/useAuthedUser';
 import type { Book } from '@/features/books/types';
 import { LibraryShelf, FsAccessBanner } from '@/features/books/library';
 import OnboardingExplainerModal from '@/features/onboarding';
 import { getUserProfile } from '@/features/profile/lib/userApi';
 import { useSyncBooks } from '@/features/books/hooks/useSyncBooks';
-import { MAX_BOOKS, bookQuotaMessage } from '@/features/books/lib/limits';
 
 export default function BooksView() {
   const user = useAuthedUser();

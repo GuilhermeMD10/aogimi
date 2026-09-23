@@ -1,13 +1,9 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Glass } from '@/shared/components/Glass';
-import { IconButton } from '@/shared/components/IconButton';
-import { StateTag } from '@/shared/components/StateTag';
-import { Touchable } from '@/shared/components/Touchable';
-import { usePalette } from '@/theme/ThemeContext';
+import { Glass, IconButton, StateTag, Touchable } from '@/shared/components';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
 import type { LocalCard } from '../types';
 import { CardInspectorBody, rankOfCard } from './CardInspectorBody';
 

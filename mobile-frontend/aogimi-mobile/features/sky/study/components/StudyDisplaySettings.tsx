@@ -1,9 +1,7 @@
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { Screen } from '@/shared/components/Screen';
-import { BackBar } from '@/shared/components/BackBar';
-import { useColors } from '@/theme/ThemeContext';
+import { Screen, BackBar } from '@/shared/components';
+import { useColors, fontSize, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontSize, spacing } from '@/theme/tokens';
 import { useStudyDisplayPrefs } from '../hooks/useStudyDisplayPrefs';
 import { PresetPicker } from './PresetPicker';
 import type { BackPrefs, FrontPrefs } from '../types';

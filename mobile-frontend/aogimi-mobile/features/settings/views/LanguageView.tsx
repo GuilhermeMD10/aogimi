@@ -1,11 +1,8 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
+import { Touchable, Screen, BackBar } from '@/shared/components';
 import { useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
-import { Screen } from '@/shared/components/Screen';
-import { BackBar } from '@/shared/components/BackBar';
-import { useColors } from '@/theme/ThemeContext';
-import { fontSize, spacing } from '@/theme/tokens';
+import { useColors, fontSize, spacing } from '@/theme';
 import { LOCALES, useI18n, useT, type Locale } from '@/lib/i18n/I18nContext';
 
 // Language picker. Renders the LOCALES list as a flat list of rows with

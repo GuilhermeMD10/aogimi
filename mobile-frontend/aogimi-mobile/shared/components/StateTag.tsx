@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { usePalette } from '@/theme/ThemeContext';
-import { type, type Palette } from '@/theme/tokens';
+import { usePalette, type, type Palette } from '@/theme';
 
 /** DESIGN.md's status dot. */
 const DOT = 6;

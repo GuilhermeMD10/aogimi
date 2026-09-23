@@ -21,18 +21,18 @@
 // per-deck frame meta, and the overlay insets the camera fits inside.
 export { SkyMap } from './components/SkyMap';
 export type { SkyFrameMeta } from './components/SkyMap';
-export type { Insets } from './lib/types';
+export type { Insets } from './lib';
 
 // The seam that feeds a sky: the account's one immutable seed.
 export { useSkySeed } from './hooks/useSkySeed';
 
-export { buildSky, dayBucketOf, todayBucket } from './lib/buildSky';
-export type { SkyCard, SkyDeckSource } from './lib/buildSky';
+export { buildSky, dayBucketOf, todayBucket } from './lib';
+export type { SkyCard, SkyDeckSource } from './lib';
 
 // The demo composition root — the reference wiring for the /sky stage, not routed.
 
 // The generator, for a caller building a sky outside React.
-export { SkyGenerator } from './lib/generator';
+export { SkyGenerator } from './lib';
 
 /**
  * The hue presets. The sky owns the palette; `SkyHueProvider` owns which one is chosen and the
@@ -40,8 +40,8 @@ export { SkyGenerator } from './lib/generator';
  * mastery chrome outside the canvas follows the sky. (The provider itself imports `lib/palette` by
  * path rather than through this barrel — a barrel both ways would be a cycle.)
  */
-export { DEFAULT_SKY_HUE, SKY_HUES, SKY_PALETTES } from './lib/palette';
-export type { SkyHue, SkyPalette } from './lib/palette';
+export { DEFAULT_SKY_HUE, SKY_HUES, SKY_PALETTES } from './lib';
+export type { SkyHue, SkyPalette } from './lib';
 
-export type { CardContent } from './lib/cards';
-export type { Deck, FocusPath, SkySnapshot, Star } from './lib/types';
+export type { CardContent } from './lib';
+export type { Deck, FocusPath, SkySnapshot, Star } from './lib';

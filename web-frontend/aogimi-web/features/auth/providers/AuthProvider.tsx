@@ -9,16 +9,20 @@ import {
   setLastUserId,
   setStoredAuthUser,
   type StoredAuthUser as User,
-} from '@/features/auth/lib/storage';
-import { loginUser, registerUser, logoutUser, revokeLegacyRefreshToken } from '@/features/auth/lib/authApi';
+  loginUser,
+  registerUser,
+  logoutUser,
+  revokeLegacyRefreshToken,
+  wipeUserData,
+} from '@/features/auth/lib';
 import {
   clearAccessToken,
   setAccessToken,
   readLegacyRefreshToken,
   purgeLegacyTokenStorage,
-} from '@/lib/tokenStore';
-import { wipeUserData } from '@/features/auth/lib/wipeUserData';
-import { refreshAccessTokenOnce, registerSessionInvalidatedHandler } from '@/lib/api';
+  refreshAccessTokenOnce,
+  registerSessionInvalidatedHandler,
+} from '@/lib';
 import { reconcileBooks } from '@/features/books';
 
 type AuthContextValue = {

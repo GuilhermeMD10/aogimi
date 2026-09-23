@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { fetchWordDetails } from '../lib/dictApi';
-import { peekWord } from '../lib/dictCache';
+import { fetchWordDetails, peekWord } from '../lib';
 import type { WordDetails } from '../types';
 
 /**

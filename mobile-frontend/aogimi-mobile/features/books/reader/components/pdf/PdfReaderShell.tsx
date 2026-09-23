@@ -1,8 +1,7 @@
 import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import Pdf, { type PdfRef } from 'react-native-pdf';
-import { usePalette, useTheme } from '@/theme/ThemeContext';
-import { spacing, type } from '@/theme/tokens';
+import { usePalette, useTheme, spacing, type } from '@/theme';
 import type { BookRecord } from '@/features/books/types';
 import { bookFilePath } from '@/features/books/lib/bookPaths';
 import { ReaderTopBar } from '../ReaderTopBar';

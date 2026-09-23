@@ -4,8 +4,7 @@ import { Search } from 'lucide-react';
 import { cn } from '@/lib/util/cn';
 import type { CardRecord } from '@/features/sky/stage/types';
 import type { DisplayPrefs } from '../types';
-import { useFlip } from '../hooks/useFlip';
-import type { StudySide } from '../hooks/useStudySession';
+import { useFlip, type StudySide } from '../hooks';
 import { CardBody } from './CardBody';
 
 type Props = {

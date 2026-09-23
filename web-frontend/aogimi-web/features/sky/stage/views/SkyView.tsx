@@ -18,19 +18,19 @@ import { PANE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
 
 import { PracticeOverlay } from '../../components/PracticeOverlay';
-import { CardsSection, type ListCard } from '../components/CardsSection';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import type { DeckMenuAction } from '../components/DeckMenu';
-import { DeckNameModal } from '../components/DeckNameModal';
-import { FieldHeader } from '../components/FieldHeader';
-import { Inspector } from '../components/Inspector';
+import {
+  CardsSection,
+  type ListCard,
+  ConfirmDialog,
+  type DeckMenuAction,
+  DeckNameModal,
+  FieldHeader,
+  Inspector,
+} from '../components';
 import { PendingCardOverlay, type PendingCardFlow } from '../components/PendingCardOverlay';
-import { useDeckDueCounts } from '../hooks/useDeckDueCounts';
-import { useSkyDecks } from '../hooks/useSkyDecks';
-import { startedLabel } from '../lib/cardLabels';
+import { useDeckDueCounts, useSkyDecks } from '../hooks';
+import { startedLabel, deckVisuals, MAX_DECKS } from '../lib';
 import * as api from '../lib/decksApi';
-import { deckVisuals } from '../lib/deckVisuals';
-import { MAX_DECKS } from '../lib/limits';
 import { useDecks } from '../providers/DecksProvider';
 import { type CardDraft, type DeckWithCards, type SkyCardRecord, toSkyCard } from '../types';
 

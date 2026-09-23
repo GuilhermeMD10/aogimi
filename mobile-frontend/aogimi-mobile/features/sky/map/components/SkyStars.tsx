@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { Circle, Group, Path, Skia, Text, type SkFont, type Transforms3d } from '@shopify/react-native-skia';
 import type { SharedValue } from 'react-native-reanimated';
 
-import { clip } from '../lib/cards';
 import {
+  clip,
   LABEL_FONT_PX,
   LABEL_MAX_CHARS,
   LABEL_OFFSET_X_PX,
@@ -14,17 +14,13 @@ import {
   SELECT_GLOW_SCALE,
   SELECT_HALO_PX,
   STAR_MIN_LIT,
-} from '../lib/config';
-import { clamp01 } from '../lib/geometry';
-import {
+  clamp01,
   BEAD_HIGHLIGHT,
   SELECT_COLOR,
   STAR_LABEL_COLOR,
   type RankRamp,
   rankOf,
   starColor,
-} from '../lib/palette';
-import {
   beadResolves,
   coreRadius,
   glowOf,
@@ -34,8 +30,8 @@ import {
   ringRadii,
   ringWidth,
   starRadiusPx,
-} from '../lib/star';
-import type { Star } from '../lib/types';
+  type Star,
+} from '../lib';
 
 import { type BeadPaints } from './SkyPaints';
 

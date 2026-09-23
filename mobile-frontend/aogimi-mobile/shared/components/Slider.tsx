@@ -6,8 +6,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { usePalette, useTheme } from '@/theme/ThemeContext';
-import { type Palette } from '@/theme/tokens';
+import { usePalette, useTheme, type Palette } from '@/theme';
 import { selectionTickFeedback } from '@/lib/haptics';
 
 /** DESIGN.md's progress track, plus the knob the Configs drawer draws on it. */

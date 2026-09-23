@@ -2,12 +2,9 @@ import { memo, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
-import { usePalette } from '@/theme/ThemeContext';
-import { radius, type, type Palette } from '@/theme/tokens';
+import { usePalette, radius, type, type Palette } from '@/theme';
 import type { SkyCameraController } from '../hooks/useSkyCamera';
-import type { SkyDeckSource } from '../lib/buildSky';
-import type { SkyLayout } from '../lib/layout';
-import type { Bounds } from '../lib/types';
+import type { SkyDeckSource, SkyLayout, Bounds } from '../lib';
 import type { SkyFrameMeta } from './SkyMap';
 
 /**
