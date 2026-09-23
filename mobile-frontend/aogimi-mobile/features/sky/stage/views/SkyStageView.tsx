@@ -13,34 +13,33 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useDockClearance } from '@/features/app-shell/Dock';
-import { useHideDock } from '@/features/app-shell/DockVisibility';
+import { useDockClearance, useHideDock } from '@/features/app-shell';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { SkyMap, type Insets, type SkyFrameMeta } from '@/features/sky/map';
 import { LookupDrawers } from '@/features/dictionary/components/LookupDrawers';
 import { useWordLookup } from '@/features/dictionary/hooks/useWordLookup';
-import { Button } from '@/shared/components/Button';
-import { InnerPlate } from '@/shared/components/Card';
-import { PopoverMenu } from '@/shared/components/PopoverMenu';
-import { Screen } from '@/shared/components/Screen';
-import { ThemeScope, usePalette } from '@/theme/ThemeContext';
+import { Button, InnerPlate, PopoverMenu, Screen } from '@/shared/components';
+import { ThemeScope, usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
 
-import { CardInspectorSheet } from '../components/CardInspectorSheet';
-import { DeckMenu } from '../components/DeckMenu';
-import { DeckStatsSheet } from '../components/DeckStatsSheet';
-import { EditDeckSheet } from '../components/EditDeckSheet';
-import { FocusedDeckHeader } from '../components/FocusedDeckHeader';
-import { NewDeckSheet } from '../components/NewDeckSheet';
-import { SkyTopBar } from '../components/SkyTopBar';
-import { useDueCounts } from '../hooks/useDueCounts';
-import { useSkyDecks, type DeckWithCards } from '../hooks/useSkyDecks';
-import { deleteCardLocal } from '../lib/cardPush';
-import { deckColorFor, deckGlyphFor } from '../lib/deckVisuals';
-import { deleteDeckLocal } from '../lib/deckPush';
-import { syncAllDeckChanges } from '../lib/decksSyncAll';
-import { MAX_DECKS } from '../lib/limits';
+import {
+  CardInspectorSheet,
+  DeckMenu,
+  DeckStatsSheet,
+  EditDeckSheet,
+  FocusedDeckHeader,
+  NewDeckSheet,
+  SkyTopBar,
+} from '../components';
+import { useDueCounts, useSkyDecks, type DeckWithCards } from '../hooks';
+import {
+  deleteCardLocal,
+  deckColorFor,
+  deckGlyphFor,
+  deleteDeckLocal,
+  syncAllDeckChanges,
+  MAX_DECKS,
+} from '../lib';
 import type { LocalCard } from '../types';
 
 /**

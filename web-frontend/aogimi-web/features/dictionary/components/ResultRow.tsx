@@ -3,9 +3,7 @@
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/util/cn';
 import { Chip, JlptChip, PRESS } from '@/shared/components';
-import { preferredHeadword } from '../lib/headword';
-import { inflectionNote } from '../lib/inflection';
-import type { EntryScale } from '../lib/entryScale';
+import { preferredHeadword, inflectionNote, type EntryScale } from '../lib';
 import type { KanjiInfo, WordResult } from '../types';
 
 /*

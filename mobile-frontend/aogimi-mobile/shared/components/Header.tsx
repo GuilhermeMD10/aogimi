@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { IconButton } from './IconButton';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 
 /** DESIGN.md's header row: 60pt tall, a circle at each end, 12pt gaps. */
 const BAR_H = 60;

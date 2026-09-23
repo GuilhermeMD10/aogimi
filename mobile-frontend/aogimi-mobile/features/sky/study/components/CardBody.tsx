@@ -1,9 +1,8 @@
 import { Fragment, useMemo } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
 import { MeaningRow } from '@/shared/components/MeaningRow';
-import { usePalette } from '@/theme/ThemeContext';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
 import type { CardRecord } from '../../stage/types';
 import type { DisplayPrefs } from '../types';
 import { cloze } from '../lib/clozeContext';

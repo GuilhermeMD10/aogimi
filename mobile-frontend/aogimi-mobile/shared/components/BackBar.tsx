@@ -3,8 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BackButton } from './BackButton';
 import { useT } from '@/lib/i18n/I18nContext';
-import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
+import { usePalette, fontFamily, fontSize, spacing, type Palette } from '@/theme';
 
 /**
  * The way out of a pushed screen, plus the screen's heading.

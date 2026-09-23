@@ -1,11 +1,9 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Glass } from '@/shared/components/Glass';
-import { PopoverMenu } from '@/shared/components/PopoverMenu';
-import { usePalette } from '@/theme/ThemeContext';
+import { Glass, PopoverMenu } from '@/shared/components';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
 import { deckGlyphFor } from '../lib/deckVisuals';
 
 /** DESIGN.md's lifted node: 88pt accent glass, with an orbit ring at +8. */

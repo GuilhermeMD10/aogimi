@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { usePalette } from '@/theme/ThemeContext';
-import { EASE, FLIP_MS } from '@/theme/motion';
-import { type Palette } from '@/theme/tokens';
+import { usePalette, EASE, FLIP_MS, type Palette } from '@/theme';
 
 /**
  * DESIGN.md's progress track: 4pt tall (6pt inside a book row), radius 4,

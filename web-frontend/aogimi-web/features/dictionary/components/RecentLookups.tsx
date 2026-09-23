@@ -2,8 +2,7 @@
 
 import { History } from 'lucide-react';
 import { Eyebrow, PANE, PRESS, Skeleton } from '@/shared/components';
-import { relativeTime } from '@/lib/util/relativeTime';
-import { cn } from '@/lib/util/cn';
+import { relativeTime, cn } from '@/lib/util';
 import type { RecentSearchItem } from '../lib/storage';
 
 /**

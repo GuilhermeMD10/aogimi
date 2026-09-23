@@ -1,13 +1,9 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Glass } from '@/shared/components/Glass';
-import { Touchable } from '@/shared/components/Touchable';
-import { JlptChip } from '@/shared/components/JlptChip';
-import { usePalette } from '@/theme/ThemeContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
+import { Glass, Touchable, JlptChip } from '@/shared/components';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 import type { WordResult } from '../types';
-import { isEnglish, preferredHeadword } from '../lib/headword';
-import { posLabel } from '../lib/posLabel';
+import { isEnglish, preferredHeadword, posLabel } from '../lib';
 import { MetaChip } from './MetaChip';
 import { AddButton } from './AddButton';
 

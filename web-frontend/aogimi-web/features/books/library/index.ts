@@ -1,4 +1,4 @@
 // Book-list ("library") sub-feature public surface.
-export { LibraryShelf } from './components/LibraryShelf';
-export type { LibraryShelfProps } from './components/LibraryShelf';
-export { default as FsAccessBanner } from './components/FsAccessBanner';
+export { LibraryShelf } from './components';
+export type { LibraryShelfProps } from './components';
+export { FsAccessBanner } from './components';

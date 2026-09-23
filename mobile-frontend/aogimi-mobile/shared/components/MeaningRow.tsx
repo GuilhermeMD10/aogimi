@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { InnerPlate } from './Card';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 
 /** The numbered circle: DESIGN.md says 20px; the inspector composition draws 18. 20 wins. */
 const INDEX = 20;

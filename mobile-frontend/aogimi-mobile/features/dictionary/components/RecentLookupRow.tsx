@@ -1,12 +1,8 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Card } from '@/shared/components/Card';
-import { Touchable } from '@/shared/components/Touchable';
-import { JlptChip } from '@/shared/components/JlptChip';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
-import type { RecentLookup } from '../lib/dictionaryStorage';
-import { relativeAge } from '../lib/relativeAge';
+import { Card, Touchable, JlptChip } from '@/shared/components';
+import { usePalette, spacing, type, type Palette } from '@/theme';
+import { type RecentLookup, relativeAge } from '../lib';
 
 /**
  * One card of RECENTLY LOOKED UP — `DictionarySearch.dc.html`'s row: a Tier 2

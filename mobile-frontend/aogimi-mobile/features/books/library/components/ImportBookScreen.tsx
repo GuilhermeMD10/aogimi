@@ -1,13 +1,11 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
+import { Touchable, Button } from '@/shared/components';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@expo/vector-icons/Feather';
 import { useRouter } from 'expo-router';
-import { useColors } from '@/theme/ThemeContext';
+import { useColors, fontFamily, fontSize, radius, spacing } from '@/theme';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import { Button } from '@/shared/components/Button';
 import { useBookRecord } from '../../hooks/useBookRecord';
 import { BookCover } from './BookCover';
 import { locateBookFile } from '../../lib/locateBookFile';

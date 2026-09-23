@@ -5,9 +5,10 @@ import {
   getAllBooks,
   syncLocalBooksToBackend,
   backfillBookIdentity,
-} from '../lib/bookStore';
-import { findLocalTwin, findRemoteTwin } from '../lib/pairBooks';
-import { getReaderProgress } from '../lib/readerSession';
+  findLocalTwin,
+  findRemoteTwin,
+  getReaderProgress,
+} from '../lib';
 import { pushUnsyncedProgress } from '../lib/sync/pushProgress';
 import type { BookProgressRecord } from '@/features/books/types';
 import type { AuthUser } from '@/features/auth/types';

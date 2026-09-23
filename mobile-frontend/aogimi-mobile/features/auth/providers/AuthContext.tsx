@@ -8,18 +8,22 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { loadJSON, saveJSON } from '@/lib/storage';
+import {
+  loadJSON,
+  saveJSON,
+  loadTokens,
+  setTokens,
+  clearTokens,
+  getRefreshToken,
+  refreshSession,
+} from '@/lib';
 import { fetchUserById } from '@/features/profile/lib/profileApi';
-import { loginUser, registerUser, logoutUser } from '../lib/authApi';
-import { loadTokens, setTokens, clearTokens, getRefreshToken } from '@/lib/tokenStore';
-import { refreshSession } from '@/lib/api';
+import { loginUser, registerUser, logoutUser, wipeUserData } from '../lib';
 import type { UserProfile } from '@/features/profile/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { reconcileBooks, syncPending } from '@/features/books/lib/reconcileBooks';
-import { pushReaderStateAndSettle } from '@/features/books/lib/runFullSync';
+import { reconcileBooks, syncPending, pushReaderStateAndSettle } from '@/features/books/lib';
 import { syncAllDeckChanges } from '@/features/sky/stage/lib/decksSyncAll';
 import { subscribeOnlineTransition } from '@/lib/network/network';
-import { wipeUserData } from '../lib/wipeUserData';
 
 type AuthContextValue = {
   /** `signed-out` = no backend account (or signed out). The app is

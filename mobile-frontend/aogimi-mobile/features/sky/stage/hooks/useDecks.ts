@@ -1,16 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { fetchDeckCards, fetchUserDecks } from '../lib/decksApi';
-import { useAuth } from '@/features/auth/providers/AuthContext';
 import {
+  fetchDeckCards,
+  fetchUserDecks,
   getAllDecks,
-  hydrateFromBackend as hydrateDecksFromBackend,
-} from '../lib/deckLocalState';
-import {
+  hydrateDecksFromBackend,
   getDeckCardStats,
-  hydrateFromBackend as hydrateCardsFromBackend,
+  hydrateCardsFromBackend,
   type DeckCardStats,
-} from '../lib/cardLocalState';
+} from '../lib';
+import { useAuth } from '@/features/auth/providers/AuthContext';
 import type { LocalDeck } from '../types';
 
 export type DeckWithCount = LocalDeck & {

@@ -1,19 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
+import { Touchable, Screen, Button, BrandGlyph } from '@/shared/components';
 import { useRouter } from 'expo-router';
-import { Screen } from '@/shared/components/Screen';
-import { Button } from '@/shared/components/Button';
-import { BrandGlyph } from '@/shared/components/BrandGlyph';
-import { useColors } from '@/theme/ThemeContext';
+import { useColors, fontFamily, fontSize, radius, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { fetchUserBooks } from '@/features/books/lib/booksApi';
+import { fetchUserBooks, bookFileExists, locateBookFile } from '@/features/books/lib';
 import { fetchUserDecks } from '@/features/sky/stage/lib/decksApi';
-import { bookFileExists } from '@/features/books/lib/bookPaths';
-import { locateBookFile } from '@/features/books/lib/locateBookFile';
 import type { BookRecord } from '@/features/books/types';
-import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
 
 type SyncState =
   | { kind: 'loading' }

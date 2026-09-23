@@ -1,9 +1,9 @@
 'use client';
 import { memo, type PointerEvent as ReactPointerEvent, type ReactElement, useMemo, useState } from 'react';
 
-import { toWorld } from '../lib/camera';
-import { NO_FULCRAL } from '../lib/cluster';
 import {
+  toWorld,
+  NO_FULCRAL,
   LINK_GLOW_ALPHA,
   LINK_GLOW_PX,
   LINK_REACH,
@@ -13,13 +13,23 @@ import {
   LINK_STRAND_MAP_PX,
   LINK_STRAND_PX,
   UNFOCUSED_DECK_OPACITY,
-} from '../lib/config';
-import { deckAt, frameAt, type SkyLayout } from '../lib/layout';
-import { labelOpAt } from '../lib/lod';
-import { type ColorStop, type SkyPalette, beadRamps, lerpHex, rankOf, strandRamps } from '../lib/palette';
-import { pickStar } from '../lib/picking';
-import type { DeckDraw, SkyFrame } from '../lib/tiers';
-import type { FocusPath, Star, View } from '../lib/types';
+  deckAt,
+  frameAt,
+  type SkyLayout,
+  labelOpAt,
+  type ColorStop,
+  type SkyPalette,
+  beadRamps,
+  lerpHex,
+  rankOf,
+  strandRamps,
+  pickStar,
+  type DeckDraw,
+  type SkyFrame,
+  type FocusPath,
+  type Star,
+  type View,
+} from '../lib';
 
 import { SkyClouds } from './SkyClouds';
 import { type DeckFrameData, SkyFrames } from './SkyFrames';

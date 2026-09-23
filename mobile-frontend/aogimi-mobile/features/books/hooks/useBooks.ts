@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
-import { fetchUserBooks } from '../lib/booksApi';
+import { fetchUserBooks, applyLocalProgress, useLocalProgressVersion } from '../lib';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { applyLocalProgress, useLocalProgressVersion } from '../lib/booksLocalCache';
 import { usePendingBooks } from './usePendingBooks';
 import { useSyncedBookCache } from './useSyncedBookCache';
 import type { BookRecord } from '../types';

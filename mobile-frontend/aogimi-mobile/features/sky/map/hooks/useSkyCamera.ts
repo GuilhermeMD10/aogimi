@@ -25,22 +25,23 @@ import {
   matchAspect,
   viewOf,
   type ZoomLimits,
-} from '../lib/camera';
-import {
   CAMERA_TWEEN_MS,
   DRAG_SLOP_PX,
   ESCAPE_PUSH_DECAY_MS,
   ESCAPE_PUSH_PX,
   ZOOM_PER_WHEEL_PX,
-} from '../lib/config';
-import type { Bounds, Camera, Insets, Point, View, Viewport } from '../lib/types';
+  type Bounds,
+  type Camera,
+  type Insets,
+  type Point,
+  type View,
+  type Viewport,
+} from '../lib';
 import {
   clampCameraW,
   fitZoomW,
   panRangeW,
   zoomAroundW,
-} from '../native/cameraWorklet';
-import {
   COMMIT_ZOOM_RATIO,
   DOUBLE_TAP_ZOOM,
   ZOOM_GIVE,
@@ -50,7 +51,7 @@ import {
   RUBBER_BAND,
   RUBBER_BAND_MAX,
   RUBBER_SPRING,
-} from '../native/gestureConfig';
+} from '../native';
 
 /**
  * The sky's camera, with the **live pose on the UI thread**.

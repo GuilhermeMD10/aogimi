@@ -1,5 +1,4 @@
-import { glassTier } from '@/theme/glass';
-import type { Palette } from '@/theme/tokens';
+import { glassTier, type Palette } from '@/theme';
 import type { DockColors } from './dockGeometry';
 
 /**

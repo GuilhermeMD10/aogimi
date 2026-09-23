@@ -7,8 +7,7 @@ import { cn } from '@/lib/util/cn';
 import { EntryBack } from './EntryBack';
 import { EntryHeader } from './EntryHeader';
 import { SectionLabel } from './SectionLabel';
-import { kanjiCardDraft } from '../lib/cardDraft';
-import { ENTRY_SCALE, type EntryScale } from '../lib/entryScale';
+import { kanjiCardDraft, ENTRY_SCALE, type EntryScale } from '../lib';
 import type { KanjiInfo } from '../types';
 
 /** Values only this pane uses — see `lib/entryScale.ts` for the shared ones. */

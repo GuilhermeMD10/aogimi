@@ -1,23 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
-import { IconButton } from '@/shared/components/IconButton';
-import { Screen } from '@/shared/components/Screen';
+import { IconButton, Screen } from '@/shared/components';
 import { useDockClearance } from '@/features/app-shell/Dock';
 import { FlashcardDrawer, type FlashcardPrefill } from '@/features/sky/stage/components/FlashcardDrawer';
 import { useT } from '@/lib/i18n/I18nContext';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing } from '@/theme/tokens';
+import { usePalette, spacing } from '@/theme';
 import type { KanjiInfo, WordDetails, WordResult } from '../types';
-import { useDictionaryNav } from '../hooks/useDictionaryNav';
-import { useDictionarySearch } from '../hooks/useDictionarySearch';
-import { useSearchKeyboard } from '../hooks/useSearchKeyboard';
-import { kanjiCardDraft, wordCardDraft } from '../lib/cardDraft';
-import { fetchWordDetails } from '../lib/dictApi';
-import { getRecentLookups, pushRecentLookup, type RecentLookup } from '../lib/dictionaryStorage';
-import { SearchField } from '../components/SearchField';
-import { SearchPane } from '../components/SearchPane';
-import { EntryPane } from '../components/EntryPane';
+import { useDictionaryNav, useDictionarySearch, useSearchKeyboard } from '../hooks';
+import {
+  kanjiCardDraft,
+  wordCardDraft,
+  fetchWordDetails,
+  getRecentLookups,
+  pushRecentLookup,
+  type RecentLookup,
+} from '../lib';
+import { SearchField, SearchPane, EntryPane } from '../components';
 
 /**
  * The dictionary tab.

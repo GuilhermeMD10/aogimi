@@ -1,10 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Card } from '@/shared/components/Card';
-import { Touchable } from '@/shared/components/Touchable';
-import { JlptChip } from '@/shared/components/JlptChip';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { Card, Touchable, JlptChip } from '@/shared/components';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import type { KanjiInfo } from '../types';
 
 /**

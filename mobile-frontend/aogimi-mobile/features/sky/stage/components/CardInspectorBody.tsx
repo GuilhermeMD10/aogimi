@@ -2,12 +2,9 @@ import { Fragment, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { RANK_COLORS } from '@/features/sky/map/lib/palette';
-import { JlptChip } from '@/shared/components/JlptChip';
-import { MeaningRow } from '@/shared/components/MeaningRow';
-import { StateTag } from '@/shared/components/StateTag';
-import { usePalette } from '@/theme/ThemeContext';
+import { JlptChip, MeaningRow, StateTag } from '@/shared/components';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
 import { shownRank } from '../../lib/skyProjection';
 import { MIX_ORDER } from '../lib/masteryMix';
 import type { LocalCard } from '../types';

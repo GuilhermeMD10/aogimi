@@ -1,11 +1,8 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Card } from '@/shared/components/Card';
-import { Button } from '@/shared/components/Button';
-import { Chip } from '@/shared/components/Chip';
+import { Card, Button, Chip } from '@/shared/components';
 import type { DeckRecord } from '@/features/sky/stage/types';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 
 /**
  * The due-cards card: a count, one chip per deck with something due, and the

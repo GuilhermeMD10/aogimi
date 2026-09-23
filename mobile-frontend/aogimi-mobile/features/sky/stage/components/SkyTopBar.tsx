@@ -1,12 +1,10 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Glass } from '@/shared/components/Glass';
-import { IconButton } from '@/shared/components/IconButton';
+import { Glass, IconButton } from '@/shared/components';
 import { CloudSyncIcon } from '@/shared/icons/sync-icons';
-import { usePalette } from '@/theme/ThemeContext';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
 
 /** The star chip's height — DESIGN.md's filter-chip control. */
 const CHIP_H = 32;

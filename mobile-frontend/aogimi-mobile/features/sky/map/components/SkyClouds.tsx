@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { Circle, DashPathEffect, Group, Line, Path, Skia, vec } from '@shopify/react-native-skia';
 
-import type { Lobe, MeshEdge } from '../lib/cluster';
 import {
+  type Lobe,
+  type MeshEdge,
   HALO_SPREAD,
   HOT_CORE_MIN,
   LOBE_MIN_PX,
@@ -17,7 +18,7 @@ import {
   MESH_PEAK_GRAIN,
   MESH_POINT_MAX_PX,
   MESH_POINT_MIN_PX,
-} from '../lib/config';
+} from '../lib';
 
 import { cloudPaints, haloKey, hotKey, lobeKey } from './SkyPaints';
 

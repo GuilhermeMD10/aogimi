@@ -29,17 +29,17 @@
 // per-deck frame meta, and the overlay insets the camera fits inside.
 export { SkyMap } from './components/SkyMap';
 export type { SkyFrameMeta } from './components/SkyMap';
-export type { Insets } from './lib/types';
+export type { Insets } from './lib';
 
-export { buildSky, dayBucketOf, todayBucket } from './lib/buildSky';
-export type { SkyCard, SkyDeckSource } from './lib/buildSky';
+export { buildSky, dayBucketOf, todayBucket } from './lib';
+export type { SkyCard, SkyDeckSource } from './lib';
 
 // The generator, for a caller building a sky outside React.
-export { SkyGenerator } from './lib/generator';
+export { SkyGenerator } from './lib';
 
 /** The hue presets. The sky owns the palette; a picker (when there is one) owns which is chosen. */
-export { DEFAULT_SKY_HUE, SKY_HUES, SKY_PALETTES } from './lib/palette';
-export type { SkyHue, SkyPalette } from './lib/palette';
+export { DEFAULT_SKY_HUE, SKY_HUES, SKY_PALETTES } from './lib';
+export type { SkyHue, SkyPalette } from './lib';
 
-export type { CardContent } from './lib/cards';
-export type { Deck, FocusPath, SkySnapshot, Star } from './lib/types';
+export type { CardContent } from './lib';
+export type { Deck, FocusPath, SkySnapshot, Star } from './lib';

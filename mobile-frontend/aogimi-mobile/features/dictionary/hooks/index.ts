@@ -1,0 +1,7 @@
+// Barrel for `features/dictionary/hooks`: import several of its modules from one place.
+// Files inside this folder import their siblings by path, never through here.
+
+export * from './useDictionaryNav';
+export * from './useDictionarySearch';
+export * from './useSearchKeyboard';
+export * from './useWordLookup';

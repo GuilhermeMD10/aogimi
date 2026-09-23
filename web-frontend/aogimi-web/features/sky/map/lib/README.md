@@ -23,6 +23,7 @@ in the wrong directory.** Web-specific code lives in `components/sky/`.
 | `cards.ts` | placeholder card content for `addStar`'s optional `card`, default deck names, `clip()` |
 | `config.ts` | every tweakable, in one place |
 | `types.ts` | the shared vocabulary |
+| `index.ts` | barrel — the folder's exports in one import; files in here import siblings by path |
 
 ## Determinism
 

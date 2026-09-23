@@ -18,11 +18,11 @@ import {
   FRAME_PAD,
   FRAME_PILL_H_PX,
   FRAME_PILL_W_PX,
-} from '../lib/config';
-import { clip } from '../lib/cards';
-import { contentBoxOf } from '../lib/layout';
-import { FRAME_CHROME } from '../lib/palette';
-import type { Bounds } from '../lib/types';
+  clip,
+  contentBoxOf,
+  FRAME_CHROME,
+  type Bounds,
+} from '../lib';
 
 /**
  * The deck card frames of the outer view — the handover's key new element: every constellation

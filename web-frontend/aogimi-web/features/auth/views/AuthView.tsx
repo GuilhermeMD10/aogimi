@@ -4,9 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { PANE } from '@/shared/components';
 import { cn } from '@/lib/util/cn';
-import { AuthForm } from '../components/AuthForm';
-import { AuthTopBar } from '../components/AuthTopBar';
-import { BrandPanel } from '../components/BrandPanel';
+import { AuthForm, AuthTopBar, BrandPanel } from '../components';
 import type { AuthMode } from '../types';
 
 /**

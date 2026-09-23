@@ -3,8 +3,7 @@
 import { ChevronRight } from 'lucide-react';
 import { useRecentSearches } from '@/features/dictionary';
 import { Eyebrow } from '@/shared/components';
-import { relativeTime } from '@/lib/util/relativeTime';
-import { cn } from '@/lib/util/cn';
+import { relativeTime, cn } from '@/lib/util';
 
 const RECENT_ROWS = 8;
 

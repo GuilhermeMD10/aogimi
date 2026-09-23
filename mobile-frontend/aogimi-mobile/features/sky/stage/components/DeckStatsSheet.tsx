@@ -2,18 +2,18 @@ import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 
-import { BottomSheet } from '@/shared/components/BottomSheet';
-import { InnerPlate } from '@/shared/components/Card';
-import { Glass } from '@/shared/components/Glass';
-import { IconButton } from '@/shared/components/IconButton';
-import { StatTile } from '@/shared/components/StatTile';
-import { usePalette } from '@/theme/ThemeContext';
+import { BottomSheet, InnerPlate, Glass, IconButton, StatTile } from '@/shared/components';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
 import { useStatsActivity } from '@/features/profile/hooks/useStatsActivity';
 import type { DeckWithCards } from '../hooks/useSkyDecks';
-import { avgIntervalDaysOf, lastSevenDays, recentRetentionOf } from '../lib/deckStats';
-import { masteryMixOf, MIX_ORDER } from '../lib/masteryMix';
+import {
+  avgIntervalDaysOf,
+  lastSevenDays,
+  recentRetentionOf,
+  masteryMixOf,
+  MIX_ORDER,
+} from '../lib';
 import { MixBar } from './MixBar';
 
 /** `SkyStats.dc.html`: a Tier 4 sheet at 60% of the screen; the 40pt icon plate in its header. */

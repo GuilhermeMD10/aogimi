@@ -14,14 +14,12 @@ import {
   NotoSansJP_500Medium,
   NotoSansJP_700Bold,
 } from '@expo-google-fonts/noto-sans-jp';
-import { switzerFonts } from '@/theme/switzer';
-import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
+import { switzerFonts, ThemeProvider, useTheme } from '@/theme';
 import { I18nProvider } from '@/lib/i18n/I18nContext';
 import { AuthProvider } from '@/features/auth/providers/AuthContext';
 import { getDictionary } from '@/features/dictionary/lib/openDictionary';
-import { ensureLocalSchema } from '@/lib/localSchema';
+import { ensureLocalSchema, useHideAndroidNavBar } from '@/lib';
 import { initNetwork } from '@/lib/network/network';
-import { useHideAndroidNavBar } from '@/lib/useHideAndroidNavBar';
 
 SplashScreen.preventAutoHideAsync();
 

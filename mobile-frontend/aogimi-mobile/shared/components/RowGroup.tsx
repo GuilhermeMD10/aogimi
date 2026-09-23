@@ -2,8 +2,7 @@ import { Children, cloneElement, isValidElement, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Touchable } from './Touchable';
 import Feather from '@expo/vector-icons/Feather';
-import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
+import { usePalette, fontFamily, fontSize, spacing, type Palette } from '@/theme';
 import { Card } from './Card';
 
 /**

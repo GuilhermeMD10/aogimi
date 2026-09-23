@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
-import { ReaderStateProvider, useReaderState } from '@/features/app-shell/providers/ReaderStateProvider';
-import { SkyHueProvider } from '@/features/app-shell/providers/SkyHueProvider';
-import { FrameOverrideProvider } from '@/features/app-shell/providers/FrameOverrideProvider';
+import {
+  ReaderStateProvider,
+  useReaderState,
+  SkyHueProvider,
+  FrameOverrideProvider,
+} from '@/features/app-shell/providers';
 import { DictionaryStateProvider } from '@/features/dictionary';
 import { DecksProvider } from '@/features/sky/stage';
 import { AppFrame } from '@/features/app-shell/components/AppFrame';

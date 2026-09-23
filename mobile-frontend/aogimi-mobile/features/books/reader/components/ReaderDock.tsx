@@ -5,14 +5,16 @@ import Feather from '@expo/vector-icons/Feather';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
 import { MoreDotsIcon } from '@/shared/icons/dots';
-import { usePalette } from '@/theme/ThemeContext';
+import { usePalette, radius, spacing, type } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { radius, spacing, type } from '@/theme/tokens';
-import { readerChrome, type ReaderChrome } from '../lib/readerChrome';
-import type { EpubTocItem } from '../lib/foliateHtml';
-import type { ReaderPrefs, ReaderTheme } from '../lib/readerStorage';
-import { TocSheet } from './sheets/TocSheet';
-import { ConfigsSheet, type MangaConfig } from './sheets/ConfigsSheet';
+import {
+  readerChrome,
+  type ReaderChrome,
+  type EpubTocItem,
+  type ReaderPrefs,
+  type ReaderTheme,
+} from '../lib';
+import { TocSheet, ConfigsSheet, type MangaConfig } from './sheets';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Geometry — every figure from `Reader.dc.html`'s dock component strip.

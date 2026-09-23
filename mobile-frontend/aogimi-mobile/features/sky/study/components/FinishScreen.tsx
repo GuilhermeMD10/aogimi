@@ -1,14 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button } from '@/shared/components/Button';
-import { Card } from '@/shared/components/Card';
-import { Header } from '@/shared/components/Header';
-import { ProgressBar } from '@/shared/components/ProgressBar';
-import { Screen } from '@/shared/components/Screen';
-import { StatTile } from '@/shared/components/StatTile';
-import { usePalette } from '@/theme/ThemeContext';
+import { Button, Card, Header, ProgressBar, Screen, StatTile } from '@/shared/components';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
 import { durationMinutes, hardestOf, sessionStatsOf, tierUpgradesOf } from '../lib/sessionStats';
 import { HardestInSessionList } from './HardestInSessionList';
 import { TierUpgradesList } from './TierUpgradesList';

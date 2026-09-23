@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/shared/components/Card';
-import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
+import { usePalette, fontFamily, fontSize, spacing, type Palette } from '@/theme';
 
 export type ProfileStat = {
   value: number;

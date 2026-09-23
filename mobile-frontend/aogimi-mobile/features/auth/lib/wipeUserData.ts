@@ -37,15 +37,16 @@
 //       booksLocalCache optimistic progress patches
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { wipeAllBookFiles } from '@/features/books/lib/bookPaths';
-import { wipeAllCovers } from '@/features/books/lib/epubCover';
-import { wipeMangaCache } from '@/features/books/lib/mangaPages';
+import {
+  wipeAllBookFiles,
+  wipeAllCovers,
+  wipeMangaCache,
+  clearLocalProgress,
+  clearAll as clearAllSyncEntries,
+  clearSyncedBookCache,
+} from '@/features/books/lib';
 import { clearDictionaryCaches } from '@/features/dictionary/lib/dictCache';
-import { clearLocalProgress } from '@/features/books/lib/booksLocalCache';
-import { clearAll as clearAllSyncEntries } from '@/features/books/lib/bookLocalState';
-import { clearSyncedBookCache } from '@/features/books/lib/syncedBookCache';
-import { clearAllDecks } from '@/features/sky/stage/lib/deckLocalState';
-import { clearAllCards } from '@/features/sky/stage/lib/cardLocalState';
+import { clearAllDecks, clearAllCards } from '@/features/sky/stage/lib';
 import { clearAllPendingReviews } from '@/features/sky/study/lib/pendingReviews';
 
 const USER_PREFIXES = ['reader_book_'];

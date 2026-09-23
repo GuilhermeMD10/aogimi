@@ -4,10 +4,17 @@ import Feather from '@expo/vector-icons/Feather';
 import { BlurView } from 'expo-blur';
 import { Glass } from './Glass';
 import { PressableBackdrop, Touchable } from './Touchable';
-import { usePalette, useTheme } from '@/theme/ThemeContext';
-import { glassTier } from '@/theme/glass';
-import { DECELERATE, SURFACE_MS } from '@/theme/motion';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
+import {
+  usePalette,
+  useTheme,
+  glassTier,
+  DECELERATE,
+  SURFACE_MS,
+  radius,
+  spacing,
+  type,
+  type Palette,
+} from '@/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 
 /** DESIGN.md's popover: 280 wide, 56pt rows with a 40pt circular icon plate. */

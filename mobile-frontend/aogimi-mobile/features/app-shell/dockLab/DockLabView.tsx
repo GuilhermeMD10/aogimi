@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BackBar } from '@/shared/components/BackBar';
-import { Screen } from '@/shared/components/Screen';
-import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, spacing, type Palette } from '@/theme/tokens';
+import { BackBar, Screen } from '@/shared/components';
+import { usePalette, fontFamily, fontSize, spacing, type Palette } from '@/theme';
 import { DockBar, type DockSlot } from '../DockBar';
 import type { FeatherName } from '../DockItem';
 import { DOCK_VARIANTS, type DockVariant } from './variants';

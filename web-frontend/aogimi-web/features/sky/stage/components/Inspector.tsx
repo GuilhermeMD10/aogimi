@@ -8,9 +8,7 @@ import { JlptChip, MeaningRow, stageColor, stageLabel } from '@/shared/component
 import { CloseIcon } from '@/shared/icons';
 import { cn } from '@/lib/util/cn';
 
-import { intervalLabel, nextDueLabel } from '../lib/cardLabels';
-import { getCard } from '../lib/decksApi';
-import { rankArgs, shownRank } from '../lib/rankProgress';
+import { intervalLabel, nextDueLabel, getCard, rankArgs, shownRank } from '../lib';
 import type { SkyCardRecord } from '../types';
 
 /**

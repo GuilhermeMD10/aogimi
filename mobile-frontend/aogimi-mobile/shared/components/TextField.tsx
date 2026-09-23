@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Touchable } from './Touchable';
 import { InnerPlate } from './Card';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 
 /** DESIGN.md's input: a 44pt control. `multiline` grows from it rather than
  *  being a different shape. */

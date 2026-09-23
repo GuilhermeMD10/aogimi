@@ -1,8 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
-import { useColors } from '@/theme/ThemeContext';
+import { useColors, fontSize, radius } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontSize, radius } from '@/theme/tokens';
 import type { Preset } from '../types';
 
 const PRESETS: Preset[] = ['easy', 'default', 'hard', 'production'];

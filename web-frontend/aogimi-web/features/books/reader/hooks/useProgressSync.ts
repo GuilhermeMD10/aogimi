@@ -1,8 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { updateBookProgress, sendProgressKeepalive } from '@/features/books/lib/booksApi';
-import { markReaderProgressSynced, setReaderProgress } from '@/features/books/lib/readerSession';
+import {
+  updateBookProgress,
+  sendProgressKeepalive,
+  markReaderProgressSynced,
+  setReaderProgress,
+} from '@/features/books/lib';
 
 /** What this hook needs to know about the open book: where to buffer locally,
  *  and where to flush remotely. `backendBookId` absent → local-only book, so

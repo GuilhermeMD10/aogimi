@@ -22,28 +22,28 @@ export { default as DictionaryView } from './views/DictionaryView';
 export { DictionaryStateProvider, useDictionaryState } from './providers/DictionaryStateProvider';
 
 // ── Results ─────────────────────────────────────────────────────────────────
-export { RailList } from './components/RailList';
+export { RailList } from './components';
 // The rows themselves (`WordRow`, `KanjiRow`) are `RailList`'s to render; no
 // surface composes them directly, so they stay inside the feature.
 
 // ── The entry ───────────────────────────────────────────────────────────────
-export { EntryDetail } from './components/EntryDetail';
-export { KanjiEntryDetail } from './components/KanjiEntryDetail';
-export { KanjiCard } from './components/KanjiCard';
-export { SectionLabel } from './components/SectionLabel';
+export { EntryDetail } from './components';
+export { KanjiEntryDetail } from './components';
+export { KanjiCard } from './components';
+export { SectionLabel } from './components';
 // `JlptChip` moved to `shared/components` — study is the second consumer domain
 // now that cards carry `jlpt_level`. Import it from there, not from here.
-export { PitchAccent } from './components/PitchAccent';
-export { ENTRY_SCALE } from './lib/entryScale';
-export type { EntryScale } from './lib/entryScale';
+export { PitchAccent } from './components';
+export { ENTRY_SCALE } from './lib';
+export type { EntryScale } from './lib';
 
 // ── Search input ────────────────────────────────────────────────────────────
-export { SearchField } from './components/SearchField';
+export { SearchField } from './components';
 
 // ── Hooks ───────────────────────────────────────────────────────────────────
-export { useWordDetails } from './hooks/useWordDetails';
-export { useRecentSearches } from './hooks/useRecentSearches';
-export { useSelectionKeys } from './hooks/useSelectionKeys';
+export { useWordDetails } from './hooks';
+export { useRecentSearches } from './hooks';
+export { useSelectionKeys } from './hooks';
 
 // ── Pure helpers ────────────────────────────────────────────────────────────
 export {
@@ -55,17 +55,17 @@ export {
   selectionOrder,
   selectionParam,
   surfaceEntry,
-} from './lib/results';
-export type { RailContents, SurfaceEntry } from './lib/results';
-export { preferredHeadword } from './lib/headword';
-export { inflectionNote } from './lib/inflection';
+} from './lib';
+export type { RailContents, SurfaceEntry } from './lib';
+export { preferredHeadword } from './lib';
+export { inflectionNote } from './lib';
 // The builders live here; the `CardDraft` type they produce belongs to
 // `features/sky/stage`, which is where its consumer chain ends. `cardBack` is
 // the one place a draft becomes the flattened `cards.back` string.
-export { cardBack, kanjiCardDraft, wordCardDraft } from './lib/cardDraft';
-export { getWordDetails, searchDictionary } from './lib/dictApi';
-export { getRecentSearches } from './lib/storage';
-export type { RecentSearchItem } from './lib/storage';
+export { cardBack, kanjiCardDraft, wordCardDraft } from './lib';
+export { getWordDetails, searchDictionary } from './lib';
+export { getRecentSearches } from './lib';
+export type { RecentSearchItem } from './lib';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 export type {

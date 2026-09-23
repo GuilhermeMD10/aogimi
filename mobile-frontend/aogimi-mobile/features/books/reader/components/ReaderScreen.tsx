@@ -3,13 +3,18 @@ import { ActivityIndicator, Alert, Animated, AppState, StyleSheet, Text, View } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
-import { usePalette } from '@/theme/ThemeContext';
+import { usePalette, spacing, type, type Palette, DECELERATE } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { sendProgressBeacon } from '@/features/books/lib/booksApi';
-import { useBookRecord } from '@/features/books/hooks/useBookRecord';
+import {
+  sendProgressBeacon,
+  locateBookFile,
+  setLocalProgress,
+  clearSessionPending,
+  persistLocalProgress,
+  isNewer,
+} from '@/features/books/lib';
+import { useBookRecord, useBookFile } from '@/features/books/hooks';
 import type { KanjiInfo, WordDetails } from '@/features/dictionary/types';
-import { locateBookFile } from '@/features/books/lib/locateBookFile';
-import { useBookFile } from '@/features/books/hooks/useBookFile';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import {
   HIGHLIGHT_COLORS,
@@ -18,22 +23,20 @@ import {
   READER_THEMES,
   saveProgressSnapshot,
   useReaderStorage,
-} from '../lib/readerStorage';
-import { selectionStartFeedback, selectionTickFeedback } from '@/lib/haptics';
-import { useReaderPrefs } from '../lib/readerPrefs';
+  useReaderPrefs,
+  type BookType,
+  type EpubTocItem,
+  type ReaderThemeStyle,
+  useReaderLayoutPrefs,
+} from '../lib';
+import { selectionStartFeedback, selectionTickFeedback, useReduceMotion } from '@/lib';
 import { LookupDrawers } from '@/features/dictionary/components/LookupDrawers';
 import { kanjiCardDraft, plainCardDraft, wordCardDraft } from '@/features/dictionary/lib/cardDraft';
-import { Button } from '@/shared/components/Button';
-import { IconButton } from '@/shared/components/IconButton';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { Button, IconButton } from '@/shared/components';
 import { ReaderTopBar } from './ReaderTopBar';
 import { ReaderDock } from './ReaderDock';
 import { BookCover } from '../../library/components/BookCover';
-import { DECELERATE } from '@/theme/motion';
-import { useReduceMotion } from '@/lib/useReduceMotion';
-import { MangaScrollView } from './manga/MangaScrollView';
-import { MangaPagedView } from './manga/MangaPagedView';
-import { useMangaSpine } from './manga/useMangaSpine';
+import { MangaScrollView, MangaPagedView, useMangaSpine } from './manga';
 import { useReaderModals } from '../hooks/useReaderModals';
 import { PdfReaderShell } from './pdf/PdfReaderShell';
 import {
@@ -44,11 +47,6 @@ import {
   type RelocatedPayload,
   type SelectionPayload,
 } from './novel/FoliateReader';
-import type { BookType, EpubTocItem, ReaderThemeStyle } from '../lib/foliateHtml';
-import { useReaderLayoutPrefs } from '../lib/readerLayout';
-import { setLocalProgress } from '@/features/books/lib/booksLocalCache';
-import { clearSessionPending, persistLocalProgress } from '@/features/books/lib/syncedBookCache';
-import { isNewer } from '@/features/books/lib/timestamps';
 
 type Props = { bookId: string };
 

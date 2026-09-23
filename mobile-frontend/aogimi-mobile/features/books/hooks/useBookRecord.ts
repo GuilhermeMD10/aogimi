@@ -18,19 +18,17 @@
 // have to repeat the network-vs-HTTP discriminator everywhere.
 
 import { useEffect, useState } from 'react';
-import { fetchBook } from '../lib/booksApi';
 import {
+  fetchBook,
   cacheBook,
   getCachedBook,
   markSessionPending,
-} from '../lib/syncedBookCache';
-import { getEntry } from '../lib/bookLocalState';
-import { isNewer } from '../lib/timestamps';
-import {
+  getEntry,
+  isNewer,
   buildPendingBookRecord,
   filenameFromPendingId,
   isPendingBookId,
-} from '../lib/bookPush';
+} from '../lib';
 import { loadStoredBook } from '@/features/books/reader/lib/readerStorage';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { isOnlineNow } from '@/lib/network/network';

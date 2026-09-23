@@ -1,12 +1,9 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
-import { Touchable } from '@/shared/components/Touchable';
-import { Card, InnerPlate } from '@/shared/components/Card';
-import { Chip } from '@/shared/components/Chip';
+import { Touchable, Card, InnerPlate, Chip } from '@/shared/components';
 import type { RecentLookup } from '@/features/dictionary/lib/dictionaryStorage';
-import { usePalette } from '@/theme/ThemeContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 
 /** How many recent lookups fit the chip row before it starts scrolling. Three
  *  is what the handoff draws and what a 390pt screen holds at this size. */

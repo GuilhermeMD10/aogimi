@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { usePalette } from '@/theme/ThemeContext';
-import { type, type Palette } from '@/theme/tokens';
+import { usePalette, type, type Palette } from '@/theme';
 
 /**
  * `RESULTS · 8 for · 「じしょ」` — the line above a result list, as both

@@ -2,27 +2,29 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Button } from '@/shared/components/Button';
-import { Chip } from '@/shared/components/Chip';
-import { IconButton } from '@/shared/components/IconButton';
-import { Screen } from '@/shared/components/Screen';
-import { usePalette } from '@/theme/ThemeContext';
+import { Button, Chip, IconButton, Screen } from '@/shared/components';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
 import type { BookRecord } from '../../types';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { bookFileExists } from '../../lib/bookPaths';
-import { importEpub, ImportRejectedError } from '../../lib/bookFiles';
-import { markPending } from '../../lib/bookLocalState';
-import { pendingPayloadFrom, pushOneBook } from '../../lib/bookPush';
-import { adoptRemoteTwin } from '../../lib/adoptRemoteTwin';
+import {
+  bookFileExists,
+  importEpub,
+  ImportRejectedError,
+  markPending,
+  pendingPayloadFrom,
+  pushOneBook,
+  adoptRemoteTwin,
+  runFullSync,
+  fullSyncActivityCount,
+  formatFullSyncDetails,
+  findCachedBookByFileHash,
+} from '../../lib';
 import { useBooks } from '../../hooks/useBooks';
 import { isOnlineNow, useOnline } from '@/lib/network/network';
 import { ContinueReadingCard } from './ContinueReadingCard';
 import { BookGridItem } from './BookGridItem';
 import { BookActionsSheet } from './BookActionsSheet';
-import { runFullSync, fullSyncActivityCount, formatFullSyncDetails } from '../../lib/runFullSync';
-import { findCachedBookByFileHash } from '../../lib/syncedBookCache';
 import { useDockClearance } from '@/features/app-shell/Dock';
 
 const AVAILABLE_ONLY_KEY = 'books_filter_available_only_v1';

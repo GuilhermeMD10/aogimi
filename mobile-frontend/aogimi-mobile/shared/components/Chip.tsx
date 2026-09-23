@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Touchable } from './Touchable';
-import { usePalette } from '@/theme/ThemeContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 
 /**
  * **The control chip** — DESIGN.md's "Filter chip row": a 12px rectangle on

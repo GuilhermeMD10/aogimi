@@ -2,8 +2,7 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Tabs } from "expo-router";
 import { useAuth } from "@/features/auth/providers/AuthContext";
 import { useT } from "@/lib/i18n/I18nContext";
-import { Dock } from "@/features/app-shell/Dock";
-import { DockVisibilityProvider } from "@/features/app-shell/DockVisibility";
+import { Dock, DockVisibilityProvider } from '@/features/app-shell';
 
 // Four tabs: Home · Reader · Dictionary · Sky. Declaration order matches
 // `SLOTS` in Dock, which is the render order.

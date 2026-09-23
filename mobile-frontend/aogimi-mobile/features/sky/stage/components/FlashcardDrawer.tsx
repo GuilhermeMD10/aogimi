@@ -2,19 +2,26 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFlashcardForm } from '../hooks/useFlashcardForm';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
-import { BottomSheet } from '@/shared/components/BottomSheet';
-import { Button } from '@/shared/components/Button';
-import { Glass } from '@/shared/components/Glass';
-import { InnerPlate } from '@/shared/components/Card';
-import { TextField } from '@/shared/components/TextField';
-import { PressableBackdrop, Touchable } from '@/shared/components/Touchable';
-import { usePalette } from '@/theme/ThemeContext';
+import {
+  BottomSheet,
+  Button,
+  Glass,
+  InnerPlate,
+  TextField,
+  PressableBackdrop,
+  Touchable,
+} from '@/shared/components';
+import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
-import { createCardLocal } from '../lib/cardPush';
-import { createDeckLocal } from '../lib/deckPush';
-import { getAllDecks } from '../lib/deckLocalState';
-import { MAX_CARD_FRONT, MAX_CARD_MEANING, MAX_CARD_READING, MAX_DECK_NAME } from '../lib/limits';
+import {
+  createCardLocal,
+  createDeckLocal,
+  getAllDecks,
+  MAX_CARD_FRONT,
+  MAX_CARD_MEANING,
+  MAX_CARD_READING,
+  MAX_DECK_NAME,
+} from '../lib';
 import type { CardDraft, LocalDeck } from '../types';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 

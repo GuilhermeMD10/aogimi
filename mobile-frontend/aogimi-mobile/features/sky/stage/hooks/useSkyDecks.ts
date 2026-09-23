@@ -4,15 +4,14 @@ import { useFocusEffect } from 'expo-router';
 import type { SkyDeckSource } from '@/features/sky/map';
 import { skyCardOf } from '../../lib/skyProjection';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { fetchDeckCards, fetchUserDecks } from '../lib/decksApi';
 import {
+  fetchDeckCards,
+  fetchUserDecks,
   getAllDecks,
-  hydrateFromBackend as hydrateDecksFromBackend,
-} from '../lib/deckLocalState';
-import {
+  hydrateDecksFromBackend,
   getAllCards,
-  hydrateFromBackend as hydrateCardsFromBackend,
-} from '../lib/cardLocalState';
+  hydrateCardsFromBackend,
+} from '../lib';
 import type { LocalCard, LocalDeck } from '../types';
 
 /**

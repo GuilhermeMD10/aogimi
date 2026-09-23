@@ -4,13 +4,9 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useReaderActions } from '@/features/app-shell/hooks/useReaderActions';
 import { useFrameOverride } from '@/features/app-shell/providers/FrameOverrideProvider';
 import { cn } from '@/lib/util/cn';
-import { ResultsRail } from '../components/ResultsRail';
-import { EntryDetail } from '../components/EntryDetail';
-import { KanjiEntryDetail } from '../components/KanjiEntryDetail';
-import { useWordDetails } from '../hooks/useWordDetails';
-import { useSelectionKeys } from '../hooks/useSelectionKeys';
-import { kanjiCardDraft, wordCardDraft } from '../lib/cardDraft';
-import type { RailContents } from '../lib/results';
+import { ResultsRail, EntryDetail, KanjiEntryDetail } from '../components';
+import { useWordDetails, useSelectionKeys } from '../hooks';
+import { kanjiCardDraft, wordCardDraft, type RailContents } from '../lib';
 import type { Selection } from '../types';
 
 /**

@@ -1,6 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useColors } from '@/theme/ThemeContext';
-import { fontFamily } from '@/theme/tokens';
+import { useColors, fontFamily } from '@/theme';
 import { parseRuby } from '@/lib/ruby';
 
 /**

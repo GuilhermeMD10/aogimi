@@ -1,11 +1,9 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
-import { alpha } from '@/shared/components/Chip';
+import { Touchable, alpha } from '@/shared/components';
 import { gradeFeedback, type GradeFeel } from '@/lib/haptics';
-import { usePalette, useTheme } from '@/theme/ThemeContext';
+import { usePalette, useTheme, radius, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { radius, spacing, type, type Palette } from '@/theme/tokens';
 import type { StudyOutcome } from '../types';
 
 /** DESIGN.md's grade tile. */

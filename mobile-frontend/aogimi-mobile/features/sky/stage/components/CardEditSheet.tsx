@@ -9,20 +9,19 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Touchable } from '@/shared/components/Touchable';
-import { BottomSheet } from '@/shared/components/BottomSheet';
-import { useColors } from '@/theme/ThemeContext';
+import { Touchable, BottomSheet } from '@/shared/components';
+import { useColors, fontFamily, fontSize, radius, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, fontSize, radius, spacing } from '@/theme/tokens';
-import { deleteCardLocal, updateCardLocal } from '../lib/cardPush';
-import { cardBack } from '../lib/cardBack';
 import {
+  deleteCardLocal,
+  updateCardLocal,
+  cardBack,
   MAX_CARD_BACK,
   MAX_CARD_FRONT,
   MAX_CARD_MEANING,
   MAX_CARD_MEANINGS,
   MAX_CARD_READING,
-} from '../lib/limits';
+} from '../lib';
 import type { LocalCard } from '../types';
 
 type Props = {

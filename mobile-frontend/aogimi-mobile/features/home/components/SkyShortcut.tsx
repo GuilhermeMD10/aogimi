@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
-import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
+import { usePalette, fontFamily, fontSize, radius, spacing, type Palette } from '@/theme';
 
 /**
  * The sky panel on Home — a shortcut to `/sky`, and **deliberately empty**.

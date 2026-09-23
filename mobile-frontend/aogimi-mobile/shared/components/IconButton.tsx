@@ -3,10 +3,8 @@ import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } f
 import Feather from '@expo/vector-icons/Feather';
 import { Touchable } from './Touchable';
 import { Glass } from './Glass';
-import { ChevronLeftIcon } from '@/shared/icons/chevron';
-import { MoreDotsIcon } from '@/shared/icons/dots';
-import { usePalette } from '@/theme/ThemeContext';
-import type { GlassTier } from '@/theme/glass';
+import { ChevronLeftIcon, MoreDotsIcon } from '@/shared/icons';
+import { usePalette, type GlassTier } from '@/theme';
 
 /**
  * **The round icon button** — DESIGN.md's "Icon button": a 44pt circle of

@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import Feather from '@expo/vector-icons/Feather';
-import { usePalette } from '@/theme/ThemeContext';
-import { fontFamily, fontSize, radius, spacing, type Palette } from '@/theme/tokens';
+import { usePalette, fontFamily, fontSize, radius, spacing, type Palette } from '@/theme';
 
 /**
  * A small outline control on Profile's title line — the "Edit" button, and

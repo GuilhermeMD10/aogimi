@@ -1,7 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { useColors } from '@/theme/ThemeContext';
+import { useColors, fontFamily, radius } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
-import { fontFamily, radius } from '@/theme/tokens';
 import { getAnimalTier } from '../lib/animalLabel';
 
 type Props = {

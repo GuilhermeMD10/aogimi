@@ -1,13 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, View } from 'react-native';
-import { Glass } from '@/shared/components/Glass';
-import { IconButton } from '@/shared/components/IconButton';
-import { Touchable } from '@/shared/components/Touchable';
-import { usePalette } from '@/theme/ThemeContext';
+import { Glass, IconButton, Touchable } from '@/shared/components';
+import { usePalette, EASE, FLIP_MS, radius, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
 import { useReduceMotion } from '@/lib/useReduceMotion';
-import { EASE, FLIP_MS } from '@/theme/motion';
-import { radius, spacing } from '@/theme/tokens';
 import { CardBody } from './CardBody';
 import type { CardRecord } from '../../stage/types';
 import type { DisplayPrefs } from '../types';

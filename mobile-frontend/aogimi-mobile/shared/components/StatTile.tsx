@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 import { InnerPlate } from './Card';
-import { usePalette } from '@/theme/ThemeContext';
-import { spacing, type, type Palette } from '@/theme/tokens';
+import { usePalette, spacing, type, type Palette } from '@/theme';
 
 /**
  * **A figure with a name** — DESIGN.md's stat tile: Tier 1, radius 12, padding
