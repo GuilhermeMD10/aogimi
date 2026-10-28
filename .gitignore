@@ -17,6 +17,8 @@ n2.csv
 n3.csv
 n4.csv
 n5.csv
+# …except the JLPT lists migration 033 loads (backend/jlptwordslist/README.md).
+!/backend/jlptwordslist/n[1-5].csv
 Podfile.lock
 .expo
 

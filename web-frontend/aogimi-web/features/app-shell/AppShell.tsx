@@ -12,6 +12,7 @@ import {
 import { DictionaryStateProvider } from '@/features/dictionary';
 import { DecksProvider } from '@/features/sky/stage';
 import { AppFrame } from '@/features/app-shell/components/AppFrame';
+import { isPublicRoute } from '@/features/app-shell/lib/publicRoutes';
 import { ReaderModal, AddedToast } from '@/features/books';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -20,17 +21,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const isAuthPage = pathname === '/authenticate';
+  // Open to everyone, so never redirected (`lib/publicRoutes.ts`).
+  const isPublicPage = isPublicRoute(pathname);
 
   // Pages whose render set depends on the auth-vs-route relationship. We
   // stash the same predicate the effect uses so the early-return below
   // doesn't drift from the redirect condition.
-  const needsRedirect = !loading && ((!user && !isAuthPage) || (user && isAuthPage));
+  const needsRedirect =
+    !loading && !isPublicPage && ((!user && !isAuthPage) || (user && isAuthPage));
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || isPublicPage) return;
     if (!user && !isAuthPage) router.replace('/authenticate');
     else if (user && isAuthPage) router.replace('/');
-  }, [user, loading, isAuthPage, router]);
+  }, [user, loading, isAuthPage, isPublicPage, router]);
 
   // Block rendering while loading or while the redirect is about to fire.
   // Avoids a frame of "wrong page for current auth state" before navigation.
@@ -42,7 +46,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <DictionaryStateProvider>
           <DecksProvider>
             <FrameOverrideProvider>
-              <ShellContent framed={!isAuthPage}>{children}</ShellContent>
+              <ShellContent framed={!isAuthPage && (!isPublicPage || !!user)}>
+                {children}
+              </ShellContent>
             </FrameOverrideProvider>
           </DecksProvider>
         </DictionaryStateProvider>
@@ -52,9 +58,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * `framed` wraps the page in `AppFrame` (nav, gutters). Only the
- * signed-out `/authenticate` screen renders bare — every signed-in page, an
- * open book included, gets the frame (D2).
+ * `framed` wraps the page in `AppFrame` (nav, gutters). Only signed-out
+ * screens render bare — `/authenticate`, and a public page opened without an
+ * account — every signed-in page, an open book included, gets the frame (D2).
  */
 function ShellContent({ framed, children }: { framed: boolean; children: React.ReactNode }) {
   const { readerModal, setReaderModal, setPendingCard } = useReaderState();

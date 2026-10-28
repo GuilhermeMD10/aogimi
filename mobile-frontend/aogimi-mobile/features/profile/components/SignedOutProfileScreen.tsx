@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Screen, Button, BrandGlyph } from '@/shared/components';
 import { useColors, fontFamily, fontSize, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
+import { REGISTRATION_OPEN } from '@/features/auth/lib/authApi';
 
 // Profile-tab content shown while signed-out. The app itself is fully
 // usable in this state — local-first imports + decks + cards persist on
@@ -33,11 +34,13 @@ export function SignedOutProfileScreen() {
         </Text>
 
         <View style={styles.actions}>
-          <Button
-            label={t('auth.welcome.createAccount')}
-            onPress={() => router.push('/(auth)/signup')}
-            full
-          />
+          {REGISTRATION_OPEN && (
+            <Button
+              label={t('auth.welcome.createAccount')}
+              onPress={() => router.push('/(auth)/signup')}
+              full
+            />
+          )}
           <Button
             label={t('auth.welcome.signIn')}
             onPress={() => router.push('/(auth)/signin')}

@@ -4,15 +4,14 @@
 export * from './glass';
 export * from './motion';
 export * from './switzer';
-// `ThemeContext` re-exports six of `tokens`' types; listing its own exports keeps each name to one source.
+// `ThemeContext` re-exports four of `tokens`' types; listing its own exports keeps each name to one source.
 export {
   type ThemePreference,
+  NIGHT_ENABLED,
   ThemeProvider,
   ThemeScope,
   useTheme,
   usePalette,
   useColors,
-  useFonts,
-  useShape,
 } from './ThemeContext';
 export * from './tokens';

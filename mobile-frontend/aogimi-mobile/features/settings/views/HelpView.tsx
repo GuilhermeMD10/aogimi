@@ -3,69 +3,56 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Touchable, Screen, BackBar } from '@/shared/components';
 import Feather from '@expo/vector-icons/Feather';
 import { useColors, fontFamily, fontSize, spacing } from '@/theme';
-import { SyncedIcon, UnsyncedIcon, ImportIcon } from '@/shared/icons/sync-icons';
+import { UnsyncedIcon, ImportIcon } from '@/shared/icons/sync-icons';
+import { useT } from '@/lib/i18n/I18nContext';
 
 // Help — explains what the app is and the bits that aren't obvious from
 // poking around (sync states in particular). Prose-heavy on purpose; this
-// is the page someone reads ONCE.
+// is the page someone reads ONCE. Every string is in `help.*` of the locale
+// files, and it describes only what the app does today.
 
+// The library tile's badge colours (`SyncPill`), so the legend matches what
+// the shelf actually draws: a dot for synced, a cloud pill for the other two.
 const SYNC_GREEN = '#2E9F58';
 const SYNC_BLUE = '#1E3D6B';
 const SYNC_GREY = '#6B6661';
 
+/** The paragraph keys of each collapsible section, in reading order. */
+const SECTIONS: { key: string; paragraphs: string[] }[] = [
+  { key: 'reading', paragraphs: ['library', 'lookup', 'dock'] },
+  { key: 'dictionary', paragraphs: ['body', 'sources'] },
+  { key: 'sky', paragraphs: ['body', 'using'] },
+  { key: 'study', paragraphs: ['body', 'due'] },
+  { key: 'account', paragraphs: ['body', 'delete'] },
+];
+
 export function HelpView() {
   const c = useColors();
+  const t = useT();
 
   return (
     <Screen padded>
-      <BackBar title="Help" />
+      <BackBar title={t('settings.help')} />
 
       <ScrollView contentContainerStyle={styles.body}>
-        <Section heading="What is Aogimi?" fg={c.fg} fgMuted={c.fgMuted} pinned>
-          <P fgMuted={c.fgMuted}>
-            Aogimi is a Japanese reading and vocabulary companion. Open an EPUB or PDF, look up any word in the
-            built-in dictionary with a single gesture, save what you want to remember to a flashcard deck, and pick up
-            where you left off on any of your devices.
-          </P>
+        <Section heading={t('help.intro.heading')} fg={c.fg} fgMuted={c.fgMuted} pinned>
+          <P fgMuted={c.fgMuted}>{t('help.intro.body')}</P>
+          <P fgMuted={c.fgMuted}>{t('help.intro.tabs')}</P>
         </Section>
 
-        <Section heading="Reading a book" fg={c.fg} fgMuted={c.fgMuted}>
-          <P fgMuted={c.fgMuted}>
-            Tap a book on the home screen to open it. The reader supports reflowable EPUBs (novels, light novels) and
-            PDFs.
-          </P>
-          <P fgMuted={c.fgMuted}>
-            To look up a word: press and hold on it, then drag to extend the selection if you need to. When you lift
-            your finger a small action bar appears with shortcuts for Dictionary, Card, and Copy.
-          </P>
-          <P fgMuted={c.fgMuted}>
-            The bottom dock has chapter navigation and typography settings. The floating chevron at the
-            bottom-left takes you back to the library.
-          </P>
-        </Section>
+        {SECTIONS.map(({ key, paragraphs }) => (
+          <Section key={key} heading={t(`help.${key}.heading`)} fg={c.fg} fgMuted={c.fgMuted}>
+            {paragraphs.map((para) => (
+              <P key={para} fgMuted={c.fgMuted}>
+                {t(`help.${key}.${para}`)}
+              </P>
+            ))}
+          </Section>
+        ))}
 
-        <Section heading="Dictionary" fg={c.fg} fgMuted={c.fgMuted}>
-          <P fgMuted={c.fgMuted}>
-            Word entries come from JMdict, kanji info from KANJIDIC2, names from JMnedict, and example sentences and
-            pitch accents from the Kanjium project. Open the Dictionary tab to search at any time, or tap Dict from a
-            selection inside the reader.
-          </P>
-        </Section>
-
-        <Section heading="Flashcard decks" fg={c.fg} fgMuted={c.fgMuted}>
-          <P fgMuted={c.fgMuted}>
-            Decks live in the Decks tab. Add a card from any text selection by tapping Card. Each card stays linked to
-            its dictionary entry so the reading and meaning stay in sync if the entry changes upstream.
-          </P>
-        </Section>
-
-        <Section heading="How sync works" fg={c.fg} fgMuted={c.fgMuted}>
-          <P fgMuted={c.fgMuted}>
-            Your books and reading positions are saved to your account. Each device keeps a
-            local copy and pushes changes to the backend opportunistically when it&apos;s online. If you import a book while
-            offline, it stays on this device — marked as unsynced — until the next sync round.
-          </P>
-          <P fgMuted={c.fgMuted}>The cloud badge in the corner of each book tile tells you where that book stands:</P>
+        <Section heading={t('help.sync.heading')} fg={c.fg} fgMuted={c.fgMuted}>
+          <P fgMuted={c.fgMuted}>{t('help.sync.body')}</P>
+          <P fgMuted={c.fgMuted}>{t('help.sync.legend')}</P>
         </Section>
 
         <View style={[styles.legend, { borderColor: c.border }]}>
@@ -73,26 +60,30 @@ export function HelpView() {
             fg={c.fg}
             fgMuted={c.fgMuted}
             borderColor={c.border}
-            icon={<SyncedIcon size={20} color={SYNC_GREEN} />}
-            title="Synced"
-            body="This book’s progress is synced across devices!"
+            icon={
+              <View style={styles.dotSlot}>
+                <View style={[styles.dot, { backgroundColor: SYNC_GREEN }]} />
+              </View>
+            }
+            title={t('help.sync.synced.title')}
+            body={t('help.sync.synced.body')}
           />
           <LegendRow
             fg={c.fg}
             fgMuted={c.fgMuted}
             borderColor={c.border}
             icon={<UnsyncedIcon size={20} color={SYNC_BLUE} />}
-            title="Not synced"
-            body="Either the book was imported offline, or a recent reading-progress wasn't saved to your library. When online, use Sync now to push it."
+            title={t('help.sync.unsynced.title')}
+            body={t('help.sync.unsynced.body')}
           />
           <LegendRow
             fg={c.fg}
             fgMuted={c.fgMuted}
             borderColor={c.border}
             icon={<ImportIcon size={20} color={SYNC_GREY} />}
-            title="On your account"
+            title={t('help.sync.toImport.title')}
             isLast
-            body="This books progress is in your library, but the file isn't on this device yet. Tap it to import the file."
+            body={t('help.sync.toImport.body')}
           />
         </View>
       </ScrollView>
@@ -203,6 +194,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   legendIcon: { paddingTop: 2 },
+  /** The synced dot in the 20pt box the two icons occupy, so the text column
+   *  lines up across all three rows. */
+  dotSlot: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 10, height: 10, borderRadius: 5 },
   legendTitle: { fontSize: fontSize.md, fontWeight: '600' },
   legendBody: { fontSize: fontSize.md, marginTop: 2, lineHeight: 17 },
 });

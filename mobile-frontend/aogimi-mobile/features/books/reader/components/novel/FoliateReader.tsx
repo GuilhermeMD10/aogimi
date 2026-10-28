@@ -96,10 +96,6 @@ type Props = {
   startCfi?: string | null;
   initialStyle: ReaderThemeStyle;
   bgColor: string;
-  // True once we know the book is fixed-layout (manga). Wraps the WebView
-  // in a static rounded frame in RN — native pinch-zoom then only scales
-  // the page art inside, not the frame itself.
-  manga?: boolean;
   onReady?: (payload: ReadyPayload) => void;
   onRelocated?: (payload: RelocatedPayload) => void;
   onSelection?: (payload: SelectionPayload) => void;
@@ -117,7 +113,6 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
     startCfi,
     initialStyle,
     bgColor,
-    manga,
     onReady,
     onRelocated,
     onSelection,
@@ -238,10 +233,7 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
 
   return (
     <View style={[styles.outer, { backgroundColor: bgColor }]}>
-      <View
-        style={[styles.frame, manga ? styles.mangaFrame : null]}
-        onLayout={onLayout}
-      >
+      <View style={styles.frame} onLayout={onLayout}>
         <WebView
           ref={webviewRef}
           originWhitelist={['*']}
@@ -275,24 +267,13 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
 // The dock's *expanded* row is 64pt tall and does overlap the text, which is
 // fine: it is transient and sits behind its own dismiss backdrop.
 const DOCK_CLEARANCE = 96;
-const MANGA_GUTTER = 5;
-const MANGA_RADIUS = 50;
 
 const styles = StyleSheet.create({
   // Outer fills the area between the chevron top bar and the bottom dock.
-  // Its background is the bgColor passed in -- for manga that's the shell
-  // color, so the 5px gutter around the frame reads as the manga surround.
+  // Its background is the bgColor passed in.
   outer: { flex: 1 },
-  // Frame is what the WebView lives in. For text/novel it just reserves
-  // dock clearance at the bottom; for manga it also pulls in 5px on all
-  // sides + adds a rounded clip. The clip is RN-side, so native pinch-zoom
-  // inside the WebView only scales page art -- the frame stays static.
+  // Frame is what the WebView lives in; it reserves dock clearance at the
+  // bottom. Fixed-layout (manga) books never reach this component — the RN
+  // manga views take them — so there is no manga frame here.
   frame: { flex: 1, marginBottom: DOCK_CLEARANCE },
-  mangaFrame: {
-    marginTop: MANGA_GUTTER,
-    marginHorizontal: MANGA_GUTTER,
-    marginBottom: DOCK_CLEARANCE + MANGA_GUTTER,
-    borderRadius: MANGA_RADIUS,
-    overflow: 'hidden',
-  },
 });

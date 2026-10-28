@@ -220,7 +220,8 @@ export function ReaderScreen({ bookId }: Props) {
   // the OPF has been read, so it appeared anyway and then vanished the instant
   // the book was *detected* -- which is the start of the slow part, not the end
   // of it. Hence a loader that let go while the pages were still extracting.
-  const contentReady = isManga ? mangaHandle != null : placedReported;
+  // A failed prepare is "ready" too: the frame lifts onto the error.
+  const contentReady = isManga ? mangaHandle != null || mangaError != null : placedReported;
   const placed = placingTimedOut || (contentReady && minHeld);
 
   // Current spine index as reported by whichever reader is active. Used

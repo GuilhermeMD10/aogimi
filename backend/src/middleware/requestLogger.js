@@ -48,7 +48,9 @@ function requestLogger(req, res, next) {
     // Public endpoints (auth, dictionary) don't have it.
     const userTag = req.user?.userId ? dim(` [user:${req.user.userId}]`) : "";
     const method = req.method.padEnd(6, " ");
-    const path = req.originalUrl;
+    // Strip the query string — `/api/search?q=…` would otherwise write
+    // what the user searched for into the log.
+    const path = req.originalUrl.split("?")[0];
     // eslint-disable-next-line no-console
     console.log(
       `${dim(timestamp())}  ${method} ${path.padEnd(40, " ")} ${colored(`→ ${status}`)}  ${ms}ms${userTag}`,

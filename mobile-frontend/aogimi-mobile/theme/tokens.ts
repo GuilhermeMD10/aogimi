@@ -694,10 +694,6 @@ const DEFAULT_FONTS: ThemeFonts = {
   mono: ui('medium'),
 };
 
-/** The registered family names, for call sites that need a specific cut — the
- *  Japanese ones especially, since Noto's weights are separate families. */
-export const FONT_FAMILIES = { switzer: SWITZER, notoJp: NOTO_JP } as const;
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Type roles
 // ─────────────────────────────────────────────────────────────────────────────
@@ -938,63 +934,6 @@ export const fontSize = {
  */
 export const fontFamily = DEFAULT_FONTS;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shape recipes
-// ─────────────────────────────────────────────────────────────────────────────
-
-export type SurfaceShape = {
-  borderColor: string;
-  borderWidth: number;
-  radius: number;
-  /** Drop-shadow recipe (RN). Set opacity 0 to disable. */
-  shadowOffset: { width: number; height: number };
-  shadowColor: string;
-  shadowOpacity: number;
-  shadowRadius: number;
-  /** Android elevation; 0 keeps the look flat. */
-  elevation: number;
-};
-
-export type ChipShape = {
-  bg: string;
-  fg: string;
-  borderColor: string;
-  borderWidth: number;
-  radius: number;
-  paddingV: number;
-  paddingH: number;
-  fontSize: number;
-  letterSpacing: number;
-  textTransform: 'uppercase' | 'lowercase' | 'capitalize' | 'none';
-  /** No '600' — neither Switzer nor Noto Sans JP ships that cut, so it would
-   *  be synthesised. Narrowed here so a shape recipe cannot ask for it. */
-  fontWeight: '400' | '500' | '700';
-};
-
-export type ButtonShape = {
-  borderColor: string;
-  borderWidth: number;
-  radius: number;
-  shadowOffset: { width: number; height: number };
-  shadowColor: string;
-  shadowOpacity: number;
-  shadowRadius: number;
-  elevation: number;
-  letterSpacing: number;
-  textTransform: 'uppercase' | 'lowercase' | 'capitalize' | 'none';
-};
-
-export type ThemeShape = {
-  /** Default surface for cards, sheets, popovers. */
-  surface: SurfaceShape;
-  /** Inline tag / chip. */
-  chip: ChipShape;
-  /** Action button face. */
-  button: ButtonShape;
-  /** Section label colour + tracking + weight. */
-  sectionLabel: { color: string; letterSpacing: number; fontWeight: '400' | '500' | '700' };
-};
-
 export type ThemeMeta = {
   /** The brand glyph — `BrandGlyph` draws it. */
   glyph: string;
@@ -1006,63 +945,7 @@ export type ThemeMeta = {
 export type Theme = {
   meta: ThemeMeta;
   colors: ThemeColors;
-  fonts: ThemeFonts;
-  shape: ThemeShape;
 };
-
-/**
- * The Tier 2 card surface, as a recipe.
- *
- * **It has a shadow again.** DESIGN.md gives every glass tier
- * `0 8px 32px rgba(0,0,0,0.35)`, and on a translucent pane that shadow is what
- * separates it from the canvas — the old flat baseline could lean on an opaque
- * fill and a solid border instead, and this one cannot.
- */
-function glassSurface(p: Palette): SurfaceShape {
-  return {
-    borderColor: p.glassBorder,
-    borderWidth: 1,
-    radius: radius.card,
-    shadowOffset: { width: 0, height: 8 },
-    shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowRadius: 32,
-    elevation: 6,
-  };
-}
-
-/** A 6px tag — JLPT, part of speech, state. Not the 32px filter chip, which is
- *  a control and takes `radius.control`. */
-function tagChip(p: Palette): ChipShape {
-  return {
-    bg: p.glassSubtle,
-    fg: p.muted,
-    borderColor: p.glassBorder,
-    borderWidth: 1,
-    radius: radius.chip,
-    paddingV: 2,
-    paddingH: 6,
-    fontSize: 10,
-    letterSpacing: 0.2,
-    textTransform: 'none',
-    fontWeight: '700',
-  };
-}
-
-function controlButton(p: Palette): ButtonShape {
-  return {
-    borderColor: p.glassBorder,
-    borderWidth: 0,
-    radius: radius.control,
-    shadowOffset: { width: 0, height: 8 },
-    shadowColor: p.glowPrimary,
-    shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 4,
-    letterSpacing: 0,
-    textTransform: 'none',
-  };
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The theme
@@ -1072,23 +955,13 @@ function controlButton(p: Palette): ButtonShape {
 const GLYPH = '仰';
 
 /**
- * Assemble a full `Theme` from one palette column.
- *
- * Shape is derived from the palette rather than written out, so re-tinting the
- * app stays a palette edit. `isDark` is derived too — it is the one place the
- * polarity is stated.
+ * Assemble a full `Theme` from one palette column. `isDark` is derived here —
+ * it is the one place the polarity is stated.
  */
 function buildTheme(p: Palette, isDark: boolean): Theme {
   return {
     meta: { glyph: GLYPH, isDark },
     colors: legacyColors(p),
-    fonts: DEFAULT_FONTS,
-    shape: {
-      surface: glassSurface(p),
-      chip: tagChip(p),
-      button: controlButton(p),
-      sectionLabel: { color: p.faint, letterSpacing: 1.6, fontWeight: '500' },
-    },
   };
 }
 
@@ -1103,9 +976,3 @@ export const THEMES: Record<ThemeName, Theme> = {
   day: buildTheme(PALETTES.day, false),
   night: buildTheme(PALETTES.night, true),
 };
-
-/**
- * **Deprecated — the Night theme as a static value**, the counterpart to the
- * `palette` alias above and there for the same reason. Read `useTheme()`.
- */
-export const theme: Theme = THEMES.night;

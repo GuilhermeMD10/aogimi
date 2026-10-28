@@ -87,15 +87,6 @@ const radial = (stops: ColorStop[], cx = 0, cy = 0): SkPaint => {
   return paint;
 };
 
-/** A flat colour fill. Cheaper than a gradient and used wherever the web used a plain `fill`. */
-export const solidPaint = (hex: string, alpha = 1): SkPaint => {
-  const paint = Skia.Paint();
-  paint.setAntiAlias(true);
-  const [r, g, b] = rgbOf(hex);
-  paint.setColor(Skia.Color(`rgba(${r}, ${g}, ${b}, ${alpha})`));
-  return paint;
-};
-
 /* ---------- the star layer ---------- */
 
 /**

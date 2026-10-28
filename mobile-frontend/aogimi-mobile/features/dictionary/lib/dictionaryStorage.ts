@@ -92,7 +92,3 @@ export async function pushRecentLookup(
   await saveJSON(LOOKUP_KEY, next);
   return next;
 }
-
-export async function clearRecentLookups(): Promise<void> {
-  await saveJSON<RecentLookup[]>(LOOKUP_KEY, []);
-}

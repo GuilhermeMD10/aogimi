@@ -1,5 +1,4 @@
 import { Directory, File, Paths } from 'expo-file-system';
-import type { BookRecord } from '../types';
 
 // Path / existence helpers for the on-device book file store. Kept in a
 // separate leaf module (rather than next to `importEpub` in bookFiles.ts)
@@ -23,10 +22,6 @@ export function bookFilePath(filename: string): string {
 
 export function bookFileExists(filename: string): boolean {
   return new File(booksDir(), filename).exists;
-}
-
-export function hasBookFile(book: BookRecord): boolean {
-  return bookFileExists(book.filename);
 }
 
 export function deleteBookFile(filename: string): void {

@@ -1,5 +1,5 @@
 import { request } from '@/lib/api';
-import type { CardRecord, CardState, DeckRecord, DeckWithCards } from '../types';
+import type { CardRecord, CardState, DeckRecord } from '../types';
 
 // ── Decks ───────────────────────────────────────────────────────────────────
 
@@ -36,43 +36,10 @@ export function deleteDeck(id: string): Promise<{ message: string }> {
   return request<{ message: string }>(`/api/decks/${id}`, { method: 'DELETE' });
 }
 
-/**
- * Every deck the user owns **with its full card inventory**, in one round trip.
- *
- * Two queries server-side (the deck list plus one pooled card query) instead of
- * a per-deck fan-out, which is what makes this the read behind a screen that
- * needs everything at once — the star map, where every card is a star. Same
- * deck rows and order as `fetchUserDecks`; empty decks carry `cards: []`.
- *
- * Unpaginated, bounded by the per-user card quota (`MAX_CARDS_PER_DECK` ×
- * `MAX_DECKS`). Don't reach for this to answer a question about one deck.
- */
-export function fetchUserDecksWithCards(
-  userId: number,
-  signal?: AbortSignal,
-): Promise<{ decks: DeckWithCards[] }> {
-  return request<{ decks: DeckWithCards[] }>(`/api/decks/user/${userId}/cards`, { signal });
-}
-
 // ── Cards ───────────────────────────────────────────────────────────────────
 
 export function fetchDeckCards(deckId: string, signal?: AbortSignal): Promise<CardRecord[]> {
   return request<CardRecord[]>(`/api/decks/${deckId}/cards`, { signal });
-}
-
-/**
- * How many cards in this deck are due right now.
- *
- * **A count endpoint, deliberately.** The alternative — fetching the deck's due
- * inventory and reading `.length` — ships every card row across the wire to
- * produce one integer. Due-ness is defined by one shared SQL fragment
- * server-side, so this can't drift from what a session actually serves.
- */
-export function fetchDeckDueCount(
-  deckId: string,
-  signal?: AbortSignal,
-): Promise<{ count: number }> {
-  return request<{ count: number }>(`/api/decks/${deckId}/cards/due/count`, { signal });
 }
 
 /**

@@ -2,8 +2,8 @@
 // only what the web bundle actually ships: React/Next, the Tailwind +
 // Radix + shadcn UI stack, the PDF.js stack, and the data sources whose
 // licenses require it. Mobile-only deps (React Native, Expo modules,
-// `react-native-*` libraries) live in `mobile-frontend/aogimi-mobile/lib/
-// credits.ts` and are not duplicated here.
+// `react-native-*` libraries) live in `mobile-frontend/aogimi-mobile/
+// features/settings/lib/credits.ts` and are not duplicated here.
 
 export type CreditEntry = {
   name: string;
@@ -25,9 +25,13 @@ export type CreditSection = {
 
 export const CREDITS: CreditSection[] = [
   {
+    // The second paragraph of the blurb is the EDRDG's own sample
+    // acknowledgement (edrdg.org/edrdg/sample.html), which its licence asks
+    // an app to show on a dedicated screen — this one. Keep the wording, and
+    // keep it identical to mobile's.
     heading: 'Dictionary & language data',
     blurb:
-      'Word entries, names, kanji info, example sentences, and pitch-accent data shipped with this app come from the projects below, used under the terms of their licenses.',
+      'Word entries, names, kanji info, JLPT levels, example sentences, and pitch-accent data shipped with this app come from the projects below, used under the terms of their licenses.\n\nThis app uses the JMdict, JMnedict and KANJIDIC2 dictionary files. These files are the property of the Electronic Dictionary Research and Development Group, and are used in conformance with the Group\'s licence.',
     pinned: true,
     entries: [
       {
@@ -47,6 +51,29 @@ export const CREDITS: CreditSection[] = [
         license: 'CC BY-SA 4.0',
         owner: 'Electronic Dictionary Research and Development Group',
         url: 'https://www.edrdg.org/kanjidic/kanjidic2.html',
+      },
+      {
+        name: 'EDRDG licence',
+        license: 'CC BY-SA 4.0',
+        owner: 'Electronic Dictionary Research and Development Group',
+        url: 'https://www.edrdg.org/edrdg/licence.html',
+      },
+      {
+        // Waller's lists are the source; yomitan-jlpt-vocab maps them to
+        // JMdict entry IDs, which is the form the app loads. Only the level
+        // is kept.
+        name: 'JLPT word lists',
+        license: 'CC BY',
+        owner: 'Jonathan Waller (tanos.co.uk)',
+        url: 'https://www.tanos.co.uk/jlpt/',
+        note: 'JLPT levels only',
+      },
+      {
+        name: 'yomitan-jlpt-vocab',
+        license: 'CC BY-SA 4.0',
+        owner: 'Stephen Kraus',
+        url: 'https://github.com/stephenmk/yomitan-jlpt-vocab',
+        note: 'JLPT word lists mapped to JMdict entries',
       },
       {
         name: 'Kanjium — example sentences',
@@ -83,18 +110,31 @@ export const CREDITS: CreditSection[] = [
     ],
   },
   {
+    // zip.js and fflate are vendored inside foliate-js
+    // (`public/foliate-js/vendor/`), so they ship even though neither is in
+    // `package.json`; their licences are the ones foliate-js's README states.
+    // pako comes in with JSZip.
     heading: 'Reader & document parsing',
     entries: [
       { name: 'foliate-js', license: 'MIT', url: 'https://github.com/johnfactotum/foliate-js' },
+      { name: 'zip.js', license: 'BSD-3-Clause', owner: 'Gildas Lormeau', url: 'https://github.com/gildas-lormeau/zip.js' },
+      { name: 'fflate', license: 'MIT', owner: 'Arjun Barrett', url: 'https://github.com/101arrowz/fflate' },
       { name: 'pdfjs-dist', license: 'Apache-2.0', owner: 'Mozilla', url: 'https://github.com/mozilla/pdf.js' },
       { name: 'react-pdf', license: 'MIT', url: 'https://github.com/wojtekmaj/react-pdf' },
-      { name: 'jszip', license: 'MIT', url: 'https://stuk.github.io/jszip/' },
+      {
+        name: 'jszip',
+        license: 'MIT',
+        url: 'https://stuk.github.io/jszip/',
+        note: 'Dual-licensed MIT or GPL-3.0; used under MIT',
+      },
+      { name: 'pako', license: 'MIT AND Zlib', owner: 'Vitaly Puzrin and Andrei Tuputcyn', url: 'https://github.com/nodeca/pako' },
     ],
   },
   {
     heading: 'App frameworks',
     entries: [
       { name: 'React', license: 'MIT', url: 'https://react.dev' },
+      { name: 'React DOM', license: 'MIT', url: 'https://react.dev' },
       { name: 'Next.js', license: 'MIT', url: 'https://nextjs.org' },
     ],
   },

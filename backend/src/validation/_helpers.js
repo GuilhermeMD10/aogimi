@@ -3,11 +3,11 @@
 
 const { z } = require("zod");
 
-/** Express helper: validate body against schema, send 400 on failure,
- *  return parsed object on success. Returns null when validation
- *  failed and the response has already been written. */
-function parseBody(schema, req, res) {
-  const result = schema.safeParse(req.body);
+/** Validate `value` against schema, send 400 on failure, return the parsed
+ *  object on success. Returns null when validation failed and the response
+ *  has already been written. */
+function parse(schema, value, res) {
+  const result = schema.safeParse(value);
   if (!result.success) {
     res
       .status(400)
@@ -16,6 +16,13 @@ function parseBody(schema, req, res) {
   }
   return result.data;
 }
+
+/** Express helpers: one per request slot. `query` and `params` are
+ *  string-or-array-or-object (`?q=a&q=b` arrives as an array), so a schema
+ *  must assert the type rather than assume a string. */
+const parseBody = (schema, req, res) => parse(schema, req.body, res);
+const parseQuery = (schema, req, res) => parse(schema, req.query, res);
+const parseParams = (schema, req, res) => parse(schema, req.params, res);
 
 /**
  * A trimmed, non-empty, length-capped required string.
@@ -51,6 +58,8 @@ function nullableText(label, max) {
 
 module.exports = {
   parseBody,
+  parseQuery,
+  parseParams,
   requiredText,
   optionalText,
   nullableText,

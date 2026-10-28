@@ -110,18 +110,6 @@ export function gradeFeedback(feel: GradeFeel): void {
   impactFeedback(feel);
 }
 
-/**
- * The dock's slide has crossed into the next route.
- *
- * `selectionAsync`, like the reader's band: the highlight is clicking through
- * detents under the finger, and this fires on every crossing while dragging,
- * so it has to be the lightest thing the engine offers. The tap that enters a
- * route is `pressFeedback`, as everywhere else.
- */
-export function dockStepFeedback(): void {
-  run(() => Haptics.selectionAsync());
-}
-
 /** Shared guard: a missing engine or native module is silence, never a throw. */
 function run(fire: () => Promise<void>): void {
   try {

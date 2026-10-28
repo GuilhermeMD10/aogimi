@@ -8,6 +8,7 @@
 // profile.
 
 const { Router } = require("express");
+const { asyncHandler } = require("../middleware/asyncHandler");
 const userService = require("../services/userService");
 const authService = require("../services/authService");
 const { requireUserMatch } = require("../middleware/authorize");
@@ -19,7 +20,7 @@ const router = Router();
 // GET /api/user/:id — get a user's public profile. The token owner can
 // only read their own profile; in the future this could be relaxed for
 // public profile pages, but until then keep it locked down.
-router.get("/:id", requireUserMatch({ from: "params", key: "id" }), async (req, res) => {
+router.get("/:id", requireUserMatch({ from: "params", key: "id" }), asyncHandler(async (req, res) => {
   try {
     const user = await userService.getProfile(req.user.userId);
     if (!user) return res.status(404).json({ error: "Not found" });
@@ -27,7 +28,7 @@ router.get("/:id", requireUserMatch({ from: "params", key: "id" }), async (req, 
   } catch (err) {
     return res.status(500).json({ error: "Failed to load profile" });
   }
-});
+}));
 
 // PATCH /api/user — update editable profile fields (display_name,
 // email, language, avatar_index). The zod schema bounds every value and
@@ -37,7 +38,7 @@ router.get("/:id", requireUserMatch({ from: "params", key: "id" }), async (req, 
 //
 // The email unique index (`users_email_lower_idx`) makes a duplicate a
 // legitimate client error, so 23505 is mapped to 409.
-router.patch("/", async (req, res) => {
+router.patch("/", asyncHandler(async (req, res) => {
   const body = parseBody(patchUserSchema, req, res);
   if (!body) return;
   try {
@@ -49,10 +50,10 @@ router.patch("/", async (req, res) => {
     }
     return res.status(500).json({ error: "Update failed" });
   }
-});
+}));
 
 // PUT /api/user/onboarding — mark onboarding complete for the current user.
-router.put("/onboarding", async (req, res) => {
+router.put("/onboarding", asyncHandler(async (req, res) => {
   const completed = !!req.body?.completed;
   try {
     await userService.setOnboardingCompleted(req.user.userId, completed);
@@ -60,12 +61,12 @@ router.put("/onboarding", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Update failed" });
   }
-});
+}));
 
 // DELETE /api/user — delete the calling user's account (cascades to
 // every user-data table via FK). Revokes all refresh tokens so any
 // other open session is invalidated immediately.
-router.delete("/", async (req, res) => {
+router.delete("/", asyncHandler(async (req, res) => {
   try {
     await authService.revokeAllSessions(req.user.userId);
     const ok = await userService.deleteUser(req.user.userId);
@@ -74,6 +75,6 @@ router.delete("/", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Delete failed" });
   }
-});
+}));
 
 module.exports = router;

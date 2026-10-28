@@ -12,4 +12,12 @@ const pool = new Pool({
   ssl: url && !isLocal ? { rejectUnauthorized: false } : false,
 });
 
+// An idle client losing its connection (Postgres restart, managed-DB
+// failover) emits 'error' on the pool; with no listener Node treats it as
+// unhandled and exits. The pool already discards that client, so log and
+// carry on — the next query opens a fresh connection.
+pool.on("error", (err) => {
+  console.error("[db] idle client error:", err.message);
+});
+
 module.exports = pool;

@@ -28,7 +28,6 @@ export function Header({
   backLabel,
   onMore,
   moreLabel,
-  moreDisabled = false,
   right,
   size = 44,
 }: {
@@ -41,8 +40,6 @@ export function Header({
   backLabel?: string;
   onMore?: () => void;
   moreLabel?: string;
-  /** Keeps the button in place but inert — a menu that is not wired yet. */
-  moreDisabled?: boolean;
   /** A custom trailing control, in place of `more`. */
   right?: React.ReactNode;
   size?: 44 | 36;
@@ -76,7 +73,6 @@ export function Header({
               glyph="more"
               size={size}
               onPress={onMore}
-              disabled={moreDisabled}
               accessibilityLabel={moreLabel ?? ''}
             />
           ))}

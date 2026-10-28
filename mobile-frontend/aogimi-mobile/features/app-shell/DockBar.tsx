@@ -18,12 +18,10 @@ import { dockMaterial } from './dockMaterial';
  * The dock's bar — every pixel of it, and every gesture, with no idea that a
  * navigator exists.
  *
- * Split out of `Dock` so the same component can be driven by the tab navigator
- * (see `Dock.tsx`) and by the dev tuning lab (`dockLab/DockLabView`). The dock
- * is the part worth tuning, so the dock is the part that takes the knobs;
- * routing, hiding and the safe-area offset stay with the caller. The two are
- * now the same dock — the lab exists to feel it in isolation, not to compare
- * it against alternatives.
+ * Split out of `Dock` so the bar can be driven by the tab navigator (see
+ * `Dock.tsx`) without knowing about it. The dock is the part worth tuning, so
+ * the dock is the part that takes the knobs; routing, hiding and the safe-area
+ * offset stay with the caller.
  *
  * ── Behaviour ────────────────────────────────────────────────────────────────
  *   · **Tap a route** — `onSelect`; the dock collapses around it.

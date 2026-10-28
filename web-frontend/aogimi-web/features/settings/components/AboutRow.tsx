@@ -11,8 +11,8 @@ type Props = {
 };
 
 /**
- * One navigation row in the settings list — the only entry points to Help and
- * Credits. Real links to real routes; `SettingsList` supplies the entries and
+ * One navigation row in the settings list — the only entry points to Help,
+ * Credits and the privacy policy. Real links to real routes; `SettingsList` supplies the entries and
  * the rule above each one.
  *
  * `PANE` rather than a `hover:bg-*` utility: it is the list-row treatment,

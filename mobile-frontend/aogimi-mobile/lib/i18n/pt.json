@@ -4,22 +4,19 @@
     "cancel": "Cancelar",
     "save": "Guardar",
     "delete": "Eliminar",
-    "done": "Concluído",
-    "continue": "Continuar",
-    "loading": "A carregar…",
-    "retry": "Tentar novamente",
-    "error": "Algo correu mal"
+    "error": "Algo correu mal",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "showPassword": "Mostrar palavra-passe",
+    "hidePassword": "Ocultar palavra-passe"
   },
   "auth": {
     "welcome": {
       "headline": "Lê japonês\ncom confiança.",
       "tagline": "Toca em qualquer palavra para ver o seu significado, guardá-la em flashcards e estudá-la em contexto.",
       "signIn": "Iniciar sessão",
-      "createAccount": "Criar conta",
-      "google": "Google",
-      "apple": "Apple"
+      "createAccount": "Criar conta"
     },
-    "orContinueWith": "ou continuar com",
     "signIn": {
       "title": "Iniciar sessão",
       "username": "Nome de utilizador",
@@ -59,30 +56,14 @@
     }
   },
   "home": {
-    "title": "Leitor",
-    "continueReading": "Continuar a leitura",
-    "importEpub": "Importar EPUB",
-    "empty": "Ainda sem livros",
-    "resumeReading": "Retomar leitura",
     "brand": "Aogimi",
     "streak": "{count}日目",
-    "progressRead": "{pct}% lido",
     "cardsDueTitle": "{count} cartões a rever",
     "startReview": "Começar revisão",
     "dueBadge": "{count} A REVER",
     "searchLabel": "Abrir o dicionário"
   },
   "reader": {
-    "define": "Definir",
-    "flashcard": "Flashcard",
-    "copy": "Copiar",
-    "toolbar": {
-      "size": "Tamanho",
-      "lineHeight": "Espaçamento",
-      "font": "Tipo de letra",
-      "margin": "Margem",
-      "vertical": "Vertical"
-    },
     "back": "Voltar à biblioteca",
     "notFound": "Livro não encontrado",
     "missingTitle": "Ficheiro não está neste dispositivo",
@@ -97,8 +78,7 @@
     "selection": {
       "addCard": "Adicionar cartão",
       "lookUp": "Dicionário",
-      "copy": "Copiar",
-      "dismiss": "Cancelar seleção"
+      "copy": "Copiar"
     },
     "toc": {
       "eyebrow": "Índice",
@@ -124,10 +104,8 @@
     }
   },
   "dict": {
-    "title": "Dicionário",
     "search": "Pesquisar em japonês, romaji ou inglês",
     "empty": "Comece a escrever para pesquisar",
-    "addFlashcard": "Adicionar cartão",
     "addToDeck": "Adicionar ao baralho",
     "fieldPlaceholder": "言葉を引く · procurar uma palavra…",
     "clearSearch": "Limpar pesquisa",
@@ -149,17 +127,9 @@
     "backToResults": "Voltar aos resultados"
   },
   "decks": {
-    "title": "Baralhos",
-    "new": "Novo baralho",
-    "cards": "{count} cartões",
-    "studyNow": "Estudar agora",
-    "rename": "Renomear",
-    "delete": "Eliminar baralho",
-    "studyAllHardest": "Estudar os mais difíceis de todos os baralhos",
-    "studyAllHardestHint": "Junta os cartões mais difíceis de cada baralho"
+    "new": "Novo baralho"
   },
   "study": {
-    "tapToReveal": "Toca para revelar",
     "again": "De novo",
     "hard": "Difícil",
     "good": "Bom",
@@ -170,8 +140,6 @@
     "studyAgain": "Estudar de novo",
     "backToDeck": "Voltar ao baralho",
     "finish": {
-      "cardsReviewed": "cartões revistos",
-      "progression": "Progressão",
       "hardest": "Cartas mais difíceis",
       "title": "Sessão concluída",
       "minutes": "{n} MIN",
@@ -187,43 +155,12 @@
       "upgradesMeta": "{n} SUBIRAM",
       "more": "mais {n}"
     },
-    "changes": {
-      "firstReviewed": "{n} revistos pela primeira vez",
-      "advanced": "{n} avançaram para aprendido",
-      "reachedMastered": "{n} chegaram a dominado",
-      "regressedToMet": "{n} regrediram para conhecida",
-      "regressedToLearned": "{n} regrediram para aprendido"
-    },
-    "hardest": {
-      "again": "{n}× errado"
-    },
-    "state": {
-      "new": "novo",
-      "met": "conhecida",
-      "learned": "aprendido",
-      "mastered": "dominado"
-    },
-    "mode": {
-      "hardest": "Mais difíceis → Novos",
-      "random": "Totalmente aleatório",
-      "oldest_first": "Mais antigos primeiro",
-      "oldest_only": "Só os mais antigos",
-      "newest_only": "Só os novos",
-      "by_creation": "Por data de criação"
-    },
-    "dueCount": "{n} para rever agora",
     "nothingDue": "Nada pendente — tudo em dia",
     "allDecks": "Todos os baralhos",
     "progress": "{done} / {total} · faltam {left}",
     "revealCard": "Revelar carta",
     "revealHint": "Toca para ver o verso",
     "showFront": "Mostrar a frente"
-  },
-  "sessionConfig": {
-    "title": "Definições da sessão",
-    "mode": "Modo",
-    "size": "Cartões por sessão",
-    "sizeHint": "Entre {min} e {max}"
   },
   "stats": {
     "animal": {
@@ -240,11 +177,9 @@
   },
   "profile": {
     "title": "Tu",
-    "editProfile": "Editar perfil",
     "account": "Conta",
     "username": "Nome de utilizador",
     "language": "Idioma",
-    "currentlyReading": "A ler agora",
     "signOut": "Terminar sessão",
     "changeAvatar": "Mudar avatar",
     "signedOut": {
@@ -261,10 +196,65 @@
     "title": "Definições",
     "help": "Ajuda",
     "credits": "Créditos",
+    "privacy": "Política de privacidade",
     "groupAppearance": "APARÊNCIA",
     "groupStudy": "ESTUDO",
     "groupAbout": "SOBRE",
-    "signOutConfirm": "Terminar sessão neste dispositivo?"
+    "signOutConfirm": "Terminar sessão neste dispositivo?",
+    "deleteAccount": "Eliminar conta",
+    "deleteAccountConfirmTitle": "Eliminar a tua conta?",
+    "deleteAccountConfirmBody": "Esta ação é permanente. Os teus baralhos, cartões, histórico de estudo e progresso de leitura são apagados do servidor, e os livros guardados neste telemóvel são removidos. Não é possível anular.",
+    "deleteAccountFailed": "Não foi possível eliminar a conta"
+  },
+  "help": {
+    "intro": {
+      "heading": "O que é o Aogimi?",
+      "body": "O Aogimi é um companheiro de leitura e vocabulário de japonês. Abre um EPUB ou PDF, procura qualquer palavra no dicionário incluído, guarda as que queres lembrar como cartões e estuda-as como estrelas no teu céu.",
+      "tabs": "A barra em baixo tem quatro separadores: Início, Leitura, Dicionário e Céu. O teu perfil abre-se a partir da imagem no topo do Início, e as Definições estão dentro do perfil."
+    },
+    "reading": {
+      "heading": "Ler um livro",
+      "library": "Os teus livros estão no separador Leitura. Toca em Adicionar livro para importar um EPUB ou PDF e depois toca numa capa para o abrir. O … numa capa permite mudar o nome do livro, eliminá-lo ou sincronizá-lo.",
+      "lookup": "Para procurar uma palavra, mantém-na premida e arrasta para alargar a seleção, se for preciso. Quando levantas o dedo, o botão no fundo da página passa a mostrar três ações: Adicionar cartão, Dicionário e Copiar.",
+      "dock": "Noutras alturas, toca nesse botão para abrir o índice, os ajustes do leitor e o dicionário. Os PDFs e os livros só com imagens, como a manga, não têm texto para selecionar, por isso abre o dicionário a partir daí e escreve a palavra. O botão de voltar, no canto superior esquerdo, leva-te de volta à biblioteca."
+    },
+    "dictionary": {
+      "heading": "Dicionário",
+      "body": "O dicionário vem incluído na app e funciona offline. Pesquisa em japonês, romaji ou inglês no separador Dicionário ou no Início, ou toca em Dicionário numa seleção no leitor. Os resultados aparecem agrupados em palavras, kanji e nomes. Cada entrada mostra os significados e, quando existem, o acento tonal, os kanji que usa e uma frase de exemplo; Adicionar ao baralho guarda-a como cartão.",
+      "sources": "As entradas de palavras vêm do JMdict, os kanji do KANJIDIC2, os nomes do JMnedict, e as frases de exemplo e os acentos tonais do projeto Kanjium. A lista completa está em Definições › Créditos."
+    },
+    "sky": {
+      "heading": "Baralhos e o teu céu",
+      "body": "Não há uma página de baralhos à parte: os teus baralhos estão no separador Céu. Cada baralho é uma constelação e cada cartão uma estrela. Quando guardas um cartão — Adicionar cartão no leitor, ou Adicionar ao baralho no dicionário — escolhes logo o baralho, ou crias um novo.",
+      "using": "Toca numa constelação para entrar no baralho e numa estrela para ver o cartão. Mantém premida uma constelação para editar o baralho, ver as estatísticas ou eliminá-lo. Lista mostra todos os cartões de um baralho, e o … no topo do céu cria um baralho novo. O Céu precisa de sessão iniciada."
+    },
+    "study": {
+      "heading": "Estudar",
+      "body": "Continuar a estudar, no Céu, ou Começar revisão, no Início, mostra-te os cartões a rever de todos os baralhos; Estudar baralho faz o mesmo para um só baralho. Revela cada cartão e avalia quão bem te lembraste — De novo, Difícil, Bom ou Fácil — e o Aogimi agenda a próxima revisão a partir daí.",
+      "due": "Só aparecem cartões a rever, porque responder a um cartão antes do tempo não altera o seu agendamento. À medida que estudas, um cartão passa de Novo a Visto, Aprendido e Dominado. Para escolher o que um cartão mostra durante o estudo, abre Definições › Visualização de estudo."
+    },
+    "account": {
+      "heading": "A tua conta",
+      "body": "Sem conta, os teus livros e baralhos ficam neste dispositivo. De momento não estamos a criar contas novas; se já tens uma, inicia sessão a partir do perfil.",
+      "delete": "Terminar sessão e Eliminar conta estão no fundo das Definições. Eliminar a conta apaga para sempre do servidor os teus baralhos, cartões, histórico de estudo e progresso de leitura, e remove os livros guardados neste telemóvel."
+    },
+    "sync": {
+      "heading": "Como funciona a sincronização",
+      "body": "Com sessão iniciada, as tuas posições de leitura, baralhos e cartões ficam guardados na tua conta. Cada dispositivo tem a sua própria cópia e sincroniza com a conta quando está online. Os ficheiros dos livros ficam só no dispositivo onde os importaste: noutro dispositivo, importa o mesmo ficheiro e continuas onde paraste.",
+      "legend": "O emblema no canto da capa de cada livro mostra o estado desse livro:",
+      "synced": {
+        "title": "Sincronizado",
+        "body": "Um pequeno ponto verde: o progresso deste livro está sincronizado entre os teus dispositivos."
+      },
+      "unsynced": {
+        "title": "Não sincronizado",
+        "body": "O livro foi importado offline, ou o progresso de leitura recente ainda não chegou à tua conta. Quando estiveres online, usa Sincronizar agora no menu … do livro."
+      },
+      "toImport": {
+        "title": "Na tua conta",
+        "body": "O teu progresso está na conta, mas o ficheiro ainda não está neste dispositivo. Toca no livro para importar o ficheiro."
+      }
+    }
   },
   "studyDisplay": {
     "title": "Visualização de estudo",
@@ -322,7 +312,6 @@
     "availableOnly": "Só disponíveis",
     "filterLabel": "Alternar filtro de livros disponíveis",
     "continueReading": "Continuar a leitura",
-    "progress": "Progresso",
     "resume": "Retomar leitura",
     "notOnDevice": "Não está neste dispositivo",
     "notOnDeviceHint": "Não está neste dispositivo — toca para importar",
@@ -337,7 +326,6 @@
     }
   },
   "card": {
-    "eyebrow": "Nova estrela",
     "title": "Adicionar cartão",
     "front": "Frente",
     "back": "Verso",
@@ -348,7 +336,6 @@
     "deck": "Baralho",
     "newDeck": "Novo baralho",
     "deckName": "Nome do baralho",
-    "pickExisting": "Escolher um baralho existente",
     "submit": "Adicionar ao céu",
     "wordPlaceholder": "言葉",
     "readingPlaceholder": "ことば",
@@ -421,8 +408,7 @@
       "due": "A rever",
       "empty": "Ainda não há cartões.",
       "noMatches": "Nenhum cartão corresponde.",
-      "notFound": "Baralho não encontrado",
-      "moreSoon": "Mais ações (em breve)"
+      "notFound": "Baralho não encontrado"
     }
   }
 }

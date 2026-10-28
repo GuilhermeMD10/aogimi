@@ -3,10 +3,11 @@ import type { LayoutChangeEvent } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
 import {
   Easing,
-  // runOnJS is deprecated in reanimated v4 (the replacement is the auto-bridge
-  // from worklet -> JS), but still works and states the thread hop at the call
-  // site, which is worth keeping in a file that lives on both threads.
+  // runOnJS / runOnUI are deprecated in reanimated v4 (the replacement is the
+  // auto-bridge from worklet -> JS), but still work and state the thread hop at
+  // the call site, which is worth keeping in a file that lives on both threads.
   runOnJS,
+  runOnUI,
   useAnimatedReaction,
   useDerivedValue,
   useSharedValue,
@@ -339,6 +340,13 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
    * callback then fires with `finished: false` *after* the new flight has already raised `flightActive`
    * — so without this it would tear the new flight down (clearing `flightActive`, committing a stale
    * pose) in the same frame it took off. Each flight captures its token and stands down if superseded.
+   *
+   * **Minted on the UI thread, never read from JS.** A JS-side read of a shared value is synchronous
+   * but a JS-side write is queued, so two `flyTo`s in one JS tick (the sync effect's fit flight and
+   * the host's tier flight land in the same effects flush) both read the same counter and mint the
+   * same token — the first flight's cancellation then passes the check and tears the second one down
+   * before its first frame: focus changed, the camera never moved. So the whole take-off is one
+   * worklet, and the token is read and written where it lives.
    */
   const flightId = useSharedValue(0);
 
@@ -469,38 +477,43 @@ export function useSkyCamera(rawBounds: Bounds, opts: SkyCameraOptions = {}): Sk
           ? cameraFitting(bounds, viewport, ins ?? undefined, limits)
           : clampCamera(target, bounds, viewport, ins ?? undefined, limits);
       arriveRef.current = onArrive;
-      const id = flightId.value + 1;
-      flightId.value = id;
-      fitFlight.value = target === 'fit';
-      flightFrom.value = { x: camX.value, y: camY.value, zoom: camZoom.value };
-      flightTo.value = to;
-      driving.value = true;
-      flightActive.value = true;
-      flightT.value = 0;
-      flightT.value = withTiming(
-        1,
-        { duration: CAMERA_TWEEN_MS, easing: Easing.out(Easing.cubic) },
-        (finished) => {
-          'worklet';
-          // Superseded by a newer flight, which owns the camera and the landing now.
-          if (flightId.value !== id) return;
-          // A gesture took the camera back mid-flight; it owns the landing now.
-          if (!flightActive.value) return;
-          flightActive.value = false;
-          // Land exactly on the destination rather than on the last tween frame, so a flight's arrival
-          // is the pose that was asked for and not a rounding of it. Read live, not the captured `to`:
-          // a fit flight may have been retargeted while it flew.
-          if (finished) {
-            const land = flightTo.value;
-            camX.value = land.x;
-            camY.value = land.y;
-            camZoom.value = land.zoom;
-          }
-          driving.value = false;
-          committedZoom.value = camZoom.value;
-          runOnJS(onFlightEnd)(!!finished, fitFlight.value, camX.value, camY.value, camZoom.value);
-        },
-      );
+      const fit = target === 'fit';
+      // The take-off is one worklet so the token is minted where it lives — see `flightId`.
+      runOnUI(() => {
+        'worklet';
+        const id = flightId.value + 1;
+        flightId.value = id;
+        fitFlight.value = fit;
+        flightFrom.value = { x: camX.value, y: camY.value, zoom: camZoom.value };
+        flightTo.value = to;
+        driving.value = true;
+        flightActive.value = true;
+        flightT.value = 0;
+        flightT.value = withTiming(
+          1,
+          { duration: CAMERA_TWEEN_MS, easing: Easing.out(Easing.cubic) },
+          (finished) => {
+            'worklet';
+            // Superseded by a newer flight, which owns the camera and the landing now.
+            if (flightId.value !== id) return;
+            // A gesture took the camera back mid-flight; it owns the landing now.
+            if (!flightActive.value) return;
+            flightActive.value = false;
+            // Land exactly on the destination rather than on the last tween frame, so a flight's
+            // arrival is the pose that was asked for and not a rounding of it. Read live, not the
+            // captured `to`: a fit flight may have been retargeted while it flew.
+            if (finished) {
+              const land = flightTo.value;
+              camX.value = land.x;
+              camY.value = land.y;
+              camZoom.value = land.zoom;
+            }
+            driving.value = false;
+            committedZoom.value = camZoom.value;
+            runOnJS(onFlightEnd)(!!finished, fitFlight.value, camX.value, camY.value, camZoom.value);
+          },
+        );
+      })();
     },
     [
       bounds, viewport, ins, limits,

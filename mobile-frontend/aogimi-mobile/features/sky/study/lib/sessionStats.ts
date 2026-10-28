@@ -9,7 +9,7 @@
 
 import type { CardRecord, CardState } from '../../stage/types';
 import { MIX_ORDER } from '../../stage/lib/masteryMix';
-import type { CardSessionEntry, SessionSummary, StudyOutcome } from '../types';
+import type { CardSessionEntry, SessionSummary } from '../types';
 
 /**
  * Difficulty at or above which a card counts as "hard" without having been
@@ -167,7 +167,3 @@ export function hardestOf(entries: readonly CardSessionEntry[], limit: number): 
 export function durationMinutes(startedAt: number, endedAt: number): number {
   return Math.max(1, Math.round((endedAt - startedAt) / 60_000));
 }
-
-/** Every grade the shelf offers, in Anki's order. Exported so the shelf and
- *  anything that reports on grades read the same list. */
-export const GRADE_ORDER: readonly StudyOutcome[] = ['again', 'hard', 'good', 'easy'];

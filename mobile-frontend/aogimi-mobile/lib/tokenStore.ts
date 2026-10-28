@@ -52,15 +52,6 @@ export async function setTokens(tokens: { access: string; refresh: string }): Pr
   ]);
 }
 
-/** Replace ONLY the access token (post /auth/refresh). The refresh
- *  token also rotates on every refresh; the auth layer calls
- *  `setTokens` with both. This helper exists for the rare case where
- *  only the access half changes. */
-export async function setAccessToken(access: string): Promise<void> {
-  memAccess = access;
-  await AsyncStorage.setItem(ACCESS_KEY, access).catch(() => undefined);
-}
-
 export async function clearTokens(): Promise<void> {
   memAccess = null;
   await Promise.all([

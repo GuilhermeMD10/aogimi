@@ -3,3 +3,4 @@
 
 export { default as CreditsView } from './CreditsView';
 export { default as HelpView } from './HelpView';
+export { default as PrivacyView } from './PrivacyView';

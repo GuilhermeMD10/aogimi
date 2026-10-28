@@ -1,10 +1,15 @@
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen, BackBar, DangerButton, RowGroup, Row, SectionLabel } from '@/shared/components';
 import { LOCALES, useI18n, useT } from '@/lib/i18n/I18nContext';
 import { useReaderPrefs } from '@/features/books/reader/lib/readerPrefs';
-import { useTheme, spacing } from '@/theme';
+import { NIGHT_ENABLED, useTheme, spacing } from '@/theme';
 import { useAuth } from '@/features/auth/providers/AuthContext';
+
+// The policy lives on the web app (`/privacy` there), which is also the URL
+// the store listings carry — one copy, opened in the browser.
+const PRIVACY_POLICY_URL = 'https://aogimi.com/privacy';
 
 /**
  * Settings — a grouped-card layout carrying **exactly** the rows the app has
@@ -19,10 +24,11 @@ import { useAuth } from '@/features/auth/providers/AuthContext';
 export function SettingsView() {
   const t = useT();
   const router = useRouter();
-  const { signOut, status } = useAuth();
+  const { signOut, deleteAccount, status } = useAuth();
   const { preference } = useTheme();
   const { locale } = useI18n();
   const { prefs, hydrated: highlightHydrated } = useReaderPrefs();
+  const [deleting, setDeleting] = useState(false);
 
   // Sign-out is only meaningful when there is a backend account to leave.
   // Signed-out users see sign-up / sign-in on the Profile screen instead.
@@ -32,6 +38,34 @@ export function SettingsView() {
     Alert.alert(t('profile.signOut'), t('settings.signOutConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('profile.signOut'), style: 'destructive', onPress: () => void signOut() },
+    ]);
+  };
+
+  // App Store 5.1.1(v): account deletion must be reachable in-app. The
+  // provider owns the whole success path (server delete → local wipe →
+  // sign-out); this screen only confirms, shows the busy state and reports a
+  // failure. On failure nothing has changed, so the user stays signed in.
+  const runDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+    } catch (err) {
+      // Same split as sign-in: `status` on the error means the server
+      // answered (and refused); its absence means we never reached it.
+      const answered = typeof (err as { status?: unknown } | null)?.status === 'number';
+      Alert.alert(
+        t('settings.deleteAccountFailed'),
+        t(answered ? 'common.error' : 'auth.onboarding.errorOffline'),
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(t('settings.deleteAccountConfirmTitle'), t('settings.deleteAccountConfirmBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: () => void runDeleteAccount() },
     ]);
   };
 
@@ -51,12 +85,16 @@ export function SettingsView() {
 
         <SectionLabel>{t('settings.groupAppearance')}</SectionLabel>
         <RowGroup>
-          <Row
-            label={t('appearance.title')}
-            value={themeValue}
-            chevron
-            onPress={() => router.push('/profile/settings/appearance')}
-          />
+          {/* Day is the only theme while Night is switched off — a picker
+              with one working choice is a row with nothing behind it. */}
+          {NIGHT_ENABLED && (
+            <Row
+              label={t('appearance.title')}
+              value={themeValue}
+              chevron
+              onPress={() => router.push('/profile/settings/appearance')}
+            />
+          )}
           <Row
             label={t('profile.language')}
             value={localeLabel}
@@ -92,29 +130,21 @@ export function SettingsView() {
             chevron
             onPress={() => router.push('/profile/settings/credits')}
           />
+          <Row
+            label={t('settings.privacy')}
+            chevron
+            onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)}
+          />
         </RowGroup>
-
-        {/* Dev-only. Tuning screens for chrome that is still being decided; not
-            drawn in a release build. __DEV__ is false in a Release build even
-            for the "dev" bundle id, so this checks the build-time flag the
-            build script sets instead (same mechanism as EXPO_PUBLIC_API_URL). */}
-        {(__DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1') && (
-          <>
-            <SectionLabel>DEVELOPER</SectionLabel>
-            <RowGroup>
-              <Row
-                label="Dock lab"
-                description="Three docks at different timings and haptics"
-                chevron
-                onPress={() => router.push('/profile/settings/dock-lab')}
-              />
-            </RowGroup>
-          </>
-        )}
 
         {isSignedIn && (
           <View>
             <DangerButton label={t('profile.signOut')} onPress={handleSignOut} />
+            <DangerButton
+              label={t('settings.deleteAccount')}
+              onPress={handleDeleteAccount}
+              loading={deleting}
+            />
           </View>
         )}
       </ScrollView>

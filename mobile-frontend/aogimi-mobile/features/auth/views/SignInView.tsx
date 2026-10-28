@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { useColors, fontFamily, fontSize, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/features/auth/providers/AuthContext';
+import { REGISTRATION_OPEN } from '../lib/authApi';
 
 export function SignInView() {
   const c = useColors();
@@ -32,8 +33,11 @@ export function SignInView() {
     try {
       await signIn(username.trim(), password);
       router.replace('/(auth)/onboarding');
-    } catch {
-      setError(t('auth.signIn.errorInvalid'));
+    } catch (err) {
+      // `request` stamps `status` on every answer the server gave; without
+      // one (offline, the 8s deadline) the credentials were never checked.
+      const answered = typeof (err as { status?: unknown } | null)?.status === 'number';
+      setError(t(answered ? 'auth.signIn.errorInvalid' : 'auth.onboarding.errorOffline'));
       setLoading(false);
     }
   }
@@ -84,17 +88,19 @@ export function SignInView() {
           />
         </View>
 
-        <Touchable
-          minTarget={false}
-          hitSlop={8}
-          onPress={() => router.replace('/(auth)/signup')}
-          style={styles.altLink}
-        >
-          <Text style={[styles.altText, { color: c.fgMuted }]}>
-            {t('auth.signIn.noAccount')}{' '}
-            <Text style={{ color: c.fg, fontWeight: '600' }}>{t('auth.signIn.signUp')}</Text>
-          </Text>
-        </Touchable>
+        {REGISTRATION_OPEN && (
+          <Touchable
+            minTarget={false}
+            hitSlop={8}
+            onPress={() => router.replace('/(auth)/signup')}
+            style={styles.altLink}
+          >
+            <Text style={[styles.altText, { color: c.fgMuted }]}>
+              {t('auth.signIn.noAccount')}{' '}
+              <Text style={{ color: c.fg, fontWeight: '600' }}>{t('auth.signIn.signUp')}</Text>
+            </Text>
+          </Touchable>
+        )}
       </KeyboardAvoidingView>
     </Screen>
   );

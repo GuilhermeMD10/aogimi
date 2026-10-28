@@ -1,7 +1,9 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
+import { usePathname } from 'next/navigation';
 import { Smartphone } from 'lucide-react';
+import { isPublicRoute } from '@/features/app-shell';
 import { cn } from '@/lib/util/cn';
 
 // Hard gate: only desktops / laptops get the web app. Everything
@@ -17,6 +19,8 @@ import { cn } from '@/lib/util/cn';
 //   4. Anything else with a real touch screen (Windows tablets,
 //      Chromebooks with detachable screens) — `maxTouchPoints > 0`
 //      combined with `pointer: coarse` is the heuristic.
+// Public routes (`/privacy`) are never gated: the store listings link to
+// them, and a reviewer opens that link on a phone.
 function isTabletOrPhone(): boolean {
   if (typeof navigator === 'undefined') return false;
   // Never gate a dev server: DevTools device emulation swaps in a phone UA
@@ -57,8 +61,9 @@ const PLAY_STORE_URL = '#';
 
 export function MobileGate({ children }: { children: React.ReactNode }) {
   const blocked = useSyncExternalStore(subscribe, isTabletOrPhone, getServerSnapshot);
+  const pathname = usePathname();
 
-  if (!blocked) return <>{children}</>;
+  if (!blocked || isPublicRoute(pathname)) return <>{children}</>;
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6 py-10 font-[family-name:var(--face-ui)]">

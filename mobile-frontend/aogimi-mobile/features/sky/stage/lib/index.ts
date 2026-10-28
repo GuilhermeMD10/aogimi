@@ -9,7 +9,6 @@ export * from './cardBack';
 export {
   getAllCards,
   getCardsByDeckId,
-  getDeckCardCount,
   type DeckCardStats,
   getDeckCardStats,
   getCard,

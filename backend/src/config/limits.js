@@ -54,6 +54,11 @@ module.exports = {
     EMAIL: 254,
     /** BCP-47 tags are short; this is generous. */
     LANGUAGE: 16,
+
+    /** `GET /api/search?q=` — a headword, a sentence fragment, or a romaji
+     *  phrase. Unauthenticated, so the cap bounds the deinflection and
+     *  LIKE/trigram work one request can trigger. */
+    SEARCH_QUERY: 100,
   },
 
   // ── Array bounds ───────────────────────────────────────────────────────
@@ -82,6 +87,9 @@ module.exports = {
     /** PDF page count (int column) — well above any real book. */
     PAGE_COUNT_MAX: 100000,
     TEXT_LENGTH_MAX: 2147483647,
+    /** `words.id` is `serial` (int4). Anything above this reaches Postgres
+     *  as an out-of-range value (22003) rather than a not-found. */
+    WORD_ID_MAX: 2147483647,
     /** `cards.jlpt_level` — JLPT tiers, N5 (easiest) .. N1 (hardest), stored
      *  as the bare number. Same encoding as the dictionary side's
      *  `words.jlpt_level`. NULL is a separate, legal value meaning "unknown";

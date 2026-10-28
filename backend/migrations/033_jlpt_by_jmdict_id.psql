@@ -1,0 +1,105 @@
+-- JLPT levels by JMdict entry id — replaces the text-matched backfill of 012.
+--
+-- Source: jlptwordslist/n{1..5}.csv (stephenmk/yomitan-jlpt-vocab — Waller's
+-- lists with each word hand-mapped to its JMdict <ent_seq>; see the README in
+-- that folder). Columns: jmdict_seq,kana,kanji,waller_definition. A blank
+-- jmdict_seq means the word has no JMdict entry; those rows are skipped.
+--
+-- 012 matched by (kanji form, reading) and let a kana-only row tag every
+-- kana-only entry with that reading, so homophones got chips they shouldn't
+-- (パン "camera pan" N5, ない N5, カード N3) and spellings JMdict files
+-- differently got none. Matching on the id has neither problem.
+--
+-- Rules kept from 012:
+--   - a word on several lists gets the EASIER level (MAX numeric → N5 wins);
+--   - kanji.jlpt_level = MAX(level) across tagged words containing the literal.
+-- Idempotent: both columns are reset in full and recomputed, so a word that
+-- dropped off the lists loses its level. One transaction; the staging table is
+-- TEMP and goes with it. `\copy` paths are relative to backend/, which is where
+-- scripts/migrate.sh runs — by hand:
+--
+--   cd backend && psql "$DATABASE_URL" -f migrations/033_jlpt_by_jmdict_id.psql
+--
+-- Mobile ships the same columns inside its bundled SQLite; after this lands,
+-- rebuild it (helpers/files/build_sqlite_dict.js) or patch the existing file
+-- with mobile-frontend/aogimi-mobile/scripts/patch-dict-jlpt.mjs, which
+-- implements these exact rules.
+
+\set ON_ERROR_STOP on
+
+BEGIN;
+
+-- ── 1. Stage the five lists ──────────────────────────────────────────────────
+-- `level` is filled by column default: it is switched before each \copy so the
+-- CSVs load as-is, without a per-file shuffle through a second table.
+CREATE TEMP TABLE _jlpt_src (
+  level      smallint NOT NULL,
+  jmdict_seq int,
+  kana       text,
+  kanji      text,
+  definition text
+) ON COMMIT DROP;
+
+ALTER TABLE _jlpt_src ALTER COLUMN level SET DEFAULT 5;
+\copy _jlpt_src (jmdict_seq, kana, kanji, definition) FROM 'jlptwordslist/n5.csv' WITH (FORMAT csv, HEADER true)
+ALTER TABLE _jlpt_src ALTER COLUMN level SET DEFAULT 4;
+\copy _jlpt_src (jmdict_seq, kana, kanji, definition) FROM 'jlptwordslist/n4.csv' WITH (FORMAT csv, HEADER true)
+ALTER TABLE _jlpt_src ALTER COLUMN level SET DEFAULT 3;
+\copy _jlpt_src (jmdict_seq, kana, kanji, definition) FROM 'jlptwordslist/n3.csv' WITH (FORMAT csv, HEADER true)
+ALTER TABLE _jlpt_src ALTER COLUMN level SET DEFAULT 2;
+\copy _jlpt_src (jmdict_seq, kana, kanji, definition) FROM 'jlptwordslist/n2.csv' WITH (FORMAT csv, HEADER true)
+ALTER TABLE _jlpt_src ALTER COLUMN level SET DEFAULT 1;
+\copy _jlpt_src (jmdict_seq, kana, kanji, definition) FROM 'jlptwordslist/n1.csv' WITH (FORMAT csv, HEADER true)
+
+-- ── 2. words.jlpt_level — easier classification wins ─────────────────────────
+UPDATE words SET jlpt_level = NULL WHERE jlpt_level IS NOT NULL;
+
+WITH best AS (
+  SELECT jmdict_seq, MAX(level)::smallint AS level
+    FROM _jlpt_src
+   WHERE jmdict_seq IS NOT NULL
+   GROUP BY jmdict_seq
+)
+UPDATE words w
+   SET jlpt_level = b.level
+  FROM best b
+ WHERE b.jmdict_seq = w.jmdict_id;
+
+-- ── 3. kanji.jlpt_level — derived from tagged words, as in 012 step 4 ────────
+UPDATE kanji SET jlpt_level = NULL WHERE jlpt_level IS NOT NULL;
+
+WITH chars AS (
+  SELECT DISTINCT
+         regexp_split_to_table(wk.kanji, '') AS literal,
+         w.jlpt_level                        AS level
+    FROM words w
+    JOIN word_kanji wk ON wk.word_id = w.id
+   WHERE w.jlpt_level IS NOT NULL
+),
+filtered AS (
+  -- Only keep CJK Unified Ideographs (主 etc.), drop punctuation / kana that
+  -- might have ended up in a `kanji` column.
+  SELECT literal, level
+    FROM chars
+   WHERE literal ~ '[一-鿿㐀-䶿]'
+),
+best AS (
+  SELECT literal, MAX(level)::smallint AS level
+    FROM filtered
+   GROUP BY literal
+)
+UPDATE kanji k
+   SET jlpt_level = b.level
+  FROM best b
+ WHERE b.literal = k.literal;
+
+-- ── 4. Sanity — staged ids with no words row should be 0 ─────────────────────
+SELECT COUNT(DISTINCT s.jmdict_seq) AS unmatched_ids
+  FROM _jlpt_src s
+  LEFT JOIN words w ON w.jmdict_id = s.jmdict_seq
+ WHERE s.jmdict_seq IS NOT NULL AND w.id IS NULL;
+
+SELECT jlpt_level, COUNT(*) AS words FROM words GROUP BY jlpt_level ORDER BY jlpt_level;
+SELECT jlpt_level, COUNT(*) AS kanji FROM kanji GROUP BY jlpt_level ORDER BY jlpt_level;
+
+COMMIT;

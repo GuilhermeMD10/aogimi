@@ -22,18 +22,3 @@ export function ChevronLeftIcon({ size = 20, color }: { size?: number; color: st
     </Svg>
   );
 }
-
-/** The same glyph pointing down — a disclosure caret on a chip or a row. */
-export function ChevronDownIcon({ size = 20, color }: { size?: number; color: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 20 20" fill="none">
-      <Path
-        d="M5 7.5l5 5 5-5"
-        stroke={color}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
