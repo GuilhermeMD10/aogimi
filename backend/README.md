@@ -40,16 +40,24 @@ That runs every numbered migration (`000_…` through the latest) in
 order with `ON_ERROR_STOP=on`, so a single SQL failure halts the run
 loudly instead of letting the chain limp through with half the schema.
 
-`011_jlpt_seed.psql` is a `psql` metacommand script (`\copy`) — it
+`033_jlpt_by_jmdict_id.psql` is a `psql` metacommand script (`\copy`) — it
 loads `backend/jlptwordslist/*.csv` relative to the backend directory.
 The runner `cd`s there for you; if you invoke `psql` by hand, make
-sure your working directory is `backend/`.
+sure your working directory is `backend/`. It only tags rows that
+exist, so on a database whose dictionary is seeded *after* the chain
+ran, re-run that one file (idempotent).
 
-If you've already applied migrations against this DB and just want the
-chain to be a no-op verification, re-running the script is safe —
-every statement is idempotent (`IF NOT EXISTS`, `IF NOT EXISTS` on
-indexes, etc.) except for the destructive cutover migrations (021,
-reset_user_data).
+**Re-running the whole chain on an existing DB is not safe**: `021`
+drops every user-data table and `027` resets FSRS state, and the
+runner doesn't track what's applied. So the script refuses to run
+against a DB that already has a `users` table unless you tell it
+where to start:
+
+```bash
+DATABASE_URL='postgresql://…' ./scripts/migrate.sh --from 033   # 033 and above only
+```
+
+A fresh DB (no `users` table) still runs the full chain with no flag.
 
 Run:
 
@@ -100,7 +108,6 @@ src/
 │   ├── bookService.js,
 │   ├── deckService.js, cardService.js,
 │   ├── studyService.js, statsService.js,
-│   ├── assembler.js        # Turns flat row tuples into the WordResult API shape
 │   └── searchService.js    # Query routing: kanji / kana / romaji / English
 │
 ├── repositories/          # Raw SQL only
@@ -146,7 +153,8 @@ indistinguishable from "doesn't exist", preventing id enumeration. See
 Numbered `.sql` / `.psql` files in `migrations/`. The shipped runner is
 [`scripts/migrate.sh`](./scripts/migrate.sh); it applies every file in
 order with `ON_ERROR_STOP=on`. Order matters — files are applied
-lexicographically.
+lexicographically. On a DB that already has a `users` table it refuses
+to run without `--from NNN` (see *Apply migrations* above).
 
 Key files:
 - `000_dict_init.sql` — base dict tables (`words`, `kanji`, `names`,
@@ -156,9 +164,11 @@ Key files:
 - `003_users.sql` — original users table (now superseded by 021).
 - `004_app_entities.sql` — books, decks, cards.
 - `006_book_identity_and_devices.sql` — fingerprints + devices.
-- `010_jlpt_levels.sql` + `011_jlpt_seed.psql` — JLPT word bucketing.
-  011 loads CSVs from `backend/jlptwordslist/` via `\copy`; only works
-  when the runner's cwd is `backend/` (the runner handles this).
+- `010_jlpt_levels.sql` + `033_jlpt_by_jmdict_id.psql` — JLPT word bucketing.
+  033 loads CSVs from `backend/jlptwordslist/` via `\copy` and sets
+  `words.jlpt_level` by JMdict entry id (011/012, the old text-matched
+  seed, are no-ops); only works when the runner's cwd is `backend/`
+  (the runner handles this).
 - `021_auth_hardening.sql` — clean-slate cutover to bcrypt + JWT + email index.
 - `022_card_srs.sql` — SRS columns + `card_reviews`/`study_days`/
   `user_study_prefs`.

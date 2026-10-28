@@ -4,22 +4,19 @@
     "cancel": "Cancel",
     "save": "Save",
     "delete": "Delete",
-    "done": "Done",
-    "continue": "Continue",
-    "loading": "Loading…",
-    "retry": "Try again",
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "show": "Show",
+    "hide": "Hide",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "auth": {
     "welcome": {
       "headline": "Read Japanese\nwith confidence.",
       "tagline": "Tap any word to see its meaning, save it to flashcards, and study in context.",
       "signIn": "Sign in",
-      "createAccount": "Create account",
-      "google": "Google",
-      "apple": "Apple"
+      "createAccount": "Create account"
     },
-    "orContinueWith": "or continue with",
     "signIn": {
       "title": "Sign in",
       "username": "Username",
@@ -59,30 +56,14 @@
     }
   },
   "home": {
-    "title": "Reader",
-    "continueReading": "Continue reading",
-    "importEpub": "Import EPUB",
-    "empty": "No books yet",
-    "resumeReading": "Resume reading",
     "brand": "Aogimi",
     "streak": "{count}日目",
-    "progressRead": "{pct}% read",
     "cardsDueTitle": "{count} Cards Due",
     "startReview": "Start Review",
     "dueBadge": "{count} DUE",
     "searchLabel": "Open the dictionary"
   },
   "reader": {
-    "define": "Define",
-    "flashcard": "Flashcard",
-    "copy": "Copy",
-    "toolbar": {
-      "size": "Size",
-      "lineHeight": "Line height",
-      "font": "Font",
-      "margin": "Margin",
-      "vertical": "Vertical"
-    },
     "back": "Back to library",
     "notFound": "Book not found",
     "missingTitle": "File not on this device",
@@ -97,8 +78,7 @@
     "selection": {
       "addCard": "Add card",
       "lookUp": "Dictionary",
-      "copy": "Copy",
-      "dismiss": "Dismiss selection"
+      "copy": "Copy"
     },
     "toc": {
       "eyebrow": "Contents",
@@ -124,10 +104,8 @@
     }
   },
   "dict": {
-    "title": "Dictionary",
     "search": "Search Japanese, romaji, or English",
     "empty": "Start typing to search",
-    "addFlashcard": "Add flashcard",
     "addToDeck": "Add to deck",
     "fieldPlaceholder": "言葉を引く · look up a word…",
     "clearSearch": "Clear search",
@@ -149,17 +127,9 @@
     "backToResults": "Back to results"
   },
   "decks": {
-    "title": "Decks",
-    "new": "New deck",
-    "cards": "{count} cards",
-    "studyNow": "Study now",
-    "rename": "Rename",
-    "delete": "Delete deck",
-    "studyAllHardest": "Study hardest across all decks",
-    "studyAllHardestHint": "Pulls the hardest cards from every deck"
+    "new": "New deck"
   },
   "study": {
-    "tapToReveal": "Tap to reveal",
     "again": "Again",
     "hard": "Hard",
     "good": "Good",
@@ -170,8 +140,6 @@
     "studyAgain": "Study again",
     "backToDeck": "Back to deck",
     "finish": {
-      "cardsReviewed": "cards reviewed",
-      "progression": "Progression",
       "hardest": "Hardest cards",
       "title": "Session complete",
       "minutes": "{n} MIN",
@@ -187,43 +155,12 @@
       "upgradesMeta": "{n} ADVANCED",
       "more": "{n} more"
     },
-    "changes": {
-      "firstReviewed": "{n} first reviewed",
-      "advanced": "{n} advanced to learned",
-      "reachedMastered": "{n} reached mastered",
-      "regressedToMet": "{n} regressed to met",
-      "regressedToLearned": "{n} regressed to learned"
-    },
-    "hardest": {
-      "again": "{n}× missed"
-    },
-    "state": {
-      "new": "new",
-      "met": "met",
-      "learned": "learned",
-      "mastered": "mastered"
-    },
-    "mode": {
-      "hardest": "Hardest → New",
-      "random": "Full random",
-      "oldest_first": "Oldest first",
-      "oldest_only": "Oldest only",
-      "newest_only": "New only",
-      "by_creation": "By creation date"
-    },
-    "dueCount": "{n} due now",
     "nothingDue": "Nothing due — all caught up",
     "allDecks": "All decks",
     "progress": "{done} / {total} · {left} left",
     "revealCard": "Reveal card",
     "revealHint": "Tap reveal to see the back",
     "showFront": "Show the front"
-  },
-  "sessionConfig": {
-    "title": "Session settings",
-    "mode": "Mode",
-    "size": "Cards per session",
-    "sizeHint": "Between {min} and {max}"
   },
   "stats": {
     "animal": {
@@ -240,11 +177,9 @@
   },
   "profile": {
     "title": "You",
-    "editProfile": "Edit profile",
     "account": "Account",
     "username": "Username",
     "language": "Language",
-    "currentlyReading": "Currently reading",
     "signOut": "Sign out",
     "changeAvatar": "Change avatar",
     "signedOut": {
@@ -261,10 +196,65 @@
     "title": "Settings",
     "help": "Help",
     "credits": "Credits",
+    "privacy": "Privacy policy",
     "groupAppearance": "APPEARANCE",
     "groupStudy": "STUDY",
     "groupAbout": "ABOUT",
-    "signOutConfirm": "Sign out of this device?"
+    "signOutConfirm": "Sign out of this device?",
+    "deleteAccount": "Delete account",
+    "deleteAccountConfirmTitle": "Delete your account?",
+    "deleteAccountConfirmBody": "This is permanent. Your decks, cards, study history and reading progress are erased from the server, and the books stored on this phone are removed. It can't be undone.",
+    "deleteAccountFailed": "Couldn't delete your account"
+  },
+  "help": {
+    "intro": {
+      "heading": "What is Aogimi?",
+      "body": "Aogimi is a Japanese reading and vocabulary companion. Open an EPUB or PDF, look up any word in the built-in dictionary, save the ones you want to remember as cards, and study them as stars in your sky.",
+      "tabs": "The bar at the bottom has four tabs: Home, Reader, Dictionary and Sky. Your profile opens from the picture at the top of Home, and Settings is inside your profile."
+    },
+    "reading": {
+      "heading": "Reading a book",
+      "library": "Your books are in the Reader tab. Tap Add Book to import an EPUB or PDF, then tap a cover to open it. The … on a cover lets you rename the book, delete it or sync it.",
+      "lookup": "To look up a word, press and hold it, dragging to extend the selection if you need to. When you let go, the button at the bottom of the page becomes three actions: Add card, Dictionary and Copy.",
+      "dock": "At any other time, tap that button for the table of contents, the reader settings and the dictionary. PDFs and image-only books such as manga have no text to select, so open the dictionary from there and type the word. The back button at the top left returns to your library."
+    },
+    "dictionary": {
+      "heading": "Dictionary",
+      "body": "The dictionary is built into the app and works offline. Search in Japanese, romaji or English from the Dictionary tab or from Home, or tap Dictionary on a selection in the reader. Results are grouped into words, kanji and names. An entry shows its meanings and, where there are any, its pitch accent, the kanji it uses and an example sentence; Add to deck saves it as a card.",
+      "sources": "Word entries come from JMdict, kanji from KANJIDIC2, names from JMnedict, and example sentences and pitch accents from the Kanjium project. Settings › Credits lists them in full."
+    },
+    "sky": {
+      "heading": "Decks and your sky",
+      "body": "There’s no separate decks page: your decks live in the Sky tab. Each deck is a constellation and each card a star. When you save a card — Add card in the reader, or Add to deck in the dictionary — you choose its deck, or make a new one, right there.",
+      "using": "Tap a constellation to fly into its deck, and tap a star to see its card. Press and hold a constellation to edit the deck, see its stats or delete it. List shows every card in a deck, and the … at the top of the sky makes a new deck. The Sky needs you to be signed in."
+    },
+    "study": {
+      "heading": "Studying",
+      "body": "Continue Studying in the Sky, or Start Review on Home, gives you the cards that are due across all your decks; Study deck does the same for one deck. Reveal each card, then grade how well you remembered it — Again, Hard, Good or Easy — and Aogimi schedules its next review from that.",
+      "due": "Only due cards are offered, because answering a card before it’s due doesn’t change its schedule. As you study, a card moves from New through Met and Learned to Mastered. To choose what a card shows while you study, open Settings › Study display."
+    },
+    "account": {
+      "heading": "Your account",
+      "body": "Without an account, your books and decks stay on this device. New sign-ups are closed for now; if you already have an account, sign in from your profile.",
+      "delete": "Sign out and Delete account are at the bottom of Settings. Deleting your account permanently erases your decks, cards, study history and reading progress from the server, and removes the books stored on this phone."
+    },
+    "sync": {
+      "heading": "How sync works",
+      "body": "When you’re signed in, your reading positions, decks and cards are saved to your account. Each device keeps its own copy and syncs with your account when it’s online. Book files stay on the device you imported them on: on another device, import the same file and you pick up where you left off.",
+      "legend": "The badge in the corner of each book’s cover shows where that book stands:",
+      "synced": {
+        "title": "Synced",
+        "body": "A small green dot: this book’s progress is synced across your devices."
+      },
+      "unsynced": {
+        "title": "Not synced",
+        "body": "The book was imported offline, or recent reading progress hasn’t reached your account yet. When you’re online, use Sync now in the book’s … menu."
+      },
+      "toImport": {
+        "title": "On your account",
+        "body": "Your progress is on your account, but the file isn’t on this device yet. Tap the book to import the file."
+      }
+    }
   },
   "studyDisplay": {
     "title": "Study display",
@@ -322,7 +312,6 @@
     "availableOnly": "Available only",
     "filterLabel": "Toggle available-only filter",
     "continueReading": "Continue Reading",
-    "progress": "Progress",
     "resume": "Resume Reading",
     "notOnDevice": "Not on this device",
     "notOnDeviceHint": "Not on this device — tap to import",
@@ -337,7 +326,6 @@
     }
   },
   "card": {
-    "eyebrow": "New star",
     "title": "Add card",
     "front": "Front",
     "back": "Back",
@@ -348,7 +336,6 @@
     "deck": "Deck",
     "newDeck": "New deck",
     "deckName": "Deck name",
-    "pickExisting": "Pick an existing deck",
     "submit": "Add to sky",
     "wordPlaceholder": "言葉",
     "readingPlaceholder": "ことば",
@@ -421,8 +408,7 @@
       "due": "Due",
       "empty": "No cards yet.",
       "noMatches": "No cards match.",
-      "notFound": "Deck not found",
-      "moreSoon": "More actions (coming soon)"
+      "notFound": "Deck not found"
     }
   }
 }

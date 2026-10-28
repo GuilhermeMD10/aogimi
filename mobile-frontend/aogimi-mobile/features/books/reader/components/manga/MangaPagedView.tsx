@@ -109,19 +109,20 @@ export const MangaPagedView = forwardRef<MangaPagedViewHandle, Props>(function M
 
   const keyExtractor = useCallback((item: MangaSpineEntry) => String(item.spineIndex), []);
 
+  // Error first: a failed prepare leaves `handle` null too.
+  if (error) {
+    return (
+      <View style={[styles.center, { backgroundColor: shellBg }]}>
+        <Text style={styles.statusText}>{error}</Text>
+      </View>
+    );
+  }
+
   if (loading || !handle) {
     return (
       <View style={[styles.center, { backgroundColor: shellBg }]}>
         <ActivityIndicator color="#FFFFFF" />
         <Text style={styles.statusText}>Preparing pages…</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={[styles.center, { backgroundColor: shellBg }]}>
-        <Text style={styles.statusText}>{error}</Text>
       </View>
     );
   }

@@ -35,7 +35,7 @@ export default function CreditsView() {
         <div key={section.heading}>
           <Eyebrow className="mb-3">{section.heading}</Eyebrow>
           {section.blurb && (
-            <p className="mb-3 max-w-[62ch] text-[13px] leading-[1.5] text-(--ink-3)">
+            <p className="mb-3 max-w-[62ch] text-[13px] leading-[1.5] whitespace-pre-line text-(--ink-3)">
               {section.blurb}
             </p>
           )}

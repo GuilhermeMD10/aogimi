@@ -213,6 +213,3 @@ export function glassWash(p: Palette, isNight: boolean): GlassWash {
     blurTint: g.blurTint,
   };
 }
-
-/** @deprecated Read `glassTier(...).blurIntensity`. */
-export const BLUR_INTENSITY = BLUR_BY_TIER[2];

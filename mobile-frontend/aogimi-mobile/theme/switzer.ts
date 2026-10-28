@@ -20,7 +20,7 @@
 /**
  * Font-family name → asset, in the shape `useFonts()` takes.
  *
- * The keys are the names `tokens.ts`'s `FONT_FAMILIES.switzer` uses, so they
+ * The keys are the names `tokens.ts`'s `SWITZER` table uses, so they
  * have to match it exactly — a typo here does not fail the build, it silently
  * registers a family nothing asks for.
  *

@@ -194,8 +194,8 @@ needs and does not have.** The rules that make that safe:
 Recommended first-session order (Home): `tokens.ts` palette + groups → `Screen`
 canvas + stars → `glass.ts` tiers → `Glass` / `Card` / `Button` / `IconButton`
 / `Chip` / `ProgressBar` / `Eyebrow` → then the screen. Put a **dev gallery
-route** at `/profile/settings/design-lab` (next to the existing dock lab,
-behind the same `__DEV__ || EXPO_PUBLIC_DEV_TOOLS` gate) mounting every
+route** at `/profile/settings/design-lab` (behind a
+`__DEV__ || EXPO_PUBLIC_DEV_TOOLS` gate) mounting every
 primitive in both themes; every later agent adds theirs to it. It is the one
 place the owner can eyeball the foundation.
 
@@ -288,7 +288,7 @@ place the owner can eyeball the foundation.
 | `useColors()` callers | 49 files (the migration metric) |
 
 Uncommitted in the tree at the time of writing: the dock cluster rework
-(`DockBar`, `DockItem`, `dockGeometry`, `dockLab/`, `dock-lab.tsx`),
+(`DockBar`, `DockItem`, `dockGeometry`),
 `SkyCanvas` / `SkyStars` edits, `haptics.ts`, `build-ios.sh`. The owner owns
 those; leave them alone.
 

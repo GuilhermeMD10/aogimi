@@ -19,13 +19,19 @@ const ABOUT_ROWS = [
     jp: '',
     description: 'The language data, typefaces, and open-source software this app ships.',
   },
+  {
+    href: '/privacy',
+    label: 'Privacy policy',
+    jp: '',
+    description: 'What the app stores about you, where, and how to delete it.',
+  },
 ] as const;
 
 /**
  * Every setting the app has, as one running list. It sits beside the account
  * card on /profile, and the two together are the whole account surface: there
- * is no standalone settings page, and Help and Credits (their own routes) are
- * entered from here.
+ * is no standalone settings page, and Help, Credits and the privacy policy
+ * (their own routes) are entered from here.
  *
  * A single `GlassCard` rather than a card per group, deliberately: five rows
  * across four unrelated concerns did not need four surfaces to separate them,

@@ -34,16 +34,6 @@ export async function getCardsByDeckId(deckId: string): Promise<LocalCard[]> {
   return all.filter((c) => c.deck_id === deckId);
 }
 
-/**
- * Visible card count for a deck — same filter the deck-detail page
- * applies (excludes soft-deleted cards). Used by the decks list so
- * the count it shows matches what the detail page would render.
- */
-export async function getDeckCardCount(deckId: string): Promise<number> {
-  const cards = await getCardsByDeckId(deckId);
-  return cards.filter((c) => c.pendingOp !== 'delete').length;
-}
-
 export type DeckCardStats = {
   total: number;
   new: number;
@@ -56,8 +46,7 @@ const EMPTY_STATS: DeckCardStats = { total: 0, new: 0, met: 0, learned: 0, maste
 
 /**
  * Per-state breakdown for a deck. Drives the small state-counts row
- * shown on the deck tile + detail page. Excludes delete-pending cards
- * (same filter as `getDeckCardCount`).
+ * shown on the deck tile + detail page. Excludes delete-pending cards.
  */
 export async function getDeckCardStats(deckId: string): Promise<DeckCardStats> {
   const cards = await getCardsByDeckId(deckId);

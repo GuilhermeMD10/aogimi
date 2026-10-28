@@ -185,10 +185,6 @@ export async function clearSessionPending(id: string): Promise<void> {
   await writePendingSet(set);
 }
 
-export async function clearAllSessionPending(): Promise<void> {
-  await writePendingSet(new Set());
-}
-
 export async function clearSyncedBookCache(): Promise<void> {
   try {
     await AsyncStorage.multiRemove([CACHE_KEY, PENDING_KEY]);

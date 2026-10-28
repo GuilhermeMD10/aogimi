@@ -41,9 +41,11 @@ export function ResultCard({
   const styles = useStyles(p);
 
   const headword = preferredHeadword(word, query);
-  // Only show a reading when the headword is a kanji form — for a kana entry
-  // the reading *is* the headword and repeating it reads as a mistake.
-  const reading = word.kanji.length > 0 ? word.readings[0]?.form ?? null : null;
+  // Only show a reading that differs from the headword — for a kana entry, or
+  // a kanji entry `preferredHeadword` showed in kana, the reading *is* the
+  // headword and repeating it reads as a mistake.
+  const firstReading = word.readings[0]?.form ?? null;
+  const reading = firstReading !== headword ? firstReading : null;
   const gloss = word.meanings
     .filter((m) => isEnglish(m.lang))
     .slice(0, 3)

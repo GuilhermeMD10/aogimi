@@ -40,10 +40,11 @@ const FILTERS: readonly Filter[] = ['all', 'due', ...MIX_ORDER];
  * card and the counts endpoint returns totals. The two can differ by a card
  * for a moment after a review lands; they converge on the next focus.
  *
- * ── The `…` in the header is a placeholder ─────────────────────────────────
- * Owner's call: the deck-level menu on this screen is not wired yet, so the
- * button is present and inert rather than absent. The per-card `…` inside an
- * open row is live (delete).
+ * ── No deck menu in the header ─────────────────────────────────────────────
+ * The header's trailing slot is empty. The deck's menu (edit, stats, delete)
+ * lives on the focused deck's header one Back away, and hosting it here too
+ * would mean re-syncing the stage after a rename or delete made underneath it.
+ * The per-card `…` inside an open row is live (delete).
  */
 export function CardsListScreen({ deckId }: { deckId: string }) {
   return (
@@ -135,9 +136,6 @@ function CardsList({ deckId }: { deckId: string }) {
         }
         onBack={() => router.back()}
         backLabel={t('sky.backToDeck')}
-        onMore={() => {}}
-        moreLabel={t('sky.cards.moreSoon')}
-        moreDisabled
       />
 
       {loading ? (

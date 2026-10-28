@@ -19,7 +19,6 @@
 //     ordering rules in PgSearchIndex.hydrate (priority-weighted kanji
 //     and reading sort) can be applied here too.
 
-import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDictionary } from './openDictionary';
 
 // ── Scored row shapes (return values) ──────────────────────────────────────
@@ -644,9 +643,4 @@ export async function findExampleSentences(
     `,
     [...forms, ...forms, limit],
   );
-}
-
-// Re-export the db getter for callers that need raw access (rare).
-export async function getDb(): Promise<SQLiteDatabase> {
-  return getDictionary();
 }

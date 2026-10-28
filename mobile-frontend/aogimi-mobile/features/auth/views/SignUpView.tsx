@@ -11,15 +11,7 @@ import { useRouter } from 'expo-router';
 import { useColors, fontFamily, fontSize, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-
-/**
- * Mirrors the backend's `return res.status(403)` at the top of the register
- * handler. Flip both to reopen sign-ups — this one so the form is offered at
- * all, that one so the request gets past the door. Kept as a constant rather
- * than probing the endpoint: a closed door is a deployment fact, not something
- * worth a round trip on every screen mount.
- */
-const REGISTRATION_OPEN = false;
+import { REGISTRATION_OPEN } from '../lib/authApi';
 
 /**
  * Client-side validation mirrors `backend/src/validation/auth.js` — the same

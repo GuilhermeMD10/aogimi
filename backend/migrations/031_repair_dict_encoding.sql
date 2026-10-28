@@ -402,8 +402,8 @@ UPDATE word_readings wr
 -- 012_jlpt_backfill.sql joins word_kanji.kanji + word_readings.kana against the
 -- staged CSV rows; a corrupted reading missed the join and left jlpt_level NULL.
 -- This sets only words.jlpt_level. kanji.jlpt_level is derived as a MAX across
--- every matched word, so re-run 011_jlpt_seed.psql + 012_jlpt_backfill.sql if
--- you want that recomputed too (both are idempotent).
+-- every matched word; 033_jlpt_by_jmdict_id.psql recomputes both from entry
+-- ids and supersedes this fix.
 WITH fixes(jmdict_id, level) AS (VALUES
   (1430220, 3)
 )

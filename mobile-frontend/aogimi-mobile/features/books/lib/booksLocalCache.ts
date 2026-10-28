@@ -31,10 +31,6 @@ export function setLocalProgress(bookId: string, patch: LocalProgressPatch): voi
   notify();
 }
 
-export function getLocalProgress(bookId: string): LocalProgressPatch | undefined {
-  return patches.get(bookId);
-}
-
 export function clearLocalProgress(bookId?: string): void {
   if (bookId) patches.delete(bookId);
   else patches.clear();

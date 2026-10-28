@@ -59,7 +59,7 @@ outlive a screen.
 
 | Cache | What | Reset hook |
 |---|---|---|
-| `lib/mangaPages.ts` `cachedHandle` | Session-cached `MangaSpineHandle` so revisiting the same manga skips the EPUB read | `releaseCachedMangaHandle()`, also dropped by `evictBookCache(bookId)` if matched |
+| `lib/mangaPages.ts` `cachedHandle` | Session-cached `MangaSpineHandle` so revisiting the same manga skips the EPUB read | Dropped by `evictBookCache(bookId)` if matched, and by `wipeMangaCache()` |
 | `lib/epubCover.ts` `memCache` | filename → cover URI map (null = "tried, no cover") | `deleteCoverFor(filename)` / `wipeAllCovers()` |
 | `lib/dictCache.ts` | Dictionary search + word lookup results | `clearDictionaryCaches()` |
 | `lib/booksLocalCache.ts` | Optimistic `{progress, cfi, lastReadAt}` patch the reader writes on back-press, merged into the library list by `useBooks` until the next refresh reconciles | `clearLocalProgress(bookId?)` |

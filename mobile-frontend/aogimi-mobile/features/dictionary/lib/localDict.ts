@@ -204,7 +204,9 @@ export async function searchLocal(
     };
   }
 
-  throw new Error('Enter a kanji, kana, or English word.');
+  // Matches no search path (one Latin letter mid-word, digits, symbols) —
+  // nothing to find yet, which is an empty page, not a failure.
+  return { type: 'meaning', words: [], hasMore: false };
 }
 
 export async function getWordDetailsLocal(id: number): Promise<WordDetails> {

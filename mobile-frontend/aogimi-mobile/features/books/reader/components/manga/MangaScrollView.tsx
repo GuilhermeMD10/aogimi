@@ -271,19 +271,20 @@ export const MangaScrollView = forwardRef<MangaScrollViewHandle, Props>(function
     [estimatedItemHeight],
   );
 
+  // Error first: a failed prepare leaves `handle` null too.
+  if (error) {
+    return (
+      <View style={[styles.center, { backgroundColor: shellBg }]}>
+        <Text style={styles.statusText}>{error}</Text>
+      </View>
+    );
+  }
+
   if (loading || !handle) {
     return (
       <View style={[styles.center, { backgroundColor: shellBg }]}>
         <ActivityIndicator color="#FFFFFF" />
         <Text style={styles.statusText}>Preparing pages…</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={[styles.center, { backgroundColor: shellBg }]}>
-        <Text style={styles.statusText}>{error}</Text>
       </View>
     );
   }

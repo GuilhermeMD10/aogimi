@@ -31,9 +31,7 @@ import {
   type Palette,
   type Theme,
   type ThemeColors,
-  type ThemeFonts,
   type ThemeName,
-  type ThemeShape,
 } from './tokens';
 
 /** What the user picked. `'system'` defers to the OS; the other two override it. */
@@ -45,6 +43,16 @@ const STORAGE_KEY = 'aogimi_theme_name';
 
 const PREFERENCES: readonly ThemePreference[] = ['system', 'day', 'night'];
 
+/**
+ * **v1 ships Day only.** Screens the redesign has not reached still hardcode
+ * Day ink and read broken on Night, so the app-level theme resolves to Day
+ * whatever the preference says. The stored preference is left untouched, which
+ * makes flipping this to `true` the whole re-enable (Settings hides its
+ * Appearance row off the same switch). `ThemeScope` pins are not resolved
+ * here, so the sky stays Night.
+ */
+export const NIGHT_ENABLED = false;
+
 function isPreference(v: unknown): v is ThemePreference {
   return typeof v === 'string' && (PREFERENCES as readonly string[]).includes(v);
 }
@@ -52,8 +60,6 @@ function isPreference(v: unknown): v is ThemePreference {
 type ThemeContextValue = {
   theme: Theme;
   colors: ThemeColors;
-  fonts: ThemeFonts;
-  shape: ThemeShape;
   palette: Palette;
   /** The resolved theme — `'system'` has already been turned into one of these. */
   themeName: ThemeName;
@@ -89,16 +95,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     void saveJSON(STORAGE_KEY, next);
   }, []);
 
-  const themeName: ThemeName =
+  const preferred: ThemeName =
     preference === 'system' ? (scheme === 'dark' ? 'night' : 'day') : preference;
+  const themeName: ThemeName = NIGHT_ENABLED ? preferred : 'day';
 
   const value = useMemo<ThemeContextValue>(() => {
     const theme = THEMES[themeName];
     return {
       theme,
       colors: theme.colors,
-      fonts: theme.fonts,
-      shape: theme.shape,
       palette: PALETTES[themeName],
       themeName,
       preference,
@@ -133,8 +138,6 @@ export function ThemeScope({ name, children }: { name: ThemeName; children: Reac
       ...parent,
       theme,
       colors: theme.colors,
-      fonts: theme.fonts,
-      shape: theme.shape,
       palette: PALETTES[name],
       themeName: name,
     };
@@ -165,12 +168,4 @@ export function useColors(): ThemeColors {
   return useTheme().colors;
 }
 
-export function useFonts(): ThemeFonts {
-  return useTheme().fonts;
-}
-
-export function useShape(): ThemeShape {
-  return useTheme().shape;
-}
-
-export type { ThemeColors, Theme, ThemeFonts, ThemeShape, Palette, ThemeName } from './tokens';
+export type { ThemeColors, Theme, Palette, ThemeName } from './tokens';

@@ -340,7 +340,7 @@ GET /api/search?q=…
 forms, readings with pitch accents, and meanings, each ordered by a per-form priority score
 computed in SQL. That per-form scoring is what makes `kanji[0]` the canonical spelling (言う, not
 云う) even when both live under the same `word_id`. The weights match migration 008's word-level
-scoring and `assembler.js`'s `priorityScore`, so the search list and the detail page agree.
+scoring, so the search list and the detail page agree.
 
 `annotateKanjiGrades` collects every unique CJK character across all results and resolves grades
 in one round trip regardless of result count — the obvious N+1 in this pipeline, avoided.

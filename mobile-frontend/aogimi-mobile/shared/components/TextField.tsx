@@ -3,6 +3,7 @@ import { StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } fro
 import { Touchable } from './Touchable';
 import { InnerPlate } from './Card';
 import { usePalette, spacing, type, type Palette } from '@/theme';
+import { useT } from '@/lib/i18n/I18nContext';
 
 /** DESIGN.md's input: a 44pt control. `multiline` grows from it rather than
  *  being a different shape. */
@@ -76,6 +77,7 @@ export function TextField({
   style,
 }: Props) {
   const p = usePalette();
+  const t = useT();
   const s = useStyles(p);
   const [hidden, setHidden] = useState(Boolean(secure));
 
@@ -108,8 +110,14 @@ export function TextField({
           ]}
         />
         {secure && (
-          <Touchable onPress={() => setHidden((h) => !h)} minTarget={false} hitSlop={8}>
-            <Text style={s.toggle}>{hidden ? 'Show' : 'Hide'}</Text>
+          <Touchable
+            onPress={() => setHidden((h) => !h)}
+            minTarget={false}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t(hidden ? 'common.showPassword' : 'common.hidePassword')}
+          >
+            <Text style={s.toggle}>{t(hidden ? 'common.show' : 'common.hide')}</Text>
           </Touchable>
         )}
       </InnerPlate>

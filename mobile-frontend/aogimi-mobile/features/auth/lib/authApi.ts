@@ -15,6 +15,16 @@ export type AuthSuccess = {
 const PUBLIC: AuthFetchOptions = { skipAuth: true };
 
 /**
+ * Mirrors the backend's `return res.status(403)` at the top of the register
+ * handler. Flip both to reopen sign-ups — this one so the form (and every
+ * "create account" entry point) is offered at all, that one so the request
+ * gets past the door. Kept as a constant rather than probing the endpoint: a
+ * closed door is a deployment fact, not something worth a round trip on every
+ * screen mount.
+ */
+export const REGISTRATION_OPEN = false;
+
+/**
  * **`email` is required** as of the auth redesign — `registerSchema` in
  * `backend/src/validation/auth.js` rejects a body without it. `users.email` is
  * still a nullable column (pre-redesign accounts have none and there is nothing
@@ -22,7 +32,7 @@ const PUBLIC: AuthFetchOptions = { skipAuth: true };
  * the schema. It is stored, not used to authenticate: login stays username-keyed.
  *
  * **The endpoint is closed.** `POST /api/auth/register` answers 403 before it
- * validates anything — see `REGISTRATION_OPEN` in `app/(auth)/signup.tsx`, which
+ * validates anything — see `REGISTRATION_OPEN` above, which
  * mirrors that state so the form isn't offered. This function is kept correct
  * and complete so reopening is a backend edit plus flipping that constant.
  */

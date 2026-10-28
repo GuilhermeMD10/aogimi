@@ -1,3 +1,4 @@
+const { STATUS_CODES } = require("http");
 const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
@@ -77,7 +78,9 @@ app.use(
       if (isAllowedOrigin(origin)) return cb(null, true);
       return cb(new Error(`CORS: origin not allowed: ${origin}`));
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    // PATCH: the web edits profiles (`PATCH /api/user`) and book titles
+    // (`PATCH /api/books/:id`) — without it the preflight fails.
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Accept", "Content-Type", "Authorization"],
     // Allow the browser to send the httpOnly refresh cookie on
     // /auth/refresh and /auth/logout. With a function `origin`, the cors
@@ -131,6 +134,10 @@ app.use("/api/stats", authenticateJWT, statsRouter);
 //     → 404, matching the "unknown id looks like not-found" design. Most
 //     such cases are already handled in services/ownership.js; this is the
 //     backstop for any other path.
+//   - An error carrying a 4xx `status` (body-parser's 413 for a body over
+//     the 10 KB cap, 400 for malformed JSON) keeps that status with the
+//     standard reason phrase — never the parser's message, which echoes
+//     the body back.
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
@@ -139,6 +146,10 @@ app.use((err, req, res, next) => {
   }
   if (err && err.code === "22P02") {
     return res.status(404).json({ error: "Not found" });
+  }
+  const status = err?.status ?? err?.statusCode;
+  if (Number.isInteger(status) && status >= 400 && status < 500) {
+    return res.status(status).json({ error: STATUS_CODES[status] });
   }
   console.error("[error]", err?.code || "", err?.message || err);
   return res.status(500).json({ error: "Internal server error" });

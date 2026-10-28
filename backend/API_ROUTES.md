@@ -71,13 +71,13 @@ again, delete that one `return` rather than rewriting the handler.
 
 | Method | Path | Body / Params | Response | DB Tables |
 |---|---|---|---|---|
-| GET | `/api/search?q=食べる` | `q` (required) | Unified search: words, names, kanji | words, kanji, names |
+| GET | `/api/search?q=食べる` | `q` (required; a single string, trimmed, 1–100 chars — `TEXT.SEARCH_QUERY`) | Unified search: words, names, kanji. **400** when `q` is missing, empty, not a single string (`?q=a&q=b`), or over the cap | words, kanji, names |
 
 ### Words
 
 | Method | Path | Params | Response | DB Tables |
 |---|---|---|---|---|
-| GET | `/api/words/:id/details` | `id` | Word + kanji breakdown + readings (with pitchAccents) + ≤ 5 example sentences | words, kanji, example_sentences |
+| GET | `/api/words/:id/details` | `id` (positive int4, ≤ `NUMBERS.WORD_ID_MAX`) | Word + kanji breakdown + readings (with pitchAccents) + ≤ 5 example sentences. **400** `Invalid id` when out of range or not an integer | words, kanji, example_sentences |
 
 > Kanji and name data reach clients through the ranked search pipeline, which
 > returns them inline for single-kanji and kana queries — there are no separate

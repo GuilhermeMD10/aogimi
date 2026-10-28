@@ -7,6 +7,7 @@
 // users on the same NAT.
 
 const { Router } = require("express");
+const { asyncHandler } = require("../middleware/asyncHandler");
 const rateLimit = require("express-rate-limit");
 const { ipKeyGenerator } = require("express-rate-limit");
 const authService = require("../services/authService");
@@ -107,7 +108,7 @@ const registerLimiter = rateLimit({
 
 // ── Routes ───────────────────────────────────────────────────────────────
 
-router.post("/register", registerLimiter, async (req, res) => {
+router.post("/register", registerLimiter, asyncHandler(async (req, res) => {
   // Sign-ups are CLOSED — the existing accounts are the only ones. Everything
   // below stays intact: to open registration again, delete this one `return`
   // rather than rewriting the handler.
@@ -128,9 +129,9 @@ router.post("/register", registerLimiter, async (req, res) => {
     // Generic 500 — never echo internal messages on the auth surface.
     return res.status(500).json({ error: "Registration failed" });
   }
-});
+}));
 
-router.post("/login", loginLimiter, async (req, res) => {
+router.post("/login", loginLimiter, asyncHandler(async (req, res) => {
   const body = parseBody(loginSchema, req, res);
   if (!body) return;
 
@@ -143,9 +144,9 @@ router.post("/login", loginLimiter, async (req, res) => {
     }
     return res.status(500).json({ error: "Login failed" });
   }
-});
+}));
 
-router.post("/refresh", async (req, res) => {
+router.post("/refresh", asyncHandler(async (req, res) => {
   const browser = isBrowserClient(req);
 
   // CSRF guard for the cookie transport. The refresh cookie is attached
@@ -178,9 +179,9 @@ router.post("/refresh", async (req, res) => {
     }
     return res.status(500).json({ error: "Refresh failed" });
   }
-});
+}));
 
-router.post("/logout", async (req, res) => {
+router.post("/logout", asyncHandler(async (req, res) => {
   // Logout accepts a missing/bad token gracefully — the client just
   // wants confirmation it can drop local state. We still attempt to
   // revoke if a token is supplied so a thief can't keep using it.
@@ -192,6 +193,6 @@ router.post("/logout", async (req, res) => {
   }
   if (isBrowserClient(req)) clearRefreshCookie(res);
   return res.json({ ok: true });
-});
+}));
 
 module.exports = router;

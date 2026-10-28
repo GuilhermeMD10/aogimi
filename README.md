@@ -179,7 +179,7 @@ npm start                        # Expo Metro; press i or a for a simulator
 
 Every variable each package reads is documented in its `.env.example`. `NEXT_PUBLIC_API_URL` must be on the backend's `CORS_ORIGIN` allowlist; `EXPO_PUBLIC_API_URL` must be reachable from the simulator or device, so not `localhost` from physical hardware. `ios/` is generated and untracked — edit `app.json`, then `npx expo prebuild --clean -p ios`.
 
-**Two steps don't work from a fresh clone, both `.gitignore` problems rather than code problems.** Migration `011` needs `backend/jlptwordslist/n{1..5}.csv`, and seeding the dictionary means running the parsers in `helpers/` against `DATABASE_URL` — both paths are ignored. Everything else runs; the app just starts with an empty dictionary.
+**One step doesn't work from a fresh clone, a `.gitignore` problem rather than a code problem.** Seeding the dictionary means running the parsers in `helpers/` against `DATABASE_URL`, and that path is ignored. Everything else runs; the app just starts with an empty dictionary. Once it is seeded, re-run `backend/migrations/033_jlpt_by_jmdict_id.psql` from `backend/` so the JLPT levels land on the new rows.
 
 **Verification** (no unit-test runner — these are the harnesses):
 

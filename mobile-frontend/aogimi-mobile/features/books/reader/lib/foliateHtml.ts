@@ -156,11 +156,9 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
     #canvas .slot > iframe {
       display: block; width: 100%; height: 100%; border: 0;
     }
-    /* Manga frame (5px gutter + rounded corners) is rendered by the RN
-       wrapper around the WebView, NOT here. Putting it inside the WebView
-       made it part of the document that native pinch-zoom scales, which
-       the user didn't want -- the frame should stay static while the page
-       art zooms underneath. See FoliateReader.tsx mangaShell/mangaFrame. */
+    /* No manga frame here: fixed-layout books are rendered by the RN manga
+       views, not this WebView. The .is-manga branch below is only a fallback
+       for a book whose OPF detection missed. */
     .status {
       position: absolute;
       top: 50%;

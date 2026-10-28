@@ -16,7 +16,7 @@ import type { LocalCard, LocalDeck } from '../types';
  * from backend.
  *
  * `setCards` is exposed for optimistic UI updates from write call
- * sites (CardEditSheet, FlashcardDrawer). Those should call back into
+ * sites (FlashcardDrawer). Those should call back into
  * the appropriate `*Local` helpers — the local store is the canonical
  * source of truth and `setCards` is purely a render-cache.
  *

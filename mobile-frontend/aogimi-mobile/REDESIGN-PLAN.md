@@ -445,7 +445,7 @@ pasting REDESIGN.md is not told the opposite of this file:
   sky/stage agent's first job — or the owner's, since the uncommitted
   `SkyCanvas` / `SkyStars` edits may already be that adaptation in progress.
 - Uncommitted in the tree: the dock cluster rework (`DockBar`, `DockItem`,
-  `dockGeometry`, `dockLab/`, `dock-lab.tsx`), the `SkyCanvas` / `SkyStars`
+  `dockGeometry`), the `SkyCanvas` / `SkyStars`
   edits above, `haptics.ts`, `build-ios.sh`. The owner commits or reverts these
   before agents fan out; nothing in this plan depends on them except D4 and the
   sky re-sync.

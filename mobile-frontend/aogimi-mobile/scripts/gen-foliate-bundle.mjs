@@ -77,7 +77,7 @@ const out =
   `// EPUB on globalThis.FoliateEPUB. Used by foliateHtml.ts.\n\n` +
   `export const FOLIATE_SOURCE = ${JSON.stringify(bundleSrc)};\n`;
 
-const outPath = resolve(root, 'components/reader/foliateLibs.ts');
+const outPath = resolve(root, 'features/books/reader/lib/foliateLibs.ts');
 writeFileSync(outPath, out);
 
 console.log(

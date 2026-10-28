@@ -17,7 +17,7 @@ import {
   getRefreshToken,
   refreshSession,
 } from '@/lib';
-import { fetchUserById } from '@/features/profile/lib/profileApi';
+import { fetchUserById, deleteCurrentUser } from '@/features/profile/lib/profileApi';
 import { loginUser, registerUser, logoutUser, wipeUserData } from '../lib';
 import type { UserProfile } from '@/features/profile/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -37,6 +37,9 @@ type AuthContextValue = {
    *  username-keyed. See `registerUser` — the endpoint is currently closed. */
   signUp: (username: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** `DELETE /api/user`, then the local wipe + sign-out. Rejects (and leaves
+   *  the session and local data untouched) if the server never confirmed. */
+  deleteAccount: () => Promise<void>;
   refreshUser: () => Promise<void>;
   setUser: (user: UserProfile) => void;
 };
@@ -70,8 +73,8 @@ const AUTH_STORAGE_KEYS = {
  * failed request forces a re-login the user has no way to avoid.
  *
  * Only 401/403 is terminal, and the constructor can't tell us that.
- * `lib/api.ts` aborts every request at 8s, and an aborted fetch rejects
- * with an `AbortError`, not the `TypeError: Network request failed` RN
+ * `lib/api.ts` aborts every request at 8s, and that deadline rejects
+ * with a `TimeoutError`, not the `TypeError: Network request failed` RN
  * throws for an outright connection failure — so a dev backend on a
  * sleeping laptop used to look exactly like a rejected token. A 5xx from
  * a restarting backend isn't terminal either. `request` attaches `status`
@@ -258,6 +261,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('signed-in');
   }, []);
 
+  // The local half of ending a session: tokens, cached profile, state.
+  // Flipping `status` is what unsubscribes the online-transition effects
+  // above, so no auto-push can start once this has run.
+  const endSession = useCallback(async () => {
+    await clearTokens();
+    await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.USER_CACHE);
+    setUserState(null);
+    setStatus('signed-out');
+  }, []);
+
   const signOut = useCallback(async () => {
     // Best-effort revoke server-side BEFORE wiping local — once the
     // refresh token is gone we can't tell the server to revoke it.
@@ -265,11 +278,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (refresh) {
       logoutUser(refresh).catch(() => undefined);
     }
+    await endSession();
+  }, [endSession]);
+
+  const deleteAccount = useCallback(async () => {
+    // Throws on anything short of a 2xx — offline, the 8s deadline, a 5xx —
+    // and nothing below runs, so a failed attempt leaves the session and
+    // every local register exactly as it was.
+    await deleteCurrentUser();
+    // The server has dropped the account and its refresh tokens. Tokens go
+    // first so a push racing this window can't even authenticate; then the
+    // local-first stores, because a deck or card still `pendingOp: 'create'`
+    // would otherwise be pushed by whoever signs in next — the same reason
+    // the account-switch path wipes.
     await clearTokens();
-    await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.USER_CACHE);
-    setUserState(null);
-    setStatus('signed-out');
-  }, []);
+    await wipeUserData();
+    await endSession();
+  }, [endSession]);
 
   const refreshUser = useCallback(async () => {
     if (!user) return;
@@ -318,10 +343,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      deleteAccount,
       refreshUser,
       setUser,
     }),
-    [status, user, signIn, signUp, signOut, refreshUser, setUser],
+    [status, user, signIn, signUp, signOut, deleteAccount, refreshUser, setUser],
   );
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;

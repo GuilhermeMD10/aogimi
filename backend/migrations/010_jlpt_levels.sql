@@ -9,8 +9,8 @@
 BEGIN;
 
 -- ── words ────────────────────────────────────────────────────────────────────
--- Per-entry JLPT classification, derived in 012_jlpt_backfill.sql by matching
--- (kanji form, reading) pairs from the CSVs against word_kanji × word_readings.
+-- Per-entry JLPT classification, set by 033_jlpt_by_jmdict_id.psql from the
+-- CSVs' JMdict entry ids (012 used to match by kanji form + reading).
 ALTER TABLE words
   ADD COLUMN IF NOT EXISTS jlpt_level smallint
     CHECK (jlpt_level IS NULL OR jlpt_level BETWEEN 1 AND 5);

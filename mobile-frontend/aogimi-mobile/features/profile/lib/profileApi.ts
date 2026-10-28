@@ -19,15 +19,13 @@ export function updateUserProfile(updates: UserProfileUpdate): Promise<UserProfi
   });
 }
 
-export function setOnboardingCompleted(completed: boolean): Promise<{ message: string }> {
-  return request<{ message: string }>('/api/user/onboarding', {
-    method: 'PUT',
-    body: JSON.stringify({ completed }),
-  });
-}
-
-export function deleteCurrentUser(): Promise<{ message: string }> {
+/** `DELETE /api/user` — the server cascades every user-data table off the
+ *  token's identity and revokes every session. Nothing is sent in the body;
+ *  the caller (`AuthContext.deleteAccount`) owns the local wipe that follows
+ *  a success. */
+export function deleteCurrentUser(signal?: AbortSignal): Promise<{ message: string }> {
   return request<{ message: string }>('/api/user', {
     method: 'DELETE',
+    signal,
   });
 }

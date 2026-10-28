@@ -5,6 +5,7 @@
 // IDs are silently dropped; no info leak about which IDs exist).
 
 const { Router } = require("express");
+const { asyncHandler } = require("../middleware/asyncHandler");
 const studyService = require("../services/studyService");
 const prefsRepo = require("../repositories/userStudyPrefsRepository");
 const { parseBody } = require("../validation/_helpers");
@@ -22,7 +23,7 @@ const DEFAULT_DISPLAY = Object.freeze({
 
 // Validated by validation/study.js: `limit` has a ceiling and `deckIds`
 // has a length cap and a uuid-per-entry check.
-router.post("/session", async (req, res) => {
+router.post("/session", asyncHandler(async (req, res) => {
   const body = parseBody(sessionSchema, req, res);
   if (!body) return;
 
@@ -32,7 +33,7 @@ router.post("/session", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Session resolution failed" });
   }
-});
+}));
 
 // ── Due ──────────────────────────────────────────────────────────────────────
 // Identity from the token; ownership is implicit (only the caller's own decks
@@ -41,18 +42,18 @@ router.post("/session", async (req, res) => {
 // Due counts across every deck the user owns. Serves a "N cards due" figure
 // plus per-deck chips from one request; decks with nothing due are omitted
 // from `byDeck`.
-router.get("/due/counts", async (req, res) => {
+router.get("/due/counts", asyncHandler(async (req, res) => {
   try {
     const payload = await studyService.fetchDueCounts(req.user.userId);
     return res.json(payload);
   } catch (err) {
     return res.status(500).json({ error: "Due resolution failed" });
   }
-});
+}));
 
 // ── Prefs ──────────────────────────────────────────────────────────────────
 
-router.get("/prefs", async (req, res) => {
+router.get("/prefs", asyncHandler(async (req, res) => {
   try {
     const row = await prefsRepo.findByUser(req.user.userId);
     if (!row) {
@@ -66,13 +67,13 @@ router.get("/prefs", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Read failed" });
   }
-});
+}));
 
 // Both documents are stored as JSONB. The schema bounds shape, key count and
 // value types — otherwise the column becomes arbitrary user-controlled storage
 // up to the body cap — while staying open enough for new display toggles
 // (SCHEMA.md documents `display` as deliberately schema-free).
-router.put("/prefs", async (req, res) => {
+router.put("/prefs", asyncHandler(async (req, res) => {
   const body = parseBody(prefsSchema, req, res);
   if (!body) return;
   const { display, deckOverrides } = body;
@@ -85,6 +86,6 @@ router.put("/prefs", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Write failed" });
   }
-});
+}));
 
 module.exports = router;

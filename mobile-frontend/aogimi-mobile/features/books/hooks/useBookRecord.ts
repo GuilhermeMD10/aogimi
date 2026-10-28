@@ -46,7 +46,7 @@ type State = {
 
 // "The server answered" vs "we never got an answer". `request()` stamps
 // `.status` on every HTTP failure; anything without one — RN's
-// `TypeError: Network request failed`, the 8 s deadline's AbortError, DNS
+// `TypeError: Network request failed`, the 8 s deadline's TimeoutError, DNS
 // — means the backend was never reached and the session goes local.
 function isNetworkError(err: unknown): boolean {
   return !(err instanceof Error && typeof (err as { status?: unknown }).status === 'number');

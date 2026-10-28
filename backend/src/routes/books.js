@@ -7,6 +7,7 @@
 // returns 404 to avoid leaking which book ids exist.
 
 const { Router } = require("express");
+const { asyncHandler } = require("../middleware/asyncHandler");
 const bookService = require("../services/bookService");
 const { requireUserMatch } = require("../middleware/authorize");
 const { bookOwnedBy } = require("../services/ownership");
@@ -31,7 +32,7 @@ const router = Router();
 // re-registering a book the user already has must not be refused. Asking
 // that question first is what lets an at-quota user re-sync their own
 // library from a second device.
-router.post("/", async (req, res) => {
+router.post("/", asyncHandler(async (req, res) => {
   const body = parseBody(createBookSchema, req, res);
   if (!body) return;
   try {
@@ -44,7 +45,7 @@ router.post("/", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Create failed" });
   }
-});
+}));
 
 // POST /api/books/match — match candidates against the caller's library.
 // Must be before /:id to avoid "match" being captured as a book id.
@@ -52,7 +53,7 @@ router.post("/", async (req, res) => {
 // The array is length-capped by the schema: matching is a hamming-distance
 // loop per candidate × per stored book × per sampled page, run synchronously,
 // so an unbounded array stalls the event loop for every other request.
-router.post("/match", async (req, res) => {
+router.post("/match", asyncHandler(async (req, res) => {
   const body = parseBody(matchSchema, req, res);
   if (!body) return;
   try {
@@ -61,25 +62,25 @@ router.post("/match", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Match failed" });
   }
-});
+}));
 
 // GET /api/books/user/:userId — list books for a user. The token user
 // can only list their own books.
 router.get(
   "/user/:userId",
   requireUserMatch({ from: "params", key: "userId" }),
-  async (req, res) => {
+  asyncHandler(async (req, res) => {
     try {
       const books = await bookService.getUserBooks(req.user.userId);
       return res.json(books);
     } catch (err) {
       return res.status(500).json({ error: "List failed" });
     }
-  },
+  }),
 );
 
 // GET /api/books/:id — get a single book (only if it belongs to the caller).
-router.get("/:id", async (req, res) => {
+router.get("/:id", asyncHandler(async (req, res) => {
   if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -90,7 +91,7 @@ router.get("/:id", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Read failed" });
   }
-});
+}));
 
 // PUT/POST /api/books/:id/progress — update reading progress.
 async function handleProgressUpdate(req, res) {
@@ -106,11 +107,11 @@ async function handleProgressUpdate(req, res) {
     return res.status(404).json({ error: "Not found" });
   }
 }
-router.put("/:id/progress", handleProgressUpdate);
-router.post("/:id/progress", handleProgressUpdate);
+router.put("/:id/progress", asyncHandler(handleProgressUpdate));
+router.post("/:id/progress", asyncHandler(handleProgressUpdate));
 
 // PATCH /api/books/:id — update editable book metadata.
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", asyncHandler(async (req, res) => {
   if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -122,10 +123,10 @@ router.patch("/:id", async (req, res) => {
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
   }
-});
+}));
 
 // PUT /api/books/:id/identity — update hash/metadata identity fields.
-router.put("/:id/identity", async (req, res) => {
+router.put("/:id/identity", asyncHandler(async (req, res) => {
   if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -137,10 +138,10 @@ router.put("/:id/identity", async (req, res) => {
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
   }
-});
+}));
 
 // DELETE /api/books/:id
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", asyncHandler(async (req, res) => {
   if (!(await bookOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -150,6 +151,6 @@ router.delete("/:id", async (req, res) => {
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
   }
-});
+}));
 
 module.exports = router;

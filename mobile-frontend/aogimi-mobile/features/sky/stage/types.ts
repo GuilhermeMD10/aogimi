@@ -81,17 +81,6 @@ export type CardRecord = {
   created_at: string;
 };
 
-/**
- * One deck with its full card inventory, as `GET /api/decks/user/:id/cards`
- * returns them — the same deck row as the list endpoint, plus the same card
- * rows as the per-deck endpoint. Built for the star map, which needs every card
- * of every deck in one round trip.
- *
- * Note this is the **backend** shape, not the local-first one: no `syncState`,
- * no `pendingOp`. It is what a hydrate reads, not what the app renders from.
- */
-export type DeckWithCards = DeckRecord & { cards: CardRecord[] };
-
 // ── Authoring shape ─────────────────────────────────────────────────────────
 
 /**

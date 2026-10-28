@@ -177,16 +177,6 @@ function deleteBookDirectory(bookId: string): void {
 }
 
 /**
- * All bookIds with an active page-cache directory. Sourced from the
- * persisted index. Used by libraryReconcile to spot directories orphaned
- * by remote book deletes.
- */
-export async function listCachedBookIds(): Promise<string[]> {
-  const idx = await readIndex();
-  return Object.keys(idx.entries);
-}
-
-/**
  * Drop both the on-disk page cache and the index entry for a book. Called
  * from the delete-book flow so cache space is reclaimed immediately.
  */
@@ -199,16 +189,6 @@ export async function evictBookCache(bookId: string): Promise<void> {
   }
   // Also drop the session cache if it's holding this book.
   if (cachedHandle?.bookId === bookId) cachedHandle = null;
-}
-
-/**
- * Drop the in-memory session-cached MangaSpineHandle. Call this when a
- * reader screen unmounts AND the user is unlikely to reopen the same
- * book immediately (rare; opening a different book replaces the cache
- * automatically). Mostly an escape hatch for low-memory situations.
- */
-export function releaseCachedMangaHandle(): void {
-  cachedHandle = null;
 }
 
 /**

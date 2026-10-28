@@ -19,15 +19,20 @@ import { Button } from './Button';
 export function DangerButton({
   label,
   onPress,
+  loading,
 }: {
   label: string;
   onPress: () => void;
+  /** Spinner in place of the label while the action is on the wire; the
+   *  control is disabled for the duration, so a second tap can't re-fire it. */
+  loading?: boolean;
 }) {
   return (
     <Button
       label={label}
       onPress={onPress}
       variant="destructive"
+      loading={loading}
       full
       style={{ marginTop: spacing.lg }}
     />

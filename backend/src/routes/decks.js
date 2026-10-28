@@ -10,6 +10,7 @@
 // (services/quotas.js), which answer 409.
 
 const { Router } = require("express");
+const { asyncHandler } = require("../middleware/asyncHandler");
 const deckService = require("../services/deckService");
 const cardService = require("../services/cardService");
 const { requireUserMatch } = require("../middleware/authorize");
@@ -28,7 +29,7 @@ const router = Router();
 
 // ── Decks ───────────────────────────────────────────────────────────────────
 
-router.post("/", async (req, res) => {
+router.post("/", asyncHandler(async (req, res) => {
   const body = parseBody(createDeckSchema, req, res);
   if (!body) return;
   if (!(await quotas.enforce(res, quotas.deckQuota, req.user.userId))) return;
@@ -38,19 +39,19 @@ router.post("/", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Create failed" });
   }
-});
+}));
 
 router.get(
   "/user/:userId",
   requireUserMatch({ from: "params", key: "userId" }),
-  async (req, res) => {
+  asyncHandler(async (req, res) => {
     try {
       const decks = await deckService.getUserDecks(req.user.userId);
       return res.json(decks);
     } catch (err) {
       return res.status(500).json({ error: "List failed" });
     }
-  },
+  }),
 );
 
 // Every deck with its card list in one response — one round trip for a page
@@ -63,7 +64,7 @@ router.get(
 router.get(
   "/user/:userId/cards",
   requireUserMatch({ from: "params", key: "userId" }),
-  async (req, res) => {
+  asyncHandler(async (req, res) => {
     try {
       const view = req.query.view === "sky" ? "sky" : undefined;
       const decks = await deckService.getUserDecksWithCards(req.user.userId, { view });
@@ -71,10 +72,10 @@ router.get(
     } catch (err) {
       return res.status(500).json({ error: "List failed" });
     }
-  },
+  }),
 );
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", asyncHandler(async (req, res) => {
   if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -84,9 +85,9 @@ router.get("/:id", async (req, res) => {
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
   }
-});
+}));
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", asyncHandler(async (req, res) => {
   if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -98,9 +99,9 @@ router.put("/:id", async (req, res) => {
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
   }
-});
+}));
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", asyncHandler(async (req, res) => {
   if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -110,11 +111,11 @@ router.delete("/:id", async (req, res) => {
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
   }
-});
+}));
 
 // ── Cards (nested under deck) ───────────────────────────────────────────────
 
-router.post("/:id/cards", async (req, res) => {
+router.post("/:id/cards", asyncHandler(async (req, res) => {
   if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -127,9 +128,9 @@ router.post("/:id/cards", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Create failed" });
   }
-});
+}));
 
-router.get("/:id/cards", async (req, res) => {
+router.get("/:id/cards", asyncHandler(async (req, res) => {
   if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -139,12 +140,12 @@ router.get("/:id/cards", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Read failed" });
   }
-});
+}));
 
 // Just the due count for this deck — for a badge that would otherwise pull
 // every due card row to call `.length` on it. Clients build full study
 // sessions from `POST /api/study/session` instead.
-router.get("/:id/cards/due/count", async (req, res) => {
+router.get("/:id/cards/due/count", asyncHandler(async (req, res) => {
   if (!(await deckOwnedBy(req.user.userId, req.params.id))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -154,11 +155,11 @@ router.get("/:id/cards/due/count", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Read failed" });
   }
-});
+}));
 
 // One card, every column. The sky page's card detail reads this when a card
 // is opened, since the inventory it holds is the lean `?view=sky` projection.
-router.get("/cards/:cardId", async (req, res) => {
+router.get("/cards/:cardId", asyncHandler(async (req, res) => {
   if (!(await cardOwnedBy(req.user.userId, req.params.cardId))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -168,9 +169,9 @@ router.get("/cards/:cardId", async (req, res) => {
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
   }
-});
+}));
 
-router.put("/cards/:cardId", async (req, res) => {
+router.put("/cards/:cardId", asyncHandler(async (req, res) => {
   if (!(await cardOwnedBy(req.user.userId, req.params.cardId))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -182,9 +183,9 @@ router.put("/cards/:cardId", async (req, res) => {
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
   }
-});
+}));
 
-router.post("/cards/:cardId/review", async (req, res) => {
+router.post("/cards/:cardId/review", asyncHandler(async (req, res) => {
   if (!(await cardOwnedBy(req.user.userId, req.params.cardId))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -205,9 +206,9 @@ router.post("/cards/:cardId/review", async (req, res) => {
     }
     return res.status(404).json({ error: "Not found" });
   }
-});
+}));
 
-router.delete("/cards/:cardId", async (req, res) => {
+router.delete("/cards/:cardId", asyncHandler(async (req, res) => {
   if (!(await cardOwnedBy(req.user.userId, req.params.cardId))) {
     return res.status(404).json({ error: "Not found" });
   }
@@ -217,6 +218,6 @@ router.delete("/cards/:cardId", async (req, res) => {
   } catch (err) {
     return res.status(404).json({ error: "Not found" });
   }
-});
+}));
 
 module.exports = router;

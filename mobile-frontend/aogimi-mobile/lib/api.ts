@@ -50,6 +50,11 @@ const REQUEST_TIMEOUT_MS = 8_000;
  * AbortSignal. Aborting either way rejects the returned promise — callers
  * that must distinguish "timed out" from "server answered" check for a
  * thrown error rather than a status code.
+ *
+ * The two aborts reject differently: the caller's is an `AbortError`
+ * (cancelled on purpose — callers ignore it), the deadline's a
+ * `TimeoutError` (a failure — callers must surface it, or a screen waiting
+ * on a down backend spins forever).
  */
 async function fetchWithTimeout(
   url: string,
@@ -57,7 +62,11 @@ async function fetchWithTimeout(
   callerSignal: AbortSignal | null = null,
 ): Promise<Response> {
   const timeoutController = new AbortController();
-  const timeoutId = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    timeoutController.abort();
+  }, REQUEST_TIMEOUT_MS);
   const onCallerAbort = () => timeoutController.abort();
   if (callerSignal) {
     if (callerSignal.aborted) timeoutController.abort();
@@ -66,6 +75,13 @@ async function fetchWithTimeout(
   try {
     // `signal` last: it must win over any signal carried on `init`.
     return await fetch(url, { ...init, signal: timeoutController.signal });
+  } catch (err) {
+    if (timedOut && !callerSignal?.aborted) {
+      const timeout = new Error('Request timed out');
+      timeout.name = 'TimeoutError';
+      throw timeout;
+    }
+    throw err;
   } finally {
     clearTimeout(timeoutId);
     if (callerSignal) callerSignal.removeEventListener('abort', onCallerAbort);
