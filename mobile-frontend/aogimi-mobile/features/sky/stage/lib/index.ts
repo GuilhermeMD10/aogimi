@@ -37,6 +37,7 @@ export {
 export * from './deckPush';
 export * from './decksApi';
 export * from './decksSyncAll';
+export * from './lastDeck';
 export * from './deckStats';
 export * from './deckVisuals';
 export * from './limits';

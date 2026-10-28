@@ -17,6 +17,8 @@ import {
   createCardLocal,
   createDeckLocal,
   getAllDecks,
+  getLastDeckId,
+  setLastDeckId,
   MAX_CARD_FRONT,
   MAX_CARD_MEANING,
   MAX_CARD_READING,
@@ -115,15 +117,20 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
   // rather than in an effect watching it. The trigger now *displays* the chosen
   // deck, so a selection that survived from a deck since deleted would label the
   // header with a deck the save would then fail on.
+  //
+  // The deck the last card went into wins over whatever this mount last held:
+  // the drawer remounts as it moves between `LookupDrawers`' two mount points,
+  // so only the stored id survives from one card to the next.
   useEffect(() => {
     if (!visible || userId == null || lockedDeckId) return;
     let cancelled = false;
     void (async () => {
-      const all = await getAllDecks();
+      const [all, lastId] = await Promise.all([getAllDecks(), getLastDeckId()]);
       if (cancelled) return;
       const list = all.filter((d) => d.pendingOp !== 'delete');
+      const live = (id: string | null) => (id && list.some((d) => d.id === id) ? id : null);
       setDecks(list);
-      setDeckId((cur) => (cur && list.some((d) => d.id === cur) ? cur : (list[0]?.id ?? null)));
+      setDeckId((cur) => live(lastId) ?? live(cur) ?? list[0]?.id ?? null);
       // Nothing to pick from: naming a new deck is the only way forward, and
       // that field lives in the pane — so open it rather than leaving the
       // trigger as the one unexplained thing between them and saving.
@@ -214,6 +221,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
       // what they actually typed. `contextSentence` and `jlptLevel` ride along
       // inside the draft; neither has an input, so they pass through unchanged.
       await createCardLocal(targetDeckId, toDraft());
+      await setLastDeckId(targetDeckId);
       onSaved?.();
       resetAndClose();
     } catch (err) {

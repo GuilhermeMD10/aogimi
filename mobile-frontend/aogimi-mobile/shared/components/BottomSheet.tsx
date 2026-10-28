@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Dimensions,
   Modal,
+  type ModalProps,
   PanResponder,
   StyleSheet,
   View,
+  useWindowDimensions,
   type ViewStyle,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -31,8 +32,6 @@ type Props = {
   contentStyle?: ViewStyle;
 };
 
-const SCREEN_H = Dimensions.get('window').height;
-
 /** DESIGN.md's grabber: 40 × 4, `rgba(255,255,255,0.25)` — `bdA`. */
 const GRABBER_W = 40;
 const GRABBER_H = 4;
@@ -41,6 +40,8 @@ const GRABBER_H = 4;
 // when the user has pulled the sheet down past the distance threshold.
 const SWIPE_CLOSE_VELOCITY = 0.6;        // px/ms
 const SWIPE_CLOSE_DISTANCE_RATIO = 0.3;  // fraction of sheet height
+
+const SUPPORTED_ORIENTATIONS: ModalProps['supportedOrientations'] = ['portrait', 'landscape'];
 
 /**
  * **The app's bottom sheet** — DESIGN.md's Tier 4 surface: radius 28 on the top
@@ -82,7 +83,16 @@ export function BottomSheet({
   const { themeName } = useTheme();
   const reduceMotion = useReduceMotion();
   const g = useMemo(() => glassSheet(p, themeName === 'night'), [p, themeName]);
-  const sheetHeight = Math.round(SCREEN_H * heightRatio);
+  // Read live, not once at module load: a tablet rotated after launch keeps the
+  // launch orientation's height otherwise, and a portrait-tall sheet in
+  // landscape runs off the top of the screen with its header out of reach.
+  const { height: windowH } = useWindowDimensions();
+  const sheetHeight = Math.round(windowH * heightRatio);
+  // The pan responder below is built once; it reads the height through this.
+  const sheetHeightRef = useRef(sheetHeight);
+  useEffect(() => {
+    sheetHeightRef.current = sheetHeight;
+  }, [sheetHeight]);
 
   // Two values on one transform: `rise` is the entrance (0 closed → 1 open),
   // `drag` is the finger's offset in points. Added rather than multiplexed so
@@ -155,7 +165,7 @@ export function BottomSheet({
       onPanResponderMove: (_, gs) => drag.setValue(Math.max(0, gs.dy)),
       onPanResponderRelease: (_, gs) => {
         const shouldClose =
-          gs.vy > SWIPE_CLOSE_VELOCITY || gs.dy > sheetHeight * SWIPE_CLOSE_DISTANCE_RATIO;
+          gs.vy > SWIPE_CLOSE_VELOCITY || gs.dy > sheetHeightRef.current * SWIPE_CLOSE_DISTANCE_RATIO;
         if (shouldClose) {
           onDismiss();
           return;
@@ -189,6 +199,9 @@ export function BottomSheet({
       animationType="none"
       onRequestClose={onDismiss}
       statusBarTranslucent
+      // iOS presents a `Modal` portrait-only unless told otherwise. The iPad
+      // build supports landscape (Info.plist), so the sheet must as well.
+      supportedOrientations={SUPPORTED_ORIENTATIONS}
     >
       {/* A leaving sheet is not a target: a tap would land on content that is
           already on its way out and fire `onDismiss` a second time. */}

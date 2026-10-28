@@ -25,6 +25,7 @@
 //          a pending create left here would be pushed INTO THE NEXT ACCOUNT)
 //       pending_reviews_v1               (grades queued offline)
 //       study_deck_overrides_v1 / study_display_prefs_v1
+//       card_last_deck_v1                (Add-card sheet's preselected deck)
 //       dictionary_recent_lookups
 //   - File system:
 //       documents/books/   (raw EPUB/PDF blobs)
@@ -61,6 +62,8 @@ const USER_KEYS = [
   // these are that account's local copies).
   'study_deck_overrides_v1',
   'study_display_prefs_v1',
+  // The Add-card sheet's remembered deck — account A's deck id means nothing to B.
+  'card_last_deck_v1',
 ];
 
 /**
