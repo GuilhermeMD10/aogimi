@@ -18,6 +18,7 @@ import {
   setDeck,
 } from './deckLocalState';
 import { rewriteDeckId } from './cardLocalState';
+import { rewriteLastDeckId } from './lastDeck';
 import { pushAllByOp } from './syncByOp';
 
 export type DeckPushResult =
@@ -138,6 +139,7 @@ export async function pushDeck(deck: LocalDeck): Promise<DeckPushResult> {
       // Patch every card's deck_id reference. Cheap to do here so
       // callers don't have to remember.
       await rewriteDeckId(deck.id, newId);
+      await rewriteLastDeckId(deck.id, newId);
       return { ok: true, deckId: newId };
     }
 

@@ -58,12 +58,12 @@ async function search(rawQuery) {
 
   // ── 2. Kanji-containing word (e.g. 食べる, 食べた) ─────────────────────────
   if (hasKanji(q)) {
-    return japaneseWithDeinflection(q, 'word');
+    return japaneseWithDeinflection([q], 'word');
   }
 
   // ── 3. Pure kana ────────────────────────────────────────────────────────────
   if (IS_KANA.test(q)) {
-    const wordsPromise = japaneseWithDeinflection(q, 'kana');
+    const wordsPromise = japaneseWithDeinflection([q], 'kana');
 
     const [kanaResult, nameRows, onKanjis, kunKanjis] = await Promise.all([
       wordsPromise,
@@ -97,11 +97,14 @@ async function search(rawQuery) {
   // ── 4. Romaji / English meaning ─────────────────────────────────────────────
   if (IS_ROMAJI.test(q)) {
     const englishQ = q.toLowerCase().replace(/[^\w\s-]/g, '');
-    const kana = romajiToKana(q);
+    // Every reading the romaji can spell ("genin" is げにん and げんいん).
+    const readings = romajiToKana(q);
 
     // Run Japanese (kana) and English searches in parallel when romaji converts
     const [jpResult, englishHits] = await Promise.all([
-      kana ? japaneseWithDeinflection(kana, 'kana') : Promise.resolve(null),
+      readings.length > 0
+        ? japaneseWithDeinflection(readings, 'kana')
+        : Promise.resolve(null),
       index.searchEnglish(englishQ, RESULT_LIMIT),
     ]);
 
@@ -144,31 +147,41 @@ async function search(rawQuery) {
  * depend on the answer: partial matches are shown *alongside* an exact hit,
  * not only when there is none. Typing 食べる should still reveal 食べる方 below
  * it, which is the whole point of having partial results.
+ *
+ * `qs` is the query's readings — one, except for romaji, where "genin" spells
+ * both げにん and げんいん. All of them are exact matches equally, so they
+ * share one exact block and its tiebreakers pick the likelier word; partials
+ * follow in reading order.
  */
-async function japaneseWithDeinflection(q, kind) {
-  const [direct, prefixHits] = await Promise.all([
-    index.searchJapaneseForms([q], RESULT_LIMIT),
-    index.searchJapanesePrefix(q, RESULT_LIMIT),
+async function japaneseWithDeinflection(qs, kind) {
+  const [direct, ...prefixHits] = await Promise.all([
+    index.searchJapaneseForms(qs, RESULT_LIMIT),
+    ...qs.map(q => index.searchJapanesePrefix(q, RESULT_LIMIT)),
   ]);
 
   const exact = direct.length > 0
     ? await hydrateAndAnnotate(direct)
-    : await deinflected(q);
+    : await deinflected(qs);
 
-  return { type: kind, words: await withPartials(exact, prefixHits) };
+  return { type: kind, words: await withPartials(exact, prefixHits.flat()) };
 }
 
 /** The deinflection fallback: 食べた → 食べる, annotated with the path taken. */
-async function deinflected(q) {
-  const candidates = deinflect(q);
-  const forms = candidates.map(c => c.base).filter(f => f !== q);
-  if (forms.length === 0) return [];
+async function deinflected(qs) {
+  const candidates = qs.flatMap(q =>
+    deinflect(q)
+      .filter(c => !qs.includes(c.base))
+      .map(c => ({ ...c, from: q })));
+  if (candidates.length === 0) return [];
 
-  const hits = await index.searchJapaneseForms(forms, RESULT_LIMIT);
-  const inflectionByForm = new Map(candidates.map(c => [c.base, c.inflections]));
+  const hits = await index.searchJapaneseForms(
+    candidates.map(c => c.base),
+    RESULT_LIMIT,
+  );
+  const candidateByForm = new Map(candidates.map(c => [c.base, c]));
   return hydrateAndAnnotate(hits, hit => ({
-    from: q,
-    path: inflectionByForm.get(hit.form) || [],
+    from: candidateByForm.get(hit.form)?.from ?? qs[0],
+    path: candidateByForm.get(hit.form)?.inflections || [],
   }));
 }
 

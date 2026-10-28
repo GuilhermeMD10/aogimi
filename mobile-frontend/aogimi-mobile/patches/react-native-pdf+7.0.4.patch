@@ -1,0 +1,46 @@
+diff --git a/node_modules/react-native-pdf/ios/RNPDFPdf/RNPDFPdfView.mm b/node_modules/react-native-pdf/ios/RNPDFPdf/RNPDFPdfView.mm
+index de46c98..28223cb 100644
+--- a/node_modules/react-native-pdf/ios/RNPDFPdf/RNPDFPdfView.mm
++++ b/node_modules/react-native-pdf/ios/RNPDFPdf/RNPDFPdfView.mm
+@@ -212,15 +212,21 @@ - (void)updateLayoutMetrics:(const facebook::react::LayoutMetrics &)layoutMetric
+ {
+     // Fabric equivalent of `reactSetFrame` method
+     [super updateLayoutMetrics:layoutMetrics oldLayoutMetrics:oldLayoutMetrics];
++    // aogimi: a relayout (rotation) re-ran the last prop set, which still held
++    // the `page` from first load, so the reader was thrown back to the page it
++    // opened on. Keep the page the reader is on instead.
++    PDFPage *keepPage = _initialed ? _pdfView.currentPage : nil;
+     _pdfView.frame = CGRectMake(0, 0, layoutMetrics.frame.size.width, layoutMetrics.frame.size.height);
+ 
+     NSMutableArray *mProps = [_changedProps mutableCopy];
+     if (_initialed) {
+         [mProps removeObject:@"path"];
++        [mProps removeObject:@"page"];
+     }
+     _initialed = YES;
+ 
+     [self didSetProps:mProps];
++    if (keepPage) [_pdfView goToPage:keepPage];
+ }
+ 
+ - (void)handleCommand:(const NSString *)commandName args:(const NSArray *)args
+@@ -574,15 +580,19 @@ - (void)didSetProps:(NSArray<NSString *> *)changedProps
+ - (void)reactSetFrame:(CGRect)frame
+ {
+     [super reactSetFrame:frame];
++    // aogimi: see updateLayoutMetrics.
++    PDFPage *keepPage = _initialed ? _pdfView.currentPage : nil;
+     _pdfView.frame = CGRectMake(0, 0, frame.size.width, frame.size.height);
+ 
+     NSMutableArray *mProps = [_changedProps mutableCopy];
+     if (_initialed) {
+         [mProps removeObject:@"path"];
++        [mProps removeObject:@"page"];
+     }
+     _initialed = YES;
+ 
+     [self didSetProps:mProps];
++    if (keepPage) [_pdfView goToPage:keepPage];
+ }
+ 
+ 

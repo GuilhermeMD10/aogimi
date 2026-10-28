@@ -1,5 +1,5 @@
 // Greedy longest-match romaji → hiragana converter. Direct port of
-// `backend/src/search/romajiToKana.js`. Returns null when any character
+// `backend/src/search/romajiToKana.js`. Returns [] when any character
 // can't be mapped — that avoids false-positive kana conversions for
 // English words like "dog" (where 'g' has no mapping and would
 // otherwise yield a bare ど).
@@ -79,18 +79,39 @@ const GEMINATE_CONSONANTS = new Set('bcdfghjklmpqrstvwxyz'.split(''));
 
 const MAX_CHUNK = 4;
 
-/**
- * Convert a romaji string to hiragana. Returns null if any character
- * couldn't be mapped — caller uses this to skip the kana-search path
- * for genuinely English input like "dog".
- */
-export function romajiToKana(input: string): string | null {
-  if (!input) return null;
-  const s = input.toLowerCase().replace(/[\s'-]/g, '');
-  if (s.length === 0) return null;
+// How many ambiguous n's may fork a second reading (2^3 = at most 8 readings).
+const MAX_FORKS = 3;
 
-  let result = '';
-  let i = 0;
+type State = { i: number; result: string; forks: number };
+
+/**
+ * Convert a romaji string to every hiragana reading it can spell. "n"
+ * before a vowel or "y" reads either way — genin is げにん or げんいん — so
+ * both are returned, syllable reading first, and the dictionary decides
+ * which are words. Returns [] if the input can't be converted; the caller
+ * uses this to skip the kana-search path for genuinely English input like
+ * "dog".
+ */
+export function romajiToKana(input: string): string[] {
+  if (!input) return [];
+  const s = input.toLowerCase().replace(/[\s-]/g, '');
+  if (s.length === 0) return [];
+
+  const readings: string[] = [];
+  const pending: State[] = [{ i: 0, result: '', forks: MAX_FORKS }];
+  while (pending.length > 0) {
+    const reading = convert(s, pending.shift()!, pending);
+    if (reading && !readings.includes(reading)) readings.push(reading);
+  }
+  return readings;
+}
+
+/**
+ * Run one reading of `s` from `state` to the end, pushing the ん reading
+ * of each ambiguous n onto `pending`. Returns null on an unmapped char.
+ */
+function convert(s: string, state: State, pending: State[]): string | null {
+  let { i, result, forks } = state;
 
   while (i < s.length) {
     // ── Geminate consonant (っ) ─────────────────────────────
@@ -133,6 +154,20 @@ export function romajiToKana(input: string): string | null {
       result += 'ん';
       i += 1;
       continue;
+    }
+
+    // ── Ambiguous ん (n before a vowel or y) ──────────────────
+    // Fork the ん reading, carry on with the syllable one. Never at the
+    // start (no word opens with ん) or straight after a ん ("konna").
+    if (
+      s[i] === 'n' &&
+      i > 0 &&
+      forks > 0 &&
+      'aiueoy'.includes(s[i + 1]) &&
+      !result.endsWith('ん')
+    ) {
+      forks -= 1;
+      pending.push({ i: i + 1, result: result + 'ん', forks });
     }
 
     // ── Greedy longest match ────────────────────────────────

@@ -979,6 +979,13 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
         injectSectionStyle(doc);
         measureSlot(slot);
         attachSelectionListener(doc, slot.index);
+        // The canvas's own touchstart (buildCanvas) only hears touches on the
+        // canvas itself -- a touch on the text lands in this iframe's document
+        // and never reaches the parent. Without this the hold from opening was
+        // never dropped, so every later re-measure (a rotation, a style change,
+        // a sheet resizing the viewport) threw the reader back to where the
+        // session started.
+        doc.addEventListener('touchstart', releaseAnchor, { passive: true });
         // Web fonts and images land after load and change the extent, so the
         // first measurement is provisional. Both re-measures go through
         // resizeSlot, so both keep the reading position.

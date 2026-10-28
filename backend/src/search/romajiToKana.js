@@ -2,9 +2,10 @@
  * Greedy longest-match romaji → hiragana converter.
  *
  * Handles all standard gojuuon, youon, dakuten, handakuten, double consonants
- * (っ via geminate), and the ん ambiguity (n before consonant/end vs na/ni/…).
+ * (っ via geminate), and the ん ambiguity (n before consonant/end vs na/ni/…,
+ * with n before a vowel or y forking both readings — see `romajiToKana`).
  *
- * Input is lowercased internally. Returns null if any character could not be
+ * Input is lowercased internally. Returns [] if any character could not be
  * mapped — this avoids false-positive kana conversions for English words like
  * "dog" (where "g" has no mapping and would otherwise yield a bare ど).
  */
@@ -88,17 +89,41 @@ const GEMINATE_CONSONANTS = new Set(
 // Max romaji chunk length in the map (4 chars: "sha", "chi", "tsu", "sho"…)
 const MAX_CHUNK = 4;
 
+// How many ambiguous n's may fork a second reading (2^3 = at most 8 readings).
+// Past this, n before a vowel is read as a syllable only.
+const MAX_FORKS = 3;
+
 /**
- * Convert a romaji string to hiragana.
- * Returns the hiragana string, or null if the input produced no output.
+ * Convert a romaji string to every hiragana reading it can spell.
+ *
+ * Usually that is one, but "n" before a vowel or "y" reads either way: genin
+ * is げにん or げんいん, kinyuu きにゅう or きんゆう. Hepburn writes the second
+ * as gen'in (and an explicit n' is honoured), but nobody types the apostrophe,
+ * so both readings are returned and the dictionary decides which are words.
+ * The syllable reading comes first.
+ *
+ * Returns [] if the input cannot be converted at all.
  */
 function romajiToKana(input) {
-  if (!input) return null;
-  const s = input.toLowerCase().replace(/[\s'-]/g, '');
-  if (s.length === 0) return null;
+  if (!input) return [];
+  const s = input.toLowerCase().replace(/[\s-]/g, '');
+  if (s.length === 0) return [];
 
-  let result = '';
-  let i = 0;
+  const readings = [];
+  const pending = [{ i: 0, result: '', forks: MAX_FORKS }];
+  while (pending.length > 0) {
+    const reading = convert(s, pending.shift(), pending);
+    if (reading && !readings.includes(reading)) readings.push(reading);
+  }
+  return readings;
+}
+
+/**
+ * Run one reading of `s` from `state` to the end, pushing the ん reading of
+ * each ambiguous n onto `pending`. Returns null if a character is unmapped.
+ */
+function convert(s, state, pending) {
+  let { i, result, forks } = state;
 
   while (i < s.length) {
     // ── Geminate consonant (っ) ─────────────────────────────
@@ -145,6 +170,21 @@ function romajiToKana(input) {
       result += 'ん';
       i += 1;
       continue;
+    }
+
+    // ── Ambiguous ん (n before a vowel or y) ──────────────────
+    // Fork the ん reading and carry on with the syllable one. Never at the
+    // start (no word opens with ん) or straight after a ん, so "konna" stays
+    // こんな rather than also yielding こんんあ.
+    if (
+      s[i] === 'n' &&
+      i > 0 &&
+      forks > 0 &&
+      'aiueoy'.includes(s[i + 1]) &&
+      !result.endsWith('ん')
+    ) {
+      forks -= 1;
+      pending.push({ i: i + 1, result: result + 'ん', forks });
     }
 
     // ── Greedy longest match ────────────────────────────────
