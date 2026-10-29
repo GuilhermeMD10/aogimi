@@ -21,7 +21,7 @@ import { checkImportCandidate, type ImportCheckFailure } from './importChecks';
 export class ImportRejectedError extends Error {
   readonly failure: ImportCheckFailure;
   constructor(failure: ImportCheckFailure) {
-    super(failure.message);
+    super(`Import rejected: ${failure.code}`);
     this.name = 'ImportRejectedError';
     this.failure = failure;
   }

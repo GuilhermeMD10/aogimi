@@ -19,8 +19,10 @@ type UsePendingBooksResult = {
 };
 
 /**
- * @param userId  The current user's backend id (or `0` for guests).
- *                Stamped into each synthetic record's `user_id` field.
+ * @param userId  The current user's backend id. Only stamped into each
+ *                synthetic record's `user_id` field — the map is read
+ *                either way, since a signed-out import lands here too
+ *                and waits for the first Sync-now after sign-in.
  * @param refreshSignal  Any reference whose change should trigger a
  *                       re-read of the local map. The `useBooks`
  *                       composition passes the backend fetch's `data`
@@ -35,11 +37,7 @@ export function usePendingBooks(
   const [pendingBooks, setPendingBooks] = useState<BookRecord[]>([]);
 
   const reloadPending = useCallback(async () => {
-    if (userId == null) {
-      setPendingBooks([]);
-      return;
-    }
-    const list = await listPendingBooks(userId);
+    const list = await listPendingBooks(userId ?? 0);
     setPendingBooks(list);
   }, [userId]);
 

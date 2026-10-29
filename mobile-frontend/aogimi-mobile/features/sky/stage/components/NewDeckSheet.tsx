@@ -5,7 +5,7 @@ import { BottomSheet, Button, TextField } from '@/shared/components';
 import { usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/features/auth/providers/AuthContext';
-import { createDeckLocal, MAX_DECK_DESCRIPTION, MAX_DECK_NAME } from '../lib';
+import { createDeckLocal, DeckLimitError, MAX_DECK_DESCRIPTION, MAX_DECK_NAME } from '../lib';
 import type { LocalDeck } from '../types';
 
 type Props = {
@@ -20,7 +20,8 @@ type Props = {
  *
  * Local-first: the deck appears immediately under a client-side UUID and the
  * background push inside `createDeckLocal` flips it to synced, or leaves it
- * pending for the next sync.
+ * pending for the next sync. The deck cap is `createDeckLocal`'s to enforce,
+ * so this sheet is bounded by it whoever opened it.
  */
 export function NewDeckSheet({ visible, onDismiss, onCreated }: Props) {
   const p = usePalette();
@@ -51,7 +52,8 @@ export function NewDeckSheet({ visible, onDismiss, onCreated }: Props) {
       onCreated(deck);
       onDismiss();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'));
+      if (!(err instanceof DeckLimitError)) console.warn('[sky] create deck failed', err);
+      setError(t(err instanceof DeckLimitError ? 'sky.deckLimit' : 'sky.saveFailed'));
     } finally {
       setSaving(false);
     }

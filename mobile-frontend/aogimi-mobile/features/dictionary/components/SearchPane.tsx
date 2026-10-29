@@ -96,7 +96,7 @@ export function SearchPane({
             <ActivityIndicator color={p.muted} style={styles.spinner} />
           )}
           {isSearching && state.kind === 'error' && (
-            <Text style={styles.error}>{state.message}</Text>
+            <Text style={styles.error}>{t(state.messageKey)}</Text>
           )}
           {isSearching && state.kind === 'results' && total > 0 && (
             <View style={styles.kicker}>

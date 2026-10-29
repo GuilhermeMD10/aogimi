@@ -6,6 +6,7 @@ import { LOCALES, useI18n, useT } from '@/lib/i18n/I18nContext';
 import { useReaderPrefs } from '@/features/books/reader/lib/readerPrefs';
 import { NIGHT_ENABLED, useTheme, spacing } from '@/theme';
 import { useAuth } from '@/features/auth/providers/AuthContext';
+import { confirmSignOut, failureReason } from '@/features/auth/lib';
 
 // The policy lives on the web app (`/privacy` there), which is also the URL
 // the store listings carry — one copy, opened in the browser.
@@ -34,13 +35,6 @@ export function SettingsView() {
   // Signed-out users see sign-up / sign-in on the Profile screen instead.
   const isSignedIn = status === 'signed-in';
 
-  const handleSignOut = () => {
-    Alert.alert(t('profile.signOut'), t('settings.signOutConfirm'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('profile.signOut'), style: 'destructive', onPress: () => void signOut() },
-    ]);
-  };
-
   // App Store 5.1.1(v): account deletion must be reachable in-app. The
   // provider owns the whole success path (server delete → local wipe →
   // sign-out); this screen only confirms, shows the busy state and reports a
@@ -50,13 +44,7 @@ export function SettingsView() {
     try {
       await deleteAccount();
     } catch (err) {
-      // Same split as sign-in: `status` on the error means the server
-      // answered (and refused); its absence means we never reached it.
-      const answered = typeof (err as { status?: unknown } | null)?.status === 'number';
-      Alert.alert(
-        t('settings.deleteAccountFailed'),
-        t(answered ? 'common.error' : 'auth.onboarding.errorOffline'),
-      );
+      Alert.alert(t('settings.deleteAccountFailed'), failureReason(err, t));
     } finally {
       setDeleting(false);
     }
@@ -139,7 +127,10 @@ export function SettingsView() {
 
         {isSignedIn && (
           <View>
-            <DangerButton label={t('profile.signOut')} onPress={handleSignOut} />
+            <DangerButton
+              label={t('profile.signOut')}
+              onPress={() => confirmSignOut(t, signOut)}
+            />
             <DangerButton
               label={t('settings.deleteAccount')}
               onPress={handleDeleteAccount}

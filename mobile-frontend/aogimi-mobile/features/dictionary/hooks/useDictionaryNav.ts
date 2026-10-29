@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { fetchWordDetails, peekWord } from '../lib';
+import { dictErrorKey, fetchWordDetails, peekWord } from '../lib';
 import type { WordDetails } from '../types';
 
 /**
@@ -20,7 +20,8 @@ export type DictNav = {
   canGoBack: boolean;
   /** The nearest search frame's query — see `query` in the hook below. */
   query: string;
-  detailError: string | null;
+  /** An i18n key for why the last entry didn't open, or null. */
+  detailErrorKey: string | null;
   setQuery: (v: string) => void;
   /** Resolves to the opened entry, or `null` if the load failed. */
   openDetail: (id: number) => Promise<WordDetails | null>;
@@ -46,7 +47,7 @@ export function useDictionaryNav(): DictNav {
   const [history, setHistory] = useState<DictFrame[]>(() => [
     { kind: 'search', query: '' },
   ]);
-  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailErrorKey, setDetailErrorKey] = useState<string | null>(null);
 
   const current = history[history.length - 1]!;
   // The search bar is pinned above every frame, so it needs a query on a
@@ -80,7 +81,7 @@ export function useDictionaryNav(): DictNav {
   // making the caller watch `current` for a frame transition.
   const openDetail = useCallback(
     async (id: number): Promise<WordDetails | null> => {
-      setDetailError(null);
+      setDetailErrorKey(null);
       // Fast path: word already in the LRU cache from a previous lookup.
       // Skip the 'detailLoading' frame entirely so the user sees no
       // spinner when revisiting an entry.
@@ -102,7 +103,8 @@ export function useDictionaryNav(): DictNav {
         });
         return details;
       } catch (err) {
-        setDetailError(err instanceof Error ? err.message : 'Failed to load word');
+        console.warn('[dict] entry failed to load', err);
+        setDetailErrorKey(dictErrorKey(err, 'dict.loadFailed'));
         // Drop the loading frame.
         setHistory((h) => {
           const top = h[h.length - 1]!;
@@ -123,7 +125,7 @@ export function useDictionaryNav(): DictNav {
   );
 
   const back = useCallback(() => {
-    setDetailError(null);
+    setDetailErrorKey(null);
     pop();
   }, [pop]);
 
@@ -154,7 +156,7 @@ export function useDictionaryNav(): DictNav {
     current,
     canGoBack,
     query,
-    detailError,
+    detailErrorKey,
     setQuery,
     openDetail,
     openKanjiSearch,

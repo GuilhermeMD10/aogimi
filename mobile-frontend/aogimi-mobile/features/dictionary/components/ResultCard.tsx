@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Glass, Touchable, JlptChip } from '@/shared/components';
 import { usePalette, radius, spacing, type, type Palette } from '@/theme';
+import { useT } from '@/lib/i18n/I18nContext';
 import type { WordResult } from '../types';
 import { isEnglish, preferredHeadword, posLabel } from '../lib';
 import { MetaChip } from './MetaChip';
@@ -39,6 +40,7 @@ export function ResultCard({
 }) {
   const p = usePalette();
   const styles = useStyles(p);
+  const t = useT();
 
   const headword = preferredHeadword(word, query);
   // Only show a reading that differs from the headword — for a kana entry, or
@@ -68,7 +70,7 @@ export function ResultCard({
                 {reading}
               </Text>
             )}
-            {word.is_common && <View style={styles.commonDot} accessibilityLabel="Common word" />}
+            {word.is_common && <View style={styles.commonDot} accessibilityLabel={t('dict.commonWord')} />}
           </View>
 
           {gloss !== '' && (

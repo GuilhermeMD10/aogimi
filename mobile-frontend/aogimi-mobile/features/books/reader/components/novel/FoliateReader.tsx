@@ -104,6 +104,8 @@ type Props = {
    *  screen stays the single owner of what the app feels like. */
   onHaptic?: (kind: 'start' | 'tick') => void;
   onCustomMenu?: (event: CustomMenuEvent) => void;
+  /** The book could not be opened — the file is missing or the shell's load
+   *  failed. Non-fatal shell errors are logged here and never reach it. */
   onError?: (message: string) => void;
 };
 
@@ -213,7 +215,10 @@ export const FoliateReader = forwardRef<FoliateReaderHandle, Props>(function Fol
           direction: msg.direction,
           spineCount: msg.spineCount,
         });
-      else if (msg.type === 'error') onError?.(msg.message);
+      else if (msg.type === 'error') {
+        if (msg.fatal) onError?.(msg.message);
+        else console.warn('[foliate]', msg.message);
+      }
       else if (msg.type === 'relocated') onRelocated?.(msg);
       else if (msg.type === 'selection') onSelection?.(msg);
       else if (msg.type === 'haptic') onHaptic?.(msg.kind);

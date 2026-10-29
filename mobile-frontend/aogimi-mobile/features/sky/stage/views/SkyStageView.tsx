@@ -21,6 +21,7 @@ import { useWordLookup } from '@/features/dictionary/hooks/useWordLookup';
 import { Button, InnerPlate, PopoverMenu, Screen } from '@/shared/components';
 import { ThemeScope, usePalette, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
+import { isOnlineNow } from '@/lib/network/network';
 
 import {
   CardInspectorSheet,
@@ -33,12 +34,12 @@ import {
 } from '../components';
 import { useDueCounts, useSkyDecks, type DeckWithCards } from '../hooks';
 import {
+  atDeckLimit,
   deleteCardLocal,
   deckColorFor,
   deckGlyphFor,
   deleteDeckLocal,
   syncAllDeckChanges,
-  MAX_DECKS,
 } from '../lib';
 import type { LocalCard } from '../types';
 
@@ -108,7 +109,7 @@ function SkyStage() {
   const safeArea = useSafeAreaInsets();
   const dockClearance = useDockClearance();
   const { user, status } = useAuth();
-  const { decks, sources, loading, error, refresh, reloadLocal } = useSkyDecks();
+  const { decks, sources, loading, loadFailed, refresh, reloadLocal } = useSkyDecks();
   const { counts, countFor, loading: dueLoading } = useDueCounts();
 
   /**
@@ -222,16 +223,36 @@ function SkyStage() {
 
   // Push first, *then* refresh: hydrating before the pending rows have gone up
   // would overwrite them with the server's older copy.
+  //
+  // Only the outcomes that need the user say anything — offline, and changes
+  // left behind. A clean sync is silent here; its acknowledgement is the
+  // owner's to design.
   const handleSync = useCallback(async () => {
     if (syncing) return;
+    // Offline is already known: don't spend the request deadline learning it
+    // again per pending row — the library's rule.
+    if (!isOnlineNow()) {
+      Alert.alert(t('sky.syncResult.offlineTitle'), t('sky.syncResult.offlineBody'));
+      return;
+    }
     setSyncing(true);
     try {
-      await syncAllDeckChanges();
+      const { decks: d, cards: c, reviews: r } = await syncAllDeckChanges();
       await refresh();
+      const left = d.failed.length + c.failed.length + r.failed.length;
+      if (left > 0) {
+        Alert.alert(
+          t('sky.syncResult.failedTitle'),
+          t(left === 1 ? 'sky.syncResult.pendingOne' : 'sky.syncResult.pending', { n: left.toLocaleString() }),
+        );
+      }
+    } catch (err) {
+      console.warn('[sky] sync failed', err);
+      Alert.alert(t('sky.syncResult.failedTitle'), t('common.tryAgain'));
     } finally {
       setSyncing(false);
     }
-  }, [syncing, refresh]);
+  }, [syncing, refresh, t]);
 
   /* ---------- deletes: local store first, then re-read ---------- */
 
@@ -239,7 +260,9 @@ function SkyStage() {
     (deck: DeckWithCards) => {
       Alert.alert(
         t('sky.confirm.deleteDeckTitle', { name: deck.name }),
-        t('sky.confirm.deleteDeckBody', { count: deck.cards.length.toLocaleString() }),
+        t(deck.cards.length === 1 ? 'sky.confirm.deleteDeckBodyOne' : 'sky.confirm.deleteDeckBody', {
+          count: deck.cards.length.toLocaleString(),
+        }),
         [
           { text: t('common.cancel'), style: 'cancel' },
           {
@@ -325,7 +348,11 @@ function SkyStage() {
           <Text style={s.emptyBody}>{t('sky.signedOut.body')}</Text>
           <Button label={t('sky.signedOut.cta')} onPress={() => router.push('/profile')} />
           {decks.length > 0 && (
-            <Text style={s.emptyNote}>{t('sky.signedOut.saved', { count: decks.length.toLocaleString() })}</Text>
+            <Text style={s.emptyNote}>
+              {t(decks.length === 1 ? 'sky.signedOut.savedOne' : 'sky.signedOut.saved', {
+                count: decks.length.toLocaleString(),
+              })}
+            </Text>
           )}
         </View>
       </Screen>
@@ -376,9 +403,9 @@ function SkyStage() {
         onLayout={measure(setTopChromeH)}
         pointerEvents="box-none"
       >
-        {error && (
+        {loadFailed && (
           <InnerPlate style={s.errorPlate}>
-            <Text style={s.error}>{t('sky.loadError', { error })}</Text>
+            <Text style={s.error}>{t('sky.loadError')}</Text>
           </InnerPlate>
         )}
 
@@ -441,10 +468,10 @@ function SkyStage() {
         items={[
           {
             key: 'new',
-            label: decks.length >= MAX_DECKS ? t('sky.deckLimit') : t('sky.newDeck'),
+            label: atDeckLimit(decks.length) ? t('sky.deckLimit') : t('sky.newDeck'),
             icon: 'plus',
             accent: true,
-            disabled: decks.length >= MAX_DECKS,
+            disabled: atDeckLimit(decks.length),
             onPress: () => setNewDeckOpen(true),
           },
         ]}

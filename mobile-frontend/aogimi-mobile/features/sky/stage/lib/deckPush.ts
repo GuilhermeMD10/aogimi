@@ -11,6 +11,7 @@ import * as Crypto from 'expo-crypto';
 import { createDeck, deleteDeck, updateDeck } from './decksApi';
 import type { LocalDeck } from '../types';
 import {
+  getAllDecks,
   getDeck,
   listPendingDecks,
   markDeckSynced,
@@ -19,7 +20,20 @@ import {
 } from './deckLocalState';
 import { rewriteDeckId } from './cardLocalState';
 import { rewriteLastDeckId } from './lastDeck';
+import { atDeckLimit } from './limits';
 import { pushAllByOp } from './syncByOp';
+
+/**
+ * `createDeckLocal` refused: the user already holds `MAX_DECKS`. Thrown rather
+ * than queued because the write is local-first — a deck over quota would be
+ * created, shown, and only rejected by a sync minutes later.
+ */
+export class DeckLimitError extends Error {
+  constructor() {
+    super('Deck limit reached');
+    this.name = 'DeckLimitError';
+  }
+}
 
 export type DeckPushResult =
   | { ok: true; deckId: string }
@@ -47,12 +61,19 @@ export function newLocalDeckId(): string {
  * navigate immediately — the id may be replaced later by the push
  * outcome, but for navigation purposes the local id works because the
  * local store is the canonical UI source.
+ *
+ * Throws `DeckLimitError` at the quota. Every path that creates a deck comes
+ * through here, so this is where the cap holds; the UI's own check only greys
+ * the control out earlier.
  */
 export async function createDeckLocal(
   userId: number,
   name: string,
   description: string,
 ): Promise<LocalDeck> {
+  const live = (await getAllDecks()).filter((d) => d.pendingOp !== 'delete');
+  if (atDeckLimit(live.length)) throw new DeckLimitError();
+
   const now = new Date().toISOString();
   const localId = newLocalDeckId();
   const local: LocalDeck = {

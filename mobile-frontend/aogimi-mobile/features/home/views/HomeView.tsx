@@ -159,7 +159,10 @@ export function HomeView() {
             total={counts.total}
             decks={dueDecks}
             countFor={countFor}
-            dueTitle={t('home.cardsDueTitle', { count: counts.total })}
+            dueTitle={t(
+              counts.total === 1 ? 'home.cardsDueTitleOne' : 'home.cardsDueTitle',
+              { count: counts.total },
+            )}
             studyLabel={t('home.startReview')}
             dueBadge={t('home.dueBadge', { count: counts.total })}
             onStudyAll={() => router.push('/sky/study')}

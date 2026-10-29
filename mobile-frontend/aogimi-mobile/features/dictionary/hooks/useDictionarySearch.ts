@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { queryDictionary, peekSearch, PAGE_SIZE } from '../lib';
+import { dictErrorKey, queryDictionary, peekSearch, PAGE_SIZE } from '../lib';
 import type { SearchResponse } from '../types';
 
 /** Exported: the panes that render this state are typed against it. */
@@ -7,7 +7,8 @@ export type SearchState =
   | { kind: 'idle' }
   | { kind: 'loading' }
   | { kind: 'results'; response: SearchResponse; query: string }
-  | { kind: 'error'; message: string };
+  /** `messageKey` is an i18n key — the raw error goes to the console. */
+  | { kind: 'error'; messageKey: string };
 
 export type DictionarySearch = {
   state: SearchState;
@@ -88,10 +89,8 @@ export function useDictionarySearch(query: string, debounceMs = 250): Dictionary
           })
           .catch((err: unknown) => {
             if (controller.signal.aborted) return;
-            setState({
-              kind: 'error',
-              message: err instanceof Error ? err.message : 'Search failed',
-            });
+            console.warn('[dict] search failed', err);
+            setState({ kind: 'error', messageKey: dictErrorKey(err, 'dict.searchFailed') });
             setLoadingMore(false);
           });
       },

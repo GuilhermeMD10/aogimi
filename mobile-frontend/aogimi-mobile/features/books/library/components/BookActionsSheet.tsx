@@ -13,6 +13,7 @@ import {
   clearLocalProgress,
   removeCachedBook,
   isPendingBookId,
+  setPendingTitle,
   syncOneBookOnDemand,
 } from '../../lib';
 import { useAuth } from '@/features/auth/providers/AuthContext';
@@ -74,13 +75,21 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
     }
     setBusy(true);
     try {
-      await updateBookTitle(book.id, trimmed);
+      // A pending book has no backend row to PATCH; its title lives in the
+      // local snapshot until the push creates one.
+      if (isPendingBookId(book.id)) await setPendingTitle(book.filename, trimmed);
+      else await updateBookTitle(book.id, trimmed);
       onChanged();
       onDismiss();
     } catch (err) {
+      console.warn('[library] rename failed', err);
+      // A 400 is the server's own validation (e.g. the title is too long)
+      // and says something the generic line can't; anything else doesn't.
+      const validation =
+        err instanceof Error && (err as { status?: number }).status === 400 ? err.message : null;
       Alert.alert(
-        'Rename failed',
-        err instanceof Error ? err.message : 'Please try again.',
+        t('library.actions.renameFailed'),
+        validation ?? t('library.actions.renameFailedBody'),
       );
     } finally {
       setBusy(false);
@@ -97,15 +106,13 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
         onDismiss();
       } else {
         Alert.alert(
-          'Still pending',
-          'Couldn’t reach the server. The book stays on this device — try again when you’re back online.',
+          t('library.actions.stillPendingTitle'),
+          t('library.actions.stillPendingBody'),
         );
       }
     } catch (err) {
-      Alert.alert(
-        'Sync failed',
-        err instanceof Error ? err.message : 'Please try again.',
-      );
+      console.warn('[library] sync failed', err);
+      Alert.alert(t('library.syncResult.failedTitle'), t('library.syncResult.failedBody'));
     } finally {
       setBusy(false);
     }
@@ -114,12 +121,12 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
   const handleDelete = () => {
     if (!book || busy) return;
     Alert.alert(
-      'Delete book?',
-      'This removes the book and all reading progress from your account, and deletes the local copy on this device.',
+      t('library.actions.deleteConfirmTitle'),
+      t('library.actions.deleteConfirmBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             setBusy(true);
@@ -147,10 +154,8 @@ export function BookActionsSheet({ book, onDismiss, onChanged }: Props) {
               onChanged();
               onDismiss();
             } catch (err) {
-              Alert.alert(
-                'Delete failed',
-                err instanceof Error ? err.message : 'Please try again.',
-              );
+              console.warn('[library] delete failed', err);
+              Alert.alert(t('library.actions.deleteFailed'), t('library.actions.deleteFailedBody'));
             } finally {
               setBusy(false);
             }

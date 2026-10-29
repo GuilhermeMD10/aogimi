@@ -62,7 +62,7 @@ export function DeckMenu({
               {deck.name}
             </Text>
             <Text style={s.meta}>
-              {t('sky.starsDue', {
+              {t(deck.cards.length === 1 ? 'sky.starsDueOne' : 'sky.starsDue', {
                 stars: deck.cards.length.toLocaleString(),
                 due: dueCount === null ? '—' : dueCount.toLocaleString(),
               })}

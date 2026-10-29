@@ -46,7 +46,7 @@ export function FocusedDeckHeader({
         size={36}
         title={name}
         japanese
-        subtitle={t('sky.starsDue', {
+        subtitle={t(cardCount === 1 ? 'sky.starsDueOne' : 'sky.starsDue', {
           stars: cardCount.toLocaleString(),
           due: dueCount === null ? '—' : dueCount.toLocaleString(),
         })}

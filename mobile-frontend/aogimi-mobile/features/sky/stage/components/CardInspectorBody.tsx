@@ -78,7 +78,11 @@ export function CardInspectorBody({ card, showFront = true }: { card: LocalCard;
         ) : (
           <View />
         )}
-        <Text style={s.reviews}>{t('sky.reviews', { count: card.reviewed_times.toLocaleString() })}</Text>
+        <Text style={s.reviews}>
+          {t(card.reviewed_times === 1 ? 'sky.reviewsOne' : 'sky.reviews', {
+            count: card.reviewed_times.toLocaleString(),
+          })}
+        </Text>
       </View>
 
       {meanings ? (

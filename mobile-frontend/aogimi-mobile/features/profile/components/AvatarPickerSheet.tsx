@@ -24,8 +24,8 @@ export function AvatarPickerSheet({ visible, current, onDismiss, onSelect }: Pro
   return (
     <BottomSheet visible={visible} onDismiss={onDismiss} heightRatio={0.75}>
       <View style={styles.header}>
-        <Text style={[styles.kicker, { color: c.fgMuted }]}>Choose avatar</Text>
-        <Text style={[styles.title, { color: c.fg }]}>Kamon</Text>
+        <Text style={[styles.kicker, { color: c.fgMuted }]}>{t('profile.chooseAvatar')}</Text>
+        <Text style={[styles.title, { color: c.fg }]}>{t('profile.kamon')}</Text>
       </View>
 
       <View style={styles.grid}>

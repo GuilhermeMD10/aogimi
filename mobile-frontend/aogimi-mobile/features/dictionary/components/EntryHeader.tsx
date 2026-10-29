@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { JlptChip, PitchAccentDiagram } from '@/shared/components';
 import { usePalette, radius, spacing, type, type Palette } from '@/theme';
+import { useT } from '@/lib/i18n/I18nContext';
 import type { WordResult } from '../types';
 import { preferredHeadword, posLabel } from '../lib';
 import { MetaChip } from './MetaChip';
@@ -29,6 +30,7 @@ export function EntryHeader({
 }) {
   const p = usePalette();
   const styles = useStyles(p);
+  const t = useT();
 
   const headword = preferredHeadword(word, query);
   const primaryReading = word.readings[0];
@@ -65,7 +67,7 @@ export function EntryHeader({
       <View style={styles.chips}>
         {word.jlpt_level != null && <JlptChip level={word.jlpt_level} />}
         {pos !== null && <MetaChip label={pos} />}
-        {word.is_common && <MetaChip label="common" />}
+        {word.is_common && <MetaChip label={t('dict.common')} />}
         {graded.map(({ char, grade }) => (
           <View key={char} style={styles.gradeChip}>
             <Text style={styles.gradeGlyph}>{char}</Text>

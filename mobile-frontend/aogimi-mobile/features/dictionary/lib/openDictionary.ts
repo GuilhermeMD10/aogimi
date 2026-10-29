@@ -40,6 +40,31 @@ const VERSION_FILENAME = 'dictionary.version';
 let inFlight: Promise<SQLite.SQLiteDatabase> | null = null;
 let cached: SQLite.SQLiteDatabase | null = null;
 
+/**
+ * The bundled dictionary couldn't be installed or opened — a missing asset, a
+ * failed copy, SQLite refusing the file. Every one of these is the same thing
+ * to the user (no dictionary, and only a restart retries the install), so they
+ * are folded into one type the screens can tell apart from a query failing.
+ * The original error rides along as `cause` for the console.
+ */
+export class DictionaryUnavailableError extends Error {
+  readonly cause: unknown;
+  constructor(cause: unknown) {
+    super('Dictionary unavailable');
+    this.name = 'DictionaryUnavailableError';
+    this.cause = cause;
+  }
+}
+
+/**
+ * The i18n key for a failed dictionary read: the one "couldn't be opened"
+ * message when the database itself is out, otherwise `fallback` — the
+ * caller's own wording for the search or lookup that failed.
+ */
+export function dictErrorKey(err: unknown, fallback: string): string {
+  return err instanceof DictionaryUnavailableError ? 'dict.openFailed' : fallback;
+}
+
 function sqliteDir(): Directory {
   // expo-sqlite's default open location is `documentDirectory/SQLite/`.
   // Create it up-front so the copy target path exists.
@@ -158,6 +183,8 @@ export async function getDictionary(): Promise<SQLite.SQLiteDatabase> {
 
   try {
     return await inFlight;
+  } catch (err) {
+    throw new DictionaryUnavailableError(err);
   } finally {
     inFlight = null;
   }

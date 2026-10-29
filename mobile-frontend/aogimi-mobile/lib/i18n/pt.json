@@ -8,7 +8,12 @@
     "show": "Mostrar",
     "hide": "Ocultar",
     "showPassword": "Mostrar palavra-passe",
-    "hidePassword": "Ocultar palavra-passe"
+    "hidePassword": "Ocultar palavra-passe",
+    "tryAgain": "Tenta novamente.",
+    "justNow": "agora mesmo",
+    "minutesAgo": "há {n} min",
+    "hoursAgo": "há {n} h",
+    "daysAgo": "há {n} d"
   },
   "auth": {
     "welcome": {
@@ -24,7 +29,9 @@
       "submit": "Iniciar sessão",
       "noAccount": "Ainda não tens conta?",
       "signUp": "Registar",
-      "errorInvalid": "Nome de utilizador ou palavra-passe inválidos"
+      "errorInvalid": "Nome de utilizador ou palavra-passe inválidos",
+      "errorRateLimited": "Demasiadas tentativas. Tenta novamente dentro de alguns minutos.",
+      "errorServer": "O servidor teve um problema. Tenta novamente."
     },
     "signUp": {
       "title": "Criar conta",
@@ -40,28 +47,47 @@
       "errorMismatch": "As palavras-passe não coincidem",
       "errorTaken": "Esse nome de utilizador já está em uso",
       "closedTitle": "Registos encerrados",
-      "closedBody": "Não estamos a criar novas contas de momento. Se já tem uma conta, inicie sessão abaixo."
+      "closedBody": "Não estamos a criar novas contas de momento. Se já tem uma conta, inicie sessão abaixo.",
+      "errorUsernameLength": "O nome de utilizador tem de ter entre 3 e 32 caracteres.",
+      "errorUsernameChars": "O nome de utilizador só pode ter letras, números, '_', '.' e '-'.",
+      "errorEmailMissing": "Introduz o teu endereço de e-mail.",
+      "errorEmailInvalid": "Introduz um endereço de e-mail válido.",
+      "errorPasswordShort": "A palavra-passe tem de ter pelo menos 8 caracteres.",
+      "errorPasswordLong": "A palavra-passe pode ter no máximo 72 caracteres.",
+      "errorPasswordSymbol": "A palavra-passe tem de ter pelo menos um número ou símbolo."
     },
     "onboarding": {
       "syncing": "A sincronizar os teus livros…",
-      "synced": "Sincronizados {books} livros · {decks} baralhos",
+      "synced": "Sincronização concluída: {books} · {decks}",
+      "bookCountOne": "{n} livro",
+      "bookCount": "{n} livros",
+      "deckCountOne": "{n} baralho",
+      "deckCount": "{n} baralhos",
       "noRecords": "Ainda nada para sincronizar. Começa a ler para construir a tua coleção.",
       "errorOffline": "Não foi possível contactar o servidor. Podes tentar mais tarde.",
       "continue": "Continuar",
       "reconcileTitle": "Trazer os teus livros para aqui",
-      "reconcileBody": "{count} livros da tua conta ainda não têm ficheiro neste dispositivo. Localiza cada EPUB agora ou salta e importa depois.",
+      "reconcileBody": "{count} livros da tua conta ainda não têm ficheiro neste dispositivo. Localiza agora o ficheiro de cada livro ou salta e importa depois.",
+      "reconcileBodyOne": "{count} livro da tua conta ainda não tem ficheiro neste dispositivo. Localiza agora o ficheiro do livro ou salta e importa depois.",
       "find": "Localizar",
       "found": "Encontrado",
-      "skipAll": "Saltar por agora"
+      "skipAll": "Saltar por agora",
+      "retry": "Tentar novamente"
     }
   },
   "home": {
     "brand": "Aogimi",
     "streak": "{count}日目",
     "cardsDueTitle": "{count} cartões a rever",
+    "cardsDueTitleOne": "{count} cartão a rever",
     "startReview": "Começar revisão",
     "dueBadge": "{count} A REVER",
     "searchLabel": "Abrir o dicionário"
+  },
+  "notFound": {
+    "title": "Página não encontrada",
+    "body": "Esta página não existe.",
+    "home": "Ir para o início"
   },
   "reader": {
     "back": "Voltar à biblioteca",
@@ -69,6 +95,19 @@
     "missingTitle": "Ficheiro não está neste dispositivo",
     "missingBody": "Este livro está na tua conta a partir de outro dispositivo. Importa o ficheiro aqui para começar a ler.",
     "importFile": "Importar ficheiro",
+    "pdfLoadFailed": "Não foi possível abrir este PDF. Pode estar protegido por palavra-passe ou danificado.",
+    "epubOpenFailed": "Não foi possível abrir este livro. O ficheiro pode estar danificado ou incompleto.",
+    "loadError": {
+      "notFoundLocally": "Este livro já não está neste dispositivo.",
+      "offline": "Estás offline. Abre este livro uma vez com ligação e, a partir daí, fica disponível offline.",
+      "gone": "Este livro já não está na tua conta.",
+      "failed": "Não foi possível carregar este livro agora. Tenta novamente mais tarde."
+    },
+    "manga": {
+      "preparing": "A preparar as páginas…",
+      "noPages": "Nenhuma página encontrada",
+      "prepareFailed": "Não foi possível ler as páginas deste livro. O ficheiro pode estar danificado."
+    },
     "dock": {
       "open": "Controlos do leitor",
       "toc": "Índice",
@@ -124,7 +163,20 @@
     "kanjiInWord": "Kanji nesta palavra",
     "examples": "Exemplo",
     "back": "Voltar",
-    "backToResults": "Voltar aos resultados"
+    "backToResults": "Voltar aos resultados",
+    "common": "comum",
+    "commonWord": "Palavra comum",
+    "infoMeaning": "sentido",
+    "infoOn": "on",
+    "infoKun": "kun",
+    "strokes": "{n} traços",
+    "strokesOne": "{n} traço",
+    "grade": "grau {n}",
+    "radical": "radical {radical}",
+    "searchKanji": "Pesquisar {kanji}",
+    "searchFailed": "Não foi possível pesquisar. Tenta novamente.",
+    "loadFailed": "Não foi possível abrir esta entrada. Tenta novamente.",
+    "openFailed": "Não foi possível abrir o dicionário. Reinicia a aplicação para tentares de novo."
   },
   "decks": {
     "new": "Novo baralho"
@@ -144,10 +196,12 @@
       "title": "Sessão concluída",
       "minutes": "{n} MIN",
       "reviewed": "{n} cartas revistas",
+      "reviewedOne": "{n} carta revista",
       "correct": "Certas",
       "correctMeta": "{pct}% · GOOD/EASY",
       "missed": "Falhadas",
       "missedMeta": "AGAIN · {n} CARTAS",
+      "missedMetaOne": "AGAIN · {n} CARTA",
       "thisSession": "Esta sessão",
       "miss": "1 FALHA",
       "misses": "{n} FALHAS",
@@ -156,6 +210,7 @@
       "more": "mais {n}"
     },
     "nothingDue": "Nada pendente — tudo em dia",
+    "loadFailed": "Não foi possível carregar esta sessão. Tenta novamente.",
     "allDecks": "Todos os baralhos",
     "progress": "{done} / {total} · faltam {left}",
     "revealCard": "Revelar carta",
@@ -190,7 +245,10 @@
     "lookingUpSince": "A OLHAR PARA CIMA DESDE {date}",
     "statDaysStudied": "DIAS DE ESTUDO",
     "statMastered": "DOMINADAS",
-    "statStars": "ESTRELAS"
+    "statStars": "ESTRELAS",
+    "chooseAvatar": "Escolher avatar",
+    "kamon": "Kamon",
+    "saveFailed": "Não foi possível guardar a alteração"
   },
   "settings": {
     "title": "Definições",
@@ -204,7 +262,12 @@
     "deleteAccount": "Eliminar conta",
     "deleteAccountConfirmTitle": "Eliminar a tua conta?",
     "deleteAccountConfirmBody": "Esta ação é permanente. Os teus baralhos, cartões, histórico de estudo e progresso de leitura são apagados do servidor, e os livros guardados neste telemóvel são removidos. Não é possível anular.",
-    "deleteAccountFailed": "Não foi possível eliminar a conta"
+    "deleteAccountFailed": "Não foi possível eliminar a conta",
+    "languages": {
+      "en": "Inglês",
+      "ja": "Japonês",
+      "pt": "Português"
+    }
   },
   "help": {
     "intro": {
@@ -318,11 +381,101 @@
     "noneAvailable": "Nenhum livro disponível neste dispositivo.",
     "empty": "Ainda sem livros",
     "moreActions": "Mais ações para {title}",
+    "refreshFailed": "Não foi possível atualizar a tua biblioteca — a mostrar os livros guardados neste dispositivo.",
+    "refreshOffline": "Estás offline — a mostrar os livros guardados neste dispositivo.",
+    "syncState": {
+      "synced": {
+        "title": "Sincronizado",
+        "body": "O progresso deste livro está sincronizado entre dispositivos!"
+      },
+      "unsynced": {
+        "title": "Não sincronizado",
+        "body": "O progresso deste livro só está acessível neste dispositivo. Sincroniza-o para o teres em todos os dispositivos."
+      },
+      "toImport": {
+        "title": "Na tua conta",
+        "body": "Este livro está na tua conta, mas não neste dispositivo. Toca no livro para importar o ficheiro aqui."
+      }
+    },
+    "syncResult": {
+      "upToDateTitle": "Biblioteca sincronizada",
+      "upToDateBody": "Nada para atualizar.",
+      "syncedTitle": "Sincronizado",
+      "partialTitle": "Parcialmente sincronizado",
+      "failedTitle": "Não foi possível sincronizar",
+      "failedBody": "Algo correu mal durante a sincronização. Os teus livros continuam neste dispositivo — tenta novamente mais tarde.",
+      "unreachableTitle": "Não foi possível contactar o servidor",
+      "unreachableBody": "Não foi possível verificar a tua biblioteca com a tua conta. Nada foi alterado neste dispositivo.",
+      "removedOne": "{n} livro removido — foi eliminado noutro dispositivo",
+      "removed": "{n} livros removidos — foram eliminados noutro dispositivo",
+      "replacedOne": "{n} livro foi substituído noutro dispositivo — importa o ficheiro de novo para o leres aqui",
+      "replaced": "{n} livros foram substituídos noutro dispositivo — importa os ficheiros de novo para os leres aqui",
+      "pushedOne": "{n} livro adicionado à tua conta",
+      "pushed": "{n} livros adicionados à tua conta",
+      "pushFailedOne": "{n} livro não pôde ser adicionado — tenta novamente",
+      "pushFailed": "{n} livros não puderam ser adicionados — tenta novamente",
+      "backfilledOne": "{n} livro passou a ser reconhecido em todos os teus dispositivos",
+      "backfilled": "{n} livros passaram a ser reconhecidos em todos os teus dispositivos",
+      "adoptedOne": "{n} livro corresponde a um que já está na tua conta",
+      "adopted": "{n} livros correspondem a outros que já estão na tua conta",
+      "positionsOne": "{n} posição de leitura sincronizada",
+      "positions": "{n} posições de leitura sincronizadas",
+      "pendingOne": "{n} livro ainda à espera de sincronizar — tenta novamente",
+      "pending": "{n} livros ainda à espera de sincronizar — tenta novamente"
+    },
+    "import": {
+      "failedTitle": "Falha na importação",
+      "failedBody": "Não foi possível importar o livro. Tenta novamente ou experimenta outro ficheiro.",
+      "alreadyTitle": "Já está na tua biblioteca",
+      "alreadyOnDevice": "“{title}” já está neste dispositivo.",
+      "alreadyMatched": "“{title}” corresponde a este ficheiro. Já está disponível neste dispositivo.",
+      "unsupportedTitle": "Ficheiro não suportado",
+      "unsupportedBody": "Os ficheiros .{ext} não podem ser abertos aqui. Importa um EPUB ou um PDF.",
+      "noExtensionBody": "Esse ficheiro não tem extensão, por isso não é possível identificá-lo. Importa um EPUB ou um PDF.",
+      "emptyTitle": "Ficheiro vazio",
+      "emptyBody": "Esse ficheiro não tem conteúdo — pode ainda estar a ser transferido.",
+      "tooLargeTitle": "Ficheiro demasiado grande",
+      "tooLargeBody": "Esse ficheiro tem {size}. O limite é {limit}.",
+      "unreadableTitle": "Não é possível ler esse ficheiro",
+      "unreadableBody": "Não foi possível abrir o ficheiro. Pode ter sido movido, ou a app pode não ter permissão para o ler.",
+      "invalidTitle": "Não é um {format} válido",
+      "invalidPdfBody": "O ficheiro chama-se .{ext}, mas o conteúdo não é um PDF. Pode estar danificado ou não ter sido transferido por completo.",
+      "invalidEpubBody": "O ficheiro chama-se .{ext}, mas o conteúdo não é um EPUB. Pode estar danificado ou não ter sido transferido por completo."
+    },
+    "locate": {
+      "unverifiedTitle": "Não foi possível verificar",
+      "unverifiedBody": "O ficheiro tem de ser verificado com a tua conta antes de ser associado, e de momento não é possível contactar o servidor. Nada foi importado — tenta novamente quando estiveres online.",
+      "mismatchTitle": "Não corresponde",
+      "wrongTypeBody": "“{title}” é um ficheiro .{expected}, mas escolheste um ficheiro .{picked}. Escolhe um que corresponda.",
+      "readFailedTitle": "Não foi possível ler o ficheiro",
+      "readFailedBody": "Não foi possível ler esse ficheiro. Experimenta outro.",
+      "alreadyAsBody": "Este ficheiro já está na tua biblioteca como “{title}”.",
+      "noMatchBody": "Este ficheiro não corresponde a “{title}”. O livro continua por importar.",
+      "saveFailedTitle": "Não foi possível guardar o ficheiro",
+      "saveFailedBody": "Não foi possível guardar o ficheiro. Tenta novamente.",
+      "signedOutTitle": "Inicia sessão para importar",
+      "signedOutBody": "Este livro está numa conta. Inicia sessão para verificar o ficheiro com ela e trazê-lo para este dispositivo.",
+      "goToProfile": "Ir ao Perfil"
+    },
+    "importScreen": {
+      "progress": "{pct}% lido",
+      "body": "Este livro está na tua conta a partir de outro dispositivo. Importa aqui o ficheiro {format} para começares a ler — o progresso guardado mantém-se.",
+      "importing": "A importar…",
+      "import": "Importar {format}"
+    },
     "actions": {
       "syncNow": "Sincronizar agora",
       "rename": "Mudar o nome",
       "delete": "Eliminar",
-      "titlePlaceholder": "Título do livro"
+      "titlePlaceholder": "Título do livro",
+      "renameFailed": "Não foi possível mudar o nome",
+      "renameFailedBody": "Não foi possível guardar o novo título. Tenta novamente.",
+      "stillPendingTitle": "Ainda pendente",
+      "stillPendingBody": "Não foi possível contactar o servidor. O livro fica neste dispositivo — tenta novamente quando voltares a estar online.",
+      "deleteConfirmTitle": "Eliminar livro?",
+      "deleteConfirmBody": "Isto remove o livro e todo o progresso de leitura da tua conta, e elimina a cópia local neste dispositivo.",
+      "deleteFailed": "Não foi possível eliminar",
+      "deleteFailedBody": "Não foi possível eliminar o livro. Tenta novamente."
     }
   },
   "card": {
@@ -356,6 +509,7 @@
     "back": "Voltar ao céu inteiro",
     "backToDeck": "Voltar ao baralho",
     "starsDue": "{stars} Estrelas · {due} A rever",
+    "starsDueOne": "{stars} Estrela · {due} A rever",
     "editDeck": "Editar baralho",
     "showStats": "Ver estatísticas",
     "deleteDeck": "Eliminar baralho",
@@ -366,6 +520,7 @@
     "deleteCard": "Eliminar cartão",
     "lookUp": "Dicionário",
     "reviews": "{count} revisões",
+    "reviewsOne": "{count} revisão",
     "dueNow": "A rever",
     "rank": {
       "new": "Novo",
@@ -377,13 +532,26 @@
       "title": "O teu céu precisa de uma conta",
       "body": "Cada cartão que guardas torna-se uma estrela, colocada por uma semente que o servidor emite uma vez e nunca muda — o mesmo céu segue-te em todos os dispositivos. Inicia sessão para ver o teu.",
       "cta": "Ir para o perfil",
-      "saved": "{count} baralhos estão guardados neste dispositivo e ficarão à espera."
+      "saved": "{count} baralhos estão guardados neste dispositivo e ficarão à espera.",
+      "savedOne": "{count} baralho está guardado neste dispositivo e ficará à espera.",
+      "addCard": "Os cartões tornam-se estrelas no teu céu, e o teu céu precisa de uma conta. Inicia sessão para guardares este cartão."
     },
     "empty": "O teu céu está vazio — guarda palavras no leitor e cada uma torna-se uma estrela.",
-    "loadError": "Não foi possível carregar o teu céu — {error}",
+    "loadError": "Não foi possível ligar ao servidor — a mostrar o céu guardado neste dispositivo.",
+    "saveFailed": "Não foi possível guardar. Tenta novamente.",
+    "deckGone": "Este baralho já não existe — pode ter sido eliminado.",
+    "noDeckSelected": "Escolhe um baralho para este cartão.",
+    "syncResult": {
+      "offlineTitle": "Offline",
+      "offlineBody": "As tuas alterações estão guardadas neste dispositivo. Liga-te à internet para as sincronizar.",
+      "failedTitle": "Sincronização incompleta",
+      "pendingOne": "{n} alteração continua à espera neste dispositivo — tenta novamente mais tarde.",
+      "pending": "{n} alterações continuam à espera neste dispositivo — tenta novamente mais tarde."
+    },
     "confirm": {
       "deleteDeckTitle": "Eliminar “{name}”?",
       "deleteDeckBody": "Isto elimina o baralho e os seus {count} cartões — a constelação desaparece do teu céu. Não há como anular.",
+      "deleteDeckBodyOne": "Isto elimina o baralho e o seu único cartão — a constelação desaparece do teu céu. Não há como anular.",
       "deleteCardTitle": "Eliminar “{front}”?",
       "deleteCardBody": "Isto remove o cartão e a sua estrela. Não há como anular."
     },

@@ -56,7 +56,7 @@ export function DictionaryView() {
   const p = usePalette();
   const dockClearance = useDockClearance();
 
-  const { current, canGoBack, query, setQuery, openDetail, openKanjiSearch, back, detailError } =
+  const { current, canGoBack, query, setQuery, openDetail, openKanjiSearch, back, detailErrorKey } =
     useDictionaryNav();
 
   const search = useDictionarySearch(query);
@@ -204,7 +204,7 @@ export function DictionaryView() {
           canLoadMore={search.canLoadMore}
           loadingMore={search.loadingMore}
           recents={recents}
-          detailError={detailError}
+          detailError={detailErrorKey === null ? null : t(detailErrorKey)}
           bottomInset={dockClearance}
           onOpenWord={(w) => void openWord(w.id, query)}
           onOpenRecent={(lookup) => void openWord(lookup.wordId, lookup.headword)}

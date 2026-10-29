@@ -5,7 +5,9 @@ import type { BookRecord } from '@/features/books/types';
 export type MangaSpineState = {
   isManga: boolean;
   handle: MangaSpineHandle | null;
-  error: string | null;
+  /** The prepare threw (a ZIP or OPF the extractor couldn't read). The
+   *  cause is logged; the caller words the one line the reader shows. */
+  failed: boolean;
 };
 
 /**
@@ -18,12 +20,12 @@ export function useMangaSpine(book: BookRecord | null, hasFile: boolean): MangaS
   const [state, setState] = useState<MangaSpineState>({
     isManga: false,
     handle: null,
-    error: null,
+    failed: false,
   });
 
   useEffect(() => {
     if (!book || !hasFile) {
-      setState({ isManga: false, handle: null, error: null });
+      setState({ isManga: false, handle: null, failed: false });
       return;
     }
     let cancelled = false;
@@ -37,10 +39,8 @@ export function useMangaSpine(book: BookRecord | null, hasFile: boolean): MangaS
         setState((p) => ({ ...p, handle }));
       } catch (e) {
         if (cancelled) return;
-        setState((p) => ({
-          ...p,
-          error: e instanceof Error ? e.message : 'Failed to prepare pages',
-        }));
+        console.warn('[reader] manga prepare failed', e);
+        setState((p) => ({ ...p, failed: true }));
       }
     })();
     return () => {

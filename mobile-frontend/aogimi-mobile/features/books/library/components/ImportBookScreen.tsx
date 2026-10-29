@@ -1,14 +1,15 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Touchable, Button } from '@/shared/components';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Feather from '@expo/vector-icons/Feather';
 import { useRouter } from 'expo-router';
 import { useColors, fontFamily, fontSize, radius, spacing } from '@/theme';
+import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { useBookRecord } from '../../hooks/useBookRecord';
 import { BookCover } from './BookCover';
-import { locateBookFile } from '../../lib/locateBookFile';
+import { alertLocateOutcome, locateBookFile } from '../../lib/locateBookFile';
 
 type Props = { bookId: string };
 
@@ -22,6 +23,7 @@ type Props = { bookId: string };
 // nothing to read until the file is on the device.
 export function ImportBookScreen({ bookId }: Props) {
   const c = useColors();
+  const t = useT();
   const router = useRouter();
   const { user } = useAuth();
   const { book, loading, error } = useBookRecord(bookId);
@@ -31,24 +33,24 @@ export function ImportBookScreen({ bookId }: Props) {
   const format = isPdf ? 'PDF' : 'EPUB';
 
   const handleImport = useCallback(async () => {
-    if (!book || !user || importing) return;
+    if (!book || importing) return;
     setImporting(true);
     try {
       const outcome = await locateBookFile(
         { id: book.id, filename: book.filename, title: book.title },
-        user.id,
+        user?.id ?? null,
+        t,
       );
       if (outcome.status === 'attached') {
         // File is on the device now — straight into the reader.
         router.replace(`/reader/${book.id}`);
-      } else if (outcome.status === 'rejected') {
-        Alert.alert(outcome.title, outcome.message);
+      } else {
+        alertLocateOutcome(outcome, t, () => router.push('/profile'));
       }
-      // 'canceled' → user backed out of the picker; do nothing.
     } finally {
       setImporting(false);
     }
-  }, [book, user, importing, router]);
+  }, [book, user, importing, router, t]);
 
   if (loading) {
     return (
@@ -71,7 +73,7 @@ export function ImportBookScreen({ bookId }: Props) {
           </Touchable>
         </View>
         <View style={styles.centered}>
-          <Text style={{ color: c.fg, fontSize: fontSize.md }}>{error ?? 'Book not found'}</Text>
+          <Text style={{ color: c.fg, fontSize: fontSize.md }}>{t(error ?? 'reader.notFound')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -113,17 +115,20 @@ export function ImportBookScreen({ bookId }: Props) {
               <Text style={[styles.chipText, { color: c.fgMuted }]}>{format}</Text>
             </View>
             <Text style={[styles.progress, { color: c.fgSubtle }]}>
-              {book.progress}% read
+              {t('library.importScreen.progress', { pct: book.progress })}
             </Text>
           </View>
 
           <Text style={[styles.body, { color: c.fgMuted }]}>
-            This book is on your account from another device. Import the {format} file
-            here to start reading — your saved progress carries over.
+            {t('library.importScreen.body', { format })}
           </Text>
 
           <Button
-            label={importing ? 'Importing…' : `Import ${format}`}
+            label={
+              importing
+                ? t('library.importScreen.importing')
+                : t('library.importScreen.import', { format })
+            }
             onPress={handleImport}
             loading={importing}
             disabled={importing}

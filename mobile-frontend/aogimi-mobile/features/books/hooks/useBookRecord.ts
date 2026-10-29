@@ -37,6 +37,9 @@ import type { BookRecord } from '../types';
 type State = {
   book: BookRecord | null;
   loading: boolean;
+  /** A `reader.loadError.*` translation key — the caller `t()`s it. The
+   *  cause (a 404, RN's "Network request failed") goes to the log, not
+   *  the screen. */
   error: string | null;
   /** True when the reader is operating against the local cache because
    *  backend was unreachable. Caller can use this to gate backend
@@ -107,7 +110,7 @@ export function useBookRecord(bookId: string): State {
         const resolved = await resolvePendingBook(bookId, userId);
         if (cancelled) return;
         if (resolved.status === 'not-found') {
-          setError('Book not found locally');
+          setError('reader.loadError.notFoundLocally');
           setLoading(false);
           return;
         }
@@ -134,7 +137,7 @@ export function useBookRecord(bookId: string): State {
           await markSessionPending(bookId);
           setOfflineMode(true);
         } else {
-          setError('Offline — open this book once with a connection.');
+          setError('reader.loadError.offline');
         }
         setLoading(false);
         return;
@@ -164,12 +167,15 @@ export function useBookRecord(bookId: string): State {
           setOfflineMode(true);
           if (!cached) {
             // No cache + no network = nothing to render.
-            setError('Offline — open this book once with a connection.');
+            setError('reader.loadError.offline');
           }
           setLoading(false);
         } else {
-          // Real HTTP failure (404, etc). Surface the error.
-          setError(err instanceof Error ? err.message : 'Failed to load book');
+          // Real HTTP failure. A 404 is the one with a meaning of its own:
+          // the book is gone from the account.
+          console.warn('[reader] book fetch failed', err);
+          const status = (err as { status?: number }).status;
+          setError(status === 404 ? 'reader.loadError.gone' : 'reader.loadError.failed');
           setLoading(false);
         }
       }

@@ -23,6 +23,8 @@ export function OnboardingView() {
 
   const [state, setState] = useState<SyncState>({ kind: 'loading' });
   const [resolved, setResolved] = useState<Set<string>>(new Set());
+  // Bumped by Retry: the sync effect re-runs on it, so there is one sync step.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -47,9 +49,14 @@ export function OnboardingView() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, attempt]);
 
   const finish = useCallback(() => router.replace('/(tabs)/reader'), [router]);
+
+  const retry = useCallback(() => {
+    setState({ kind: 'loading' });
+    setAttempt((n) => n + 1);
+  }, []);
 
   const handleFind = useCallback(async (book: BookRecord) => {
     if (!user) return;
@@ -60,6 +67,7 @@ export function OnboardingView() {
     const outcome = await locateBookFile(
       { id: book.id, filename: book.filename, title: book.title },
       user.id,
+      t,
     );
     if (outcome.status === 'attached') {
       setResolved((prev) => new Set(prev).add(book.id));
@@ -67,7 +75,7 @@ export function OnboardingView() {
       Alert.alert(outcome.title, outcome.message);
     }
     // 'canceled' → user backed out of the picker; do nothing.
-  }, [user]);
+  }, [user, t]);
 
   return (
     <Screen padded>
@@ -101,7 +109,16 @@ export function OnboardingView() {
             <Text style={[styles.status, { color: c.fg }]}>
               {state.books + state.decks === 0
                 ? t('auth.onboarding.noRecords')
-                : t('auth.onboarding.synced', { books: state.books, decks: state.decks })}
+                : t('auth.onboarding.synced', {
+                    books: t(
+                      state.books === 1 ? 'auth.onboarding.bookCountOne' : 'auth.onboarding.bookCount',
+                      { n: state.books },
+                    ),
+                    decks: t(
+                      state.decks === 1 ? 'auth.onboarding.deckCountOne' : 'auth.onboarding.deckCount',
+                      { n: state.decks },
+                    ),
+                  })}
             </Text>
           </View>
         )}
@@ -121,6 +138,16 @@ export function OnboardingView() {
             ) : (
               <Button label={t('auth.onboarding.skipAll')} variant="secondary" onPress={finish} full />
             )
+          ) : state.kind === 'error' ? (
+            <>
+              <Button label={t('auth.onboarding.retry')} onPress={retry} full />
+              <Button
+                label={t('auth.onboarding.continue')}
+                variant="secondary"
+                onPress={finish}
+                full
+              />
+            </>
           ) : (
             <Button
               label={t('auth.onboarding.continue')}
@@ -151,6 +178,7 @@ function ReconcileView({
   const c = useColors();
   const t = useT();
   const pending = missing.filter((b) => !resolved.has(b.id)).length;
+  const count = pending || missing.length;
 
   return (
     <View style={styles.reconcile}>
@@ -158,7 +186,10 @@ function ReconcileView({
         {t('auth.onboarding.reconcileTitle')}
       </Text>
       <Text style={[styles.reconcileBody, { color: c.fgMuted }]}>
-        {t('auth.onboarding.reconcileBody', { count: pending || missing.length })}
+        {t(
+          count === 1 ? 'auth.onboarding.reconcileBodyOne' : 'auth.onboarding.reconcileBody',
+          { count },
+        )}
       </Text>
 
       <ScrollView
@@ -255,5 +286,5 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   done: { fontSize: fontSize.sm, fontWeight: '600' },
-  bottom: { marginTop: spacing.md },
+  bottom: { marginTop: spacing.md, gap: spacing.sm },
 });

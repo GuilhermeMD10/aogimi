@@ -8,7 +8,12 @@
     "show": "Show",
     "hide": "Hide",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "tryAgain": "Please try again.",
+    "justNow": "just now",
+    "minutesAgo": "{n}m ago",
+    "hoursAgo": "{n}h ago",
+    "daysAgo": "{n}d ago"
   },
   "auth": {
     "welcome": {
@@ -24,7 +29,9 @@
       "submit": "Sign in",
       "noAccount": "No account yet?",
       "signUp": "Sign up",
-      "errorInvalid": "Invalid username or password"
+      "errorInvalid": "Invalid username or password",
+      "errorRateLimited": "Too many attempts. Try again in a few minutes.",
+      "errorServer": "The server had a problem. Please try again."
     },
     "signUp": {
       "title": "Create account",
@@ -40,28 +47,47 @@
       "errorMismatch": "Passwords don't match",
       "errorTaken": "That username is taken",
       "closedTitle": "Sign-ups are closed",
-      "closedBody": "New accounts are not being created at the moment. If you already have an account, sign in below."
+      "closedBody": "New accounts are not being created at the moment. If you already have an account, sign in below.",
+      "errorUsernameLength": "Username must be between 3 and 32 characters.",
+      "errorUsernameChars": "Username may contain letters, numbers, '_', '.' and '-' only.",
+      "errorEmailMissing": "Enter your email address.",
+      "errorEmailInvalid": "Enter a valid email address.",
+      "errorPasswordShort": "Password must be at least 8 characters.",
+      "errorPasswordLong": "Password must be at most 72 characters.",
+      "errorPasswordSymbol": "Password must contain at least one number or symbol."
     },
     "onboarding": {
       "syncing": "Syncing your books…",
-      "synced": "Synced {books} books · {decks} decks",
+      "synced": "Synced {books} · {decks}",
+      "bookCountOne": "{n} book",
+      "bookCount": "{n} books",
+      "deckCountOne": "{n} deck",
+      "deckCount": "{n} decks",
       "noRecords": "Nothing to sync yet. Start reading to build your collection.",
       "errorOffline": "Couldn't reach the server. You can try again later.",
       "continue": "Continue",
       "reconcileTitle": "Bring your books here",
-      "reconcileBody": "{count} books from your account don't have a file on this device yet. Find each EPUB now, or skip and import later.",
+      "reconcileBody": "{count} books from your account don't have a file on this device yet. Find each book file now, or skip and import later.",
+      "reconcileBodyOne": "{count} book from your account doesn't have a file on this device yet. Find the book file now, or skip and import later.",
       "find": "Find",
       "found": "Found",
-      "skipAll": "Skip for now"
+      "skipAll": "Skip for now",
+      "retry": "Retry"
     }
   },
   "home": {
     "brand": "Aogimi",
     "streak": "{count}日目",
     "cardsDueTitle": "{count} Cards Due",
+    "cardsDueTitleOne": "{count} Card Due",
     "startReview": "Start Review",
     "dueBadge": "{count} DUE",
     "searchLabel": "Open the dictionary"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "This page doesn't exist.",
+    "home": "Go to Home"
   },
   "reader": {
     "back": "Back to library",
@@ -69,6 +95,19 @@
     "missingTitle": "File not on this device",
     "missingBody": "This book is on your account from another device. Import the file here to start reading.",
     "importFile": "Import file",
+    "pdfLoadFailed": "This PDF couldn't be opened. It may be password-protected or damaged.",
+    "epubOpenFailed": "This book couldn't be opened. The file may be damaged or incomplete.",
+    "loadError": {
+      "notFoundLocally": "This book is no longer on this device.",
+      "offline": "You're offline. Open this book once while connected and it will be available offline after that.",
+      "gone": "This book is no longer on your account.",
+      "failed": "This book couldn't be loaded right now. Try again later."
+    },
+    "manga": {
+      "preparing": "Preparing pages…",
+      "noPages": "No pages found",
+      "prepareFailed": "This book's pages couldn't be read. The file may be damaged."
+    },
     "dock": {
       "open": "Reader controls",
       "toc": "TOC",
@@ -124,7 +163,20 @@
     "kanjiInWord": "Kanji in this word",
     "examples": "Example",
     "back": "Back",
-    "backToResults": "Back to results"
+    "backToResults": "Back to results",
+    "common": "common",
+    "commonWord": "Common word",
+    "infoMeaning": "meaning",
+    "infoOn": "on",
+    "infoKun": "kun",
+    "strokes": "{n} strokes",
+    "strokesOne": "{n} stroke",
+    "grade": "grade {n}",
+    "radical": "radical {radical}",
+    "searchKanji": "Search {kanji}",
+    "searchFailed": "Couldn’t search right now. Please try again.",
+    "loadFailed": "Couldn’t open this entry. Please try again.",
+    "openFailed": "The dictionary couldn’t be opened. Restart the app to try again."
   },
   "decks": {
     "new": "New deck"
@@ -144,10 +196,12 @@
       "title": "Session complete",
       "minutes": "{n} MIN",
       "reviewed": "{n} cards reviewed",
+      "reviewedOne": "{n} card reviewed",
       "correct": "Correct",
       "correctMeta": "{pct}% · GOOD/EASY",
       "missed": "Missed",
       "missedMeta": "AGAIN · {n} CARDS",
+      "missedMetaOne": "AGAIN · {n} CARD",
       "thisSession": "This session",
       "miss": "1 MISS",
       "misses": "{n} MISSES",
@@ -156,6 +210,7 @@
       "more": "{n} more"
     },
     "nothingDue": "Nothing due — all caught up",
+    "loadFailed": "Couldn’t load this session. Please try again.",
     "allDecks": "All decks",
     "progress": "{done} / {total} · {left} left",
     "revealCard": "Reveal card",
@@ -190,7 +245,10 @@
     "lookingUpSince": "LOOKING UP SINCE {date}",
     "statDaysStudied": "DAYS STUDIED",
     "statMastered": "MASTERED",
-    "statStars": "STARS"
+    "statStars": "STARS",
+    "chooseAvatar": "Choose avatar",
+    "kamon": "Kamon",
+    "saveFailed": "Couldn't save your change"
   },
   "settings": {
     "title": "Settings",
@@ -204,7 +262,12 @@
     "deleteAccount": "Delete account",
     "deleteAccountConfirmTitle": "Delete your account?",
     "deleteAccountConfirmBody": "This is permanent. Your decks, cards, study history and reading progress are erased from the server, and the books stored on this phone are removed. It can't be undone.",
-    "deleteAccountFailed": "Couldn't delete your account"
+    "deleteAccountFailed": "Couldn't delete your account",
+    "languages": {
+      "en": "English",
+      "ja": "Japanese",
+      "pt": "Portuguese"
+    }
   },
   "help": {
     "intro": {
@@ -318,11 +381,101 @@
     "noneAvailable": "No books available on this device.",
     "empty": "No books yet",
     "moreActions": "More actions for {title}",
+    "refreshFailed": "Couldn't refresh your library — showing the books saved on this device.",
+    "refreshOffline": "You're offline — showing the books saved on this device.",
+    "syncState": {
+      "synced": {
+        "title": "Synced",
+        "body": "This book’s progress is synced across devices!"
+      },
+      "unsynced": {
+        "title": "Not synced",
+        "body": "This book’s progress is only accessible on this device. Sync it to make it available across all devices."
+      },
+      "toImport": {
+        "title": "On your account",
+        "body": "This book is on your account but not on this device. Tap the book to import the file here."
+      }
+    },
+    "syncResult": {
+      "upToDateTitle": "Library in sync",
+      "upToDateBody": "Nothing to update.",
+      "syncedTitle": "Synced",
+      "partialTitle": "Partly synced",
+      "failedTitle": "Couldn't sync",
+      "failedBody": "Something went wrong while syncing. Your books are still on this device — try again later.",
+      "unreachableTitle": "Couldn't reach the server",
+      "unreachableBody": "Your library couldn't be checked against your account. Nothing was changed on this device.",
+      "removedOne": "{n} book removed — it was deleted on another device",
+      "removed": "{n} books removed — they were deleted on another device",
+      "replacedOne": "{n} book was replaced on another device — import its file again to read it here",
+      "replaced": "{n} books were replaced on another device — import their files again to read them here",
+      "pushedOne": "{n} book added to your account",
+      "pushed": "{n} books added to your account",
+      "pushFailedOne": "{n} book couldn't be added — try again",
+      "pushFailed": "{n} books couldn't be added — try again",
+      "backfilledOne": "{n} book now recognised across your devices",
+      "backfilled": "{n} books now recognised across your devices",
+      "adoptedOne": "{n} book matched one already on your account",
+      "adopted": "{n} books matched ones already on your account",
+      "positionsOne": "{n} reading position synced",
+      "positions": "{n} reading positions synced",
+      "pendingOne": "{n} book still waiting to sync — try again",
+      "pending": "{n} books still waiting to sync — try again"
+    },
+    "import": {
+      "failedTitle": "Import failed",
+      "failedBody": "The book couldn't be imported. Try again, or try a different file.",
+      "alreadyTitle": "Already in your library",
+      "alreadyOnDevice": "“{title}” is already on this device.",
+      "alreadyMatched": "“{title}” matches this file. It's now available on this device.",
+      "unsupportedTitle": "Unsupported file",
+      "unsupportedBody": ".{ext} files can't be opened here. Import an EPUB or a PDF.",
+      "noExtensionBody": "That file has no extension, so it can't be identified. Import an EPUB or a PDF.",
+      "emptyTitle": "Empty file",
+      "emptyBody": "That file has no contents — it may still be downloading.",
+      "tooLargeTitle": "File too large",
+      "tooLargeBody": "That file is {size}. The limit is {limit}.",
+      "unreadableTitle": "Can't read that file",
+      "unreadableBody": "The file could not be opened. It may have moved, or the app may not have permission to read it.",
+      "invalidTitle": "Not a valid {format}",
+      "invalidPdfBody": "The file is named .{ext} but its contents aren't a PDF. It may be damaged or incompletely downloaded.",
+      "invalidEpubBody": "The file is named .{ext} but its contents aren't an EPUB. It may be damaged or incompletely downloaded."
+    },
+    "locate": {
+      "unverifiedTitle": "Couldn't verify",
+      "unverifiedBody": "The file has to be checked against your account before it can be attached, and the server is unreachable right now. Nothing was imported — try again when you’re online.",
+      "mismatchTitle": "Doesn't match",
+      "wrongTypeBody": "“{title}” is a .{expected} file, but you picked a .{picked} file. Pick a matching one.",
+      "readFailedTitle": "Couldn't read file",
+      "readFailedBody": "Could not read that file. Try a different one.",
+      "alreadyAsBody": "This file is already in your library as “{title}”.",
+      "noMatchBody": "This file doesn't match “{title}”. The book stays unimported.",
+      "saveFailedTitle": "Couldn't save file",
+      "saveFailedBody": "Could not save the file. Try again.",
+      "signedOutTitle": "Sign in to import",
+      "signedOutBody": "This book is on an account. Sign in to check the file against it and bring it to this device.",
+      "goToProfile": "Go to Profile"
+    },
+    "importScreen": {
+      "progress": "{pct}% read",
+      "body": "This book is on your account from another device. Import the {format} file here to start reading — your saved progress carries over.",
+      "importing": "Importing…",
+      "import": "Import {format}"
+    },
     "actions": {
       "syncNow": "Sync now",
       "rename": "Rename",
       "delete": "Delete",
-      "titlePlaceholder": "Book title"
+      "titlePlaceholder": "Book title",
+      "renameFailed": "Rename failed",
+      "renameFailedBody": "The new title couldn't be saved. Try again.",
+      "stillPendingTitle": "Still pending",
+      "stillPendingBody": "Couldn’t reach the server. The book stays on this device — try again when you’re back online.",
+      "deleteConfirmTitle": "Delete book?",
+      "deleteConfirmBody": "This removes the book and all reading progress from your account, and deletes the local copy on this device.",
+      "deleteFailed": "Delete failed",
+      "deleteFailedBody": "The book couldn't be deleted. Try again."
     }
   },
   "card": {
@@ -356,6 +509,7 @@
     "back": "Back to the whole sky",
     "backToDeck": "Back to the deck",
     "starsDue": "{stars} Stars · {due} Due",
+    "starsDueOne": "{stars} Star · {due} Due",
     "editDeck": "Edit deck",
     "showStats": "Show stats",
     "deleteDeck": "Delete deck",
@@ -366,6 +520,7 @@
     "deleteCard": "Delete card",
     "lookUp": "Dictionary",
     "reviews": "{count} reviews",
+    "reviewsOne": "{count} review",
     "dueNow": "Due now",
     "rank": {
       "new": "New",
@@ -377,13 +532,26 @@
       "title": "Your sky needs an account",
       "body": "Every card you save becomes a star, placed by a seed the server issues once and never changes — so the same sky follows you to every device. Sign in to see yours.",
       "cta": "Go to Profile",
-      "saved": "{count} decks are saved on this device and will be waiting."
+      "saved": "{count} decks are saved on this device and will be waiting.",
+      "savedOne": "{count} deck is saved on this device and will be waiting.",
+      "addCard": "Cards become stars in your sky, and your sky needs an account. Sign in to save this card."
     },
     "empty": "Your sky is empty — save words from the reader and each one becomes a star.",
-    "loadError": "Couldn’t load your sky — {error}",
+    "loadError": "Couldn’t reach the server — showing the sky saved on this device.",
+    "saveFailed": "Couldn’t save. Please try again.",
+    "deckGone": "This deck no longer exists — it may have been deleted.",
+    "noDeckSelected": "Choose a deck for this card.",
+    "syncResult": {
+      "offlineTitle": "Offline",
+      "offlineBody": "Your changes are saved on this device. Connect to the internet to sync them.",
+      "failedTitle": "Sync incomplete",
+      "pendingOne": "{n} change is still waiting on this device — try again later.",
+      "pending": "{n} changes are still waiting on this device — try again later."
+    },
     "confirm": {
       "deleteDeckTitle": "Delete “{name}”?",
       "deleteDeckBody": "This deletes the deck and its {count} cards — its constellation leaves your sky. There is no undo.",
+      "deleteDeckBodyOne": "This deletes the deck and its only card — its constellation leaves your sky. There is no undo.",
       "deleteCardTitle": "Delete “{front}”?",
       "deleteCardBody": "This removes the card and its star. There is no undo."
     },

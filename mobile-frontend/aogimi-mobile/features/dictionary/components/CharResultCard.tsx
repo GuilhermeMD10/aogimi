@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Glass, Touchable, JlptChip } from '@/shared/components';
 import { usePalette, radius, spacing, type, type Palette } from '@/theme';
+import { useT } from '@/lib/i18n/I18nContext';
 import type { KanjiInfo, NameResult } from '../types';
 import { MetaChip } from './MetaChip';
 import { AddButton } from './AddButton';
@@ -88,6 +89,7 @@ export function KanjiResultCard({
   onPress?: () => void;
   onAdd: () => void;
 }) {
+  const t = useT();
   const readings = [
     kanji.on_readings.length > 0 ? kanji.on_readings.join('、') : null,
     kanji.kun_readings.length > 0 ? kanji.kun_readings.join('、') : null,
@@ -105,8 +107,12 @@ export function KanjiResultCard({
       chips={
         <>
           {kanji.jlpt_level != null && <JlptChip level={kanji.jlpt_level} compact />}
-          {kanji.grade != null && <MetaChip label={`grade ${kanji.grade}`} />}
-          {kanji.stroke_count != null && <MetaChip label={`${kanji.stroke_count} strokes`} />}
+          {kanji.grade != null && <MetaChip label={t('dict.grade', { n: kanji.grade })} />}
+          {kanji.stroke_count != null && (
+            <MetaChip
+              label={t(kanji.stroke_count === 1 ? 'dict.strokesOne' : 'dict.strokes', { n: kanji.stroke_count })}
+            />
+          )}
         </>
       }
     />

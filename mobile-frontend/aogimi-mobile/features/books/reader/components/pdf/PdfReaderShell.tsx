@@ -2,6 +2,7 @@ import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import Pdf, { type PdfRef } from 'react-native-pdf';
 import { usePalette, useTheme, spacing, type } from '@/theme';
+import { useT } from '@/lib/i18n/I18nContext';
 import type { BookRecord } from '@/features/books/types';
 import { bookFilePath } from '@/features/books/lib/bookPaths';
 import { ReaderTopBar } from '../ReaderTopBar';
@@ -54,6 +55,7 @@ export function PdfReaderShell({
   onOpenDictionary: () => void;
 }) {
   const p = usePalette();
+  const t = useT();
   const { themeName } = useTheme();
   const pdfRef = useRef<PdfRef>(null);
   const [error, setError] = useState<string | null>(null);
@@ -130,9 +132,12 @@ export function PdfReaderShell({
             trustAllCerts={false}
             onLoadComplete={handleLoadComplete}
             onPageChanged={handlePageChanged}
+            // The native message is a loader internal ("cannot create document:
+            // ...", a password prompt that never shows) — worth logging, not
+            // reading. One line covers both the damaged and the locked file.
             onError={(e: unknown) => {
-              const msg = e instanceof Error ? e.message : String(e);
-              setError(msg || 'Failed to load PDF');
+              console.warn('[reader] PDF failed to open', e);
+              setError(t('reader.pdfLoadFailed'));
             }}
             style={[styles.pdf, { backgroundColor: p.paperTile }]}
             renderActivityIndicator={() => <ActivityIndicator color={p.muted} />}

@@ -2,4 +2,6 @@
 // Files inside this folder import their siblings by path, never through here.
 
 export * from './authApi';
+export * from './confirmSignOut';
+export * from './requestError';
 export * from './wipeUserData';

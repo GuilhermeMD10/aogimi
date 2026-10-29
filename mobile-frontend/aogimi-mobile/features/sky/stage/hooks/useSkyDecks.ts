@@ -4,6 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import type { SkyDeckSource } from '@/features/sky/map';
 import { skyCardOf } from '../../lib/skyProjection';
 import { useAuth } from '@/features/auth/providers/AuthContext';
+import { isOnlineNow } from '@/lib/network/network';
 import {
   fetchDeckCards,
   fetchUserDecks,
@@ -63,7 +64,13 @@ export function useSkyDecks() {
   const [decks, setDecks] = useState<DeckWithCards[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  /**
+   * The last server refresh failed while the device was online — the server
+   * is down or answered with an error, so what is drawn may be stale. Offline
+   * is not a failure: local-first, the local store *is* the sky then, and
+   * saying "couldn't load" over a sky that loaded would be the lie.
+   */
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const readFromLocal = useCallback(async () => {
     const [allDecks, allCards] = await Promise.all([getAllDecks(), getAllCards()]);
@@ -86,8 +93,13 @@ export function useSkyDecks() {
     );
   }, []);
 
+  /** Pull the server's decks and cards into the local store. Settles
+   *  `loadFailed` itself, so every caller reports the same way. */
   const hydrate = useCallback(async () => {
-    if (userId == null || !backendEnabled) return;
+    if (userId == null || !backendEnabled) {
+      setLoadFailed(false);
+      return;
+    }
     try {
       const remoteDecks = await fetchUserDecks(userId);
       await hydrateDecksFromBackend(remoteDecks);
@@ -100,8 +112,11 @@ export function useSkyDecks() {
           }
         }),
       );
-    } catch {
-      /* network — keep local */
+      setLoadFailed(false);
+    } catch (e) {
+      // Keep local either way; only an online failure is worth a plate.
+      console.warn('[sky] refresh failed', e);
+      setLoadFailed(isOnlineNow());
     }
   }, [userId, backendEnabled]);
 
@@ -132,12 +147,13 @@ export function useSkyDecks() {
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    setError(null);
     try {
       await hydrate();
       await readFromLocal();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to refresh');
+      // `hydrate` doesn't throw, so this is the local store itself failing.
+      console.warn('[sky] local read failed', e);
+      setLoadFailed(true);
     } finally {
       setRefreshing(false);
     }
@@ -155,5 +171,5 @@ export function useSkyDecks() {
     }));
   }, [decks]);
 
-  return { decks, sources, loading, refreshing, error, refresh, reloadLocal: readFromLocal };
+  return { decks, sources, loading, refreshing, loadFailed, refresh, reloadLocal: readFromLocal };
 }

@@ -20,6 +20,9 @@ type Props = {
   startedAt: number;
   onStudyAgain: () => void;
   onBackToDeck: () => void;
+  /** The way out's label — `Back to deck`, or plain `Back` for a cross-deck
+   *  session, which has no deck to return to. */
+  backLabel: string;
 };
 
 /**
@@ -47,6 +50,7 @@ export function FinishScreen({
   startedAt,
   onStudyAgain,
   onBackToDeck,
+  backLabel,
 }: Props) {
   const p = usePalette();
   const t = useT();
@@ -75,7 +79,7 @@ export function FinishScreen({
           title={t('study.finish.title')}
           subtitle={subtitle}
           onBack={onBackToDeck}
-          backLabel={t('study.backToDeck')}
+          backLabel={backLabel}
         />
 
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
@@ -83,7 +87,9 @@ export function FinishScreen({
             <View style={s.section}>
               <View style={s.sectionHead}>
                 <Text style={s.sectionTitle}>
-                  {t('study.finish.reviewed', { n: stats.reviewed })}
+                  {t(stats.reviewed === 1 ? 'study.finish.reviewedOne' : 'study.finish.reviewed', {
+                    n: stats.reviewed,
+                  })}
                 </Text>
                 <Text style={s.sectionMeta}>{`${pct}%`}</Text>
               </View>
@@ -99,7 +105,9 @@ export function FinishScreen({
                 <StatTile
                   eyebrow={t('study.finish.missed')}
                   value={String(stats.missed)}
-                  meta={t('study.finish.missedMeta', { n: stats.missedCards })}
+                  meta={t(stats.missedCards === 1 ? 'study.finish.missedMetaOne' : 'study.finish.missedMeta', {
+                    n: stats.missedCards,
+                  })}
                   tone={p.srsAgain}
                   style={s.tile}
                 />
@@ -139,7 +147,7 @@ export function FinishScreen({
         <View style={s.actions}>
           <Button label={t('study.studyAgain')} onPress={onStudyAgain} full />
           <Button
-            label={t('study.backToDeck')}
+            label={backLabel}
             variant="secondary"
             onPress={onBackToDeck}
             full

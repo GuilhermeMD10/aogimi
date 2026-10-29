@@ -3,7 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { BottomSheet, IconButton, PressableBackdrop } from '@/shared/components';
 import { useT } from '@/lib/i18n/I18nContext';
 import { usePalette, spacing, type, type Palette } from '@/theme';
-import { fetchWordDetails, pushRecentLookup, resultRows, totalResults } from '../lib';
+import { dictErrorKey, fetchWordDetails, pushRecentLookup, resultRows, totalResults } from '../lib';
 import { useDictionarySearch, useSearchKeyboard } from '../hooks';
 import type { KanjiInfo, WordDetails, WordResult } from '../types';
 import { SearchField } from './SearchField';
@@ -125,7 +125,8 @@ function DictDrawerInner({
           void pushRecentLookup(details.word, query);
         })
         .catch((err: unknown) => {
-          setError(err instanceof Error ? err.message : t('common.error'));
+          console.warn('[dict] entry failed to load', err);
+          setError(t(dictErrorKey(err, 'dict.loadFailed')));
           setStage({ kind: 'search' });
         });
     },
@@ -227,7 +228,7 @@ function DictDrawerInner({
             ) : searchState.kind === 'loading' ? (
               <ActivityIndicator color={p.muted} style={styles.spinner} />
             ) : searchState.kind === 'error' ? (
-              <Text style={[styles.error, styles.centeredText]}>{searchState.message}</Text>
+              <Text style={[styles.error, styles.centeredText]}>{t(searchState.messageKey)}</Text>
             ) : (
               <Text style={styles.hint}>{t('dict.noResults', { query: query.trim() })}</Text>
             )

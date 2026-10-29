@@ -29,11 +29,13 @@ export function EditDeckSheet({
   const s = useStyles(p);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Seed from the deck each time one is handed in, so reopening for a different
-  // deck never shows the previous one's draft.
+  // deck never shows the previous one's draft — or the previous one's error.
   useEffect(() => {
     if (deck) setName(deck.name);
+    setError(null);
   }, [deck]);
 
   const trimmed = name.trim();
@@ -46,10 +48,20 @@ export function EditDeckSheet({
       return;
     }
     setSaving(true);
+    setError(null);
     try {
-      await updateDeckLocal(deck.id, { name: trimmed });
+      // Null means the store refused: the deck is gone, or queued for deletion,
+      // and renaming it would resurrect it. Closing as if saved would hide that.
+      const updated = await updateDeckLocal(deck.id, { name: trimmed });
+      if (!updated) {
+        setError(t('sky.deckGone'));
+        return;
+      }
       onSaved();
       onDismiss();
+    } catch (err) {
+      console.warn('[sky] rename deck failed', err);
+      setError(t('sky.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -72,6 +84,7 @@ export function EditDeckSheet({
             returnKeyType="done"
             onSubmitEditing={() => void save()}
           />
+          {error && <Text style={s.error}>{error}</Text>}
           <View style={s.actions}>
             <Button
               label={t('common.cancel')}
@@ -102,6 +115,7 @@ function useStyles(p: Palette) {
         host: { paddingHorizontal: spacing.screenX, gap: spacing.lg },
         title: { ...type.headlineMd, color: p.ink },
         actions: { flexDirection: 'row', gap: spacing.sm + 2 },
+        error: { ...type.bodySm, color: p.danger },
       }),
     [p],
   );
