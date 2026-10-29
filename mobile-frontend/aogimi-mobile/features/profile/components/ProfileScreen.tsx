@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   Touchable,
   Screen,
@@ -13,7 +13,9 @@ import { useRouter } from 'expo-router';
 import { usePalette, fontFamily, fontSize, radius, spacing, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/features/auth/providers/AuthContext';
+import { confirmSignOut, failureReason } from '@/features/auth/lib';
 import { updateUserProfile, kamonFor } from '../lib';
+import type { UserProfileUpdate } from '../types';
 import { AvatarPickerSheet } from './AvatarPickerSheet';
 import { SignedOutProfileScreen } from './SignedOutProfileScreen';
 import { AnimalLabel } from './AnimalLabel';
@@ -59,34 +61,36 @@ export function ProfileScreen() {
   // One busy flag — only ever one profile mutation in flight.
   const [savingField, setSavingField] = useState<'avatar' | 'level' | null>(null);
 
-  const handleAvatarSelect = useCallback(
-    async (idx: number) => {
-      if (!user) return;
-      setSavingField('avatar');
+  // Not optimistic: the user only changes once the server returns the saved
+  // profile, so a failure has nothing to revert — it just has to be said.
+  const saveProfile = useCallback(
+    async (field: 'avatar' | 'level', update: UserProfileUpdate) => {
+      setSavingField(field);
       try {
-        setUser(await updateUserProfile({ avatar_index: idx }));
-      } catch {
-        /* surface later if needed */
+        setUser(await updateUserProfile(update));
+      } catch (err) {
+        Alert.alert(t('profile.saveFailed'), failureReason(err, t));
       } finally {
         setSavingField(null);
       }
     },
-    [user, setUser],
+    [setUser, t],
+  );
+
+  const handleAvatarSelect = useCallback(
+    (idx: number) => {
+      if (!user) return;
+      void saveProfile('avatar', { avatar_index: idx });
+    },
+    [user, saveProfile],
   );
 
   const handleLevelSelect = useCallback(
-    async (level: JlptLevel) => {
+    (level: JlptLevel) => {
       if (!user || savingField === 'level') return;
-      setSavingField('level');
-      try {
-        setUser(await updateUserProfile({ language: level }));
-      } catch {
-        /* ignore */
-      } finally {
-        setSavingField(null);
-      }
+      void saveProfile('level', { language: level });
     },
-    [user, savingField, setUser],
+    [user, savingField, saveProfile],
   );
 
   const stats = useMemo(
@@ -188,7 +192,7 @@ export function ProfileScreen() {
           </Row>
         </RowGroup>
 
-        <DangerButton label={t('profile.signOut')} onPress={() => void signOut()} />
+        <DangerButton label={t('profile.signOut')} onPress={() => confirmSignOut(t, signOut)} />
       </ScrollView>
 
       <AvatarPickerSheet

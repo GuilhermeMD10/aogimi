@@ -14,10 +14,12 @@ import pt from './pt.json';
 
 export type Locale = 'en' | 'ja' | 'pt';
 
-export const LOCALES: { code: Locale; label: string; nativeLabel: string }[] = [
-  { code: 'en', label: 'English', nativeLabel: 'English' },
-  { code: 'ja', label: 'Japanese', nativeLabel: '日本語' },
-  { code: 'pt', label: 'Portuguese', nativeLabel: 'Português' },
+// Each locale's name in its own language. Its name in the *active* language is
+// a translation, `settings.languages.<code>`, so it lives in the bundles.
+export const LOCALES: { code: Locale; nativeLabel: string }[] = [
+  { code: 'en', nativeLabel: 'English' },
+  { code: 'ja', nativeLabel: '日本語' },
+  { code: 'pt', nativeLabel: 'Português' },
 ];
 
 type Bundle = Record<string, unknown>;
@@ -39,6 +41,10 @@ type I18nContextValue = {
   setLocale: (l: Locale) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
+
+/** The `t()` signature, for plain functions that are handed one by a component
+ *  (they can't call `useT()` themselves). */
+export type Translate = I18nContextValue['t'];
 
 const I18nCtx = createContext<I18nContextValue | null>(null);
 
@@ -99,6 +105,6 @@ export function useI18n(): I18nContextValue {
   return ctx;
 }
 
-export function useT(): I18nContextValue['t'] {
+export function useT(): Translate {
   return useI18n().t;
 }

@@ -69,6 +69,11 @@ export function StudyScreen({ sessionSpec, title }: Props) {
   const { prefs } = useStudyDisplayPrefs();
   const lookup = useWordLookup();
   const deckName = title ?? '';
+  // Every exit is `router.back()`, which lands wherever the session was opened
+  // from — the deck on the Sky, or Home. A cross-deck session has no deck to go
+  // back to, and "Back to Sky" would be wrong from Home, so it says Back.
+  const crossDeck = sessionSpec.scope === 'all';
+  const backLabel = t(crossDeck ? 'common.back' : 'study.backToDeck');
 
   if (session.loading) {
     return (
@@ -80,12 +85,12 @@ export function StudyScreen({ sessionSpec, title }: Props) {
     );
   }
 
-  if (session.error) {
+  if (session.errorKey) {
     return (
       <Screen padded>
         <View style={s.centred}>
-          <Text style={s.message}>{session.error}</Text>
-          <Button label={t('study.backToDeck')} variant="secondary" onPress={() => router.back()} />
+          <Text style={s.message}>{t(session.errorKey)}</Text>
+          <Button label={backLabel} variant="secondary" onPress={() => router.back()} />
         </View>
       </Screen>
     );
@@ -98,7 +103,7 @@ export function StudyScreen({ sessionSpec, title }: Props) {
       <Screen padded>
         <View style={s.centred}>
           <Text style={s.message}>{t('study.nothingDue')}</Text>
-          <Button label={t('study.backToDeck')} variant="secondary" onPress={() => router.back()} />
+          <Button label={backLabel} variant="secondary" onPress={() => router.back()} />
         </View>
       </Screen>
     );
@@ -113,6 +118,7 @@ export function StudyScreen({ sessionSpec, title }: Props) {
         startedAt={session.startedAt}
         onStudyAgain={session.restart}
         onBackToDeck={() => router.back()}
+        backLabel={backLabel}
       />
     );
   }

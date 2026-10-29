@@ -16,7 +16,7 @@ import {
   pushOneBook,
   adoptRemoteTwin,
   runFullSync,
-  fullSyncActivityCount,
+  fullSyncOutcome,
   formatFullSyncDetails,
   findCachedBookByFileHash,
 } from '../../lib';
@@ -81,13 +81,17 @@ export function BooksScreen() {
     try {
       const summary = await runFullSync(user.id);
       await refresh();
-      if (fullSyncActivityCount(summary) === 0) {
-        Alert.alert('Library in sync', 'Nothing to update.');
-      } else {
-        Alert.alert('Synced', formatFullSyncDetails(summary).join('\n'));
-      }
+      // The title says how the run went; the body lists what it touched. An
+      // unreachable server gets its own line because the detail lines alone
+      // read as "nothing happened", which is not what happened.
+      const outcome = fullSyncOutcome(summary);
+      const details = formatFullSyncDetails(summary, t);
+      if (outcome === 'unreachable') details.unshift(t('library.syncResult.unreachableBody'));
+      if (outcome === 'upToDate') details.push(t('library.syncResult.upToDateBody'));
+      Alert.alert(t(`library.syncResult.${outcome}Title`), details.join('\n'));
     } catch (err) {
-      Alert.alert('Sync failed', err instanceof Error ? err.message : t('common.error'));
+      console.warn('[library] sync failed', err);
+      Alert.alert(t('library.syncResult.failedTitle'), t('library.syncResult.failedBody'));
     } finally {
       setSyncing(false);
     }
@@ -163,9 +167,11 @@ export function BooksScreen() {
   //
   // Offline is unchanged in substance: the file is committed locally before the
   // push is attempted, so a failed push is a book you have with an UNSYNCED
-  // badge, not a failed import.
+  // badge, not a failed import. Signed out is the same path minus the push:
+  // the book stays pending on this device and goes up with the first Sync-now
+  // after sign-in.
   async function handleImport() {
-    if (!user || importing) return;
+    if (importing) return;
     setImporting(true);
     try {
       // Throws ImportRejectedError for a file that is not a book we can open.
@@ -175,8 +181,8 @@ export function BooksScreen() {
       // Already here, byte for byte.
       if (imported.wasAlreadyPresentSameBytes) {
         Alert.alert(
-          'Already in your library',
-          `"${imported.title || imported.filename}" is already on this device.`,
+          t('library.import.alreadyTitle'),
+          t('library.import.alreadyOnDevice', { title: imported.title || imported.filename }),
         );
         await silentRefresh();
         return;
@@ -189,8 +195,8 @@ export function BooksScreen() {
         if (twin) {
           await adoptRemoteTwin(imported.filename, twin, imported.fileHash);
           Alert.alert(
-            'Already in your library',
-            `"${twin.title}" matches this file. It's now available on this device.`,
+            t('library.import.alreadyTitle'),
+            t('library.import.alreadyMatched', { title: twin.title }),
           );
           await silentRefresh();
           return;
@@ -204,16 +210,18 @@ export function BooksScreen() {
       // Offline is already known: don't spend the request deadline (8 s per
       // call) learning it again -- the book is pending, show it now.
       await markPending(imported.filename, imported.fileHash ?? '', payload);
-      const pushed = isOnlineNow()
+      const pushed = user && isOnlineNow()
         ? await pushOneBook(user.id, imported.filename, payload)
         : { ok: false as const };
       if (pushed.ok) await silentRefresh();
       await reloadPending();
     } catch (err) {
       if (err instanceof ImportRejectedError) {
-        Alert.alert(err.failure.title, err.failure.message);
+        const { title, message, params } = err.failure;
+        Alert.alert(t(title, params), t(message, params));
       } else {
-        Alert.alert('Import failed', err instanceof Error ? err.message : t('common.error'));
+        console.warn('[library] import failed', err);
+        Alert.alert(t('library.import.failedTitle'), t('library.import.failedBody'));
       }
     } finally {
       setImporting(false);
@@ -271,9 +279,11 @@ export function BooksScreen() {
           }
           showsVerticalScrollIndicator={false}
         >
+          {/* The shelf still paints from the local cache, so the line only
+              has to say why it may be stale. The raw error goes to the log. */}
           {error && (
             <Text style={s.error} accessibilityRole="alert">
-              {error}
+              {t(online ? 'library.refreshFailed' : 'library.refreshOffline')}
             </Text>
           )}
 
@@ -331,7 +341,16 @@ export function BooksScreen() {
         </ScrollView>
       )}
 
-      <BookActionsSheet book={actionBook} onDismiss={() => setActionBook(null)} onChanged={refresh} />
+      {/* A pending book's rename or delete only touches the local map, which
+          the backend refresh never re-reads — so both are reloaded. */}
+      <BookActionsSheet
+        book={actionBook}
+        onDismiss={() => setActionBook(null)}
+        onChanged={() => {
+          void refresh();
+          void reloadPending();
+        }}
+      />
     </Screen>
   );
 }

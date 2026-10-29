@@ -1,6 +1,7 @@
 import { type ComponentType } from 'react';
 import { Alert, type GestureResponderEvent, StyleSheet } from 'react-native';
 import { Touchable } from '@/shared/components/Touchable';
+import { useT } from '@/lib/i18n/I18nContext';
 import { SyncedIcon, UnsyncedIcon, ImportIcon, type SyncIconProps } from '@/shared/icons/sync-icons';
 import { radius } from '@/theme/tokens';
 
@@ -13,41 +14,16 @@ import { radius } from '@/theme/tokens';
 //
 // Default rendering picks automatically: synced → dot, others → pill.
 // Callers can force `variant="dot"` (decks/cards do this for their
-// unsynced indicator). Tapping any pill shows a short explanation alert.
+// unsynced indicator). Tapping any pill shows a short explanation alert,
+// worded by `library.syncState.<state>` — whose title is also the default
+// accessibility label.
 
 export type SyncPillState = 'synced' | 'unsynced' | 'toImport';
 
-const CONFIG: Record<
-  SyncPillState,
-  { defaultLabel: string; color: string; Icon: ComponentType<SyncIconProps>; message: { title: string; body: string } }
-> = {
-  synced: {
-    defaultLabel: 'SYNCED',
-    color: '#2E9F58',
-    Icon: SyncedIcon,
-    message: {
-      title: 'Synced',
-      body: 'This book’s progress is synced across devices!',
-    },
-  },
-  unsynced: {
-    defaultLabel: 'UNSYNCED',
-    color: '#1E3D6B',
-    Icon: UnsyncedIcon,
-    message: {
-      title: 'Not synced',
-      body: 'This book’s progress is only accessible on this device. Sync it to make it available across all devices.',
-    },
-  },
-  toImport: {
-    defaultLabel: 'TO IMPORT',
-    color: '#6B6661',
-    Icon: ImportIcon,
-    message: {
-      title: 'On your account',
-      body: 'This book is on your account but not on this device. Tap the book to import the file here.',
-    },
-  },
+const CONFIG: Record<SyncPillState, { color: string; Icon: ComponentType<SyncIconProps> }> = {
+  synced: { color: '#2E9F58', Icon: SyncedIcon },
+  unsynced: { color: '#1E3D6B', Icon: UnsyncedIcon },
+  toImport: { color: '#6B6661', Icon: ImportIcon },
 };
 
 export function SyncPill({
@@ -61,8 +37,10 @@ export function SyncPill({
   /** Force a shape. Default: dot for synced, pill for others. */
   variant?: 'pill' | 'dot';
 }) {
+  const t = useT();
   const cfg = CONFIG[state];
   const Icon = cfg.Icon;
+  const title = t(`library.syncState.${state}.title`);
   const effectiveVariant: 'pill' | 'dot' = variant ?? (state === 'synced' ? 'dot' : 'pill');
 
   // No hitSlop — the pill sits on top of a tappable book tile, and any
@@ -70,7 +48,7 @@ export function SyncPill({
   // the press strictly to the visible pixels.
   const handlePress = (e: GestureResponderEvent) => {
     e.stopPropagation();
-    Alert.alert(cfg.message.title, cfg.message.body);
+    Alert.alert(title, t(`library.syncState.${state}.body`));
   };
 
   if (effectiveVariant === 'dot') {
@@ -80,7 +58,7 @@ export function SyncPill({
         hitSlop={12}
         onPress={handlePress}
         accessibilityRole="button"
-        accessibilityLabel={label ?? cfg.defaultLabel}
+        accessibilityLabel={label ?? title}
         style={[styles.dot, { backgroundColor: cfg.color }]}
       />
     );
@@ -91,7 +69,7 @@ export function SyncPill({
       minTarget={false}
       onPress={handlePress}
       accessibilityRole="button"
-      accessibilityLabel={label ?? cfg.defaultLabel}
+      accessibilityLabel={label ?? title}
       style={[
         styles.pill,
         {

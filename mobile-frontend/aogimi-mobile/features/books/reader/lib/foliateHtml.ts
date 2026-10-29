@@ -59,7 +59,10 @@ export type FoliateBridgeOutbound =
       direction: 'ltr' | 'rtl';
       spineCount: number;
     }
-  | { type: 'error'; message: string }
+  /** `fatal` means the book did not open and the shell has nothing to show;
+   *  anything else is one feature failing inside an open book and is logged
+   *  on the RN side, never shown. */
+  | { type: 'error'; message: string; fatal: boolean }
   | {
       type: 'relocated';
       cfi: string;
@@ -265,8 +268,13 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
         }
       }
 
-      function err(prefix, e) {
-        post({ type: 'error', message: prefix + ': ' + ((e && e.message) || e) });
+      // Every catch in the shell reports through here. Only loadBook's
+      // outer catch passes fatal: a style that didn't apply or a CFI that
+      // didn't resolve leaves a readable book behind it, and the reader
+      // keeps it. (No backticks in this file's comments -- it is one
+      // template literal.)
+      function err(prefix, e, fatal) {
+        post({ type: 'error', message: prefix + ': ' + ((e && e.message) || e), fatal: !!fatal });
       }
 
       function base64ToBlob(base64) {
@@ -1589,7 +1597,7 @@ export const FOLIATE_HTML = String.raw`<!DOCTYPE html>
           if (s) s.style.display = 'none';
           bootstrapped = true;
           revealCanvas();
-          err('load', e);
+          err('load', e, true);
         }
       }
 

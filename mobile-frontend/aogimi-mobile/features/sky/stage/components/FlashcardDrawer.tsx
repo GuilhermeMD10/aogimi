@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFlashcardForm } from '../hooks/useFlashcardForm';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
+import { useRouter } from 'expo-router';
 import {
   BottomSheet,
   Button,
@@ -14,8 +15,10 @@ import {
 import { usePalette, radius, spacing, type, type Palette } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
 import {
+  atDeckLimit,
   createCardLocal,
   createDeckLocal,
+  DeckLimitError,
   getAllDecks,
   getLastDeckId,
   setLastDeckId,
@@ -97,11 +100,19 @@ type Props = {
  *
  * Naming a new deck happens in that same pane rather than in a field down in
  * the body. One place answers "which deck", whichever deck it turns out to be.
+ *
+ * ── Signed out, it says so instead of saving ───────────────────────────────
+ * A card lives in a deck, and decks are account-scoped queues: a deck written
+ * with no account has no `user_id` to carry, pushes unauthenticated, and is
+ * wiped by `wipeUserData` if a different account signs in. So rather than a
+ * Save that silently does nothing, the sheet keeps the form, disables Save and
+ * points at Profile — the Sky tab's signed-out prompt, at sheet scale.
  */
 export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDeckId }: Props) {
   const p = usePalette();
   const s = useStyles(p);
   const t = useT();
+  const router = useRouter();
   const { user } = useAuth();
 
   const userId = user?.id;
@@ -198,6 +209,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
   // it no longer exists as an input — it's derived from these at save time, so
   // requiring it separately would be requiring the same fact twice.
   const canSave =
+    user !== null &&
     front.trim().length > 0 &&
     meanings.some((m) => m.trim().length > 0) &&
     (lockedDeckId ? true : creatingNewDeck ? newDeckName.trim().length > 0 : Boolean(deckId)) &&
@@ -215,7 +227,10 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
         const created = await createDeckLocal(user.id, newDeckName.trim(), '');
         targetDeckId = created.id;
       }
-      if (!targetDeckId) throw new Error('No deck selected');
+      if (!targetDeckId) {
+        setError(t('sky.noDeckSelected'));
+        return;
+      }
       // The draft is built from the *edited* fields, not from `prefill` — the
       // user may have changed any of them, and `back` has to be rendered from
       // what they actually typed. `contextSentence` and `jlptLevel` ride along
@@ -225,7 +240,8 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
       onSaved?.();
       resetAndClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'));
+      if (!(err instanceof DeckLimitError)) console.warn('[sky] save card failed', err);
+      setError(t(err instanceof DeckLimitError ? 'sky.deckLimit' : 'sky.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -238,7 +254,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
           <Text style={s.title} numberOfLines={1}>
             {t('card.title')}
           </Text>
-          {!lockedDeckId && (
+          {!lockedDeckId && user && (
             <DeckTrigger label={deckLabel} open={deckMenuOpen} onPress={() => setDeckMenuOpen((o) => !o)} />
           )}
         </View>
@@ -248,6 +264,20 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {!user && (
+            <InnerPlate style={s.signedOut}>
+              <Text style={s.signedOutBody}>{t('sky.signedOut.addCard')}</Text>
+              <Button
+                label={t('sky.signedOut.cta')}
+                variant="secondary"
+                onPress={() => {
+                  resetAndClose();
+                  router.push('/profile');
+                }}
+              />
+            </InnerPlate>
+          )}
+
           <SectionRule label={t('card.front')} />
           <TextField
             label={t('card.word')}
@@ -321,6 +351,7 @@ export function FlashcardDrawer({ visible, prefill, onDismiss, onSaved, lockedDe
             deckId={creatingNewDeck ? null : deckId}
             onPick={pickDeck}
             creatingNewDeck={creatingNewDeck}
+            atLimit={atDeckLimit(decks.length)}
             onNewDeck={() => setCreatingNewDeck(true)}
             newDeckName={newDeckName}
             onNewDeckNameChange={setNewDeckName}
@@ -378,6 +409,7 @@ function DeckMenu({
   deckId,
   onPick,
   creatingNewDeck,
+  atLimit,
   onNewDeck,
   newDeckName,
   onNewDeckNameChange,
@@ -389,6 +421,9 @@ function DeckMenu({
   deckId: string | null;
   onPick: (id: string) => void;
   creatingNewDeck: boolean;
+  /** At `MAX_DECKS` the `New deck` row stays, disabled and saying why — the
+   *  stage menu's treatment of the same row. */
+  atLimit: boolean;
   onNewDeck: () => void;
   newDeckName: string;
   onNewDeckNameChange: (v: string) => void;
@@ -454,15 +489,17 @@ function DeckMenu({
             {decks.length > 0 && <View style={s.menuDivider} />}
             <Touchable
               onPress={onNewDeck}
+              disabled={atLimit}
               minTarget={false}
               radius={radius.control}
               accessibilityRole="menuitem"
-              accessibilityLabel={t('card.newDeck')}
-              style={s.menuRow}
+              accessibilityLabel={atLimit ? t('sky.deckLimit') : t('card.newDeck')}
+              accessibilityState={{ disabled: atLimit }}
+              style={[s.menuRow, atLimit && s.menuRowDisabled]}
             >
               <Feather name="plus" size={16} color={p.accent} />
               <Text style={[s.menuLabel, s.menuLabelActive]} numberOfLines={1}>
-                {t('card.newDeck')}
+                {atLimit ? t('sky.deckLimit') : t('card.newDeck')}
               </Text>
             </Touchable>
           </>
@@ -567,6 +604,8 @@ function useStyles(p: Palette) {
           borderRadius: radius.control,
         },
         menuRowActive: { backgroundColor: p.glassAccent },
+        // `PopoverMenu`'s disabled row.
+        menuRowDisabled: { opacity: 0.45 },
         menuLabel: { ...type.bodySm, fontSize: 14, color: p.ink, flex: 1 },
         menuLabelActive: { color: p.accent },
         menuDivider: { height: 1, backgroundColor: p.bdB, marginHorizontal: spacing.sm, marginVertical: 2 },
@@ -619,6 +658,9 @@ function useStyles(p: Palette) {
         },
 
         error: { ...type.bodySm, color: p.danger },
+
+        signedOut: { padding: spacing.md, gap: spacing.md },
+        signedOutBody: { ...type.bodySm, color: p.ink },
 
         footer: {
           flexDirection: 'row',

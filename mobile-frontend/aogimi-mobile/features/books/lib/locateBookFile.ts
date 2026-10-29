@@ -1,10 +1,12 @@
+import { Alert } from 'react-native';
 import { File } from 'expo-file-system';
-import { ExtensionMismatchError, importEpub } from './bookFiles';
+import { ExtensionMismatchError, ImportRejectedError, importEpub } from './bookFiles';
 import { matchBooks } from './booksApi';
 import { buildMatchCandidate } from './matchCandidate';
 import { bookFilePath, deleteBookFile } from './bookPaths';
 import { removeEntry, setStoredFileHash } from './bookLocalState';
 import { isOnlineNow } from '@/lib/network/network';
+import type { Translate } from '@/lib/i18n/I18nContext';
 
 // Shared "locate the file for an existing book register and attach it
 // locally" flow. Used by:
@@ -16,7 +18,8 @@ import { isOnlineNow } from '@/lib/network/network';
 // picked file must hash-match the targeted book record, otherwise it's
 // rejected so we never overwrite a record's slot with the wrong
 // content. Returns a discriminated outcome so each caller can decide
-// how to surface it (alert, navigate, inline message).
+// how to surface it (alert, navigate, inline message). The caller hands in
+// its `t()`, so the outcome's text arrives already translated.
 
 // `rejected` carries its own title: the reasons range from "wrong file" to
 // "couldn't check" to "couldn't save", and a caller with one fixed alert
@@ -24,22 +27,49 @@ import { isOnlineNow } from '@/lib/network/network';
 export type LocateOutcome =
   | { status: 'attached' }
   | { status: 'canceled' }
-  | { status: 'rejected'; title: string; message: string };
+  | { status: 'rejected'; title: string; message: string }
+  /** No account to verify against. Not a `rejected`: the fix is a screen
+   *  away, so the caller offers the way there. */
+  | { status: 'signed-out' };
 
-const UNVERIFIED: LocateOutcome = {
-  status: 'rejected',
-  title: "Couldn't verify",
-  message:
-    'The file has to be checked against your account before it can be attached, and the server is unreachable right now. Nothing was imported — try again when you’re online.',
-};
+function unverified(t: Translate): LocateOutcome {
+  return {
+    status: 'rejected',
+    title: t('library.locate.unverifiedTitle'),
+    message: t('library.locate.unverifiedBody'),
+  };
+}
+
+/**
+ * The one alert for an outcome that needs telling. `attached` and
+ * `canceled` are the caller's to act on; the two that only need words are
+ * worded here, so the reader and the import screen say the same thing.
+ */
+export function alertLocateOutcome(
+  outcome: LocateOutcome,
+  t: Translate,
+  goToProfile: () => void,
+): void {
+  if (outcome.status === 'rejected') {
+    Alert.alert(outcome.title, outcome.message);
+  } else if (outcome.status === 'signed-out') {
+    Alert.alert(t('library.locate.signedOutTitle'), t('library.locate.signedOutBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('library.locate.goToProfile'), onPress: goToProfile },
+    ]);
+  }
+}
 
 export async function locateBookFile(
   book: { id: string; filename: string; title: string },
-  userId: number,
+  userId: number | null,
+  t: Translate,
 ): Promise<LocateOutcome> {
-  // Verification is server-side; without a network the picked file would
-  // only be hashed, rejected and deleted. Say so before the picker opens.
-  if (!isOnlineNow()) return UNVERIFIED;
+  // Verification is server-side: it needs an account to check against and a
+  // network to reach it. Without either, the picked file would only be
+  // hashed, rejected and deleted. Say so before the picker opens.
+  if (userId == null) return { status: 'signed-out' };
+  if (!isOnlineNow()) return unverified(t);
 
   let imported;
   try {
@@ -48,14 +78,23 @@ export async function locateBookFile(
     if (err instanceof ExtensionMismatchError) {
       return {
         status: 'rejected',
-        title: "Doesn't match",
-        message: `"${book.title}" is a .${err.expected} file, but you picked a .${err.picked} file. Pick a matching one.`,
+        title: t('library.locate.mismatchTitle'),
+        message: t('library.locate.wrongTypeBody', {
+          title: book.title,
+          expected: err.expected,
+          picked: err.picked,
+        }),
       };
     }
+    if (err instanceof ImportRejectedError) {
+      const { title, message, params } = err.failure;
+      return { status: 'rejected', title: t(title, params), message: t(message, params) };
+    }
+    console.warn('[locate] read failed', err);
     return {
       status: 'rejected',
-      title: "Couldn't read file",
-      message: err instanceof Error ? err.message : 'Could not read that file. Try a different one.',
+      title: t('library.locate.readFailedTitle'),
+      message: t('library.locate.readFailedBody'),
     };
   }
   if (!imported) return { status: 'canceled' };
@@ -88,13 +127,13 @@ export async function locateBookFile(
     if (!imported.wasAlreadyPresentSameBytes) {
       try { deleteBookFile(imported.filename); } catch { /* best-effort */ }
     }
-    if (!verified) return UNVERIFIED;
+    if (!verified) return unverified(t);
     return {
       status: 'rejected',
-      title: "Doesn't match",
+      title: t('library.locate.mismatchTitle'),
       message: matchedOtherTitle
-        ? `This file is already in your library as "${matchedOtherTitle}".`
-        : `This file doesn't match "${book.title}". The book stays unimported.`,
+        ? t('library.locate.alreadyAsBody', { title: matchedOtherTitle })
+        : t('library.locate.noMatchBody', { title: book.title }),
     };
   }
 
@@ -112,10 +151,11 @@ export async function locateBookFile(
     }
     return { status: 'attached' };
   } catch (err) {
+    console.warn('[locate] save failed', err);
     return {
       status: 'rejected',
-      title: "Couldn't save file",
-      message: err instanceof Error ? err.message : 'Could not save the file. Try again.',
+      title: t('library.locate.saveFailedTitle'),
+      message: t('library.locate.saveFailedBody'),
     };
   }
 }

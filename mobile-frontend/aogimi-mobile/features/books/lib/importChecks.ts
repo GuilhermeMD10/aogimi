@@ -36,10 +36,12 @@ const SIGNATURE_BYTES = 5;
 export type ImportCheckFailure = {
   /** Stable identifier, for callers that want to branch rather than display. */
   code: 'unsupported-extension' | 'empty' | 'too-large' | 'unreadable' | 'wrong-format';
-  /** Alert title. */
+  /** Alert title, as an i18n key — this module has no `t()`; the caller translates. */
   title: string;
-  /** Alert body — written for the person who just picked the file. */
+  /** Alert body, as an i18n key — written for the person who just picked the file. */
   message: string;
+  /** Interpolation values for both keys. */
+  params?: Record<string, string | number>;
 };
 
 export function extensionOf(filename: string): string {
@@ -86,10 +88,9 @@ export function checkImportCandidate(source: File, filename: string): ImportChec
   if (!SUPPORTED_EXTENSIONS.includes(ext as (typeof SUPPORTED_EXTENSIONS)[number])) {
     return {
       code: 'unsupported-extension',
-      title: 'Unsupported file',
-      message: ext
-        ? `.${ext} files can't be opened here. Import an EPUB or a PDF.`
-        : "That file has no extension, so it can't be identified. Import an EPUB or a PDF.",
+      title: 'library.import.unsupportedTitle',
+      message: ext ? 'library.import.unsupportedBody' : 'library.import.noExtensionBody',
+      params: { ext },
     };
   }
 
@@ -98,16 +99,17 @@ export function checkImportCandidate(source: File, filename: string): ImportChec
   if (size === 0) {
     return {
       code: 'empty',
-      title: 'Empty file',
-      message: 'That file has no contents — it may still be downloading.',
+      title: 'library.import.emptyTitle',
+      message: 'library.import.emptyBody',
     };
   }
 
   if (size != null && size > MAX_IMPORT_BYTES) {
     return {
       code: 'too-large',
-      title: 'File too large',
-      message: `That file is ${formatMb(size)}. The limit is ${formatMb(MAX_IMPORT_BYTES)}.`,
+      title: 'library.import.tooLargeTitle',
+      message: 'library.import.tooLargeBody',
+      params: { size: formatMb(size), limit: formatMb(MAX_IMPORT_BYTES) },
     };
   }
 
@@ -115,8 +117,8 @@ export function checkImportCandidate(source: File, filename: string): ImportChec
   if (!signature) {
     return {
       code: 'unreadable',
-      title: "Can't read that file",
-      message: 'The file could not be opened. It may have moved, or the app may not have permission to read it.',
+      title: 'library.import.unreadableTitle',
+      message: 'library.import.unreadableBody',
     };
   }
 
@@ -128,10 +130,9 @@ export function checkImportCandidate(source: File, filename: string): ImportChec
   if (!looksRight) {
     return {
       code: 'wrong-format',
-      title: `Not a valid ${ext.toUpperCase()}`,
-      message: `The file is named .${ext} but its contents aren't ${
-        ext === 'pdf' ? 'a PDF' : 'an EPUB'
-      }. It may be damaged or incompletely downloaded.`,
+      title: 'library.import.invalidTitle',
+      message: ext === 'pdf' ? 'library.import.invalidPdfBody' : 'library.import.invalidEpubBody',
+      params: { ext, format: ext.toUpperCase() },
     };
   }
 

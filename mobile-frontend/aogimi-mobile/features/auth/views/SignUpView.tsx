@@ -20,23 +20,23 @@ import { REGISTRATION_OPEN } from '../lib/authApi';
  * 3–32 of `[a-zA-Z0-9_.-]`, password is 8–72 with at least one non-letter, and
  * email is checked pragmatically rather than against RFC 5322.
  *
- * Returns the first problem, or null.
+ * Returns the first problem as an i18n key, or null.
  */
 function validate(username: string, email: string, password: string): string | null {
   if (username.length < 3 || username.length > 32) {
-    return 'Username must be between 3 and 32 characters.';
+    return 'auth.signUp.errorUsernameLength';
   }
   if (!/^[a-zA-Z0-9_.-]+$/.test(username)) {
-    return "Username may contain letters, numbers, '_', '.' and '-' only.";
+    return 'auth.signUp.errorUsernameChars';
   }
-  if (!email) return 'Enter your email address.';
+  if (!email) return 'auth.signUp.errorEmailMissing';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return 'Enter a valid email address.';
+    return 'auth.signUp.errorEmailInvalid';
   }
-  if (password.length < 8) return 'Password must be at least 8 characters.';
-  if (password.length > 72) return 'Password must be at most 72 characters.';
+  if (password.length < 8) return 'auth.signUp.errorPasswordShort';
+  if (password.length > 72) return 'auth.signUp.errorPasswordLong';
   if (!/[^A-Za-z\s]/.test(password)) {
-    return 'Password must contain at least one number or symbol.';
+    return 'auth.signUp.errorPasswordSymbol';
   }
   return null;
 }
@@ -69,7 +69,7 @@ export function SignUpView() {
     }
     const problem = validate(username.trim(), email.trim(), password);
     if (problem) {
-      setError(problem);
+      setError(t(problem));
       return;
     }
     setError(null);

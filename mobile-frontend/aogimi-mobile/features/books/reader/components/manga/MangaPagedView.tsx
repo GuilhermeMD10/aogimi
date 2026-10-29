@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import Gallery, { type GalleryRef } from 'react-native-awesome-gallery';
 import { extractMangaPage, type MangaSpineEntry, type MangaSpineHandle } from '@/features/books/lib/mangaPages';
+import { useT } from '@/lib/i18n/I18nContext';
 
 export type MangaPagedViewHandle = {
   scrollToSpine: (spineIndex: number, animated?: boolean) => void;
@@ -33,6 +34,7 @@ export const MangaPagedView = forwardRef<MangaPagedViewHandle, Props>(function M
   { handle, loading, error, shellBg, initialSpineIndex, onSpineChange, pageDir = 'ltr' },
   ref,
 ) {
+  const t = useT();
   const galleryRef = useRef<GalleryRef>(null);
 
   // For RTL we hand the gallery a reversed view of the spine. Swiping right
@@ -122,7 +124,7 @@ export const MangaPagedView = forwardRef<MangaPagedViewHandle, Props>(function M
     return (
       <View style={[styles.center, { backgroundColor: shellBg }]}>
         <ActivityIndicator color="#FFFFFF" />
-        <Text style={styles.statusText}>Preparing pages…</Text>
+        <Text style={styles.statusText}>{t('reader.manga.preparing')}</Text>
       </View>
     );
   }
@@ -130,7 +132,7 @@ export const MangaPagedView = forwardRef<MangaPagedViewHandle, Props>(function M
   if (handle.entries.length === 0) {
     return (
       <View style={[styles.center, { backgroundColor: shellBg }]}>
-        <Text style={styles.statusText}>No pages found</Text>
+        <Text style={styles.statusText}>{t('reader.manga.noPages')}</Text>
       </View>
     );
   }

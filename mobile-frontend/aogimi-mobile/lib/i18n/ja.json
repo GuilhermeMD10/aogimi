@@ -8,7 +8,12 @@
     "show": "表示",
     "hide": "隠す",
     "showPassword": "パスワードを表示",
-    "hidePassword": "パスワードを隠す"
+    "hidePassword": "パスワードを隠す",
+    "tryAgain": "もう一度お試しください。",
+    "justNow": "たった今",
+    "minutesAgo": "{n}分前",
+    "hoursAgo": "{n}時間前",
+    "daysAgo": "{n}日前"
   },
   "auth": {
     "welcome": {
@@ -24,7 +29,9 @@
       "submit": "サインイン",
       "noAccount": "アカウントをお持ちでないですか？",
       "signUp": "登録",
-      "errorInvalid": "ユーザー名またはパスワードが正しくありません"
+      "errorInvalid": "ユーザー名またはパスワードが正しくありません",
+      "errorRateLimited": "試行回数が多すぎます。数分後にもう一度お試しください。",
+      "errorServer": "サーバーで問題が発生しました。もう一度お試しください。"
     },
     "signUp": {
       "title": "アカウント作成",
@@ -40,28 +47,47 @@
       "errorMismatch": "パスワードが一致しません",
       "errorTaken": "そのユーザー名は使用されています",
       "closedTitle": "新規登録は停止中です",
-      "closedBody": "現在、新しいアカウントは作成できません。すでにアカウントをお持ちの方は下からサインインしてください。"
+      "closedBody": "現在、新しいアカウントは作成できません。すでにアカウントをお持ちの方は下からサインインしてください。",
+      "errorUsernameLength": "ユーザー名は3〜32文字で入力してください。",
+      "errorUsernameChars": "ユーザー名に使えるのは英数字と「_」「.」「-」だけです。",
+      "errorEmailMissing": "メールアドレスを入力してください。",
+      "errorEmailInvalid": "有効なメールアドレスを入力してください。",
+      "errorPasswordShort": "パスワードは8文字以上にしてください。",
+      "errorPasswordLong": "パスワードは72文字以内にしてください。",
+      "errorPasswordSymbol": "パスワードには数字か記号を1つ以上含めてください。"
     },
     "onboarding": {
       "syncing": "本を同期しています…",
-      "synced": "{books}冊の本・{decks}個のデッキを同期しました",
+      "synced": "{books}・{decks}を同期しました",
+      "bookCountOne": "{n}冊の本",
+      "bookCount": "{n}冊の本",
+      "deckCountOne": "{n}個のデッキ",
+      "deckCount": "{n}個のデッキ",
       "noRecords": "まだ同期するデータはありません。読書を始めてコレクションを作りましょう。",
       "errorOffline": "サーバーに接続できませんでした。あとで再試行してください。",
       "continue": "続ける",
       "reconcileTitle": "本をここに取り込む",
-      "reconcileBody": "アカウントには、この端末にファイルがない本が{count}冊あります。今すぐ各EPUBを探すか、後で取り込んでください。",
+      "reconcileBody": "アカウントには、この端末にファイルがない本が{count}冊あります。今すぐそれぞれの本のファイルを探すか、後で取り込んでください。",
+      "reconcileBodyOne": "アカウントには、この端末にファイルがない本が{count}冊あります。今すぐ本のファイルを探すか、後で取り込んでください。",
       "find": "探す",
       "found": "見つかりました",
-      "skipAll": "今はスキップ"
+      "skipAll": "今はスキップ",
+      "retry": "再試行"
     }
   },
   "home": {
     "brand": "Aogimi",
     "streak": "{count}日目",
     "cardsDueTitle": "復習カード {count}枚",
+    "cardsDueTitleOne": "復習カード {count}枚",
     "startReview": "復習を始める",
     "dueBadge": "{count} 枚",
     "searchLabel": "辞書を開く"
+  },
+  "notFound": {
+    "title": "ページが見つかりません",
+    "body": "このページは存在しません。",
+    "home": "ホームに戻る"
   },
   "reader": {
     "back": "ライブラリに戻る",
@@ -69,6 +95,19 @@
     "missingTitle": "この端末にファイルがありません",
     "missingBody": "この本は別の端末からアカウントに登録されています。読むにはファイルを取り込んでください。",
     "importFile": "ファイルを取り込む",
+    "pdfLoadFailed": "このPDFを開けませんでした。パスワードで保護されているか、破損している可能性があります。",
+    "epubOpenFailed": "この本を開けませんでした。ファイルが破損しているか、不完全な可能性があります。",
+    "loadError": {
+      "notFoundLocally": "この本はもうこの端末にありません。",
+      "offline": "オフラインです。一度オンラインでこの本を開くと、その後はオフラインでも読めるようになります。",
+      "gone": "この本はもうアカウントにありません。",
+      "failed": "現在この本を読み込めません。しばらくしてからもう一度お試しください。"
+    },
+    "manga": {
+      "preparing": "ページを準備しています…",
+      "noPages": "ページが見つかりません",
+      "prepareFailed": "この本のページを読み込めませんでした。ファイルが破損している可能性があります。"
+    },
     "dock": {
       "open": "リーダー操作",
       "toc": "目次",
@@ -124,7 +163,20 @@
     "kanjiInWord": "この語の漢字",
     "examples": "例文",
     "back": "戻る",
-    "backToResults": "結果に戻る"
+    "backToResults": "結果に戻る",
+    "common": "頻出",
+    "commonWord": "よく使われる語",
+    "infoMeaning": "意味",
+    "infoOn": "音",
+    "infoKun": "訓",
+    "strokes": "{n}画",
+    "strokesOne": "{n}画",
+    "grade": "学年 {n}",
+    "radical": "部首 {radical}",
+    "searchKanji": "「{kanji}」を検索",
+    "searchFailed": "検索できませんでした。もう一度お試しください。",
+    "loadFailed": "この項目を開けませんでした。もう一度お試しください。",
+    "openFailed": "辞書を開けませんでした。アプリを再起動してください。"
   },
   "decks": {
     "new": "新しいデッキ"
@@ -144,10 +196,12 @@
       "title": "セッション完了",
       "minutes": "{n} 分",
       "reviewed": "{n} 枚を復習",
+      "reviewedOne": "{n} 枚を復習",
       "correct": "正解",
       "correctMeta": "{pct}%・GOOD/EASY",
       "missed": "不正解",
       "missedMeta": "AGAIN・{n} 枚",
+      "missedMetaOne": "AGAIN・{n} 枚",
       "thisSession": "今回",
       "miss": "1 回ミス",
       "misses": "{n} 回ミス",
@@ -156,6 +210,7 @@
       "more": "他 {n} 件"
     },
     "nothingDue": "復習待ちはありません",
+    "loadFailed": "セッションを読み込めませんでした。もう一度お試しください。",
     "allDecks": "すべてのデッキ",
     "progress": "{done} / {total}・残り {left}",
     "revealCard": "答えを見る",
@@ -190,7 +245,10 @@
     "lookingUpSince": "{date} から仰ぎ見る",
     "statDaysStudied": "学習日数",
     "statMastered": "習得",
-    "statStars": "星"
+    "statStars": "星",
+    "chooseAvatar": "アバターを選択",
+    "kamon": "家紋",
+    "saveFailed": "変更を保存できませんでした"
   },
   "settings": {
     "title": "設定",
@@ -204,7 +262,12 @@
     "deleteAccount": "アカウントを削除",
     "deleteAccountConfirmTitle": "アカウントを削除しますか？",
     "deleteAccountConfirmBody": "この操作は取り消せません。デッキ、カード、学習履歴、読書の進捗がサーバーから消去され、この端末に保存されている本も削除されます。",
-    "deleteAccountFailed": "アカウントを削除できませんでした"
+    "deleteAccountFailed": "アカウントを削除できませんでした",
+    "languages": {
+      "en": "英語",
+      "ja": "日本語",
+      "pt": "ポルトガル語"
+    }
   },
   "help": {
     "intro": {
@@ -318,11 +381,101 @@
     "noneAvailable": "この端末に読める本がありません。",
     "empty": "本がまだありません",
     "moreActions": "{title} の操作",
+    "refreshFailed": "ライブラリを更新できませんでした。この端末に保存されている本を表示しています。",
+    "refreshOffline": "オフラインです。この端末に保存されている本を表示しています。",
+    "syncState": {
+      "synced": {
+        "title": "同期済み",
+        "body": "この本の進捗は端末間で同期されています。"
+      },
+      "unsynced": {
+        "title": "未同期",
+        "body": "この本の進捗はこの端末でしか見られません。同期すると、すべての端末で使えるようになります。"
+      },
+      "toImport": {
+        "title": "アカウントにあります",
+        "body": "この本はアカウントにありますが、この端末にはありません。本をタップしてファイルを取り込んでください。"
+      }
+    },
+    "syncResult": {
+      "upToDateTitle": "ライブラリは最新です",
+      "upToDateBody": "更新するものはありません。",
+      "syncedTitle": "同期しました",
+      "partialTitle": "一部を同期しました",
+      "failedTitle": "同期できませんでした",
+      "failedBody": "同期中に問題が発生しました。本はこの端末に残っています。しばらくしてからもう一度お試しください。",
+      "unreachableTitle": "サーバーに接続できませんでした",
+      "unreachableBody": "ライブラリをアカウントと照合できませんでした。この端末では何も変更されていません。",
+      "removedOne": "{n}冊を削除しました — 別の端末で削除された本です",
+      "removed": "{n}冊を削除しました — 別の端末で削除された本です",
+      "replacedOne": "{n}冊が別の端末で置き換えられました — ここで読むにはファイルをもう一度取り込んでください",
+      "replaced": "{n}冊が別の端末で置き換えられました — ここで読むにはファイルをもう一度取り込んでください",
+      "pushedOne": "{n}冊をアカウントに追加しました",
+      "pushed": "{n}冊をアカウントに追加しました",
+      "pushFailedOne": "{n}冊を追加できませんでした — もう一度お試しください",
+      "pushFailed": "{n}冊を追加できませんでした — もう一度お試しください",
+      "backfilledOne": "{n}冊がどの端末でも認識されるようになりました",
+      "backfilled": "{n}冊がどの端末でも認識されるようになりました",
+      "adoptedOne": "{n}冊がアカウントにある本と一致しました",
+      "adopted": "{n}冊がアカウントにある本と一致しました",
+      "positionsOne": "読書位置を{n}件同期しました",
+      "positions": "読書位置を{n}件同期しました",
+      "pendingOne": "{n}冊がまだ同期待ちです — もう一度お試しください",
+      "pending": "{n}冊がまだ同期待ちです — もう一度お試しください"
+    },
+    "import": {
+      "failedTitle": "取り込みに失敗しました",
+      "failedBody": "本を取り込めませんでした。もう一度お試しいただくか、別のファイルをお試しください。",
+      "alreadyTitle": "すでにライブラリにあります",
+      "alreadyOnDevice": "「{title}」はすでにこの端末にあります。",
+      "alreadyMatched": "「{title}」がこのファイルと一致しました。この端末で読めるようになりました。",
+      "unsupportedTitle": "対応していないファイルです",
+      "unsupportedBody": ".{ext}ファイルはここでは開けません。EPUBまたはPDFを取り込んでください。",
+      "noExtensionBody": "このファイルには拡張子がないため、種類を判別できません。EPUBまたはPDFを取り込んでください。",
+      "emptyTitle": "空のファイルです",
+      "emptyBody": "このファイルは中身が空です。まだダウンロード中の可能性があります。",
+      "tooLargeTitle": "ファイルが大きすぎます",
+      "tooLargeBody": "このファイルは{size}です。上限は{limit}です。",
+      "unreadableTitle": "ファイルを読み込めません",
+      "unreadableBody": "ファイルを開けませんでした。移動されたか、アプリに読み取りの権限がない可能性があります。",
+      "invalidTitle": "有効な{format}ではありません",
+      "invalidPdfBody": "ファイル名は.{ext}ですが、中身がPDFではありません。破損しているか、ダウンロードが完了していない可能性があります。",
+      "invalidEpubBody": "ファイル名は.{ext}ですが、中身がEPUBではありません。破損しているか、ダウンロードが完了していない可能性があります。"
+    },
+    "locate": {
+      "unverifiedTitle": "確認できませんでした",
+      "unverifiedBody": "ファイルを取り込む前にアカウントと照合する必要がありますが、現在サーバーに接続できません。何も取り込まれていません。オンラインのときにもう一度お試しください。",
+      "mismatchTitle": "一致しません",
+      "wrongTypeBody": "「{title}」は.{expected}ファイルですが、選ばれたのは.{picked}ファイルです。同じ形式のファイルを選んでください。",
+      "readFailedTitle": "ファイルを読み込めませんでした",
+      "readFailedBody": "そのファイルを読み込めませんでした。別のファイルをお試しください。",
+      "alreadyAsBody": "このファイルは「{title}」としてすでにライブラリにあります。",
+      "noMatchBody": "このファイルは「{title}」と一致しません。本は取り込まれていません。",
+      "saveFailedTitle": "ファイルを保存できませんでした",
+      "saveFailedBody": "ファイルを保存できませんでした。もう一度お試しください。",
+      "signedOutTitle": "取り込むにはサインインが必要です",
+      "signedOutBody": "この本はアカウントに登録されています。サインインすると、ファイルをアカウントと照合してこの端末に取り込めます。",
+      "goToProfile": "プロフィールへ"
+    },
+    "importScreen": {
+      "progress": "{pct}% 読了",
+      "body": "この本は別の端末からアカウントに登録されています。ここで{format}ファイルを取り込めば読み始められます。保存された進捗も引き継がれます。",
+      "importing": "取り込み中…",
+      "import": "{format}を取り込む"
+    },
     "actions": {
       "syncNow": "今すぐ同期",
       "rename": "名前を変更",
       "delete": "削除",
-      "titlePlaceholder": "本のタイトル"
+      "titlePlaceholder": "本のタイトル",
+      "renameFailed": "名前を変更できませんでした",
+      "renameFailedBody": "新しいタイトルを保存できませんでした。もう一度お試しください。",
+      "stillPendingTitle": "保留中です",
+      "stillPendingBody": "サーバーに接続できませんでした。本はこの端末に残っています。オンラインに戻ったらもう一度お試しください。",
+      "deleteConfirmTitle": "本を削除しますか？",
+      "deleteConfirmBody": "本と読書の進捗をすべてアカウントから削除し、この端末にあるコピーも削除します。",
+      "deleteFailed": "削除できませんでした",
+      "deleteFailedBody": "本を削除できませんでした。もう一度お試しください。"
     }
   },
   "card": {
@@ -356,6 +509,7 @@
     "back": "空全体に戻る",
     "backToDeck": "デッキに戻る",
     "starsDue": "星 {stars} · 復習 {due}",
+    "starsDueOne": "星 {stars} · 復習 {due}",
     "editDeck": "デッキを編集",
     "showStats": "統計を見る",
     "deleteDeck": "デッキを削除",
@@ -366,6 +520,7 @@
     "deleteCard": "カードを削除",
     "lookUp": "辞書",
     "reviews": "{count} 回復習",
+    "reviewsOne": "{count} 回復習",
     "dueNow": "復習期限",
     "rank": {
       "new": "新規",
@@ -377,13 +532,26 @@
       "title": "空を見るにはアカウントが必要です",
       "body": "保存したカードは星になり、サーバーが一度だけ発行する種によって配置されます。どの端末でも同じ空が見られます。サインインして自分の空を見ましょう。",
       "cta": "プロフィールへ",
-      "saved": "この端末に {count} 個のデッキが保存されています。"
+      "saved": "この端末に {count} 個のデッキが保存されています。",
+      "savedOne": "この端末に {count} 個のデッキが保存されています。",
+      "addCard": "カードは空の星になります。空にはアカウントが必要です。サインインしてこのカードを保存してください。"
     },
     "empty": "空はまだ空っぽです。リーダーで言葉を保存すると、ひとつひとつが星になります。",
-    "loadError": "空を読み込めませんでした — {error}",
+    "loadError": "サーバーに接続できませんでした。この端末に保存された空を表示しています。",
+    "saveFailed": "保存できませんでした。もう一度お試しください。",
+    "deckGone": "このデッキはもう存在しません。削除された可能性があります。",
+    "noDeckSelected": "このカードを入れるデッキを選んでください。",
+    "syncResult": {
+      "offlineTitle": "オフライン",
+      "offlineBody": "変更はこの端末に保存されています。インターネットに接続すると同期できます。",
+      "failedTitle": "同期が完了しませんでした",
+      "pendingOne": "{n} 件の変更がまだこの端末に残っています。後でもう一度お試しください。",
+      "pending": "{n} 件の変更がまだこの端末に残っています。後でもう一度お試しください。"
+    },
     "confirm": {
       "deleteDeckTitle": "「{name}」を削除しますか？",
       "deleteDeckBody": "デッキと {count} 枚のカードを削除します。星座は空から消えます。元に戻せません。",
+      "deleteDeckBodyOne": "デッキと {count} 枚のカードを削除します。星座は空から消えます。元に戻せません。",
       "deleteCardTitle": "「{front}」を削除しますか？",
       "deleteCardBody": "カードとその星を削除します。元に戻せません。"
     },

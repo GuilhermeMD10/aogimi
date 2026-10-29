@@ -35,6 +35,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { extractMangaPage, type MangaSpineEntry, type MangaSpineHandle } from '@/features/books/lib/mangaPages';
+import { useT } from '@/lib/i18n/I18nContext';
 
 export type MangaScrollViewHandle = {
   scrollToSpine: (spineIndex: number, animated?: boolean) => void;
@@ -63,6 +64,7 @@ export const MangaScrollView = forwardRef<MangaScrollViewHandle, Props>(function
   { handle, loading, error, shellBg, initialSpineIndex, onSpineChange },
   ref,
 ) {
+  const t = useT();
   const listRef = useRef<FlatList<MangaSpineEntry>>(null);
   const screenWidth = Dimensions.get('window').width - SIDE_PAD * 2;
   const estimatedItemHeight = Math.round(screenWidth * PAGE_ASPECT + GAP);
@@ -284,7 +286,7 @@ export const MangaScrollView = forwardRef<MangaScrollViewHandle, Props>(function
     return (
       <View style={[styles.center, { backgroundColor: shellBg }]}>
         <ActivityIndicator color="#FFFFFF" />
-        <Text style={styles.statusText}>Preparing pages…</Text>
+        <Text style={styles.statusText}>{t('reader.manga.preparing')}</Text>
       </View>
     );
   }
@@ -292,7 +294,7 @@ export const MangaScrollView = forwardRef<MangaScrollViewHandle, Props>(function
   if (handle.entries.length === 0) {
     return (
       <View style={[styles.center, { backgroundColor: shellBg }]}>
-        <Text style={styles.statusText}>No pages found</Text>
+        <Text style={styles.statusText}>{t('reader.manga.noPages')}</Text>
       </View>
     );
   }

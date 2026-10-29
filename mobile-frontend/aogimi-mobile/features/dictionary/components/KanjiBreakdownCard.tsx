@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Card, Touchable, JlptChip } from '@/shared/components';
 import { usePalette, spacing, type, type Palette } from '@/theme';
+import { useT } from '@/lib/i18n/I18nContext';
 import type { KanjiInfo } from '../types';
 
 /**
@@ -30,11 +31,14 @@ export function KanjiBreakdownCard({
 }) {
   const p = usePalette();
   const styles = useStyles(p);
+  const t = useT();
 
   const meta = [
-    kanji.stroke_count != null ? `${kanji.stroke_count} strokes` : null,
-    kanji.grade != null ? `grade ${kanji.grade}` : null,
-    kanji.radical != null ? `radical ${kanji.radical}` : null,
+    kanji.stroke_count != null
+      ? t(kanji.stroke_count === 1 ? 'dict.strokesOne' : 'dict.strokes', { n: kanji.stroke_count })
+      : null,
+    kanji.grade != null ? t('dict.grade', { n: kanji.grade }) : null,
+    kanji.radical != null ? t('dict.radical', { radical: kanji.radical }) : null,
   ].filter((v): v is string => v !== null);
 
   const card = (
@@ -46,10 +50,10 @@ export function KanjiBreakdownCard({
 
       <View style={styles.rows}>
         {kanji.meanings.length > 0 && (
-          <InfoRow label="meaning" value={kanji.meanings.slice(0, 4).join(', ')} />
+          <InfoRow label={t('dict.infoMeaning')} value={kanji.meanings.slice(0, 4).join(', ')} />
         )}
-        <InfoRow label="on" value={kanji.on_readings.join('、') || '—'} jp />
-        <InfoRow label="kun" value={kanji.kun_readings.join('、') || '—'} jp />
+        <InfoRow label={t('dict.infoOn')} value={kanji.on_readings.join('、') || '—'} jp />
+        <InfoRow label={t('dict.infoKun')} value={kanji.kun_readings.join('、') || '—'} jp />
         {meta.length > 0 && <Text style={styles.meta}>{meta.join('  ·  ')}</Text>}
       </View>
     </Card>
@@ -62,7 +66,7 @@ export function KanjiBreakdownCard({
     <Touchable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Search ${kanji.literal}`}
+      accessibilityLabel={t('dict.searchKanji', { kanji: kanji.literal })}
       minTarget={false}
     >
       {card}

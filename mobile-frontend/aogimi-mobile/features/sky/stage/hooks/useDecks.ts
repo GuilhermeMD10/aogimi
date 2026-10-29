@@ -42,7 +42,9 @@ export function useDecks() {
   const [decks, setDecks] = useState<DeckWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  /** `refresh` couldn't re-read the local store. A failed hydrate is not this —
+   *  it keeps local by design (above). */
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const readFromLocal = useCallback(async () => {
     const allDecks = await getAllDecks();
@@ -111,16 +113,17 @@ export function useDecks() {
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    setError(null);
+    setLoadFailed(false);
     try {
       await hydrate();
       await readFromLocal();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to refresh');
+      console.warn('[decks] local read failed', e);
+      setLoadFailed(true);
     } finally {
       setRefreshing(false);
     }
   }, [hydrate, readFromLocal]);
 
-  return { decks, loading, refreshing, error, refresh, reloadLocal: readFromLocal };
+  return { decks, loading, refreshing, loadFailed, refresh, reloadLocal: readFromLocal };
 }

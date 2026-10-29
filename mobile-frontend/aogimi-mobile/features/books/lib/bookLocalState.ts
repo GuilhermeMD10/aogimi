@@ -78,6 +78,19 @@ export async function markPending(
 }
 
 /**
+ * Rename a book that only exists in the pending map. The snapshot's title
+ * is what the tile shows and what the eventual POST carries, so there is
+ * nothing else to update. No-op for a book that isn't pending.
+ */
+export async function setPendingTitle(filename: string, title: string): Promise<void> {
+  const map = await readMap();
+  const prev = map[filename];
+  if (!prev?.pendingPayload) return;
+  map[filename] = { ...prev, pendingPayload: { ...prev.pendingPayload, title } };
+  await writeMap(map);
+}
+
+/**
  * Flip a book to `synced` and drop the metadata snapshot — its job
  * (carrying enough data to retry the POST) is over now that the backend
  * has the row.

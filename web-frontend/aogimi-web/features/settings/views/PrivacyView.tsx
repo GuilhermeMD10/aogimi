@@ -2,10 +2,10 @@ import type { ReactNode } from 'react';
 import { Eyebrow, PaperCard } from '@/shared/components';
 import { SettingsShell } from '../components/SettingsShell';
 
-// TODO(owner): replace with the real address before the store submission —
-// there is no contact address anywhere in the repo yet. `.invalid` can never
-// deliver, so a forgotten placeholder fails loudly instead of quietly.
-const PRIVACY_CONTACT_EMAIL = 'TODO-privacy-contact@example.invalid';
+// TODO(owner): support@aogimi.com is not live yet — set up forwarding on the
+// domain and send a test mail before the store submission. It is also the
+// App Store Connect support contact.
+const PRIVACY_CONTACT_EMAIL = 'support@aogimi.com';
 
 const EFFECTIVE_DATE = '28 October 2026';
 

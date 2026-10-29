@@ -128,7 +128,7 @@ function CardsList({ deckId }: { deckId: string }) {
         japanese
         subtitle={
           deck
-            ? t('sky.starsDue', {
+            ? t(cards.length === 1 ? 'sky.starsDueOne' : 'sky.starsDue', {
                 stars: cards.length.toLocaleString(),
                 due: dueLoading ? '—' : countFor(deckId).toLocaleString(),
               })

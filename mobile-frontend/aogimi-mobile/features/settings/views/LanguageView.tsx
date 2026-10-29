@@ -28,6 +28,9 @@ export function LanguageView() {
       <ScrollView contentContainerStyle={styles.list}>
         {LOCALES.map((entry, i) => {
           const active = entry.code === locale;
+          // The language's name in the active language; hidden where it
+          // would only repeat the native name (that language's own row).
+          const localName = t(`settings.languages.${entry.code}`);
           return (
             <Touchable
               minTarget={false}
@@ -44,8 +47,8 @@ export function LanguageView() {
             >
               <View style={styles.rowText}>
                 <Text style={[styles.rowLabel, { color: c.fg }]}>{entry.nativeLabel}</Text>
-                {entry.label !== entry.nativeLabel && (
-                  <Text style={[styles.rowSub, { color: c.fgMuted }]}>{entry.label}</Text>
+                {localName !== entry.nativeLabel && (
+                  <Text style={[styles.rowSub, { color: c.fgMuted }]}>{localName}</Text>
                 )}
               </View>
               {active && <Feather name="check" size={18} color={c.fg} />}

@@ -12,6 +12,7 @@ import { useColors, fontFamily, fontSize, spacing } from '@/theme';
 import { useT } from '@/lib/i18n/I18nContext';
 import { useAuth } from '@/features/auth/providers/AuthContext';
 import { REGISTRATION_OPEN } from '../lib/authApi';
+import { errorStatus } from '../lib/requestError';
 
 export function SignInView() {
   const c = useColors();
@@ -34,10 +35,7 @@ export function SignInView() {
       await signIn(username.trim(), password);
       router.replace('/(auth)/onboarding');
     } catch (err) {
-      // `request` stamps `status` on every answer the server gave; without
-      // one (offline, the 8s deadline) the credentials were never checked.
-      const answered = typeof (err as { status?: unknown } | null)?.status === 'number';
-      setError(t(answered ? 'auth.signIn.errorInvalid' : 'auth.onboarding.errorOffline'));
+      setError(t(signInErrorKey(errorStatus(err))));
       setLoading(false);
     }
   }
@@ -63,7 +61,7 @@ export function SignInView() {
             label={t('auth.signIn.username')}
             value={username}
             onChangeText={setUsername}
-            placeholder="@yourname"
+            placeholder={t('auth.signUp.usernamePlaceholder')}
             autoComplete="username"
             returnKeyType="next"
           />
@@ -104,6 +102,19 @@ export function SignInView() {
       </KeyboardAvoidingView>
     </Screen>
   );
+}
+
+/**
+ * Only a 401 (wrong credentials) or a 400 (the login schema refused the body)
+ * says the credentials are wrong. 429 is the login limiter; anything else the
+ * server answered is its own fault; no status at all means the credentials
+ * were never checked.
+ */
+function signInErrorKey(status: number | undefined): string {
+  if (status === undefined) return 'auth.onboarding.errorOffline';
+  if (status === 400 || status === 401) return 'auth.signIn.errorInvalid';
+  if (status === 429) return 'auth.signIn.errorRateLimited';
+  return 'auth.signIn.errorServer';
 }
 
 const styles = StyleSheet.create({

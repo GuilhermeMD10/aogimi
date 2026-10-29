@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, AppState, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, AppState, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import { useT } from '@/lib/i18n/I18nContext';
 import {
   sendProgressBeacon,
   locateBookFile,
+  alertLocateOutcome,
   setLocalProgress,
   clearSessionPending,
   persistLocalProgress,
@@ -91,7 +92,9 @@ export function ReaderScreen({ bookId }: Props) {
   // flips and the book is marked session-pending until the next manual
   // sync. The library pill reflects this via `sessionPendingIds`.
   const { book, loading, error: fetchError, offlineMode } = useBookRecord(bookId);
-  // Separate state for runtime EPUB/render errors surfaced by the WebView.
+  // Set when the WebView reports the book can't be opened at all. Never
+  // cleared: the reader is replaced by the error screen, whose only way out
+  // unmounts it. Both are translation keys, resolved where they're drawn.
   const [epubError, setEpubError] = useState<string | null>(null);
   const error = fetchError ?? epubError;
   const { hasFile, markAvailable: setHasFile } = useBookFile(book ?? null);
@@ -208,7 +211,10 @@ export function ReaderScreen({ bookId }: Props) {
   // and spine-prepare effect; the page derives bookType + totalPages + ready
   // from the returned state.
   const manga = useMangaSpine(book ?? null, hasFile);
-  const { handle: mangaHandle, error: mangaError } = manga;
+  const mangaHandle = manga.handle;
+  // The one line the manga views draw for a prepare that failed; the cause
+  // is in the log.
+  const mangaError = manga.failed ? t('reader.manga.prepareFailed') : null;
   const isManga = bookType === 'manga';
 
   // Each renderer has its own idea of "the book is ready", and the frame has
@@ -337,7 +343,8 @@ export function ReaderScreen({ bookId }: Props) {
   }, []);
 
   const handleEpubError = useCallback((message: string) => {
-    setEpubError(message);
+    console.warn('[reader] EPUB failed to open:', message);
+    setEpubError('reader.epubOpenFailed');
   }, []);
 
   // ── Custom menu (dict / card / copy) ────────────────────
@@ -573,18 +580,15 @@ export function ReaderScreen({ bookId }: Props) {
   // reader, onboarding, and the dedicated import screen all behave
   // identically (and all carry the same anti-clobber guards).
   const handleImportMissingFile = useCallback(async () => {
-    if (!book || !user) return;
+    if (!book) return;
     const outcome = await locateBookFile(
       { id: book.id, filename: book.filename, title: book.title },
-      user.id,
+      user?.id ?? null,
+      t,
     );
-    if (outcome.status === 'attached') {
-      setHasFile(true);
-    } else if (outcome.status === 'rejected') {
-      Alert.alert(outcome.title, outcome.message);
-    }
-    // 'canceled' → user backed out of the picker; do nothing.
-  }, [book, user, setHasFile]);
+    if (outcome.status === 'attached') setHasFile(true);
+    else alertLocateOutcome(outcome, t, () => router.push('/profile'));
+  }, [book, user, setHasFile, t, router]);
 
   // ── Render guards ───────────────────────────────────────────────────
   // `hydrated` is part of the guard because `startCfi` is derived from the
@@ -607,7 +611,7 @@ export function ReaderScreen({ bookId }: Props) {
           <IconButton glyph="back" onPress={() => router.back()} accessibilityLabel={t('reader.back')} />
         </View>
         <View style={styles.errorWrap}>
-          <Text style={styles.errorTitle}>{error ?? t('reader.notFound')}</Text>
+          <Text style={styles.errorTitle}>{t(error ?? 'reader.notFound')}</Text>
         </View>
       </SafeAreaView>
     );

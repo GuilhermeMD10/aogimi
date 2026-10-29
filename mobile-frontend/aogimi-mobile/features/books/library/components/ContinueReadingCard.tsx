@@ -113,7 +113,7 @@ export function ContinueReadingCard({
           {hasFile ? (
             <>
               <View style={s.progressRow}>
-                <Text style={s.when}>{formatRelativeTime(book.last_read_at)}</Text>
+                <Text style={s.when}>{formatRelativeTime(book.last_read_at, t)}</Text>
                 <Text style={s.pct}>{`${Math.round(book.progress)}%`}</Text>
               </View>
               {/* 6pt rather than the default 4: DESIGN.md thickens the track

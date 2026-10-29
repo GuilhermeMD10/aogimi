@@ -18,6 +18,7 @@ import { reconcileBooks, syncPending, type ReconcileSummary } from './reconcileB
 import { pushAllReaderState, type ReaderStatePushSummary } from './readerStatePush';
 import { clearSessionPending } from './syncedBookCache';
 import type { SyncSummary } from './bookPush';
+import type { Translate } from '@/lib/i18n/I18nContext';
 
 export type FullSyncSummary = {
   reconcile: ReconcileSummary;
@@ -69,45 +70,40 @@ export function fullSyncActivityCount(summary: FullSyncSummary): number {
 }
 
 /**
+ * What the run amounted to, for the alert's title. `unreachable` wins over
+ * everything: when the backend list couldn't be fetched nothing was checked,
+ * so a run that touched nothing is not "in sync" — it's unknown.
+ */
+export type FullSyncOutcome = 'unreachable' | 'upToDate' | 'synced' | 'partial' | 'failed';
+
+export function fullSyncOutcome(summary: FullSyncSummary): FullSyncOutcome {
+  if (summary.reconcile.skipped) return 'unreachable';
+  const failed = summary.push.failed.length + summary.readerState.bookIdsDirty.length;
+  const done = fullSyncActivityCount(summary) - failed;
+  if (failed === 0) return done === 0 ? 'upToDate' : 'synced';
+  return done === 0 ? 'failed' : 'partial';
+}
+
+/**
  * Build the per-event lines the Sync-now UI joins into an Alert body.
  * The actual Alert lives in `BooksScreen` so this helper stays pure
- * (testable, reusable from settings / shortcut surfaces).
+ * (testable, reusable from settings / shortcut surfaces); the caller hands
+ * in its `t()` for the wording. Every line has a `<key>One` singular twin.
  */
-export function formatFullSyncDetails(summary: FullSyncSummary): string[] {
+export function formatFullSyncDetails(summary: FullSyncSummary, t: Translate): string[] {
   const { reconcile, push, readerState } = summary;
   const parts: string[] = [];
+  const line = (key: string, n: number) => {
+    if (n > 0) parts.push(t(`library.syncResult.${n === 1 ? `${key}One` : key}`, { n }));
+  };
 
-  if (reconcile.removed.length > 0) {
-    parts.push(`${reconcile.removed.length} removed (deleted on another device)`);
-  }
-  if (reconcile.staleReplaced.length > 0) {
-    parts.push(
-      `${reconcile.staleReplaced.length} replaced (different bytes on backend — re-locate to view)`,
-    );
-  }
-  if (push.pushed.length > 0) {
-    parts.push(`${push.pushed.length} pushed to cloud`);
-  }
-  if (push.failed.length > 0) {
-    parts.push(`${push.failed.length} couldn't push — try again`);
-  }
-  if (reconcile.syncedUp.length > 0) {
-    parts.push(`${reconcile.syncedUp.length} backfilled with local fingerprint`);
-  }
-  if (reconcile.adopted.length > 0) {
-    parts.push(
-      `${reconcile.adopted.length} matched to a book already on your account`,
-    );
-  }
-  if (readerState.cfisPushed > 0) {
-    parts.push(
-      `${readerState.cfisPushed} reading position${readerState.cfisPushed === 1 ? '' : 's'} synced`,
-    );
-  }
-  if (readerState.bookIdsDirty.length > 0) {
-    parts.push(
-      `${readerState.bookIdsDirty.length} book${readerState.bookIdsDirty.length === 1 ? '' : 's'} still pending — try again`,
-    );
-  }
+  line('removed', reconcile.removed.length);
+  line('replaced', reconcile.staleReplaced.length);
+  line('pushed', push.pushed.length);
+  line('pushFailed', push.failed.length);
+  line('backfilled', reconcile.syncedUp.length);
+  line('adopted', reconcile.adopted.length);
+  line('positions', readerState.cfisPushed);
+  line('pending', readerState.bookIdsDirty.length);
   return parts;
 }

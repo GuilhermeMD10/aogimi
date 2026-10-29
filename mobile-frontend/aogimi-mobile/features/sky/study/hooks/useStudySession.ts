@@ -41,7 +41,9 @@ export type StudySide = 'front' | 'back';
 
 export type StudyState = {
   loading: boolean;
-  error: string | null;
+  /** An i18n key for why the session couldn't be built, or null. A key rather
+   *  than a message: the raw error is for the console, not the user. */
+  errorKey: string | null;
   queue: CardRecord[];
   current: CardRecord | null;
   side: StudySide;
@@ -126,7 +128,7 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
   const [reviewed, setReviewed] = useState(0);
   const [side, setSide] = useState<StudySide>('front');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   // Stamped when the cards arrive rather than when the hook mounts: the fetch
   // is a round trip the user spent looking at a spinner, not at a card, and
@@ -157,7 +159,7 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
 
     (async () => {
       setLoading(true);
-      setError(null);
+      setErrorKey(null);
       lastReviewRef.current = null;
       setCanUndo(false);
 
@@ -174,8 +176,8 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
       } catch (err: unknown) {
         if (cancelled) return;
         if ((err as { name?: string })?.name === 'AbortError') return;
-        const message = err instanceof Error ? err.message : 'Failed to load session';
-        setError(message);
+        console.warn('[study] session failed to load', err);
+        setErrorKey('study.loadFailed');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -350,7 +352,7 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
   }, []);
 
   const current = queue[0] ?? null;
-  const finished = !loading && !error && totalAtStart > 0 && queue.length === 0;
+  const finished = !loading && !errorKey && totalAtStart > 0 && queue.length === 0;
 
   const summary: SessionSummary = useMemo(() => {
     const entries = Object.values(perCard);
@@ -364,7 +366,7 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
   return useMemo(
     () => ({
       loading,
-      error,
+      errorKey,
       queue,
       current,
       side,
@@ -381,6 +383,6 @@ export function useStudySession(spec: StudySessionConfig): StudyState {
       restart,
       finishEarly,
     }),
-    [loading, error, queue, current, side, reviewed, totalAtStart, startedAt, finished, canUndo, summary, reveal, flip, submit, undo, restart, finishEarly],
+    [loading, errorKey, queue, current, side, reviewed, totalAtStart, startedAt, finished, canUndo, summary, reveal, flip, submit, undo, restart, finishEarly],
   );
 }

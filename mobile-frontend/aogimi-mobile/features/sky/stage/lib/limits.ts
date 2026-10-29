@@ -18,6 +18,13 @@
 /** Max decks one user can own. Backend: `QUOTAS.DECKS_PER_USER`. */
 export const MAX_DECKS = 50;
 
+/** Whether someone holding `deckCount` decks is out of room for another. The
+ *  one statement of where the cap's edge is — `createDeckLocal` enforces it,
+ *  and every control that offers a new deck asks it to go disabled first. */
+export function atDeckLimit(deckCount: number): boolean {
+  return deckCount >= MAX_DECKS;
+}
+
 /** Max cards in one deck. Backend: `QUOTAS.CARDS_PER_DECK`. */
 export const MAX_CARDS_PER_DECK = 5000;
 

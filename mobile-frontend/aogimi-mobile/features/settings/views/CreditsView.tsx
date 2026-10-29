@@ -3,6 +3,7 @@ import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Touchable, Screen, BackBar } from '@/shared/components';
 import Feather from '@expo/vector-icons/Feather';
 import { useColors, fontFamily, fontSize, spacing } from '@/theme';
+import { useT } from '@/lib/i18n/I18nContext';
 import { CREDITS, type CreditEntry, type CreditSection } from '@/features/settings/lib/credits';
 
 // Credits page — third-party data sources, fonts, and libraries used by
@@ -11,9 +12,10 @@ import { CREDITS, type CreditEntry, type CreditSection } from '@/features/settin
 
 export function CreditsView() {
   const c = useColors();
+  const t = useT();
   return (
     <Screen padded>
-      <BackBar title="Credits" />
+      <BackBar title={t('settings.credits')} />
 
       <ScrollView contentContainerStyle={styles.body}>
         {CREDITS.map((section) => (
