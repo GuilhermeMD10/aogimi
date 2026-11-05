@@ -8,7 +8,8 @@
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.aogimi.mobile",
       "icon": "./assets/icon.png",
       "infoPlist": {
