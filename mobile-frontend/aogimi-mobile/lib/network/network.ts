@@ -74,7 +74,7 @@ export function isOnlineNow(): boolean {
 export function subscribeOnlineTransition(cb: () => void): () => void {
   transitionSubscribers.add(cb);
   return () => { transitionSubscribers.delete(cb); };
-}
+} 
 
 // React-side surface ────────────────────────────────────────────────
 
